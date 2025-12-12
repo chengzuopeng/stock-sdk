@@ -38,7 +38,7 @@
     "行情"
   ],
   "author": "chengzuopeng",
-  "license": "MIT",
+  "license": "ISC",
   "description": "Tencent qt.gtimg.cn stock quote SDK - supports both browser and Node.js",
   "homepage": "https://github.com/chengzuopeng/stock-sdk#readme",
   "repository": {

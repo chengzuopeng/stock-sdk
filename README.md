@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
-[![GitHub](https://img.shields.io/github/license/chengzuopeng/stock-sdk)](https://github.com/chengzuopeng/stock-sdk)
+[![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
 
 基于腾讯财经 `qt.gtimg.cn` 非官方接口封装的 TypeScript SDK，支持 A 股、港股、美股、公募基金实时行情查询。
 
@@ -440,4 +440,4 @@ yarn build
 
 ## 许可证
 
-MIT
+ISC
