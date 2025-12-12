@@ -1,0 +1,64 @@
+{
+  "name": "stock-sdk",
+  "version": "1.1.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "stock",
+    "tencent",
+    "qt.gtimg.cn",
+    "sdk",
+    "browser",
+    "node",
+    "A股",
+    "港股",
+    "美股",
+    "行情"
+  ],
+  "author": "chengzuopeng",
+  "license": "MIT",
+  "description": "Tencent qt.gtimg.cn stock quote SDK - supports both browser and Node.js",
+  "homepage": "https://github.com/chengzuopeng/stock-sdk#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chengzuopeng/stock-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chengzuopeng/stock-sdk/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "packageManager": "yarn@4.6.0+sha512.5383cc12567a95f1d668fbe762dfe0075c595b4bfff433be478dbbe24e05251a8e8c3eb992a986667c1d53b6c3a9c85b8398c35a960587fbd9fa3a0915406728"
+}
