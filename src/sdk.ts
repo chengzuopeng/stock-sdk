@@ -17,13 +17,13 @@ import {
 } from './utils';
 import { codeList } from './config';
 
-const BASE_URL = 'http://qt.gtimg.cn';
+const BASE_URL = 'https://qt.gtimg.cn';
 
 /**
  * 获取全部 A 股行情的配置选项
  */
 export interface GetAllAShareQuotesOptions {
-  /** 单次请求的股票数量，默认 700 */
+  /** 单次请求的股票数量，默认 500 */
   batchSize?: number;
   /** 最大并发请求数，默认 7 */
   concurrency?: number;
@@ -69,8 +69,13 @@ export class StockSDK {
    * @param codes 如 ['sz000858', 'sh600000']
    */
   async getFullQuotes(codes: string[]): Promise<FullQuote[]> {
+    if (!codes || codes.length === 0) {
+      return [];
+    }
     const data = await this.request(codes.join(','));
-    return data.map((d) => this.parseFullQuote(d.fields));
+    return data
+      .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+      .map((d) => this.parseFullQuote(d.fields));
   }
 
   private parseFullQuote(f: string[]): FullQuote {
@@ -127,9 +132,14 @@ export class StockSDK {
    * @param codes 如 ['sz000858', 'sh000001']（自动添加 s_ 前缀）
    */
   async getSimpleQuotes(codes: string[]): Promise<SimpleQuote[]> {
+    if (!codes || codes.length === 0) {
+      return [];
+    }
     const prefixedCodes = codes.map((code) => `s_${code}`);
     const data = await this.request(prefixedCodes.join(','));
-    return data.map((d) => this.parseSimpleQuote(d.fields));
+    return data
+      .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+      .map((d) => this.parseSimpleQuote(d.fields));
   }
 
   private parseSimpleQuote(f: string[]): SimpleQuote {
@@ -154,8 +164,13 @@ export class StockSDK {
    * @param codes 如 ['ff_sz000858']
    */
   async getFundFlow(codes: string[]): Promise<FundFlow[]> {
+    if (!codes || codes.length === 0) {
+      return [];
+    }
     const data = await this.request(codes.join(','));
-    return data.map((d) => this.parseFundFlow(d.fields));
+    return data
+      .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+      .map((d) => this.parseFundFlow(d.fields));
   }
 
   private parseFundFlow(f: string[]): FundFlow {
@@ -182,8 +197,13 @@ export class StockSDK {
    * @param codes 如 ['s_pksz000858']
    */
   async getPanelLargeOrder(codes: string[]): Promise<PanelLargeOrder[]> {
+    if (!codes || codes.length === 0) {
+      return [];
+    }
     const data = await this.request(codes.join(','));
-    return data.map((d) => this.parsePanelLargeOrder(d.fields));
+    return data
+      .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+      .map((d) => this.parsePanelLargeOrder(d.fields));
   }
 
   private parsePanelLargeOrder(f: string[]): PanelLargeOrder {
@@ -202,8 +222,13 @@ export class StockSDK {
    * @param codes 如 ['r_hk09988']
    */
   async getHKQuotes(codes: string[]): Promise<HKQuote[]> {
+    if (!codes || codes.length === 0) {
+      return [];
+    }
     const data = await this.request(codes.join(','));
-    return data.map((d) => this.parseHKQuote(d.fields));
+    return data
+      .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+      .map((d) => this.parseHKQuote(d.fields));
   }
 
   private parseHKQuote(f: string[]): HKQuote {
@@ -235,8 +260,13 @@ export class StockSDK {
    * @param codes 如 ['s_usBABA']
    */
   async getUSQuotes(codes: string[]): Promise<USQuote[]> {
+    if (!codes || codes.length === 0) {
+      return [];
+    }
     const data = await this.request(codes.join(','));
-    return data.map((d) => this.parseUSQuote(d.fields));
+    return data
+      .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+      .map((d) => this.parseUSQuote(d.fields));
   }
 
   private parseUSQuote(f: string[]): USQuote {
@@ -260,8 +290,13 @@ export class StockSDK {
    * @param codes 如 ['jj000001']
    */
   async getFundQuotes(codes: string[]): Promise<FundQuote[]> {
+    if (!codes || codes.length === 0) {
+      return [];
+    }
     const data = await this.request(codes.join(','));
-    return data.map((d) => this.parseFundQuote(d.fields));
+    return data
+      .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+      .map((d) => this.parseFundQuote(d.fields));
   }
 
   private parseFundQuote(f: string[]): FundQuote {
@@ -289,13 +324,13 @@ export class StockSDK {
   /**
    * 获取全部 A 股实时行情（使用内置股票代码列表）
    * @param options 配置选项
-   * @param options.batchSize 单次请求的股票数量，默认 700
+   * @param options.batchSize 单次请求的股票数量，默认 500
    * @param options.concurrency 最大并发请求数，默认 7
    * @param options.onProgress 进度回调函数
    * @returns 全部 A 股的实时行情数据
    */
   async getAllAShareQuotes(options: GetAllAShareQuotesOptions = {}): Promise<FullQuote[]> {
-    const { batchSize = 700, concurrency = 7, onProgress } = options;
+    const { batchSize = 500, concurrency = 7, onProgress } = options;
 
     // 将股票代码分批
     const chunks = chunkArray(codeList, batchSize);
@@ -328,7 +363,7 @@ export class StockSDK {
     codes: string[],
     options: GetAllAShareQuotesOptions = {}
   ): Promise<FullQuote[]> {
-    const { batchSize = 700, concurrency = 7, onProgress } = options;
+    const { batchSize = 500, concurrency = 7, onProgress } = options;
 
     const chunks = chunkArray(codes, batchSize);
     const totalChunks = chunks.length;

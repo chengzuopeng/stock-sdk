@@ -117,10 +117,12 @@ console.log(quotes[0].price); // 111.70
 
 返回的每只股票数据格式与 `getFullQuotes` 相同。
 
+> ⚠️ **提示**：如果请求过程中遇到超时或报错，请尝试将 `batchSize` 设置得更小，例如 `100`。
+
 **参数**
 
 - `options` — 可选配置对象
-  - `batchSize` — 单次请求的股票数量，默认 `700`
+  - `batchSize` — 单次请求的股票数量，默认 `500`
   - `concurrency` — 最大并发请求数，默认 `7`
   - `onProgress` — 进度回调函数 `(completed: number, total: number) => void`
 
@@ -133,7 +135,7 @@ console.log(`共获取 ${allQuotes.length} 只股票行情`);
 
 // 自定义配置
 const allQuotes = await sdk.getAllAShareQuotes({
-  batchSize: 500,      // 每次请求 500 只
+  batchSize: 300,      // 每次请求 300 只
   concurrency: 3,      // 最多 3 个并发
   onProgress: (completed, total) => {
     console.log(`进度: ${completed}/${total}`);

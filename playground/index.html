@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock SDK Playground</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --success: #3fb950;
+      --error: #f85149;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1::before {
+      content: '📈';
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    input, select {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--border);
+    }
+
+    .result {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 500px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .result.error {
+      border-color: var(--error);
+      color: var(--error);
+    }
+
+    .result.success {
+      border-color: var(--success);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status.loading {
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--accent);
+    }
+
+    .status.success {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--success);
+    }
+
+    .status.error {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--error);
+    }
+
+    .methods {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .method-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-align: left;
+      padding: 12px 14px;
+      font-size: 13px;
+    }
+
+    .method-btn:hover {
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .method-btn.active {
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.15);
+    }
+
+    .info {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .info-item {
+      font-size: 13px;
+    }
+
+    .info-label {
+      color: var(--text-muted);
+    }
+
+    .info-value {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Stock SDK Playground</h1>
+    <p class="subtitle">本地调试工具 - 直接测试 SDK 各种方法</p>
+
+    <div class="card">
+      <div class="card-title">选择 API 方法</div>
+      <div class="methods">
+        <button class="method-btn active" data-method="getFullQuotes" data-codes="sz000858,sh600519">
+          getFullQuotes
+        </button>
+        <button class="method-btn" data-method="getAllAShareQuotes" data-codes="" data-no-input="true">
+          getAllAShareQuotes
+        </button>
+        <button class="method-btn" data-method="getSimpleQuotes" data-codes="sz000858,sh000001">
+          getSimpleQuotes
+        </button>
+        <button class="method-btn" data-method="getFundFlow" data-codes="ff_sz000858">
+          getFundFlow
+        </button>
+        <button class="method-btn" data-method="getPanelLargeOrder" data-codes="s_pksz000858">
+          getPanelLargeOrder
+        </button>
+        <button class="method-btn" data-method="getHKQuotes" data-codes="r_hk09988">
+          getHKQuotes
+        </button>
+        <button class="method-btn" data-method="getUSQuotes" data-codes="s_usBABA">
+          getUSQuotes
+        </button>
+        <button class="method-btn" data-method="getFundQuotes" data-codes="jj000001">
+          getFundQuotes
+        </button>
+        <button class="method-btn" data-method="batchRaw" data-codes="sz000858,s_sh000001">
+          batchRaw
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">请求参数</div>
+      <div class="input-group">
+        <input type="text" id="codes" placeholder="输入股票代码，多个用逗号分隔" value="sz000858,sh600519">
+        <button id="fetch-btn" onclick="fetchData()">发送请求</button>
+        <button class="btn-secondary" onclick="clearResult()">清空</button>
+      </div>
+      <div class="info">
+        <div class="info-item">
+          <span class="info-label">当前方法：</span>
+          <span class="info-value" id="current-method">getFullQuotes</span>
+        </div>
+        <div class="info-item" id="status-container" style="display: none;">
+          <span class="status" id="status"></span>
+        </div>
+        <div class="info-item" id="time-container" style="display: none;">
+          <span class="info-label">耗时：</span>
+          <span class="info-value" id="time"></span>
+        </div>
+        <div class="info-item" id="count-container" style="display: none;">
+          <span class="info-label">返回数量：</span>
+          <span class="info-value" id="count"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">返回结果</div>
+      <div class="result" id="result">点击"发送请求"按钮开始测试...</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { StockSDK } from '../dist/index.js';
+
+    const sdk = new StockSDK();
+    window.sdk = sdk; // 暴露到全局方便调试
+
+    let currentMethod = 'getFullQuotes';
+
+    // 方法按钮点击
+    document.querySelectorAll('.method-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentMethod = btn.dataset.method;
+        document.getElementById('current-method').textContent = currentMethod;
+        const codesInput = document.getElementById('codes');
+        if (btn.dataset.noInput === 'true') {
+          codesInput.value = '';
+          codesInput.placeholder = '无需输入（使用内置股票代码列表）';
+          codesInput.disabled = true;
+        } else {
+          codesInput.value = btn.dataset.codes;
+          codesInput.placeholder = '输入股票代码，多个用逗号分隔';
+          codesInput.disabled = false;
+        }
+      });
+    });
+
+    // 发送请求
+    window.fetchData = async function() {
+      const codesInput = document.getElementById('codes').value.trim();
+      const resultEl = document.getElementById('result');
+      const statusContainer = document.getElementById('status-container');
+      const statusEl = document.getElementById('status');
+      const timeContainer = document.getElementById('time-container');
+      const timeEl = document.getElementById('time');
+      const countContainer = document.getElementById('count-container');
+      const countEl = document.getElementById('count');
+      const fetchBtn = document.getElementById('fetch-btn');
+
+      // getAllAShareQuotes 不需要输入代码
+      if (!codesInput && currentMethod !== 'getAllAShareQuotes') {
+        resultEl.textContent = '请输入股票代码';
+        resultEl.className = 'result error';
+        return;
+      }
+
+      // 显示加载状态
+      fetchBtn.disabled = true;
+      statusContainer.style.display = 'block';
+      statusEl.className = 'status loading';
+      statusEl.innerHTML = '<div class="spinner"></div> 请求中...';
+      timeContainer.style.display = 'none';
+      countContainer.style.display = 'none';
+      resultEl.textContent = '加载中...';
+      resultEl.className = 'result';
+
+      const startTime = performance.now();
+
+      try {
+        let result;
+        const codes = codesInput.split(',').map(c => c.trim()).filter(Boolean);
+
+        switch (currentMethod) {
+          case 'getFullQuotes':
+            result = await sdk.getFullQuotes(codes);
+            break;
+          case 'getAllAShareQuotes':
+            result = await sdk.getAllAShareQuotes({
+              onProgress: (completed, total) => {
+                resultEl.textContent = `加载中... ${completed}/${total} 批次`;
+              }
+            });
+            break;
+          case 'getSimpleQuotes':
+            result = await sdk.getSimpleQuotes(codes);
+            break;
+          case 'getFundFlow':
+            result = await sdk.getFundFlow(codes);
+            break;
+          case 'getPanelLargeOrder':
+            result = await sdk.getPanelLargeOrder(codes);
+            break;
+          case 'getHKQuotes':
+            result = await sdk.getHKQuotes(codes);
+            break;
+          case 'getUSQuotes':
+            result = await sdk.getUSQuotes(codes);
+            break;
+          case 'getFundQuotes':
+            result = await sdk.getFundQuotes(codes);
+            break;
+          case 'batchRaw':
+            result = await sdk.batchRaw(codesInput);
+            break;
+          default:
+            throw new Error('未知方法');
+        }
+
+        const endTime = performance.now();
+        const duration = (endTime - startTime).toFixed(0);
+
+        // 显示成功状态
+        statusEl.className = 'status success';
+        statusEl.textContent = '✓ 成功';
+        timeContainer.style.display = 'block';
+        timeEl.textContent = `${duration}ms`;
+        countContainer.style.display = 'block';
+        countEl.textContent = Array.isArray(result) ? result.length : 1;
+
+        resultEl.textContent = JSON.stringify(result, null, 2);
+        resultEl.className = 'result success';
+
+      } catch (error) {
+        const endTime = performance.now();
+        const duration = (endTime - startTime).toFixed(0);
+
+        statusEl.className = 'status error';
+        statusEl.textContent = '✕ 失败';
+        timeContainer.style.display = 'block';
+        timeEl.textContent = `${duration}ms`;
+
+        resultEl.textContent = `错误: ${error.message}\n\n${error.stack || ''}`;
+        resultEl.className = 'result error';
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    };
+
+    // 清空结果
+    window.clearResult = function() {
+      document.getElementById('result').textContent = '点击"发送请求"按钮开始测试...';
+      document.getElementById('result').className = 'result';
+      document.getElementById('status-container').style.display = 'none';
+      document.getElementById('time-container').style.display = 'none';
+      document.getElementById('count-container').style.display = 'none';
+    };
+
+    // 回车键触发请求
+    document.getElementById('codes').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        fetchData();
+      }
+    });
+
+    console.log('🚀 Stock SDK Playground 已加载');
+    console.log('💡 提示: 可以在控制台使用 window.sdk 直接调用 SDK 方法');
+  </script>
+</body>
+</html>
+
