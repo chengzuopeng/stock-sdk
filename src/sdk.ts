@@ -15,9 +15,9 @@ import {
   chunkArray,
   asyncPool,
 } from './utils';
-import { codeList } from './config';
 
 const BASE_URL = 'https://qt.gtimg.cn';
+const CODE_LIST_URL = 'https://assets.linkdiary.cn/shares/ashare-code.json';
 
 /**
  * 获取全部 A 股行情的配置选项
@@ -320,9 +320,34 @@ export class StockSDK {
     return this.request(params);
   }
 
+  // ---------- 获取 A 股代码列表 ----------
+  /**
+   * 从远程获取 A 股代码列表
+   * @returns A 股代码数组
+   */
+  async getAShareCodeList(): Promise<string[]> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    try {
+      const resp = await fetch(CODE_LIST_URL, {
+        signal: controller.signal,
+      });
+
+      if (!resp.ok) {
+        throw new Error(`HTTP error! status: ${resp.status}`);
+      }
+
+      const codeList: string[] = await resp.json();
+      return codeList;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   // ---------- 获取全部 A 股行情 ----------
   /**
-   * 获取全部 A 股实时行情（使用内置股票代码列表）
+   * 获取全部 A 股实时行情（从远程获取股票代码列表）
    * @param options 配置选项
    * @param options.batchSize 单次请求的股票数量，默认 500
    * @param options.concurrency 最大并发请求数，默认 7
@@ -331,6 +356,9 @@ export class StockSDK {
    */
   async getAllAShareQuotes(options: GetAllAShareQuotesOptions = {}): Promise<FullQuote[]> {
     const { batchSize = 500, concurrency = 7, onProgress } = options;
+
+    // 从远程获取股票代码列表
+    const codeList = await this.getAShareCodeList();
 
     // 将股票代码分批
     const chunks = chunkArray(codeList, batchSize);

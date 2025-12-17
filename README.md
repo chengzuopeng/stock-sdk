@@ -18,7 +18,7 @@
 - ✅ 完整的 TypeScript 类型定义
 - ✅ A 股、港股、美股、公募基金实时行情
 - ✅ 资金流向、盘口大单等扩展数据
-- ✅ 内置全部 A 股代码列表（5000+）
+- ✅ 支持获取全部 A 股代码列表（5000+）
 - ✅ 支持批量获取全市场行情（并发控制）
 
 ## 安装
@@ -111,9 +111,29 @@ console.log(quotes[0].price); // 111.70
 
 ---
 
+### `getAShareCodeList(): Promise<string[]>`
+
+获取全部 A 股代码列表（获取包含沪市、深市、北交所 5000+ 只股票）。
+
+**返回**
+
+```typescript
+string[]  // 如 ['bj920000', 'sh600000', 'sz000001', ...]
+```
+
+**示例**
+
+```typescript
+const codeList = await sdk.getAShareCodeList();
+console.log(codeList.length);  // 5000+
+console.log(codeList[0]);      // 'bj920000'
+```
+
+---
+
 ### `getAllAShareQuotes(options?): Promise<FullQuote[]>`
 
-获取全部 A 股实时行情（使用内置股票代码列表，包含 5000+ 只股票）。
+获取全部 A 股实时行情（获取股票代码列表，包含 5000+ 只股票）。
 
 返回的每只股票数据格式与 `getFullQuotes` 相同。
 
@@ -396,19 +416,6 @@ console.log(funds[0].name);  // 华夏成长混合
 const raw = await sdk.batchRaw('sz000858,s_sh000001');
 console.log(raw[0].key);    // sz000858
 console.log(raw[0].fields); // ['51', '五 粮 液', '000858', ...]
-```
-
----
-
-### `codeList`
-
-导出的全部 A 股代码列表（包含沪市、深市、北交所）。
-
-```typescript
-import { codeList } from 'stock-sdk';
-
-console.log(codeList.length);  // 5000+
-console.log(codeList[0]);      // 'bj920000'
 ```
 
 ---

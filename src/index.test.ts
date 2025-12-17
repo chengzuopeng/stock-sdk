@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import StockSDK, { codeList } from './index';
+import StockSDK from './index';
 
 const sdk = new StockSDK();
 
@@ -127,14 +127,16 @@ describe('TencentStockSDK', () => {
   });
 });
 
-describe('codeList', () => {
-  it('should export A股代码列表', () => {
+describe('getAShareCodeList', () => {
+  it('should return A股代码列表 from remote', async () => {
+    const codeList = await sdk.getAShareCodeList();
     expect(Array.isArray(codeList)).toBe(true);
     expect(codeList.length).toBeGreaterThan(5000);
     expect(codeList[0]).toMatch(/^(sh|sz|bj)\d+$/);
   });
 
-  it('should contain major stock codes', () => {
+  it('should contain major stock codes', async () => {
+    const codeList = await sdk.getAShareCodeList();
     expect(codeList).toContain('sz000858'); // 五粮液
     expect(codeList).toContain('sh600000'); // 浦发银行
     expect(codeList).toContain('sh600519'); // 贵州茅台

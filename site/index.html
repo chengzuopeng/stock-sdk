@@ -304,7 +304,8 @@
   </div>
 
   <script type="module">
-    import { StockSDK } from '../dist/index.js';
+    // 通过 unpkg CDN 引入最新版本的 SDK
+    import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
 
     const sdk = new StockSDK();
     window.sdk = sdk; // 暴露到全局方便调试
