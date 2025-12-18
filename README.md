@@ -276,7 +276,7 @@ interface TodayTimelineResponse {
 interface TodayTimeline {
   time: string;      // 时间 HH:mm
   price: number;     // 成交价
-  volume: number;    // 累计成交量（手）
+  volume: number;    // 累计成交量（股）
   amount: number;    // 累计成交额（元）
   avgPrice: number;  // 当日均价
 }

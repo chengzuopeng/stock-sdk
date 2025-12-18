@@ -497,6 +497,64 @@ describe('边界情况', () => {
       // 无效代码会抛出错误
       await expect(sdk.getTodayTimeline('invalid_code')).rejects.toThrow();
     });
+
+    // 各板块成交量单位统一测试
+    it('主板深圳 sz000001 成交量应统一为股', async () => {
+      const res = await sdk.getTodayTimeline('sz000001');
+      if (res.data.length > 0) {
+        const first = res.data[0];
+        // 验证均价计算正确：amount / volume 应接近 price
+        if (first.volume > 0) {
+          const calcAvg = first.amount / first.volume;
+          expect(Math.abs(calcAvg - first.avgPrice)).toBeLessThan(0.01);
+        }
+      }
+    });
+
+    it('主板上海 sh600519 成交量应统一为股', async () => {
+      const res = await sdk.getTodayTimeline('sh600519');
+      if (res.data.length > 0) {
+        const first = res.data[0];
+        if (first.volume > 0) {
+          const calcAvg = first.amount / first.volume;
+          expect(Math.abs(calcAvg - first.avgPrice)).toBeLessThan(0.01);
+        }
+      }
+    });
+
+    it('科创板 sh688601 成交量应统一为股', async () => {
+      const res = await sdk.getTodayTimeline('sh688601');
+      if (res.data.length > 0) {
+        const first = res.data[0];
+        if (first.volume > 0) {
+          const calcAvg = first.amount / first.volume;
+          expect(Math.abs(calcAvg - first.avgPrice)).toBeLessThan(0.01);
+        }
+      }
+    });
+
+    it('创业板 sz300750 成交量应统一为股', async () => {
+      const res = await sdk.getTodayTimeline('sz300750');
+      if (res.data.length > 0) {
+        const first = res.data[0];
+        if (first.volume > 0) {
+          const calcAvg = first.amount / first.volume;
+          expect(Math.abs(calcAvg - first.avgPrice)).toBeLessThan(0.01);
+        }
+      }
+    });
+
+    it('北交所 bj830799 成交量应统一为股', async () => {
+      const res = await sdk.getTodayTimeline('bj830799');
+      // 北交所股票可能无成交，只验证返回结构正确
+      expect(res.code).toBe('bj830799');
+      expect(Array.isArray(res.data)).toBe(true);
+      if (res.data.length > 0 && res.data[0].volume > 0) {
+        const first = res.data[0];
+        const calcAvg = first.amount / first.volume;
+        expect(Math.abs(calcAvg - first.avgPrice)).toBeLessThan(0.01);
+      }
+    });
   });
 
   describe('getAllAShareQuotes', () => {

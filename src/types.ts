@@ -281,7 +281,7 @@ export interface TodayTimeline {
   time: string;
   /** 成交价 */
   price: number;
-  /** 累计成交量（手） */
+  /** 累计成交量（股） */
   volume: number;
   /** 累计成交额（元） */
   amount: number;
