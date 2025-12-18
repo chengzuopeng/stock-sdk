@@ -5,11 +5,40 @@
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
 [![Test Coverage](https://img.shields.io/badge/coverage-95.88%25-brightgreen.svg)](https://github.com/chengzuopeng/stock-sdk)
 
-轻量级股票行情 SDK，基于腾讯财经 `qt.gtimg.cn` 和东方财富等数据源，支持 A 股、港股、美股、公募基金实时行情及历史 K 线查询。
+**[English](./README_EN.md)** | 中文
 
-**✨ 零依赖 | 🌐 浏览器 + Node.js 双端支持 | 📦 ESM + CommonJS**
+为 **前端和 Node.js 设计的股票行情 SDK**。
+
+无需 Python、无需后端服务，直接在 **浏览器或 Node.js** 中获取 **A 股 / 港股 / 美股 / 公募基金** 的实时行情与 K 线数据。
+
+**✨ 零依赖 | 🌐 Browser + Node.js | 📦 <10KB | 🧠 完整 TypeScript 类型**
 
 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://chengzuopeng.github.io/stock-sdk/)
+
+## Why stock-sdk？
+
+如果你是前端工程师，可能遇到过这些问题：
+
+* 股票行情工具大多是 **Python 生态**，前端难以直接使用
+* 想做行情看板 / Demo，不想额外维护后端服务
+* 财经接口返回格式混乱、编码复杂（GBK / 并发 / 批量）
+* AkShare 很强，但并不适合浏览器或 Node.js 项目
+
+**stock-sdk 的目标很简单：**
+
+> 让前端工程师，用最熟悉的 JavaScript / TypeScript，优雅地获取股票行情数据。
+
+---
+
+## 使用场景
+
+* 📊 股票行情看板（Web / Admin）
+* 📈 数据可视化（ECharts / TradingView）
+* 🎓 股票 / 金融课程 Demo
+* 🧪 量化策略原型验证（JS / Node）
+* 🕒 Node.js 定时抓取行情数据
+
+---
 
 ## 特性
 
@@ -32,22 +61,38 @@ yarn add stock-sdk
 pnpm add stock-sdk
 ```
 
-## 快速开始
+## 快速开始（10 行 Demo）
 
-```typescript
+```ts
 import { StockSDK } from 'stock-sdk';
 
 const sdk = new StockSDK();
 
-// A 股全量行情
-const quotes = await sdk.getFullQuotes(['sz000858', 'sh600519']);
-console.log(quotes[0].name, quotes[0].price);
+const quotes = await sdk.getSimpleQuotes([
+  'sh000001',
+  'sz000858',
+  'sh600519',
+]);
 
-// 历史 K 线
-const klines = await sdk.getHistoryKline('000001', { period: 'daily' });
+quotes.forEach(q => {
+  console.log(`${q.name}: ${q.price} (${q.changePercent}%)`);
+});
+```
 
-// 当日分时
-const timeline = await sdk.getTodayTimeline('sz000001');
+## 示例：全市场 A 股行情
+
+前端直接一次性获取全市场 A 股行情（5000+股票），无需 Python 或后端服务。
+
+```ts
+const allQuotes = await sdk.getAllAShareQuotes({
+  batchSize: 300,
+  concurrency: 5,
+  onProgress: (completed, total) => {
+    console.log(`进度: ${completed}/${total}`);
+  },
+});
+
+console.log(`共获取 ${allQuotes.length} 只股票`);
 ```
 
 ## API 文档
@@ -495,7 +540,7 @@ console.log(raw[0].fields);  // ['51', '五 粮 液', '000858', ...]
 
 ---
 
-## 浏览器使用
+## 浏览器直接使用
 
 SDK 使用原生 `TextDecoder` 解码 GBK 编码数据，无需额外 polyfill。
 
@@ -537,3 +582,7 @@ yarn dev
 ---
 
 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://chengzuopeng.github.io/stock-sdk/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+
+---
+
+如果这个项目对你有帮助，欢迎 Star ⭐ 或提出 Issue 反馈。
