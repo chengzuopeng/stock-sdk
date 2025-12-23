@@ -392,6 +392,24 @@
     const sdk = new StockSDK();
     window.sdk = sdk;
 
+    // 获取默认日期范围（近30天）
+    function getDefaultDateRange() {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      
+      const format = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}${month}${day}`;
+      };
+      
+      return { startDate: format(start), endDate: format(end) };
+    }
+    
+    const defaultDates = getDefaultDateRange();
+
     // 方法配置
     const methodsConfig = {
       getFullQuotes: {
@@ -429,6 +447,27 @@ console.log(codes[0]);  <span class="comment">// 'bj920000'</span>
 <span class="keyword">const</span> pureCodes = <span class="keyword">await</span> sdk.<span class="function">getAShareCodeList</span>(<span class="keyword">false</span>);
 console.log(pureCodes[0]);  <span class="comment">// '920000'</span>`
       },
+      getUSCodeList: {
+        name: 'getUSCodeList',
+        desc: '获取全部美股代码列表',
+        params: [
+          { key: 'includeMarket', label: '包含市场前缀', type: 'select', default: 'true', required: false, options: [{ value: 'true', label: '是' }, { value: 'false', label: '否' }] }
+        ],
+        code: `<span class="comment">// 包含市场前缀（默认）</span>
+<span class="keyword">const</span> codes = <span class="keyword">await</span> sdk.<span class="function">getUSCodeList</span>();
+console.log(codes[0]);  <span class="comment">// '105.MSFT'</span>
+
+<span class="comment">// 不包含市场前缀</span>
+<span class="keyword">const</span> pureCodes = <span class="keyword">await</span> sdk.<span class="function">getUSCodeList</span>(<span class="keyword">false</span>);
+console.log(pureCodes[0]);  <span class="comment">// 'MSFT'</span>`
+      },
+      getHKCodeList: {
+        name: 'getHKCodeList',
+        desc: '获取全部港股代码列表',
+        params: [],
+        code: `<span class="keyword">const</span> codes = <span class="keyword">await</span> sdk.<span class="function">getHKCodeList</span>();
+console.log(codes[0]);  <span class="comment">// '00700'</span>`
+      },
       getAllAShareQuotes: {
         name: 'getAllAShareQuotes',
         desc: '获取全部 A 股实时行情',
@@ -444,6 +483,38 @@ console.log(pureCodes[0]);  <span class="comment">// '920000'</span>`
   }
 });
 console.log(<span class="string">\`共获取 \${allQuotes.length} 只股票\`</span>);`
+      },
+      getAllHKShareQuotes: {
+        name: 'getAllHKShareQuotes',
+        desc: '获取全部港股实时行情',
+        params: [
+          { key: 'batchSize', label: '批量大小', type: 'number', default: '500', required: false, placeholder: '默认 500' },
+          { key: 'concurrency', label: '并发数', type: 'number', default: '7', required: false, placeholder: '默认 7' }
+        ],
+        code: `<span class="keyword">const</span> allQuotes = <span class="keyword">await</span> sdk.<span class="function">getAllHKShareQuotes</span>({
+  batchSize: <span class="string">500</span>,
+  concurrency: <span class="string">7</span>,
+  onProgress: (completed, total) => {
+    console.log(<span class="string">\`进度: \${completed}/\${total}\`</span>);
+  }
+});
+console.log(<span class="string">\`共获取 \${allQuotes.length} 只港股\`</span>);`
+      },
+      getAllUSShareQuotes: {
+        name: 'getAllUSShareQuotes',
+        desc: '获取全部美股实时行情',
+        params: [
+          { key: 'batchSize', label: '批量大小', type: 'number', default: '500', required: false, placeholder: '默认 500' },
+          { key: 'concurrency', label: '并发数', type: 'number', default: '7', required: false, placeholder: '默认 7' }
+        ],
+        code: `<span class="keyword">const</span> allQuotes = <span class="keyword">await</span> sdk.<span class="function">getAllUSShareQuotes</span>({
+  batchSize: <span class="string">500</span>,
+  concurrency: <span class="string">7</span>,
+  onProgress: (completed, total) => {
+    console.log(<span class="string">\`进度: \${completed}/\${total}\`</span>);
+  }
+});
+console.log(<span class="string">\`共获取 \${allQuotes.length} 只美股\`</span>);`
       },
       getFundFlow: {
         name: 'getFundFlow',
@@ -503,8 +574,8 @@ console.log(funds[0].nav);   <span class="comment">// 最新净值</span>`
           { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '如 sz000001 或 000001' },
           { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
           { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
-          { key: 'startDate', label: '开始日期', type: 'text', default: '', required: false, placeholder: 'YYYYMMDD，如 20240101' },
-          { key: 'endDate', label: '结束日期', type: 'text', default: '', required: false, placeholder: 'YYYYMMDD，如 20241231' }
+          { key: 'startDate', label: '开始日期', type: 'text', get default() { return defaultDates.startDate; }, required: false, placeholder: 'YYYYMMDD，如 20240101' },
+          { key: 'endDate', label: '结束日期', type: 'text', get default() { return defaultDates.endDate; }, required: false, placeholder: 'YYYYMMDD，如 20241231' }
         ],
         code: `<span class="comment">// 获取日线（默认后复权）</span>
 <span class="keyword">const</span> klines = <span class="keyword">await</span> sdk.<span class="function">getHistoryKline</span>(<span class="string">'sz000001'</span>);
@@ -517,6 +588,54 @@ console.log(funds[0].nav);   <span class="comment">// 最新净值</span>`
   endDate: <span class="string">'20241231'</span>
 });
 console.log(klines[0].date);   <span class="comment">// '2024-12-17'</span>
+console.log(klines[0].close);  <span class="comment">// 收盘价</span>`
+      },
+      getHKHistoryKline: {
+        name: 'getHKHistoryKline',
+        desc: '获取港股历史 K 线（日/周/月）',
+        params: [
+          { key: 'symbol', label: '港股代码', type: 'text', default: '00700', required: true, placeholder: '如 00700（腾讯）、09988（阿里）' },
+          { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+          { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
+          { key: 'startDate', label: '开始日期', type: 'text', get default() { return defaultDates.startDate; }, required: false, placeholder: 'YYYYMMDD，如 20240101' },
+          { key: 'endDate', label: '结束日期', type: 'text', get default() { return defaultDates.endDate; }, required: false, placeholder: 'YYYYMMDD，如 20241231' }
+        ],
+        code: `<span class="comment">// 获取腾讯控股日 K 线（默认后复权）</span>
+<span class="keyword">const</span> klines = <span class="keyword">await</span> sdk.<span class="function">getHKHistoryKline</span>(<span class="string">'00700'</span>);
+
+<span class="comment">// 获取阿里巴巴周 K 线，前复权</span>
+<span class="keyword">const</span> weeklyKlines = <span class="keyword">await</span> sdk.<span class="function">getHKHistoryKline</span>(<span class="string">'09988'</span>, {
+  period: <span class="string">'weekly'</span>,
+  adjust: <span class="string">'qfq'</span>,
+  startDate: <span class="string">'20240101'</span>,
+  endDate: <span class="string">'20241231'</span>
+});
+console.log(klines[0].name);   <span class="comment">// '腾讯控股'</span>
+console.log(klines[0].close);  <span class="comment">// 收盘价</span>`
+      },
+      getUSHistoryKline: {
+        name: 'getUSHistoryKline',
+        desc: '获取美股历史 K 线（日/周/月）',
+        params: [
+          { key: 'symbol', label: '美股代码', type: 'text', default: '105.MSFT', required: true, placeholder: '如 105.MSFT（微软）、106.BABA（阿里）' },
+          { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+          { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
+          { key: 'startDate', label: '开始日期', type: 'text', get default() { return defaultDates.startDate; }, required: false, placeholder: 'YYYYMMDD，如 20240101' },
+          { key: 'endDate', label: '结束日期', type: 'text', get default() { return defaultDates.endDate; }, required: false, placeholder: 'YYYYMMDD，如 20241231' }
+        ],
+        code: `<span class="comment">// 获取微软日 K 线（默认后复权）</span>
+<span class="keyword">const</span> klines = <span class="keyword">await</span> sdk.<span class="function">getUSHistoryKline</span>(<span class="string">'105.MSFT'</span>);
+
+<span class="comment">// 获取苹果周 K 线，前复权</span>
+<span class="keyword">const</span> weeklyKlines = <span class="keyword">await</span> sdk.<span class="function">getUSHistoryKline</span>(<span class="string">'105.AAPL'</span>, {
+  period: <span class="string">'weekly'</span>,
+  adjust: <span class="string">'qfq'</span>,
+  startDate: <span class="string">'20240101'</span>,
+  endDate: <span class="string">'20241231'</span>
+});
+
+<span class="comment">// 市场代码: 105(纳斯达克), 106(纽交所)</span>
+console.log(klines[0].name);   <span class="comment">// '微软'</span>
 console.log(klines[0].close);  <span class="comment">// 收盘价</span>`
       },
       getMinuteKline: {
@@ -554,6 +673,50 @@ console.log(first.time);      <span class="comment">// '09:30'</span>
 console.log(first.price);     <span class="comment">// 11.47（成交价）</span>
 console.log(first.avgPrice);  <span class="comment">// 11.47（均价 = 累计成交额 / 累计成交量×100）</span>
 console.log(first.volume);    <span class="comment">// 累计成交量（股）</span>`
+      },
+      getKlineWithIndicators: {
+        name: 'getKlineWithIndicators',
+        desc: '获取带技术指标的 K 线',
+        params: [
+          { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '支持 A股/港股/美股，如 sz000001、00700、105.MSFT' },
+          { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+          { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
+          { key: 'startDate', label: '开始日期', type: 'text', get default() { return defaultDates.startDateDash; }, required: false, placeholder: 'YYYY-MM-DD，如 2024-01-01' },
+          { key: 'endDate', label: '结束日期', type: 'text', get default() { return defaultDates.endDateDash; }, required: false, placeholder: 'YYYY-MM-DD，如 2024-12-31' },
+          { key: 'indicators', label: '技术指标', type: 'text', default: 'ma,macd,boll,kdj,bias,cci,atr', required: false, placeholder: '可选: ma,macd,boll,kdj,rsi,wr,bias,cci,atr（逗号分隔）' }
+        ],
+        code: `<span class="comment">// 获取带技术指标的日 K 线</span>
+<span class="keyword">const</span> data = <span class="keyword">await</span> sdk.<span class="function">getKlineWithIndicators</span>(<span class="string">'sz000001'</span>, {
+  startDate: <span class="string">'20240101'</span>,
+  endDate: <span class="string">'20241231'</span>,
+  indicators: {
+    ma: { periods: [<span class="string">5</span>, <span class="string">10</span>, <span class="string">20</span>, <span class="string">60</span>] },
+    macd: <span class="keyword">true</span>,
+    boll: <span class="keyword">true</span>,
+    kdj: <span class="keyword">true</span>,
+    rsi: { periods: [<span class="string">6</span>, <span class="string">12</span>] },
+    wr: <span class="keyword">true</span>
+  }
+});
+
+<span class="comment">// 使用数据</span>
+data.forEach(k => {
+  console.log(k.date, k.close);
+  console.log(<span class="string">'MA5='</span>, k.ma?.ma5);
+  console.log(<span class="string">'MACD:'</span>, k.macd?.dif, k.macd?.dea);
+  console.log(<span class="string">'BOLL:'</span>, k.boll?.upper, k.boll?.mid, k.boll?.lower);
+  console.log(<span class="string">'KDJ:'</span>, k.kdj?.k, k.kdj?.d, k.kdj?.j);
+});
+
+<span class="comment">// 港股（自动识别）</span>
+<span class="keyword">const</span> hkData = <span class="keyword">await</span> sdk.<span class="function">getKlineWithIndicators</span>(<span class="string">'00700'</span>, {
+  indicators: { ma: <span class="keyword">true</span>, macd: <span class="keyword">true</span> }
+});
+
+<span class="comment">// 美股（自动识别）</span>
+<span class="keyword">const</span> usData = <span class="keyword">await</span> sdk.<span class="function">getKlineWithIndicators</span>(<span class="string">'105.MSFT'</span>, {
+  indicators: { boll: <span class="keyword">true</span>, rsi: <span class="keyword">true</span> }
+});`
       }
     };
 
@@ -675,8 +838,36 @@ console.log(first.volume);    <span class="comment">// 累计成交量（股）<
             result = await sdk.getAShareCodeList(params.includeExchange === 'true');
             break;
           }
+          case 'getUSCodeList': {
+            result = await sdk.getUSCodeList(params.includeMarket === 'true');
+            break;
+          }
+          case 'getHKCodeList': {
+            result = await sdk.getHKCodeList();
+            break;
+          }
           case 'getAllAShareQuotes': {
             result = await sdk.getAllAShareQuotes({
+              batchSize: parseInt(params.batchSize) || 500,
+              concurrency: parseInt(params.concurrency) || 7,
+              onProgress: (completed, total) => {
+                resultEl.textContent = `加载中... ${completed}/${total} 批次`;
+              }
+            });
+            break;
+          }
+          case 'getAllHKShareQuotes': {
+            result = await sdk.getAllHKShareQuotes({
+              batchSize: parseInt(params.batchSize) || 500,
+              concurrency: parseInt(params.concurrency) || 7,
+              onProgress: (completed, total) => {
+                resultEl.textContent = `加载中... ${completed}/${total} 批次`;
+              }
+            });
+            break;
+          }
+          case 'getAllUSShareQuotes': {
+            result = await sdk.getAllUSShareQuotes({
               batchSize: parseInt(params.batchSize) || 500,
               concurrency: parseInt(params.concurrency) || 7,
               onProgress: (completed, total) => {
@@ -717,6 +908,20 @@ console.log(first.volume);    <span class="comment">// 累计成交量（股）<
             result = await sdk.getHistoryKline(params.symbol, options);
             break;
           }
+          case 'getHKHistoryKline': {
+            const options = { period: params.period, adjust: params.adjust };
+            if (params.startDate) options.startDate = params.startDate;
+            if (params.endDate) options.endDate = params.endDate;
+            result = await sdk.getHKHistoryKline(params.symbol, options);
+            break;
+          }
+          case 'getUSHistoryKline': {
+            const options = { period: params.period, adjust: params.adjust };
+            if (params.startDate) options.startDate = params.startDate;
+            if (params.endDate) options.endDate = params.endDate;
+            result = await sdk.getUSHistoryKline(params.symbol, options);
+            break;
+          }
           case 'getMinuteKline': {
             result = await sdk.getMinuteKline(params.symbol, {
               period: params.period,
@@ -726,6 +931,24 @@ console.log(first.volume);    <span class="comment">// 累计成交量（股）<
           }
           case 'getTodayTimeline': {
             result = await sdk.getTodayTimeline(params.code);
+            break;
+          }
+          case 'getKlineWithIndicators': {
+            const options = { period: params.period, adjust: params.adjust };
+            if (params.startDate) options.startDate = params.startDate;
+            if (params.endDate) options.endDate = params.endDate;
+            // 解析指标配置
+            const indicatorList = params.indicators ? params.indicators.split(',').map(s => s.trim()).filter(Boolean) : [];
+            options.indicators = {};
+            indicatorList.forEach(ind => {
+              if (ind === 'ma') options.indicators.ma = { periods: [5, 10, 20, 60] };
+              else if (ind === 'macd') options.indicators.macd = true;
+              else if (ind === 'boll') options.indicators.boll = true;
+              else if (ind === 'kdj') options.indicators.kdj = true;
+              else if (ind === 'rsi') options.indicators.rsi = { periods: [6, 12, 24] };
+              else if (ind === 'wr') options.indicators.wr = true;
+            });
+            result = await sdk.getKlineWithIndicators(params.symbol, options);
             break;
           }
           default:

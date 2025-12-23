@@ -42,12 +42,13 @@
 
 ## 特性
 
-- ✅ **零依赖**，轻量级（压缩后 < 10KB）
+- ✅ **零依赖**，轻量级（压缩后 < 20KB）
 - ✅ 支持 **浏览器** 和 **Node.js 18+** 双端运行
 - ✅ 同时提供 **ESM** 和 **CommonJS** 两种模块格式
-- ✅ 完整的 **TypeScript** 类型定义的单元测试覆盖
+- ✅ 完整的 **TypeScript** 类型定义和单元测试覆盖
 - ✅ **A 股、港股、美股、公募基金**实时行情
 - ✅ **历史 K 线**（日/周/月）、**分钟 K 线**（1/5/15/30/60 分钟）和**当日分时走势**数据
+- ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR 等常用指标计算
 - ✅ **资金流向**、**盘口大单**等扩展数据
 - ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
 
@@ -111,9 +112,26 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 
 | 方法 | 说明 |
 |------|------|
-| [`getHistoryKline`](#gethistoryklinesymbol-options-promisehistorykline) | 历史 K 线（日/周/月） |
-| [`getMinuteKline`](#getminuteklinesymbol-options-promiseminutetimeline--minutekline) | 分钟 K 线（1/5/15/30/60 分钟） |
-| [`getTodayTimeline`](#gettodaytimelinecode-promisetodaytimelineresponse) | 当日分时走势 |
+| [`getHistoryKline`](#gethistoryklinesymbol-options-promisehistorykline) | A 股历史 K 线（日/周/月） |
+| [`getHKHistoryKline`](#gethkhistoryklinesymbol-options-promisehkushistorykline) | 港股历史 K 线（日/周/月） |
+| [`getUSHistoryKline`](#getushistoryklinesymbol-options-promisehkushistorykline) | 美股历史 K 线（日/周/月） |
+| [`getMinuteKline`](#getminuteklinesymbol-options-promiseminutetimeline--minutekline) | A 股分钟 K 线（1/5/15/30/60 分钟） |
+| [`getTodayTimeline`](#gettodaytimelinecode-promisetodaytimelineresponse) | A 股当日分时走势 |
+
+### 技术指标
+
+| 方法 | 说明 |
+|------|------|
+| [`getKlineWithIndicators`](#getklinewithindicatorssymbol-options-promiseklinewithindicators) | 获取带技术指标的 K 线数据 |
+| [`calcMA`](#calcmadata-options-maresult) | 计算均线（SMA/EMA/WMA） |
+| [`calcMACD`](#calcmacddata-options-macdresult) | 计算 MACD |
+| [`calcBOLL`](#calcbolldata-options-bollresult) | 计算布林带 |
+| [`calcKDJ`](#calckdjdata-options-kdjresult) | 计算 KDJ |
+| [`calcRSI`](#calcrsidata-options-rsiresult) | 计算 RSI |
+| [`calcWR`](#calcwrdata-options-wrresult) | 计算威廉指标 |
+| [`calcBIAS`](#calcbiasdata-options-biasresult) | 计算乖离率 |
+| [`calcCCI`](#calcccidata-options-cciresult) | 计算商品通道指数 |
+| [`calcATR`](#calcatrdata-options-atrresult) | 计算平均真实波幅 |
 
 ### 扩展数据
 
@@ -127,7 +145,11 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 | 方法 | 说明 |
 |------|------|
 | [`getAShareCodeList`](#getasharecodellistincludeexchange-promisestring) | 获取全部 A 股代码 |
+| [`getUSCodeList`](#getuscodelistincludemarket-promisestring) | 获取全部美股代码 |
+| [`getHKCodeList`](#gethkcodelist-promisestring) | 获取全部港股代码 |
 | [`getAllAShareQuotes`](#getallasharequotesoptions-promisefullquote) | 获取全市场 A 股行情 |
+| [`getAllHKShareQuotes`](#getallhksharequotesoptions-promisehkquote) | 获取全市场港股行情 |
+| [`getAllUSShareQuotes`](#getallusssharequotesoptions-promiseusquote) | 获取全市场美股行情 |
 | [`getAllQuotesByCodes`](#getallquotesbycodescodes-options-promisefullquote) | 批量获取指定股票行情 |
 
 ---
@@ -155,20 +177,32 @@ interface FullQuote {
   high: number;           // 最高
   low: number;            // 最低
   volume: number;         // 成交量（手）
-  amount: number;         // 成交额（万）
-  change: number;         // 涨跌额
-  changePercent: number;  // 涨跌幅 %
+  outerVolume: number;    // 外盘
+  innerVolume: number;    // 内盘
   bid: { price: number; volume: number }[];  // 买一~买五
   ask: { price: number; volume: number }[];  // 卖一~卖五
+  time: string;           // 时间戳 yyyyMMddHHmmss
+  change: number;         // 涨跌额
+  changePercent: number;  // 涨跌幅 %
+  volume2: number;        // 成交量（手，字段36）
+  amount: number;         // 成交额（万）
   turnoverRate: number | null;   // 换手率 %
   pe: number | null;             // 市盈率（TTM）
-  pb: number | null;             // 市净率
-  totalMarketCap: number | null; // 总市值（亿）
+  amplitude: number | null;      // 振幅 %
   circulatingMarketCap: number | null; // 流通市值（亿）
-  volumeRatio: number | null;    // 量比
+  totalMarketCap: number | null; // 总市值（亿）
+  pb: number | null;             // 市净率
   limitUp: number | null;        // 涨停价
   limitDown: number | null;      // 跌停价
-  // ... 更多字段见类型定义
+  volumeRatio: number | null;    // 量比
+  avgPrice: number | null;       // 均价
+  peStatic: number | null;       // 市盈率（静）
+  peDynamic: number | null;      // 市盈率（动）
+  high52w: number | null;        // 52周最高价
+  low52w: number | null;         // 52周最低价
+  circulatingShares: number | null; // 流通股本（股）
+  totalShares: number | null;    // 总股本（股）
+  raw: string[];                 // 原始字段数组（供扩展使用）
 }
 ```
 
@@ -269,6 +303,105 @@ const weeklyKlines = await sdk.getHistoryKline('sz000858', {
 
 ---
 
+### `getHKHistoryKline(symbol, options?): Promise<HKUSHistoryKline[]>`
+
+获取港股历史 K 线（日/周/月），数据来源：东方财富。
+
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `symbol` | `string` | 港股代码，5 位数字（如 `'00700'`、`'09988'`） |
+| `options.period` | `'daily' \| 'weekly' \| 'monthly'` | K 线周期，默认 `'daily'` |
+| `options.adjust` | `'' \| 'qfq' \| 'hfq'` | 复权类型，默认 `'hfq'`（后复权） |
+| `options.startDate` | `string` | 开始日期 `YYYYMMDD` |
+| `options.endDate` | `string` | 结束日期 `YYYYMMDD` |
+
+**返回类型**
+
+```typescript
+interface HKUSHistoryKline {
+  date: string;               // 日期 YYYY-MM-DD
+  code: string;               // 股票代码
+  name: string;               // 股票名称
+  open: number | null;        // 开盘价
+  close: number | null;       // 收盘价
+  high: number | null;        // 最高价
+  low: number | null;         // 最低价
+  volume: number | null;      // 成交量
+  amount: number | null;      // 成交额
+  changePercent: number | null;  // 涨跌幅 %
+  change: number | null;         // 涨跌额
+  amplitude: number | null;      // 振幅 %
+  turnoverRate: number | null;   // 换手率 %
+}
+```
+
+**示例**
+
+```typescript
+// 获取腾讯控股日 K 线
+const klines = await sdk.getHKHistoryKline('00700');
+
+// 获取阿里巴巴周 K 线，前复权
+const weeklyKlines = await sdk.getHKHistoryKline('09988', {
+  period: 'weekly',
+  adjust: 'qfq',
+  startDate: '20240101',
+  endDate: '20241231',
+});
+console.log(klines[0].name);   // 腾讯控股
+console.log(klines[0].close);  // 收盘价
+```
+
+---
+
+### `getUSHistoryKline(symbol, options?): Promise<HKUSHistoryKline[]>`
+
+获取美股历史 K 线（日/周/月），数据来源：东方财富。
+
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `symbol` | `string` | 美股代码，格式：`{market}.{ticker}`（如 `'105.MSFT'`、`'106.BABA'`） |
+| `options.period` | `'daily' \| 'weekly' \| 'monthly'` | K 线周期，默认 `'daily'` |
+| `options.adjust` | `'' \| 'qfq' \| 'hfq'` | 复权类型，默认 `'hfq'`（后复权） |
+| `options.startDate` | `string` | 开始日期 `YYYYMMDD` |
+| `options.endDate` | `string` | 结束日期 `YYYYMMDD` |
+
+**市场代码说明**
+
+| 代码 | 说明 | 示例 |
+|------|------|------|
+| `105` | 纳斯达克 | `105.AAPL`（苹果）、`105.MSFT`（微软）、`105.TSLA`（特斯拉） |
+| `106` | 纽交所 | `106.BABA`（阿里巴巴） |
+| `107` | 美国其他 | `107.XXX` |
+
+**示例**
+
+```typescript
+// 获取微软日 K 线
+const klines = await sdk.getUSHistoryKline('105.MSFT');
+
+// 获取苹果周 K 线，前复权
+const weeklyKlines = await sdk.getUSHistoryKline('105.AAPL', {
+  period: 'weekly',
+  adjust: 'qfq',
+  startDate: '20240101',
+  endDate: '20241231',
+});
+console.log(klines[0].name);   // 微软
+console.log(klines[0].close);  // 收盘价
+
+// 获取阿里巴巴月 K 线
+const monthlyKlines = await sdk.getUSHistoryKline('106.BABA', {
+  period: 'monthly',
+});
+```
+
+---
+
 ### `getMinuteKline(symbol, options?): Promise<MinuteTimeline[] | MinuteKline[]>`
 
 获取 A 股分钟 K 线或分时数据，数据来源：东方财富。
@@ -361,6 +494,45 @@ const pureCodes = await sdk.getAShareCodeList(false);
 
 ---
 
+### `getUSCodeList(includeMarket?): Promise<string[]>`
+
+获取全部美股代码列表。
+
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `includeMarket` | `boolean` | 是否包含市场前缀（如 `105.`），默认 `true` |
+
+**示例**
+
+```typescript
+// 包含市场前缀
+const codes = await sdk.getUSCodeList();
+// ['105.MSFT', '105.AAPL', '106.BABA', ...]
+
+// 不包含市场前缀
+const pureCodes = await sdk.getUSCodeList(false);
+// ['MSFT', 'AAPL', 'BABA', ...]
+```
+
+> 市场代码说明：`105` = 纳斯达克，`106` = 纽交所，`107` = 其他
+
+---
+
+### `getHKCodeList(): Promise<string[]>`
+
+获取全部港股代码列表。
+
+**示例**
+
+```typescript
+const codes = await sdk.getHKCodeList();
+// ['00700', '09988', '03690', ...]
+```
+
+---
+
 ### `getAllAShareQuotes(options?): Promise<FullQuote[]>`
 
 获取全市场 A 股实时行情（5000+ 只股票），返回格式同 `getFullQuotes`。
@@ -371,7 +543,7 @@ const pureCodes = await sdk.getAShareCodeList(false);
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `options.batchSize` | `number` | 单次请求股票数量，默认 `500` |
+| `options.batchSize` | `number` | 单次请求股票数量，默认 `500`，最大 `500` |
 | `options.concurrency` | `number` | 最大并发数，默认 `7` |
 | `options.onProgress` | `(completed, total) => void` | 进度回调 |
 
@@ -386,6 +558,54 @@ const allQuotes = await sdk.getAllAShareQuotes({
   },
 });
 console.log(`共获取 ${allQuotes.length} 只股票`);
+```
+
+---
+
+### `getAllHKShareQuotes(options?): Promise<HKQuote[]>`
+
+获取全市场港股实时行情，返回格式同 `getHKQuotes`。
+
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `options.batchSize` | `number` | 单次请求股票数量，默认 `500`，最大 `500` |
+| `options.concurrency` | `number` | 最大并发数，默认 `7` |
+| `options.onProgress` | `(completed, total) => void` | 进度回调 |
+
+**示例**
+
+```typescript
+const allHKQuotes = await sdk.getAllHKShareQuotes({
+  batchSize: 300,
+  concurrency: 3,
+});
+console.log(`共获取 ${allHKQuotes.length} 只港股`);
+```
+
+---
+
+### `getAllUSShareQuotes(options?): Promise<USQuote[]>`
+
+获取全市场美股实时行情，返回格式同 `getUSQuotes`。
+
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `options.batchSize` | `number` | 单次请求股票数量，默认 `500`，最大 `500` |
+| `options.concurrency` | `number` | 最大并发数，默认 `7` |
+| `options.onProgress` | `(completed, total) => void` | 进度回调 |
+
+**示例**
+
+```typescript
+const allUSQuotes = await sdk.getAllUSShareQuotes({
+  batchSize: 300,
+  concurrency: 3,
+});
+console.log(`共获取 ${allUSQuotes.length} 只美股`);
 ```
 
 ---
@@ -486,11 +706,42 @@ console.log(quotes[0].name);  // 阿里巴巴-W
 |------|------|------|
 | `codes` | `string[]` | 美股代码数组，如 `['BABA', 'AAPL']` |
 
+**返回类型**
+
+```typescript
+interface USQuote {
+  marketId: string;              // 市场标识
+  name: string;                  // 名称
+  code: string;                  // 股票代码
+  price: number;                 // 最新价
+  prevClose: number;             // 昨收
+  open: number;                  // 今开
+  volume: number;                // 成交量
+  time: string;                  // 时间
+  change: number;                // 涨跌额
+  changePercent: number;         // 涨跌幅%
+  high: number;                  // 最高
+  low: number;                   // 最低
+  amount: number;                // 成交额
+  turnoverRate: number | null;   // 换手率%
+  pe: number | null;             // 市盈率
+  amplitude: number | null;      // 振幅%
+  totalMarketCap: number | null; // 总市值(亿)
+  pb: number | null;             // 市净率
+  high52w: number | null;        // 52周最高价
+  low52w: number | null;         // 52周最低价
+  raw: string[];                 // 原始字段数组
+}
+```
+
 **示例**
 
 ```typescript
-const quotes = await sdk.getUSQuotes(['BABA', 'AAPL']);
-console.log(quotes[0].code);  // BABA.N
+const quotes = await sdk.getUSQuotes(['AAPL', 'MSFT']);
+console.log(quotes[0].code);        // AAPL.OQ
+console.log(quotes[0].price);       // 270.97
+console.log(quotes[0].high52w);     // 288.62
+console.log(quotes[0].low52w);      // 168.64
 ```
 
 ---
@@ -536,6 +787,198 @@ interface FundQuote {
 const raw = await sdk.batchRaw('sz000858,s_sh000001');
 console.log(raw[0].key);     // sz000858
 console.log(raw[0].fields);  // ['51', '五 粮 液', '000858', ...]
+```
+
+---
+
+## 技术指标
+
+### `getKlineWithIndicators(symbol, options): Promise<KlineWithIndicators[]>`
+
+获取带技术指标的 K 线数据。支持 A 股、港股、美股，自动识别市场。
+
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `symbol` | `string` | 股票代码 |
+| `options.market` | `'A' \| 'HK' \| 'US'` | 可选，市场类型（不传则自动识别） |
+| `options.period` | `'daily' \| 'weekly' \| 'monthly'` | 可选，K 线周期，默认 `'daily'` |
+| `options.adjust` | `'' \| 'qfq' \| 'hfq'` | 可选，复权类型，默认 `'hfq'` |
+| `options.startDate` | `string` | 可选，开始日期 `YYYYMMDD` |
+| `options.endDate` | `string` | 可选，结束日期 `YYYYMMDD` |
+| `options.indicators` | `IndicatorOptions` | 技术指标配置 |
+
+**indicators 配置**
+
+```typescript
+interface IndicatorOptions {
+  ma?: MAOptions | boolean;    // 均线
+  macd?: MACDOptions | boolean; // MACD
+  boll?: BOLLOptions | boolean; // 布林带
+  kdj?: KDJOptions | boolean;   // KDJ
+  rsi?: RSIOptions | boolean;   // RSI
+  wr?: WROptions | boolean;     // WR
+}
+
+// 各指标可选参数
+interface MAOptions {
+  periods?: number[];  // 周期数组，默认 [5, 10, 20, 30, 60, 120, 250]
+  type?: 'sma' | 'ema' | 'wma';  // 均线类型，默认 'sma'
+}
+
+interface MACDOptions {
+  short?: number;   // 短期 EMA 周期，默认 12
+  long?: number;    // 长期 EMA 周期，默认 26
+  signal?: number;  // 信号线周期，默认 9
+}
+
+interface BOLLOptions {
+  period?: number;  // 均线周期，默认 20
+  stdDev?: number;  // 标准差倍数，默认 2
+}
+
+interface KDJOptions {
+  period?: number;   // RSV 周期，默认 9
+  kPeriod?: number;  // K 平滑周期，默认 3
+  dPeriod?: number;  // D 平滑周期，默认 3
+}
+
+interface RSIOptions {
+  periods?: number[];  // 周期数组，默认 [6, 12, 24]
+}
+
+interface WROptions {
+  periods?: number[];  // 周期数组，默认 [6, 10]
+}
+
+interface BIASOptions {
+  periods?: number[];  // 周期数组，默认 [6, 12, 24]
+}
+
+interface CCIOptions {
+  period?: number;  // 周期，默认 14
+}
+
+interface ATROptions {
+  period?: number;  // 周期，默认 14
+}
+```
+
+**示例**
+
+```typescript
+// 获取平安银行带技术指标的日 K 线
+const data = await sdk.getKlineWithIndicators('sz000001', {
+  startDate: '20240101',
+  endDate: '20241231',
+  indicators: {
+    ma: { periods: [5, 10, 20, 60] },
+    macd: true,
+    boll: true,
+    kdj: true,
+    rsi: { periods: [6, 12] },
+    wr: true,
+    bias: { periods: [6, 12, 24] },
+    cci: { period: 14 },
+    atr: { period: 14 },
+  }
+});
+
+// 使用数据
+data.forEach(k => {
+  console.log(`${k.date}: ${k.close}`);
+  console.log(`  MA5=${k.ma?.ma5}, MA10=${k.ma?.ma10}`);
+  console.log(`  MACD: DIF=${k.macd?.dif}, DEA=${k.macd?.dea}`);
+  console.log(`  BOLL: 上=${k.boll?.upper}, 中=${k.boll?.mid}, 下=${k.boll?.lower}`);
+  console.log(`  KDJ: K=${k.kdj?.k}, D=${k.kdj?.d}, J=${k.kdj?.j}`);
+  console.log(`  RSI6=${k.rsi?.rsi6}, WR6=${k.wr?.wr6}`);
+  console.log(`  BIAS6=${k.bias?.bias6}, CCI=${k.cci?.cci}, ATR=${k.atr?.atr}`);
+});
+
+// 港股（自动识别）
+const hkData = await sdk.getKlineWithIndicators('00700', {
+  indicators: { ma: true, macd: true }
+});
+
+// 美股（自动识别）
+const usData = await sdk.getKlineWithIndicators('105.MSFT', {
+  indicators: { boll: true, rsi: true }
+});
+```
+
+---
+
+### 独立指标计算函数
+
+SDK 还导出了独立的指标计算函数，可自行传入数据计算：
+
+```typescript
+import {
+  calcMA,
+  calcSMA,
+  calcEMA,
+  calcMACD,
+  calcBOLL,
+  calcKDJ,
+  calcRSI,
+  calcWR,
+  calcBIAS,
+  calcCCI,
+  calcATR,
+  addIndicators,
+} from 'stock-sdk';
+
+// 获取 K 线数据
+const klines = await sdk.getHistoryKline('sz000001');
+const closes = klines.map(k => k.close);
+
+// 计算均线
+const ma = calcMA(closes, { periods: [5, 10, 20], type: 'sma' });
+console.log(ma[10].ma5);  // 第 10 天的 5 日均线
+
+// 计算 MACD
+const macd = calcMACD(closes);
+console.log(macd[50].dif, macd[50].dea, macd[50].macd);
+
+// 计算布林带
+const boll = calcBOLL(closes, { period: 20, stdDev: 2 });
+console.log(boll[30].upper, boll[30].mid, boll[30].lower);
+
+// 计算 KDJ（需要 OHLC 数据）
+const ohlcv = klines.map(k => ({
+  open: k.open, high: k.high, low: k.low, close: k.close
+}));
+const kdj = calcKDJ(ohlcv, { period: 9 });
+console.log(kdj[20].k, kdj[20].d, kdj[20].j);
+
+// 计算乖离率
+const bias = calcBIAS(closes, { periods: [6, 12, 24] });
+console.log(bias[30].bias6, bias[30].bias12, bias[30].bias24);
+
+// 计算 CCI（需要 HLC 数据）
+const hlc = klines.map(k => ({ high: k.high, low: k.low, close: k.close }));
+const cci = calcCCI(hlc, { period: 14 });
+console.log(cci[30].cci);
+
+// 计算 ATR（需要 HLC 数据）
+const atr = calcATR(hlc, { period: 14 });
+console.log(atr[30].atr, atr[30].tr);
+
+// 使用 addIndicators 一次性添加多个指标
+const withIndicators = addIndicators(klines, {
+  ma: { periods: [5, 10] },
+  macd: true,
+  boll: true,
+  bias: true,
+  cci: true,
+  atr: true,
+});
+console.log(withIndicators[50].ma?.ma5);
+console.log(withIndicators[50].macd?.dif);
+console.log(withIndicators[50].bias?.bias6);
+console.log(withIndicators[50].cci?.cci);
+console.log(withIndicators[50].atr?.atr);
 ```
 
 ---

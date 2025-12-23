@@ -1,6 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
 import StockSDK from './index';
 import { decodeGBK, parseResponse, safeNumber, safeNumberOrNull, chunkArray, asyncPool } from './utils';
+import {
+  calcSMA,
+  calcEMA,
+  calcWMA,
+  calcMA,
+  calcMACD,
+  calcBOLL,
+  calcKDJ,
+  calcRSI,
+  calcWR,
+  calcBIAS,
+  calcCCI,
+  calcATR,
+  addIndicators,
+} from './indicators';
 
 const sdk = new StockSDK();
 
@@ -59,22 +74,44 @@ describe('TencentStockSDK', () => {
   });
 
   describe('getHKQuotes', () => {
-    it('should return 港股扩展行情', async () => {
-      const res = await sdk.getHKQuotes(['09988']);
+    it('should return 港股行情 with full fields', async () => {
+      const res = await sdk.getHKQuotes(['00700']);
       expect(res.length).toBeGreaterThan(0);
       const q = res[0];
-      expect(q.code).toBe('09988');
+      expect(q.code).toBe('00700');
       expect(typeof q.price).toBe('number');
+      // 验证新增字段
+      expect(q).toHaveProperty('prevClose');
+      expect(q).toHaveProperty('open');
+      expect(q).toHaveProperty('high');
+      expect(q).toHaveProperty('low');
+      expect(q).toHaveProperty('volume');
+      expect(q).toHaveProperty('amount');
+      expect(q).toHaveProperty('time');
+      expect(q).toHaveProperty('currency');
+      expect(q).toHaveProperty('totalMarketCap');
     });
   });
 
   describe('getUSQuotes', () => {
-    it('should return 美股简要行情', async () => {
-      const res = await sdk.getUSQuotes(['BABA']);
+    it('should return 美股行情 with full fields', async () => {
+      const res = await sdk.getUSQuotes(['AAPL']);
       expect(res.length).toBeGreaterThan(0);
       const q = res[0];
-      expect(q.code).toContain('BABA');
+      expect(q.code).toContain('AAPL');
       expect(typeof q.price).toBe('number');
+      // 验证新增字段
+      expect(q).toHaveProperty('prevClose');
+      expect(q).toHaveProperty('open');
+      expect(q).toHaveProperty('high');
+      expect(q).toHaveProperty('low');
+      expect(q).toHaveProperty('volume');
+      expect(q).toHaveProperty('amount');
+      expect(q).toHaveProperty('time');
+      expect(q).toHaveProperty('pe');
+      expect(q).toHaveProperty('totalMarketCap');
+      expect(q).toHaveProperty('high52w');
+      expect(q).toHaveProperty('low52w');
     });
   });
 
@@ -166,6 +203,71 @@ describe('getAShareCodeList', () => {
   });
 });
 
+describe('getUSCodeList', () => {
+  it('should return 美股代码列表 from remote', async () => {
+    const codeList = await sdk.getUSCodeList();
+    expect(Array.isArray(codeList)).toBe(true);
+    expect(codeList.length).toBeGreaterThan(1000);
+    // 验证包含市场前缀
+    expect(codeList[0]).toMatch(/^\d{3}\.[A-Z]+$/);
+  });
+
+  it('should return codes without market prefix', async () => {
+    const codeList = await sdk.getUSCodeList(false);
+    expect(Array.isArray(codeList)).toBe(true);
+    expect(codeList.length).toBeGreaterThan(1000);
+    // 验证不含市场前缀
+    expect(codeList[0]).toMatch(/^[A-Z]+$/);
+  });
+});
+
+describe('getHKCodeList', () => {
+  it('should return 港股代码列表 from remote', async () => {
+    const codeList = await sdk.getHKCodeList();
+    expect(Array.isArray(codeList)).toBe(true);
+    expect(codeList.length).toBeGreaterThan(1000);
+    // 验证是数字代码
+    expect(codeList[0]).toMatch(/^\d+$/);
+  });
+
+  it('should return codes that work with getHKQuotes', async () => {
+    const codeList = await sdk.getHKCodeList();
+    // 使用代码列表中的前 3 个代码测试
+    const testCodes = codeList.slice(0, 3);
+    const quotes = await sdk.getHKQuotes(testCodes);
+    // 验证返回数据
+    expect(quotes.length).toBeGreaterThan(0);
+    if (quotes.length > 0) {
+      const q = quotes[0];
+      expect(q).toHaveProperty('code');
+      expect(q).toHaveProperty('name');
+      expect(q).toHaveProperty('price');
+      expect(q).toHaveProperty('currency');
+      expect(typeof q.price).toBe('number');
+    }
+  });
+});
+
+describe('getUSCodeList codes work with getUSQuotes', () => {
+  it('should return codes that work with getUSQuotes', async () => {
+    const codeList = await sdk.getUSCodeList(false);
+    // 使用代码列表中的前 5 个代码测试（有些股票可能没有数据）
+    const testCodes = codeList.slice(0, 5);
+    const quotes = await sdk.getUSQuotes(testCodes);
+    // 验证返回数据
+    expect(quotes.length).toBeGreaterThan(0);
+    if (quotes.length > 0) {
+      const q = quotes[0];
+      expect(q).toHaveProperty('code');
+      expect(q).toHaveProperty('name');
+      expect(q).toHaveProperty('price');
+      expect(q).toHaveProperty('prevClose');
+      expect(q).toHaveProperty('totalMarketCap');
+      expect(typeof q.price).toBe('number');
+    }
+  });
+});
+
 describe('getHistoryKline', () => {
   it('should return 日K线数据', async () => {
     const res = await sdk.getHistoryKline('000001', {
@@ -202,6 +304,89 @@ describe('getHistoryKline', () => {
     expect(hfq.length).toBeGreaterThan(0);
     expect(qfq.length).toBeGreaterThan(0);
     expect(noAdj.length).toBeGreaterThan(0);
+  });
+});
+
+describe('getHKHistoryKline', () => {
+  it('should return 港股日K线数据', async () => {
+    const res = await sdk.getHKHistoryKline('00700', {
+      startDate: '20241201',
+      endDate: '20241220',
+    });
+    expect(res.length).toBeGreaterThan(0);
+    const k = res[0];
+    expect(k.code).toBe('00700');
+    expect(k.name).toContain('腾讯');
+    expect(k.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(typeof k.open).toBe('number');
+    expect(typeof k.close).toBe('number');
+  });
+
+  it('should return 港股周K线数据', async () => {
+    const res = await sdk.getHKHistoryKline('09988', {
+      period: 'weekly',
+      startDate: '20241101',
+      endDate: '20241231',
+    });
+    expect(res.length).toBeGreaterThan(0);
+    expect(res[0].code).toBe('09988');
+  });
+
+  it('should support different adjust types', async () => {
+    const [hfq, qfq, noAdj] = await Promise.all([
+      sdk.getHKHistoryKline('00700', { adjust: 'hfq', startDate: '20241201', endDate: '20241220' }),
+      sdk.getHKHistoryKline('00700', { adjust: 'qfq', startDate: '20241201', endDate: '20241220' }),
+      sdk.getHKHistoryKline('00700', { adjust: '', startDate: '20241201', endDate: '20241220' }),
+    ]);
+    expect(hfq.length).toBeGreaterThan(0);
+    expect(qfq.length).toBeGreaterThan(0);
+    expect(noAdj.length).toBeGreaterThan(0);
+  });
+});
+
+describe('getUSHistoryKline', () => {
+  it('should return 美股日K线数据 (纳斯达克)', async () => {
+    const res = await sdk.getUSHistoryKline('105.MSFT', {
+      startDate: '20241201',
+      endDate: '20241220',
+    });
+    expect(res.length).toBeGreaterThan(0);
+    const k = res[0];
+    expect(k.code).toBe('MSFT');
+    expect(k.name).toContain('微软');
+    expect(k.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(typeof k.open).toBe('number');
+    expect(typeof k.close).toBe('number');
+  });
+
+  it('should return 美股周K线数据 (纽交所)', async () => {
+    const res = await sdk.getUSHistoryKline('106.BABA', {
+      period: 'weekly',
+      startDate: '20241101',
+      endDate: '20241231',
+    });
+    expect(res.length).toBeGreaterThan(0);
+    expect(res[0].code).toBe('BABA');
+  });
+
+  it('should support different adjust types', async () => {
+    const [hfq, qfq, noAdj] = await Promise.all([
+      sdk.getUSHistoryKline('105.AAPL', { adjust: 'hfq', startDate: '20241201', endDate: '20241220' }),
+      sdk.getUSHistoryKline('105.AAPL', { adjust: 'qfq', startDate: '20241201', endDate: '20241220' }),
+      sdk.getUSHistoryKline('105.AAPL', { adjust: '', startDate: '20241201', endDate: '20241220' }),
+    ]);
+    expect(hfq.length).toBeGreaterThan(0);
+    expect(qfq.length).toBeGreaterThan(0);
+    expect(noAdj.length).toBeGreaterThan(0);
+  });
+
+  it('should return 美股月K线数据', async () => {
+    const res = await sdk.getUSHistoryKline('105.TSLA', {
+      period: 'monthly',
+      startDate: '20240101',
+      endDate: '20241231',
+    });
+    expect(res.length).toBeGreaterThan(0);
   });
 });
 
@@ -340,6 +525,12 @@ describe('utils', () => {
       const chunks = chunkArray(arr, 10);
       expect(chunks).toEqual([[1, 2, 3]]);
     });
+
+    it('should throw for invalid chunk size', () => {
+      expect(() => chunkArray([1, 2], 0)).toThrow(/chunkSize/i);
+      expect(() => chunkArray([1, 2], -1)).toThrow(/chunkSize/i);
+      expect(() => chunkArray([1, 2], 1.5)).toThrow(/chunkSize/i);
+    });
   });
 
   describe('asyncPool', () => {
@@ -381,6 +572,11 @@ describe('utils', () => {
       const tasks = [1, 2, 3].map(n => async () => n * 2);
       const output = await asyncPool(tasks, 1);
       expect(output).toEqual([2, 4, 6]);
+    });
+
+    it('should throw for invalid concurrency', async () => {
+      await expect(asyncPool([async () => 1], 0)).rejects.toThrow(/concurrency/i);
+      await expect(asyncPool([async () => 1], -1)).rejects.toThrow(/concurrency/i);
     });
   });
 });
@@ -575,6 +771,71 @@ describe('边界情况', () => {
       expect(progressCalled).toBe(true);
     }, 60000);
   });
+
+  describe('getAllHKShareQuotes', () => {
+    it('should return 港股全量行情 with correct HKQuote structure', async () => {
+      const customSdk = new StockSDK();
+      const res = await customSdk.getAllHKShareQuotes({
+        batchSize: 50,
+        concurrency: 2,
+      });
+      expect(res.length).toBeGreaterThan(0);
+      
+      // 验证每条数据都符合 HKQuote 结构
+      const sample = res[0];
+      expect(sample).toHaveProperty('marketId');
+      expect(sample).toHaveProperty('name');
+      expect(sample).toHaveProperty('code');
+      expect(sample).toHaveProperty('price');
+      expect(sample).toHaveProperty('prevClose');
+      expect(sample).toHaveProperty('open');
+      expect(sample).toHaveProperty('volume');
+      expect(sample).toHaveProperty('time');
+      expect(sample).toHaveProperty('change');
+      expect(sample).toHaveProperty('changePercent');
+      expect(sample).toHaveProperty('high');
+      expect(sample).toHaveProperty('low');
+      expect(sample).toHaveProperty('amount');
+      expect(sample).toHaveProperty('currency');
+      expect(sample).toHaveProperty('raw');
+      
+      // 验证价格是数字
+      expect(typeof sample.price).toBe('number');
+      expect(typeof sample.changePercent).toBe('number');
+    }, 60000);
+  });
+
+  describe('getAllUSShareQuotes', () => {
+    it('should return 美股全量行情 with correct USQuote structure', async () => {
+      const customSdk = new StockSDK();
+      const res = await customSdk.getAllUSShareQuotes({
+        batchSize: 50,
+        concurrency: 2,
+      });
+      expect(res.length).toBeGreaterThan(0);
+      
+      // 验证每条数据都符合 USQuote 结构
+      const sample = res[0];
+      expect(sample).toHaveProperty('marketId');
+      expect(sample).toHaveProperty('name');
+      expect(sample).toHaveProperty('code');
+      expect(sample).toHaveProperty('price');
+      expect(sample).toHaveProperty('prevClose');
+      expect(sample).toHaveProperty('open');
+      expect(sample).toHaveProperty('high');
+      expect(sample).toHaveProperty('low');
+      expect(sample).toHaveProperty('change');
+      expect(sample).toHaveProperty('changePercent');
+      expect(sample).toHaveProperty('volume');
+      expect(sample).toHaveProperty('amount');
+      expect(sample).toHaveProperty('totalMarketCap');
+      expect(sample).toHaveProperty('raw');
+      
+      // 验证价格是数字
+      expect(typeof sample.price).toBe('number');
+      expect(typeof sample.changePercent).toBe('number');
+    }, 60000);
+  });
 });
 
 // ============ 多种周期和参数组合测试 ============
@@ -622,6 +883,42 @@ describe('错误处理', () => {
     it('getTodayTimeline should throw when API returns error', async () => {
       await expect(sdk.getTodayTimeline('abc123')).rejects.toThrow();
     });
+  });
+});
+
+// ============ 参数校验测试 ============
+describe('参数校验', () => {
+  it('getHistoryKline should throw for invalid period', async () => {
+    await expect(
+      sdk.getHistoryKline('000001', { period: 'yearly' as any })
+    ).rejects.toThrow(/period/i);
+  });
+
+  it('getHistoryKline should throw for invalid adjust', async () => {
+    await expect(
+      sdk.getHistoryKline('000001', { adjust: 'bad' as any })
+    ).rejects.toThrow(/adjust/i);
+  });
+
+  it('getMinuteKline should throw for invalid period', async () => {
+    await expect(
+      sdk.getMinuteKline('000001', { period: '2' as any })
+    ).rejects.toThrow(/period/i);
+  });
+
+  it('getMinuteKline should throw for invalid adjust', async () => {
+    await expect(
+      sdk.getMinuteKline('000001', { period: '5', adjust: 'bad' as any })
+    ).rejects.toThrow(/adjust/i);
+  });
+
+  it('getAllQuotesByCodes should throw for invalid batch options', async () => {
+    await expect(
+      sdk.getAllQuotesByCodes(['sz000858'], { batchSize: 0 as any })
+    ).rejects.toThrow(/batchSize/i);
+    await expect(
+      sdk.getAllQuotesByCodes(['sz000858'], { concurrency: 0 as any })
+    ).rejects.toThrow(/concurrency/i);
   });
 });
 
@@ -706,6 +1003,402 @@ describe('更多边界情况', () => {
       expect(Array.isArray(res)).toBe(true);
     });
   });
+
+  describe('getKlineWithIndicators', () => {
+    it('should return kline with MA indicators', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          ma: { periods: [5, 10, 20] },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[res.length - 1].ma).toBeDefined();
+      expect(res[res.length - 1].ma?.ma5).toBeDefined();
+    });
+
+    it('should return kline with MACD indicators', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          macd: true,
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[res.length - 1].macd).toBeDefined();
+      expect(res[res.length - 1].macd?.dif).toBeDefined();
+    });
+
+    it('should return kline with BOLL indicators', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          boll: true,
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[res.length - 1].boll).toBeDefined();
+    });
+
+    it('should return kline with KDJ indicators', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          kdj: true,
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[res.length - 1].kdj).toBeDefined();
+    });
+
+    it('should return kline with multiple indicators', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          ma: { periods: [5, 10] },
+          macd: true,
+          boll: true,
+          kdj: true,
+          rsi: true,
+          wr: true,
+          bias: true,
+          cci: true,
+          atr: true,
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      const last = res[res.length - 1];
+      expect(last.ma).toBeDefined();
+      expect(last.macd).toBeDefined();
+      expect(last.boll).toBeDefined();
+      expect(last.kdj).toBeDefined();
+      expect(last.rsi).toBeDefined();
+      expect(last.wr).toBeDefined();
+      expect(last.bias).toBeDefined();
+      expect(last.cci).toBeDefined();
+      expect(last.atr).toBeDefined();
+    });
+
+    it('should return kline with BIAS indicators', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          bias: { periods: [6, 12, 24] },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[res.length - 1].bias).toBeDefined();
+      expect(res[res.length - 1].bias?.bias6).toBeDefined();
+    });
+
+    it('should return kline with CCI indicator', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          cci: { period: 14 },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[res.length - 1].cci).toBeDefined();
+      expect(res[res.length - 1].cci?.cci).toBeDefined();
+    });
+
+    it('should return kline with ATR indicator', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          atr: { period: 14 },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[res.length - 1].atr).toBeDefined();
+      expect(res[res.length - 1].atr?.atr).toBeDefined();
+      expect(res[res.length - 1].atr?.tr).toBeDefined();
+    });
+
+    it('should auto detect HK market', async () => {
+      const res = await sdk.getKlineWithIndicators('00700', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          ma: { periods: [5] },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[0].ma).toBeDefined();
+    });
+
+    it('should auto detect US market', async () => {
+      const res = await sdk.getKlineWithIndicators('105.MSFT', {
+        startDate: '20241201',
+        endDate: '20241220',
+        indicators: {
+          ma: { periods: [5] },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[0].ma).toBeDefined();
+    });
+  });
 });
 
+// 技术指标独立计算函数测试
+describe('Technical Indicators', () => {
+  describe('calcSMA', () => {
+    it('should calculate simple moving average correctly', () => {
+      const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const sma = calcSMA(data, 3);
+      expect(sma[0]).toBeNull();
+      expect(sma[1]).toBeNull();
+      expect(sma[2]).toBe(2); // (1+2+3)/3
+      expect(sma[3]).toBe(3); // (2+3+4)/3
+      expect(sma[9]).toBe(9); // (8+9+10)/3
+    });
 
+    it('should handle null values', () => {
+      const data = [1, 2, null, 4, 5];
+      const sma = calcSMA(data, 3);
+      expect(sma[2]).toBeNull(); // null in window
+    });
+  });
+
+  describe('calcEMA', () => {
+    it('should calculate exponential moving average correctly', () => {
+      const data = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+      const ema = calcEMA(data, 3);
+      expect(ema[0]).toBeNull();
+      expect(ema[1]).toBeNull();
+      expect(ema[2]).toBe(11); // SMA 初始化: (10+11+12)/3 = 11
+      expect(ema[3]).not.toBeNull();
+    });
+  });
+
+  describe('calcWMA', () => {
+    it('should calculate weighted moving average correctly', () => {
+      const data = [1, 2, 3, 4, 5];
+      const wma = calcWMA(data, 3);
+      expect(wma[0]).toBeNull();
+      expect(wma[1]).toBeNull();
+      // WMA = (1*1 + 2*2 + 3*3) / (1+2+3) = (1+4+9)/6 = 14/6 = 2.33
+      expect(wma[2]).toBeCloseTo(2.33, 1);
+    });
+  });
+
+  describe('calcMA', () => {
+    it('should calculate multiple periods', () => {
+      const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const ma = calcMA(data, { periods: [3, 5] });
+      expect(ma.length).toBe(10);
+      expect(ma[2].ma3).toBe(2);
+      expect(ma[4].ma5).toBe(3);
+    });
+
+    it('should support ema type', () => {
+      const data = [10, 11, 12, 13, 14];
+      const ma = calcMA(data, { periods: [3], type: 'ema' });
+      expect(ma[2].ma3).toBe(11); // SMA 初始化
+    });
+  });
+
+  describe('calcMACD', () => {
+    it('should calculate MACD correctly', () => {
+      // 生成足够长的测试数据
+      const data = Array.from({ length: 50 }, (_, i) => 100 + i);
+      const macd = calcMACD(data, { short: 12, long: 26, signal: 9 });
+      expect(macd.length).toBe(50);
+      // 前 25 天应该是 null（长期 EMA 需要 26 天）
+      expect(macd[0].dif).toBeNull();
+      // 后面应该有值
+      expect(macd[49].dif).not.toBeNull();
+      expect(macd[49].dea).not.toBeNull();
+      expect(macd[49].macd).not.toBeNull();
+    });
+  });
+
+  describe('calcBOLL', () => {
+    it('should calculate BOLL correctly', () => {
+      const data = Array.from({ length: 30 }, (_, i) => 100 + (i % 5) - 2);
+      const boll = calcBOLL(data, { period: 20, stdDev: 2 });
+      expect(boll.length).toBe(30);
+      expect(boll[19].mid).not.toBeNull();
+      expect(boll[19].upper).not.toBeNull();
+      expect(boll[19].lower).not.toBeNull();
+      expect(boll[19].upper!).toBeGreaterThan(boll[19].mid!);
+      expect(boll[19].lower!).toBeLessThan(boll[19].mid!);
+    });
+  });
+
+  describe('calcKDJ', () => {
+    it('should calculate KDJ correctly', () => {
+      const data = Array.from({ length: 20 }, (_, i) => ({
+        open: 100 + i,
+        high: 105 + i,
+        low: 95 + i,
+        close: 102 + i,
+        volume: 1000,
+      }));
+      const kdj = calcKDJ(data, { period: 9 });
+      expect(kdj.length).toBe(20);
+      expect(kdj[8].k).not.toBeNull();
+      expect(kdj[8].d).not.toBeNull();
+      expect(kdj[8].j).not.toBeNull();
+    });
+  });
+
+  describe('calcRSI', () => {
+    it('should calculate RSI correctly', () => {
+      // 上涨趋势
+      const upData = Array.from({ length: 20 }, (_, i) => 100 + i);
+      const rsiUp = calcRSI(upData, { periods: [6] });
+      expect(rsiUp[6].rsi6).toBe(100); // 全部上涨
+
+      // 下跌趋势
+      const downData = Array.from({ length: 20 }, (_, i) => 100 - i);
+      const rsiDown = calcRSI(downData, { periods: [6] });
+      expect(rsiDown[6].rsi6).toBe(0); // 全部下跌
+    });
+  });
+
+  describe('calcWR', () => {
+    it('should calculate WR correctly', () => {
+      const data = Array.from({ length: 15 }, (_, i) => ({
+        open: 100,
+        high: 110,
+        low: 90,
+        close: 100 + (i % 3) * 5 - 5, // 95, 100, 105 循环
+        volume: 1000,
+      }));
+      const wr = calcWR(data, { periods: [6] });
+      expect(wr.length).toBe(15);
+      expect(wr[5].wr6).not.toBeNull();
+    });
+  });
+
+  describe('calcBIAS', () => {
+    it('should calculate BIAS correctly', () => {
+      const data = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+      const bias = calcBIAS(data, { periods: [6] });
+      expect(bias.length).toBe(11);
+      // 前 5 个应该是 null
+      expect(bias[4].bias6).toBeNull();
+      // 第 6 个应该有值
+      expect(bias[5].bias6).not.toBeNull();
+      // 验证计算公式: BIAS = (close - MA) / MA * 100
+      const ma6 = (10 + 11 + 12 + 13 + 14 + 15) / 6; // 12.5
+      const expectedBias = ((15 - ma6) / ma6) * 100; // 20
+      expect(bias[5].bias6).toBeCloseTo(expectedBias, 2);
+    });
+
+    it('should calculate multiple BIAS periods', () => {
+      const data = Array.from({ length: 30 }, (_, i) => 100 + i);
+      const bias = calcBIAS(data, { periods: [6, 12, 24] });
+      expect(bias.length).toBe(30);
+      expect(bias[29].bias6).not.toBeNull();
+      expect(bias[29].bias12).not.toBeNull();
+      expect(bias[29].bias24).not.toBeNull();
+    });
+  });
+
+  describe('calcCCI', () => {
+    it('should calculate CCI correctly', () => {
+      const data = Array.from({ length: 20 }, (_, i) => ({
+        open: 100 + i,
+        high: 110 + i,
+        low: 90 + i,
+        close: 100 + i,
+        volume: 1000,
+      }));
+      const cci = calcCCI(data, { period: 14 });
+      expect(cci.length).toBe(20);
+      // 前 13 个应该是 null
+      expect(cci[12].cci).toBeNull();
+      // 第 14 个应该有值
+      expect(cci[13].cci).not.toBeNull();
+    });
+
+    it('should handle steady trend', () => {
+      // 稳定上涨趋势，CCI 应该为正
+      const data = Array.from({ length: 20 }, (_, i) => ({
+        open: 100 + i * 2,
+        high: 110 + i * 2,
+        low: 90 + i * 2,
+        close: 100 + i * 2,
+        volume: 1000,
+      }));
+      const cci = calcCCI(data, { period: 14 });
+      expect(cci[19].cci).toBeGreaterThan(0);
+    });
+  });
+
+  describe('calcATR', () => {
+    it('should calculate ATR correctly', () => {
+      const data = Array.from({ length: 20 }, (_, i) => ({
+        open: 100 + i,
+        high: 110 + i,
+        low: 90 + i,
+        close: 100 + i,
+        volume: 1000,
+      }));
+      const atr = calcATR(data, { period: 14 });
+      expect(atr.length).toBe(20);
+      // 前 13 个应该是 null
+      expect(atr[12].atr).toBeNull();
+      // 第 14 个应该有值
+      expect(atr[13].atr).not.toBeNull();
+      // TR 应该总是有值（第一个除外）
+      expect(atr[1].tr).not.toBeNull();
+    });
+
+    it('should calculate TR correctly', () => {
+      const data = [
+        { open: 100, high: 110, low: 90, close: 100, volume: 1000 },
+        { open: 105, high: 115, low: 95, close: 105, volume: 1000 },
+      ];
+      const atr = calcATR(data, { period: 14 });
+      // TR = max(high - low, |high - prevClose|, |low - prevClose|)
+      // TR[1] = max(115 - 95, |115 - 100|, |95 - 100|) = max(20, 15, 5) = 20
+      expect(atr[1].tr).toBe(20);
+    });
+  });
+
+  describe('addIndicators', () => {
+    it('should add indicators to kline data', () => {
+      const klines = Array.from({ length: 30 }, (_, i) => ({
+        date: `2024-01-${String(i + 1).padStart(2, '0')}`,
+        code: '000001',
+        open: 100 + i,
+        high: 105 + i,
+        low: 95 + i,
+        close: 102 + i,
+        volume: 1000,
+        amount: 100000,
+        amplitude: 10,
+        changePercent: 1,
+        change: 1,
+        turnoverRate: 1,
+      }));
+      
+      const result = addIndicators(klines, {
+        ma: { periods: [5, 10] },
+        macd: true,
+      });
+      
+      expect(result.length).toBe(30);
+      expect(result[10].ma).toBeDefined();
+      expect(result[10].macd).toBeDefined();
+    });
+
+    it('should handle empty array', () => {
+      const result = addIndicators([], { ma: true });
+      expect(result).toEqual([]);
+    });
+  });
+});
