@@ -24,6 +24,10 @@ yarn-error.log*
 # Test coverage
 coverage/
 
+# VitePress
+website/.vitepress/dist
+website/.vitepress/cache
+
 # Environment
 .env
 .env.local
