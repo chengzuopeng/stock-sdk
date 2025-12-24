@@ -20,13 +20,6 @@ export default defineConfig({
       { text: 'API', link: '/api/' },
       { text: 'Playground', link: '/playground/' },
       { text: '更新日志', link: '/changelog' },
-      {
-        text: '相关链接',
-        items: [
-          { text: 'GitHub', link: 'https://github.com/chengzuopeng/stock-sdk' },
-          { text: 'NPM', link: 'https://www.npmjs.com/package/stock-sdk' },
-        ],
-      },
     ],
 
     sidebar: {

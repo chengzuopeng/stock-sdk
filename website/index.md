@@ -49,11 +49,11 @@ features:
 <style>
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #10b981 30%, #3b82f6);
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #f87171 30%, #fb923c);
 }
 
 .dark {
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #34d399 30%, #60a5fa);
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #fca5a5 30%, #fdba74);
 }
 </style>
 

@@ -255,3 +255,9 @@ body:has(.VPHome) .VPNavBarSearchButton {
 .VPFeature:nth-child(4) { animation-delay: 0.4s; }
 .VPFeature:nth-child(5) { animation-delay: 0.5s; }
 .VPFeature:nth-child(6) { animation-delay: 0.6s; }
+
+/* ===== 导航栏：确保主题切换和 GitHub 图标始终显示 ===== */
+.VPNavBarAppearance,
+.VPNavBarSocialLinks {
+  display: flex !important;
+}

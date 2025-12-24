@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
     <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#f87171;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fb923c;stop-opacity:1" />
     </linearGradient>
   </defs>
   <rect x="5" y="5" width="90" height="90" rx="12" fill="url(#grad1)"/>
-  <path d="M20 70 L35 50 L50 60 L65 30 L80 45" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="20" cy="70" r="4" fill="white"/>
-  <circle cx="35" cy="50" r="4" fill="white"/>
-  <circle cx="50" cy="60" r="4" fill="white"/>
-  <circle cx="65" cy="30" r="4" fill="white"/>
-  <circle cx="80" cy="45" r="4" fill="white"/>
+  <path d="M15 70 L30 55 L45 62 L60 35 L75 50 L85 30" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="15" cy="70" r="4" fill="white"/>
+  <circle cx="30" cy="55" r="4" fill="white"/>
+  <circle cx="45" cy="62" r="4" fill="white"/>
+  <circle cx="60" cy="35" r="4" fill="white"/>
+  <circle cx="75" cy="50" r="4" fill="white"/>
+  <circle cx="85" cy="30" r="4" fill="white"/>
 </svg>
-

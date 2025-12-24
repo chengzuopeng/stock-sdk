@@ -1,9 +1,28 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useData } from 'vitepress'
+import { Icon } from '@iconify/vue'
+import { codeToHtml } from 'shiki'
 
 // 获取 VitePress 的主题状态
 const { isDark } = useData()
+
+// 高亮后的代码 HTML
+const highlightedCode = ref('')
+
+// 异步高亮代码
+async function updateHighlightedCode(code: string) {
+  try {
+    // 始终使用深色主题，因为代码框背景是深色的
+    highlightedCode.value = await codeToHtml(code, {
+      lang: 'typescript',
+      theme: 'github-dark',
+    })
+  } catch {
+    // 如果高亮失败，显示纯文本
+    highlightedCode.value = `<pre><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
+  }
+}
 
 // 方法配置
 interface ParamConfig {
@@ -44,11 +63,11 @@ const defaultDates = getDefaultDateRange()
 
 // 方法分类
 const categories = [
-  { key: 'quotes', label: '实时行情', icon: '📊' },
-  { key: 'kline', label: 'K线数据', icon: '📈' },
-  { key: 'indicator', label: '技术指标', icon: '📉' },
-  { key: 'batch', label: '批量查询', icon: '📋' },
-  { key: 'extended', label: '扩展功能', icon: '💡' },
+  { key: 'quotes', label: '实时行情', icon: 'lucide:bar-chart-3', color: '#3b82f6' },
+  { key: 'kline', label: 'K线数据', icon: 'lucide:line-chart', color: '#22c55e' },
+  { key: 'indicator', label: '技术指标', icon: 'lucide:trending-up', color: '#f59e0b' },
+  { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
+  { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
 ]
 
 const methodsConfig: Record<string, MethodConfig> = {
@@ -307,7 +326,6 @@ const resultCount = ref(0)
 const showCode = ref(false)
 const sdk = ref<any>(null)
 const sdkLoaded = ref(false)
-const activeCategory = ref('quotes')
 
 // 当前方法配置
 const currentConfig = computed(() => methodsConfig[currentMethod.value])
@@ -325,10 +343,10 @@ function initParams() {
 // 切换方法
 function selectMethod(method: string) {
   currentMethod.value = method
-  activeCategory.value = methodsConfig[method].category
   initParams()
   resultStatus.value = 'idle'
   result.value = ''
+  showCode.value = false
 }
 
 // 发送请求
@@ -501,6 +519,14 @@ onMounted(async () => {
   }
 })
 
+// 监听方法和代码显示状态的变化，更新代码高亮
+watch([currentMethod, showCode], async () => {
+  if (showCode.value && currentConfig.value) {
+    const fullCode = `const sdk = new StockSDK();\n// ${currentConfig.value.desc}\n${currentConfig.value.code}`;
+    await updateHighlightedCode(fullCode);
+  }
+}, { immediate: true })
+
 watch(currentMethod, () => {
   initParams()
 })
@@ -508,33 +534,25 @@ watch(currentMethod, () => {
 
 <template>
   <div class="playground" :class="{ dark: isDark }">
-    <div class="playground-header">
-      <div class="header-content">
-        <h1>
-          <span class="icon">📈</span>
-          Stock SDK Playground
-        </h1>
-        <p class="subtitle">在线测试 SDK 各种方法，实时获取股票行情数据</p>
-      </div>
-      <div class="sdk-status">
-        <span v-if="sdkLoaded" class="status-badge success">
-          <span class="dot"></span>
-          SDK 已就绪
-        </span>
-        <span v-else class="status-badge loading">
-          <span class="spinner"></span>
-          加载中...
-        </span>
-      </div>
-    </div>
-
     <div class="playground-body">
       <aside class="sidebar">
-        <div class="sidebar-header">API 方法</div>
+        <div class="sidebar-header">
+          <span>API 方法</span>
+          <div class="sdk-status">
+            <span v-if="sdkLoaded" class="status-badge success" title="SDK 已就绪">
+              <span class="dot"></span>
+            </span>
+            <span v-else class="status-badge loading" title="加载中...">
+              <span class="spinner"></span>
+            </span>
+          </div>
+        </div>
         <nav class="method-nav">
           <div v-for="cat in categories" :key="cat.key" class="category">
             <div class="category-header">
-              <span class="category-icon">{{ cat.icon }}</span>
+              <span class="category-icon" :style="{ color: cat.color }">
+                <Icon :icon="cat.icon" />
+              </span>
               <span class="category-label">{{ cat.label }}</span>
             </div>
             <div class="category-methods">
@@ -555,8 +573,13 @@ watch(currentMethod, () => {
       <main class="main-content">
         <div class="card params-card">
           <div class="card-header">
-            <h2>{{ currentConfig.name }}</h2>
-            <span class="method-desc">{{ currentConfig.desc }}</span>
+            <div class="method-info">
+              <h2>{{ currentConfig.name }}</h2>
+              <span class="method-desc">{{ currentConfig.desc }}</span>
+            </div>
+            <button class="btn-toggle-code" :class="{ active: showCode }" @click="showCode = !showCode">
+              {{ showCode ? '隐藏代码' : '查看示例' }}
+            </button>
           </div>
           <div class="card-body">
             <div class="params-grid">
@@ -583,29 +606,22 @@ watch(currentMethod, () => {
                 />
               </div>
             </div>
+
+            <Transition name="expand">
+              <div v-if="showCode" class="code-example-section">
+                <div class="shiki-wrapper" v-html="highlightedCode"></div>
+              </div>
+            </Transition>
+
             <div class="action-bar">
               <button class="btn primary" :disabled="isLoading || !sdkLoaded" @click="fetchData">
                 <span v-if="isLoading" class="btn-spinner"></span>
                 {{ isLoading ? '请求中...' : '🚀 发送请求' }}
               </button>
               <button class="btn secondary" @click="clearResult">清空</button>
-              <button class="btn ghost" @click="showCode = !showCode">
-                {{ showCode ? '隐藏示例' : '📝 查看代码' }}
-              </button>
             </div>
           </div>
         </div>
-
-        <Transition name="slide">
-          <div v-if="showCode" class="card code-card">
-            <div class="card-header">
-              <h3>代码示例</h3>
-            </div>
-            <div class="card-body">
-              <pre class="code-block"><code>{{ currentConfig.code }}</code></pre>
-            </div>
-          </div>
-        </Transition>
 
         <div class="card result-card">
           <div class="card-header">
@@ -633,7 +649,7 @@ watch(currentMethod, () => {
 
 <style scoped>
 .playground {
-  /* 浅色主题变量 */
+  /* 浅色主题变量 - 红色主题 */
   --pg-bg: #f8fafc;
   --pg-surface: #ffffff;
   --pg-surface-hover: #f1f5f9;
@@ -641,9 +657,9 @@ watch(currentMethod, () => {
   --pg-text: #1e293b;
   --pg-text-secondary: #64748b;
   --pg-text-muted: #94a3b8;
-  --pg-accent: #10b981;
-  --pg-accent-hover: #059669;
-  --pg-accent-soft: rgba(16, 185, 129, 0.1);
+  --pg-accent: #f87171;
+  --pg-accent-hover: #ef4444;
+  --pg-accent-soft: rgba(248, 113, 113, 0.1);
   --pg-success: #22c55e;
   --pg-error: #ef4444;
   --pg-code-bg: #1e293b;
@@ -666,104 +682,19 @@ watch(currentMethod, () => {
   --pg-text: #f1f5f9;
   --pg-text-secondary: #94a3b8;
   --pg-text-muted: #64748b;
-  --pg-accent: #34d399;
-  --pg-accent-hover: #10b981;
-  --pg-accent-soft: rgba(52, 211, 153, 0.15);
+  --pg-accent: #fca5a5;
+  --pg-accent-hover: #f87171;
+  --pg-accent-soft: rgba(252, 165, 165, 0.15);
   --pg-code-bg: #0f172a;
   --pg-code-text: #e2e8f0;
   --pg-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   --pg-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
 }
 
-/* Header */
-.playground-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
-  background: var(--pg-surface);
-  border-bottom: 1px solid var(--pg-border);
-}
-
-.header-content h1 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0 0 6px;
-  background: linear-gradient(135deg, var(--pg-accent) 0%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.header-content .icon {
-  font-size: 2rem;
-  -webkit-text-fill-color: initial;
-}
-
-.subtitle {
-  color: var(--pg-text-secondary);
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.sdk-status {
-  display: flex;
-  align-items: center;
-}
-
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.status-badge.success {
-  background: rgba(34, 197, 94, 0.1);
-  color: var(--pg-success);
-}
-
-.status-badge.loading {
-  background: var(--pg-accent-soft);
-  color: var(--pg-accent);
-}
-
-.status-badge .dot {
-  width: 8px;
-  height: 8px;
-  background: currentColor;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.status-badge .spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 /* Body Layout */
 .playground-body {
   display: flex;
-  min-height: calc(100vh - 100px);
+  min-height: 100vh;
 }
 
 /* Sidebar */
@@ -776,6 +707,9 @@ watch(currentMethod, () => {
 }
 
 .sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 16px 20px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -783,6 +717,45 @@ watch(currentMethod, () => {
   letter-spacing: 0.05em;
   color: var(--pg-text-muted);
   border-bottom: 1px solid var(--pg-border);
+}
+
+.sdk-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.status-badge.success .dot {
+  width: 8px;
+  height: 8px;
+  background: var(--pg-success);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-badge.loading .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--pg-accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .method-nav {
@@ -804,7 +777,9 @@ watch(currentMethod, () => {
 }
 
 .category-icon {
-  font-size: 1rem;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
 }
 
 .category-methods {
@@ -842,6 +817,7 @@ watch(currentMethod, () => {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+  background: var(--pg-bg);
 }
 
 /* Cards */
@@ -868,9 +844,37 @@ watch(currentMethod, () => {
   font-weight: 600;
 }
 
+.method-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .method-desc {
   font-size: 0.875rem;
   color: var(--pg-text-secondary);
+}
+
+.btn-toggle-code {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--pg-accent);
+  background: var(--pg-accent-soft);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-toggle-code:hover {
+  background: var(--pg-accent);
+  color: white;
+}
+
+.btn-toggle-code.active {
+  background: var(--pg-accent);
+  color: white;
 }
 
 .card-body {
@@ -922,6 +926,59 @@ watch(currentMethod, () => {
   color: var(--pg-text-muted);
 }
 
+/* Code Example Section */
+.code-example-section {
+  margin-bottom: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1e293b;
+}
+
+.shiki-wrapper {
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.shiki-wrapper :deep(pre) {
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: 12px;
+  overflow-x: auto;
+  background: #1e293b !important;
+}
+
+.shiki-wrapper :deep(code) {
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.dark .code-example-section {
+  background: #0f172a;
+}
+
+.dark .shiki-wrapper :deep(pre) {
+  background: #0f172a !important;
+}
+
+/* Expand Transition */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+  margin-bottom: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 500px;
+}
+
 /* Action Bar */
 .action-bar {
   display: flex;
@@ -944,14 +1001,14 @@ watch(currentMethod, () => {
 }
 
 .btn.primary {
-  background: linear-gradient(135deg, var(--pg-accent) 0%, #059669 100%);
+  background: linear-gradient(135deg, #f87171 0%, #fb923c 100%);
   color: white;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 4px 14px rgba(248, 113, 113, 0.35);
 }
 
 .btn.primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+  box-shadow: 0 6px 20px rgba(248, 113, 113, 0.45);
 }
 
 .btn.primary:disabled {
@@ -968,15 +1025,6 @@ watch(currentMethod, () => {
   background: var(--pg-border);
 }
 
-.btn.ghost {
-  background: transparent;
-  color: var(--pg-accent);
-}
-
-.btn.ghost:hover {
-  background: var(--pg-accent-soft);
-}
-
 .btn-spinner {
   width: 16px;
   height: 16px;
@@ -984,35 +1032,6 @@ watch(currentMethod, () => {
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-}
-
-/* Code Card */
-.code-card {
-  background: var(--pg-code-bg);
-  border-color: var(--pg-border);
-}
-
-.code-card .card-header {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.code-card .card-header h3 {
-  color: var(--pg-code-text);
-}
-
-.code-block {
-  margin: 0;
-  padding: 0;
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-  font-size: 0.875rem;
-  line-height: 1.7;
-  color: var(--pg-code-text);
-  overflow-x: auto;
-}
-
-.code-block code {
-  display: block;
-  white-space: pre;
 }
 
 /* Result Card */
@@ -1078,18 +1097,6 @@ watch(currentMethod, () => {
   color: var(--pg-error);
 }
 
-/* Transitions */
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
 /* Responsive */
 @media (max-width: 900px) {
   .playground-body {
@@ -1112,13 +1119,6 @@ watch(currentMethod, () => {
   .category {
     flex: 1;
     min-width: 200px;
-  }
-
-  .playground-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px 20px;
   }
 
   .params-grid {
