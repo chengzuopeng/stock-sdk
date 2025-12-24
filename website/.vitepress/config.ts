@@ -1,14 +1,18 @@
 import { defineConfig } from 'vitepress'
 
+// 通过环境变量控制 base 路径
+// - GitHub Pages: DOCS_BASE=/stock-sdk/ (默认)
+// - 自定义域名: DOCS_BASE=/
+const base = process.env.DOCS_BASE || '/stock-sdk/'
+
 export default defineConfig({
   title: 'Stock SDK',
   description: '为前端和 Node.js 设计的股票行情 SDK',
 
-  // 部署到 GitHub Pages
-  base: '/stock-sdk/',
+  base: base,
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/stock-sdk/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
     ['meta', { name: 'theme-color', content: '#3eaf7c' }],
   ],
 

@@ -27,6 +27,7 @@
     "dev": "yarn build && (sleep 1 && open http://localhost:4000/playground/ &) && npx serve -l 4000 .",
     "dev:docs": "vitepress dev website",
     "build:docs": "vitepress build website",
+    "build:docs:root": "DOCS_BASE=/ vitepress build website",
     "preview:docs": "vitepress preview website"
   },
   "keywords": [
