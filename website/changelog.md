@@ -2,65 +2,62 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
-## v1.3.0
-
-**发布日期**: 2024-12-23
+## **[1.3.0](https://www.npmjs.com/package/stock-sdk/v/1.3.0)** (2025-12-23)
 
 ### 新增功能
 
-- 新增 VitePress 文档网站
-- 新增在线 Playground 交互式测试工具
-- 新增多个技术指标计算函数（BIAS、CCI、ATR）
+**K 线数据**
+- 新增美股和港股历史 K 线接口 `getHKHistoryKline`、`getUSHistoryKline`（日/周/月）
+- 新增获取全部美股和港股股实时行情接口 `getAllUSShareQuotes`、`getAllHKShareQuotes`（支持并发控制、进度回调）
+
+**技术指标**
+- 新增一站式技术指标接口 `getKlineWithIndicators`（自动获取 K 线并计算指标）
+- 新增均线计算函数 `calcMA`（支持 SMA/EMA/WMA）、`calcSMA`、`calcEMA`、`calcWMA`
+- 新增技术指标计算函数 `calcMACD`、`calcBOLL`、`calcKDJ`、`calcRSI`、`calcWR` 等
 
 ### 优化
 
-- 优化 API 文档结构
-- 优化代码示例
+- 新增中英文文档切换支持
 
----
-
-## v1.2.0
+## **[1.2.0](https://www.npmjs.com/package/stock-sdk/v/1.2.0)** (2025-12-18)
 
 ### 新增功能
 
-- 新增 `getKlineWithIndicators` 一站式获取带技术指标的 K 线数据
-- 新增市场自动识别功能（A股/港股/美股）
-- 新增 `addIndicators` 批量添加指标函数
+**K 线数据**
+- 新增 A 股历史 K 线接口 `getHistoryKline`（日/周/月，数据来源：东方财富）
+- 新增分钟 K 线接口 `getMinuteKline`（1/5/15/30/60 分钟）
+- 新增当日分时走势接口 `getTodayTimeline`
 
 ### 优化
 
-- 优化技术指标计算性能
-- 改进 TypeScript 类型定义
+- 完全重构 API 文档结构，使用表格形式更清晰展示
 
----
-
-## v1.1.0
-
-### 新增功能
-
-- 新增港股 K 线数据接口 `getHKHistoryKline`
-- 新增美股 K 线数据接口 `getUSHistoryKline`
-- 新增技术指标计算：RSI、WR
-
-### 修复
-
-- 修复部分股票代码解析问题
-
----
-
-## v1.0.0
-
-**发布日期**: 初始版本
+## **[1.1.0](https://www.npmjs.com/package/stock-sdk/v/1.1.0)** (2025-12-12)
 
 ### 功能
 
-- A 股/指数实时行情（全量/简要）
-- 港股、美股、公募基金行情
-- 历史 K 线（日/周/月）
-- 分钟 K 线和分时走势
-- 技术指标：MA、MACD、BOLL、KDJ
-- 资金流向、盘口大单
-- 全市场批量查询
+**实时行情**
+- A 股/指数全量行情 `getFullQuotes`
+- A 股/指数简要行情 `getSimpleQuotes`
+- 港股行情 `getHKQuotes`
+- 美股行情 `getUSQuotes`
+- 公募基金行情 `getFundQuotes`
+
+**扩展数据**
+- 资金流向 `getFundFlow`
+- 盘口大单占比 `getPanelLargeOrder`
+
+**批量查询**
+- 全部 A 股代码列表 `codeList`
+- 获取全部 A 股实时行情 `getAllAShareQuotes`（支持并发控制、进度回调）
+- 批量获取指定股票行情 `getAllQuotesByCodes`
+- 批量混合查询 `batchRaw`
+
+**特性**
+- 零依赖，轻量级
+- 支持浏览器和 Node.js 18+ 双端运行
+- 同时提供 ESM 和 CommonJS 两种模块格式
+- 完整的 TypeScript 类型定义
 
 ---
 
