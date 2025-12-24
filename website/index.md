@@ -35,7 +35,7 @@ features:
   - icon:
       src: /icons/trending-up.svg
     title: 技术指标
-    details: 内置 MA、MACD、BOLL、KDJ、RSI、WR 等常用技术指标计算
+    details: 内置 MA、MACD、BOLL、KDJ、RSI、WR、BIAS、CCI、ATR 等常用技术指标计算
   - icon:
       src: /icons/coins.svg
     title: 扩展数据

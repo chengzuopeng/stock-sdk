@@ -61,6 +61,12 @@ const data = await sdk.getKlineWithIndicators('09988', {
 });
 ```
 
+## 指标计算说明
+
+- **数据不足时返回 `null`**：多数指标需要 N 日历史数据，前 N-1 个点会是 `null`
+- **范围自动补齐**：`getKlineWithIndicators` 会自动向前补拉足够的 K 线数据，确保指标计算准确，最终只返回你指定的日期范围
+- **输入格式**：独立计算函数接受 `close` 或 `OHLC` 数据，数组长度需一致
+
 ## 独立计算函数
 
 如果需要更灵活的控制，可以使用独立的指标计算函数：
@@ -103,6 +109,27 @@ const ohlc = klines.map(k => ({
 }));
 const kdj = calcKDJ(ohlc, { period: 9 });
 console.log(kdj[20].k, kdj[20].d, kdj[20].j);
+```
+
+### BIAS / CCI / ATR 示例
+
+```typescript
+import { calcBIAS, calcCCI, calcATR } from 'stock-sdk';
+
+const klines = await sdk.getHistoryKline('sz000001');
+const closes = klines.map(k => k.close);
+const ohlc = klines.map(k => ({
+  open: k.open,
+  high: k.high,
+  low: k.low,
+  close: k.close,
+}));
+
+const bias = calcBIAS(closes, { periods: [6, 12, 24] });
+const cci = calcCCI(ohlc, { period: 14 });
+const atr = calcATR(ohlc, { period: 14 });
+
+console.log(bias[30].bias12, cci[30].cci, atr[30].atr);
 ```
 
 ## 使用 addIndicators
@@ -247,4 +274,3 @@ const option = {
   ]
 };
 ```
-

@@ -34,11 +34,15 @@ pnpm add stock-sdk
 
 ## 环境要求
 
-- **Node.js**: >= 18.0.0（需要原生 `fetch` 支持）
+- **Node.js**: >= 18.0.0（依赖原生 `fetch` / `AbortController` / `TextDecoder`）
 - **浏览器**: 所有现代浏览器（Chrome, Firefox, Safari, Edge）
 
 ::: tip 关于 GBK 编码
 SDK 使用原生 `TextDecoder` 解码 GBK 编码数据，无需额外 polyfill。
+:::
+
+::: tip 旧版 Node.js
+若你需要在 Node 18 以下运行，请自行补齐 `fetch` 与 `TextDecoder` 的 polyfill（不作为官方支持范围）。
 :::
 
 ## TypeScript 支持
@@ -66,4 +70,3 @@ import { StockSDK } from 'stock-sdk';
 // CommonJS
 const { StockSDK } = require('stock-sdk');
 ```
-

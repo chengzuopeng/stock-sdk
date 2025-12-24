@@ -18,6 +18,21 @@ import { StockSDK } from 'stock-sdk';
 const sdk = new StockSDK();
 ```
 
+#### 可选配置
+
+`StockSDK` 支持传入请求配置，适合设置代理或调整超时：
+
+```typescript
+const sdk = new StockSDK({
+  // 自定义腾讯行情请求地址（例如本地代理 /api/tencent）
+  baseUrl: '/api/tencent',
+  // 请求超时时间（毫秒）
+  timeout: 8000,
+});
+```
+
+> 建议在应用中复用同一个 `StockSDK` 实例，减少重复初始化。
+
 ### 2. 获取股票行情
 
 ```typescript
@@ -31,6 +46,12 @@ quotes.forEach(q => {
 // 五 粮 液: 150.00 (2.35%)
 // 贵州茅台: 1800.00 (1.20%)
 ```
+
+::: tip 代码格式
+- **A 股/指数**：带交易所前缀（`sh`/`sz`/`bj`），如 `sh000001`、`sz000858`
+- **港股**：5 位数字，如 `00700`
+- **美股**：行情查询用 `AAPL`、`MSFT`；K 线查询用 `105.AAPL`、`106.BABA`
+:::
 
 ### 3. 获取全量行情
 
@@ -87,6 +108,22 @@ data.forEach(k => {
   console.log(`  BOLL: 上=${k.boll?.upper}, 中=${k.boll?.mid}, 下=${k.boll?.lower}`);
   console.log(`  KDJ: K=${k.kdj?.k}, D=${k.kdj?.d}, J=${k.kdj?.j}`);
 });
+```
+
+### 6. 获取资金流向（可选）
+
+```typescript
+const flows = await sdk.getFundFlow(['sz000858', 'sh600519']);
+flows.forEach(f => {
+  console.log(`${f.name}: 主力净流入 ${f.mainNet} 万`);
+});
+```
+
+### 7. 获取当日分时走势（可选）
+
+```typescript
+const timeline = await sdk.getTodayTimeline('sz000001');
+console.log(timeline.date, timeline.data[0]);
 ```
 
 ## 港股 & 美股
@@ -146,7 +183,6 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 
 ## 下一步
 
-- 查看 [API 文档](/api/quotes) 了解所有可用方法
+- 查看 [API 文档](/api/) 了解所有可用方法
 - 尝试 [在线 Playground](/playground/) 交互式体验
 - 了解 [技术指标](/guide/indicators) 的使用方法
-

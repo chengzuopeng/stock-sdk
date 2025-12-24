@@ -104,7 +104,7 @@ console.log(`共获取 ${allUSQuotes.length} 只美股`);
 
 ## 批量获取指定股票
 
-如果只需要获取指定股票列表的行情，可以使用 `getAllQuotesByCodes`：
+如果只需要获取指定 **A 股/指数** 列表的行情，可以使用 `getAllQuotesByCodes`：
 
 ```typescript
 const myCodes = ['sz000858', 'sh600519', 'sh600000', 'sz000001', /* ... */];
@@ -120,13 +120,15 @@ const quotes = await sdk.getAllQuotesByCodes(myCodes, {
 console.log(`共获取 ${quotes.length} 只股票`);
 ```
 
+> 港股 / 美股请使用 `getAllHKShareQuotes` / `getAllUSShareQuotes`。
+
 ## 参数说明
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `batchSize` | `number` | `500` | 单次请求股票数量，最大 500 |
 | `concurrency` | `number` | `7` | 最大并发请求数 |
-| `onProgress` | `(completed, total) => void` | - | 进度回调函数 |
+| `onProgress` | `(completed, total) => void` | - | 进度回调函数（按批次回调） |
 
 ## 性能优化建议
 
@@ -173,4 +175,3 @@ cron.schedule('* 9-15 * * 1-5', async () => {
   await saveToDatabase(quotes);
 });
 ```
-

@@ -58,6 +58,12 @@ interface FullQuote {
 }
 ```
 
+::: tip 字段说明
+- `volume` 单位为 **手**（A 股 1 手 = 100 股），`amount` 单位为 **万**
+- 指数类标的部分字段可能为 `null` 或无意义，可按需忽略
+- `raw` 保存原始字段数组，适合自定义扩展解析
+:::
+
 ### 示例
 
 ```typescript
@@ -102,8 +108,15 @@ interface SimpleQuote {
   amount: number;
   marketCap: number | null;
   marketType: string;
+  raw: string[];
 }
 ```
+
+::: tip 字段说明
+- `volume` 单位为 **手**，`amount` 单位为 **万**（A 股）
+- `marketType` 常见值如 `GP-A`（A 股）、`ZS`（指数）
+- `raw` 为原始字段数组，便于扩展解析
+:::
 
 ### 示例
 
@@ -136,4 +149,3 @@ quotes.forEach(q => {
 | 创业板指 | `sz399006` |
 | 沪深300 | `sh000300` |
 | 中证500 | `sh000905` |
-

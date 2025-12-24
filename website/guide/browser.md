@@ -157,6 +157,16 @@ export default defineConfig({
 });
 ```
 
+然后在 SDK 中指定 `baseUrl`：
+
+```typescript
+import { StockSDK } from 'stock-sdk';
+
+const sdk = new StockSDK({
+  baseUrl: '/api/tencent',
+});
+```
+
 ### GBK 编码
 
 SDK 使用原生 `TextDecoder` 解码 GBK 编码数据，所有现代浏览器都支持，无需额外 polyfill。
@@ -174,4 +184,3 @@ const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
 // const q1 = await sdk.getSimpleQuotes(['sh000001']);
 // const q2 = await sdk.getSimpleQuotes(['sz000858']);
 ```
-

@@ -12,9 +12,19 @@ Stock SDK 是一个为**前端和 Node.js 设计的股票行情 SDK**。
 - ✅ 完整的 **TypeScript** 类型定义和单元测试覆盖
 - ✅ **A 股、港股、美股、公募基金**实时行情
 - ✅ **历史 K 线**（日/周/月）、**分钟 K 线**（1/5/15/30/60 分钟）和**当日分时走势**数据
-- ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR 等常用指标计算
+- ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR、BIAS、CCI、ATR 等常用指标计算
 - ✅ **资金流向**、**盘口大单**等扩展数据
 - ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
+
+## 🧭 数据来源
+
+- **腾讯财经**：A 股/指数实时行情、港股/美股行情、公募基金、资金流向、盘口大单、当日分时走势
+- **东方财富**：A 股/港股/美股历史 K 线、A 股分钟 K 线
+
+## ✅ 运行环境
+
+- **浏览器**：现代浏览器（Chrome / Safari / Edge / Firefox）
+- **Node.js**：18+（内置 `fetch` 和 `TextDecoder`）
 
 ## 📊 功能概览
 
@@ -49,6 +59,10 @@ Stock SDK 是一个为**前端和 Node.js 设计的股票行情 SDK**。
 | `calcKDJ` | 计算 KDJ |
 | `calcRSI` | 计算 RSI |
 | `calcWR` | 计算威廉指标 |
+| `calcBIAS` | 计算乖离率 |
+| `calcCCI` | 计算商品通道指数 |
+| `calcATR` | 计算平均真实波幅 |
+| `addIndicators` | 为 K 线批量添加多个指标 |
 
 ### 扩展数据
 
@@ -67,10 +81,11 @@ Stock SDK 是一个为**前端和 Node.js 设计的股票行情 SDK**。
 | `getAllAShareQuotes` | 获取全市场 A 股行情 |
 | `getAllHKShareQuotes` | 获取全市场港股行情 |
 | `getAllUSShareQuotes` | 获取全市场美股行情 |
+| `getAllQuotesByCodes` | 批量获取指定 A 股行情 |
+| `batchRaw` | 批量混合查询（原始字段解析） |
 
 ## 🔗 相关链接
 
 - [NPM](https://www.npmjs.com/package/stock-sdk)
 - [GitHub](https://github.com/chengzuopeng/stock-sdk)
 - [在线演示](/playground/)
-

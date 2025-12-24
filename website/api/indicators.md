@@ -25,6 +25,10 @@ getKlineWithIndicators(
 ): Promise<KlineWithIndicators[]>
 ```
 
+::: tip 计算说明
+`getKlineWithIndicators` 会自动向前补拉足够的历史数据用于指标计算，并在返回时裁剪为你指定的日期范围。
+:::
+
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
@@ -126,9 +130,9 @@ const usData = await sdk.getKlineWithIndicators('105.MSFT', {
 | [KDJ](/api/indicator-kdj) | `calcKDJ` | 随机指标 |
 | [RSI](/api/indicator-rsi-wr) | `calcRSI` | 相对强弱指标 |
 | [WR](/api/indicator-rsi-wr) | `calcWR` | 威廉指标 |
-| BIAS | `calcBIAS` | 乖离率 |
-| CCI | `calcCCI` | 商品通道指数 |
-| ATR | `calcATR` | 平均真实波幅 |
+| [BIAS](/api/indicator-bias) | `calcBIAS` | 乖离率 |
+| [CCI](/api/indicator-cci) | `calcCCI` | 商品通道指数 |
+| [ATR](/api/indicator-atr) | `calcATR` | 平均真实波幅 |
 
 ---
 
@@ -154,5 +158,6 @@ import {
 } from 'stock-sdk';
 ```
 
-详细用法请参考各指标的专属文档。
+`addIndicators` 可以把多个指标一次性挂到 K 线数组上，适合图表渲染场景。
 
+详细用法请参考各指标的专属文档。

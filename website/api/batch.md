@@ -1,36 +1,10 @@
 # 批量查询
 
-Stock SDK 提供批量获取股票代码和全市场行情的功能，内置并发控制和进度回调。
+Stock SDK 提供批量行情查询与混合请求解析，内置并发控制和进度回调。
 
-## getAShareCodeList
-
-获取全部 A 股代码列表（沪市、深市、北交所 5000+ 只股票）。
-
-### 签名
-
-```typescript
-getAShareCodeList(includeExchange?: boolean): Promise<string[]>
-```
-
-### 参数
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `includeExchange` | `boolean` | `true` | 是否包含交易所前缀 |
-
-### 示例
-
-```typescript
-// 包含交易所前缀
-const codes = await sdk.getAShareCodeList();
-// ['sh600000', 'sz000001', 'bj430047', ...]
-
-// 不包含交易所前缀
-const pureCodes = await sdk.getAShareCodeList(false);
-// ['600000', '000001', '430047', ...]
-```
-
----
+::: tip 代码列表
+如需获取各市场代码列表，请查看 [代码列表](/api/code-lists)。
+:::
 
 ## getAllAShareQuotes
 
@@ -53,6 +27,10 @@ getAllAShareQuotes(options?: {
 | `batchSize` | `number` | `500` | 单次请求股票数量，最大 500 |
 | `concurrency` | `number` | `7` | 最大并发数 |
 | `onProgress` | `function` | - | 进度回调 |
+
+::: tip 进度回调
+`onProgress(completed, total)` 的计数是 **批次数量**，不是股票数量。
+:::
 
 ### 示例
 
@@ -78,7 +56,7 @@ const top10 = allQuotes
 
 ## getAllQuotesByCodes
 
-批量获取指定股票的全量行情。
+批量获取指定 **A 股/指数** 的全量行情。
 
 ### 签名
 
@@ -106,18 +84,25 @@ const quotes = await sdk.getAllQuotesByCodes(myCodes, {
 console.log(`共获取 ${quotes.length} 只股票`);
 ```
 
+> 港股 / 美股请使用 `getAllHKShareQuotes` / `getAllUSShareQuotes`。
+
 ---
 
-## 港股代码和行情
+## getAllHKShareQuotes
 
-### getHKCodeList
+获取全市场港股实时行情。
+
+### 签名
 
 ```typescript
-const codes = await sdk.getHKCodeList();
-// ['00700', '09988', '03690', ...]
+getAllHKShareQuotes(options?: {
+  batchSize?: number;
+  concurrency?: number;
+  onProgress?: (completed: number, total: number) => void;
+}): Promise<HKQuote[]>
 ```
 
-### getAllHKShareQuotes
+### 示例
 
 ```typescript
 const allHKQuotes = await sdk.getAllHKShareQuotes({
@@ -131,21 +116,21 @@ const allHKQuotes = await sdk.getAllHKShareQuotes({
 
 ---
 
-## 美股代码和行情
+## getAllUSShareQuotes
 
-### getUSCodeList
+获取全市场美股实时行情。
+
+### 签名
 
 ```typescript
-// 包含市场前缀（默认）
-const codes = await sdk.getUSCodeList();
-// ['105.MSFT', '105.AAPL', '106.BABA', ...]
-
-// 不包含市场前缀
-const pureCodes = await sdk.getUSCodeList(false);
-// ['MSFT', 'AAPL', 'BABA', ...]
+getAllUSShareQuotes(options?: {
+  batchSize?: number;
+  concurrency?: number;
+  onProgress?: (completed: number, total: number) => void;
+}): Promise<USQuote[]>
 ```
 
-### getAllUSShareQuotes
+### 示例
 
 ```typescript
 const allUSQuotes = await sdk.getAllUSShareQuotes({
@@ -156,6 +141,31 @@ const allUSQuotes = await sdk.getAllUSShareQuotes({
   },
 });
 ```
+
+---
+
+## batchRaw
+
+批量混合查询，返回原始解析结果。
+
+### 签名
+
+```typescript
+batchRaw(params: string): Promise<{ key: string; fields: string[] }[]>
+```
+
+### 示例
+
+```typescript
+const raw = await sdk.batchRaw('sz000858,s_sh000001');
+
+console.log(raw[0].key);     // sz000858
+console.log(raw[0].fields);  // ['51', '五 粮 液', '000858', ...]
+```
+
+::: tip 提示
+`batchRaw` 返回原始数据，适合需要自定义解析的高级场景。一般情况下建议使用 `getFullQuotes` 或 `getSimpleQuotes`。
+:::
 
 ---
 
@@ -199,29 +209,3 @@ cron.schedule('* 9-15 * * 1-5', async () => {
   await saveToDatabase(quotes);
 });
 ```
-
----
-
-## batchRaw
-
-批量混合查询，返回原始解析结果。
-
-### 签名
-
-```typescript
-batchRaw(params: string): Promise<{ key: string; fields: string[] }[]>
-```
-
-### 示例
-
-```typescript
-const raw = await sdk.batchRaw('sz000858,s_sh000001');
-
-console.log(raw[0].key);     // sz000858
-console.log(raw[0].fields);  // ['51', '五 粮 液', '000858', ...]
-```
-
-::: tip 提示
-`batchRaw` 返回原始数据，适合需要自定义解析的高级场景。一般情况下建议使用 `getFullQuotes` 或 `getSimpleQuotes`。
-:::
-

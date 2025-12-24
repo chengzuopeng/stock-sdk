@@ -20,27 +20,24 @@ getHKQuotes(codes: string[]): Promise<HKQuote[]>
 
 ```typescript
 interface HKQuote {
-  marketId: string;              // 市场标识
-  name: string;                  // 名称
-  code: string;                  // 股票代码
-  price: number;                 // 最新价
-  prevClose: number;             // 昨收
-  open: number;                  // 今开
-  volume: number;                // 成交量
-  time: string;                  // 时间
-  change: number;                // 涨跌额
-  changePercent: number;         // 涨跌幅%
-  high: number;                  // 最高
-  low: number;                   // 最低
-  amount: number;                // 成交额
-  turnoverRate: number | null;   // 换手率%
-  pe: number | null;             // 市盈率
-  amplitude: number | null;      // 振幅%
-  totalMarketCap: number | null; // 总市值(亿)
-  pb: number | null;             // 市净率
-  high52w: number | null;        // 52周最高价
-  low52w: number | null;         // 52周最低价
-  raw: string[];                 // 原始字段数组
+  marketId: string;                    // 市场标识
+  name: string;                        // 名称
+  code: string;                        // 股票代码
+  price: number;                       // 最新价
+  prevClose: number;                   // 昨收
+  open: number;                        // 今开
+  volume: number;                      // 成交量
+  time: string;                        // 时间
+  change: number;                      // 涨跌额
+  changePercent: number;               // 涨跌幅%
+  high: number;                        // 最高
+  low: number;                         // 最低
+  amount: number;                      // 成交额
+  lotSize: number | null;              // 每手股数
+  circulatingMarketCap: number | null; // 流通市值(亿)
+  totalMarketCap: number | null;       // 总市值(亿)
+  currency: string;                    // 币种（如 HKD）
+  raw: string[];                       // 原始字段数组
 }
 ```
 
@@ -50,7 +47,7 @@ interface HKQuote {
 const quotes = await sdk.getHKQuotes(['00700', '09988']);
 
 quotes.forEach(q => {
-  console.log(`${q.name}: ${q.price} HKD (${q.changePercent}%)`);
+  console.log(`${q.name}: ${q.price} ${q.currency} (${q.changePercent}%)`);
 });
 // 腾讯控股: 380.00 HKD (1.50%)
 // 阿里巴巴-W: 88.00 HKD (2.30%)
@@ -130,4 +127,3 @@ const allHKQuotes = await sdk.getAllHKShareQuotes({
 
 console.log(`共获取 ${allHKQuotes.length} 只港股`);
 ```
-

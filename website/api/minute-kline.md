@@ -29,8 +29,8 @@ getMinuteKline(
 | `symbol` | `string` | - | 股票代码，如 `'000001'` 或 `'sz000001'` |
 | `period` | `string` | `'1'` | K 线周期：`'1'`（分时）/ `'5'` / `'15'` / `'30'` / `'60'` |
 | `adjust` | `string` | `'hfq'` | 复权类型（仅 5/15/30/60 有效） |
-| `startDate` | `string` | - | 开始时间 `YYYY-MM-DD HH:mm:ss` |
-| `endDate` | `string` | - | 结束时间 `YYYY-MM-DD HH:mm:ss` |
+| `startDate` | `string` | - | 开始时间 `YYYY-MM-DD HH:mm[:ss]` |
+| `endDate` | `string` | - | 结束时间 `YYYY-MM-DD HH:mm[:ss]` |
 
 ### 返回类型
 
@@ -39,13 +39,13 @@ getMinuteKline(
 ```typescript
 interface MinuteTimeline {
   time: string;       // 时间 YYYY-MM-DD HH:mm
-  open: number;       // 开盘价
-  close: number;      // 收盘价
-  high: number;       // 最高价
-  low: number;        // 最低价
-  volume: number;     // 成交量
-  amount: number;     // 成交额
-  avgPrice: number;   // 均价
+  open: number | null;      // 开盘价
+  close: number | null;     // 收盘价
+  high: number | null;      // 最高价
+  low: number | null;       // 最低价
+  volume: number | null;    // 成交量
+  amount: number | null;    // 成交额
+  avgPrice: number | null;  // 均价
 }
 ```
 
@@ -91,6 +91,11 @@ const kline15m = await sdk.getMinuteKline('sz000858', { period: '15' });
 const kline60m = await sdk.getMinuteKline('sz000858', { period: '60' });
 ```
 
+::: tip 时间过滤
+- `period='1'` 时数据范围固定为近 5 个交易日，`startDate/endDate` 仅在此范围内过滤
+- 时间精度为分钟，秒级会被自动截断
+:::
+
 ---
 
 ## 周期说明
@@ -117,4 +122,3 @@ A 股交易时间：
 | 午盘 | 13:00 - 15:00 |
 
 每个交易日共 240 分钟（4 小时）。
-

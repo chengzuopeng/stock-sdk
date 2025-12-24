@@ -17,7 +17,7 @@ export default defineConfig({
 
     nav: [
       { text: '指南', link: '/guide/getting-started' },
-      { text: 'API', link: '/api/quotes' },
+      { text: 'API', link: '/api/' },
       { text: 'Playground', link: '/playground/' },
       { text: '更新日志', link: '/changelog' },
       {
@@ -40,15 +40,28 @@ export default defineConfig({
           ],
         },
         {
-          text: '进阶',
+          text: '环境与部署',
           items: [
             { text: '浏览器使用', link: '/guide/browser' },
+          ],
+        },
+        {
+          text: '进阶',
+          items: [
             { text: '技术指标', link: '/guide/indicators' },
             { text: '批量查询', link: '/guide/batch' },
           ],
         },
+        {
+          text: '更多',
+          items: [{ text: '更新日志', link: '/changelog' }],
+        },
       ],
       '/api/': [
+        {
+          text: 'API 总览',
+          items: [{ text: '概览', link: '/api/' }],
+        },
         {
           text: '实时行情',
           items: [
@@ -75,14 +88,22 @@ export default defineConfig({
             { text: 'BOLL 布林带', link: '/api/indicator-boll' },
             { text: 'KDJ', link: '/api/indicator-kdj' },
             { text: 'RSI / WR', link: '/api/indicator-rsi-wr' },
+            { text: 'BIAS 乖离率', link: '/api/indicator-bias' },
+            { text: 'CCI 商品通道指数', link: '/api/indicator-cci' },
+            { text: 'ATR 平均真实波幅', link: '/api/indicator-atr' },
           ],
         },
         {
-          text: '扩展功能',
+          text: '批量与扩展',
           items: [
-            { text: '资金流向', link: '/api/fund-flow' },
+            { text: '代码列表', link: '/api/code-lists' },
             { text: '批量查询', link: '/api/batch' },
+            { text: '资金流向', link: '/api/fund-flow' },
           ],
+        },
+        {
+          text: '更多',
+          items: [{ text: '更新日志', link: '/changelog' }],
         },
       ],
     },
@@ -159,4 +180,3 @@ export default defineConfig({
     },
   },
 })
-

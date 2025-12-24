@@ -26,6 +26,7 @@ interface FundQuote {
   accNav: number;    // 累计净值
   change: number;    // 当日涨跌额
   navDate: string;   // 净值日期
+  raw: string[];     // 原始字段数组
 }
 ```
 
@@ -94,4 +95,3 @@ const etfQuotes = await sdk.getSimpleQuotes([
   'sz159919',  // 沪深300ETF
 ]);
 ```
-

@@ -32,8 +32,13 @@ interface FundFlow {
   retailNetRatio: number; // 散户净流入占比 %
   totalFlow: number;      // 总资金流（万）
   date: string;           // 日期
+  raw: string[];          // 原始字段数组
 }
 ```
+
+::: tip 单位说明
+资金流向数值的单位以数据源返回为准，通常为“万”。如需更精细的单位，请结合 `raw` 字段自行换算。
+:::
 
 ### 示例
 
@@ -75,6 +80,7 @@ interface PanelLargeOrder {
   buySmallRatio: number;   // 买盘小单占比 %
   sellLargeRatio: number;  // 卖盘大单占比 %
   sellSmallRatio: number;  // 卖盘小单占比 %
+  raw: string[];           // 原始字段数组
 }
 ```
 
@@ -154,4 +160,3 @@ async function analyzeStock(code: string) {
   };
 }
 ```
-
