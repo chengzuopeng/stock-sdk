@@ -41,7 +41,7 @@ jobs:
         run: yarn install --immutable
 
       - name: Build with VitePress
-        run: yarn build:docs
+        run: yarn build:pages
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

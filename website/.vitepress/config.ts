@@ -1,10 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { resolve } from 'path'
 
-// 通过环境变量控制 base 路径
-// - GitHub Pages: DOCS_BASE=/stock-sdk/ (默认)
-// - 自定义域名: DOCS_BASE=/
-const base = process.env.DOCS_BASE || '/stock-sdk/'
+const base = process.env.DOCS_BASE || '/'
 
 // 中文侧边栏配置
 const zhSidebar = {
@@ -185,6 +182,7 @@ export default defineConfig({
   description: '为前端和 Node.js 设计的股票行情 SDK',
 
   base: base,
+  cleanUrls: true, // 去掉 URL 中的 .html 后缀
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
