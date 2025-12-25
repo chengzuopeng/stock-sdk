@@ -123,8 +123,8 @@ export class StockSDK {
    * 获取行业板块名称列表
    * @returns 行业板块列表
    */
-  getIndustryBoardList(): Promise<IndustryBoard[]> {
-    return eastmoney.getIndustryBoardList(this.client);
+  getIndustryList(): Promise<IndustryBoard[]> {
+    return eastmoney.getIndustryList(this.client);
   }
 
   /**
@@ -132,8 +132,8 @@ export class StockSDK {
    * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
    * @returns 实时行情指标列表
    */
-  getIndustryBoardSpot(symbol: string): Promise<IndustryBoardSpot[]> {
-    return eastmoney.getIndustryBoardSpot(this.client, symbol);
+  getIndustrySpot(symbol: string): Promise<IndustryBoardSpot[]> {
+    return eastmoney.getIndustrySpot(this.client, symbol);
   }
 
   /**
@@ -141,10 +141,10 @@ export class StockSDK {
    * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
    * @returns 成分股列表
    */
-  getIndustryBoardConstituents(
+  getIndustryConstituents(
     symbol: string
   ): Promise<IndustryBoardConstituent[]> {
-    return eastmoney.getIndustryBoardConstituents(this.client, symbol);
+    return eastmoney.getIndustryConstituents(this.client, symbol);
   }
 
   /**
@@ -153,11 +153,11 @@ export class StockSDK {
    * @param options 配置选项
    * @returns 历史 K 线数据
    */
-  getIndustryBoardKline(
+  getIndustryKline(
     symbol: string,
     options?: eastmoney.IndustryBoardKlineOptions
   ): Promise<IndustryBoardKline[]> {
-    return eastmoney.getIndustryBoardKline(this.client, symbol, options);
+    return eastmoney.getIndustryKline(this.client, symbol, options);
   }
 
   /**
@@ -166,11 +166,11 @@ export class StockSDK {
    * @param options 配置选项
    * @returns 分时行情数据
    */
-  getIndustryBoardMinuteKline(
+  getIndustryMinuteKline(
     symbol: string,
     options?: eastmoney.IndustryBoardMinuteKlineOptions
   ): Promise<IndustryBoardMinuteTimeline[] | IndustryBoardMinuteKline[]> {
-    return eastmoney.getIndustryBoardMinuteKline(this.client, symbol, options);
+    return eastmoney.getIndustryMinuteKline(this.client, symbol, options);
   }
 
   // ==================== 概念板块 ====================
@@ -179,8 +179,8 @@ export class StockSDK {
    * 获取概念板块名称列表
    * @returns 概念板块列表
    */
-  getConceptBoardList(): Promise<ConceptBoard[]> {
-    return eastmoney.getConceptBoardList(this.client);
+  getConceptList(): Promise<ConceptBoard[]> {
+    return eastmoney.getConceptList(this.client);
   }
 
   /**
@@ -188,8 +188,8 @@ export class StockSDK {
    * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
    * @returns 实时行情指标列表
    */
-  getConceptBoardSpot(symbol: string): Promise<ConceptBoardSpot[]> {
-    return eastmoney.getConceptBoardSpot(this.client, symbol);
+  getConceptSpot(symbol: string): Promise<ConceptBoardSpot[]> {
+    return eastmoney.getConceptSpot(this.client, symbol);
   }
 
   /**
@@ -197,10 +197,10 @@ export class StockSDK {
    * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
    * @returns 成分股列表
    */
-  getConceptBoardConstituents(
+  getConceptConstituents(
     symbol: string
   ): Promise<ConceptBoardConstituent[]> {
-    return eastmoney.getConceptBoardConstituents(this.client, symbol);
+    return eastmoney.getConceptConstituents(this.client, symbol);
   }
 
   /**
@@ -209,11 +209,11 @@ export class StockSDK {
    * @param options 配置选项
    * @returns 历史 K 线数据
    */
-  getConceptBoardKline(
+  getConceptKline(
     symbol: string,
     options?: eastmoney.ConceptBoardKlineOptions
   ): Promise<ConceptBoardKline[]> {
-    return eastmoney.getConceptBoardKline(this.client, symbol, options);
+    return eastmoney.getConceptKline(this.client, symbol, options);
   }
 
   /**
@@ -222,11 +222,11 @@ export class StockSDK {
    * @param options 配置选项
    * @returns 分时行情数据
    */
-  getConceptBoardMinuteKline(
+  getConceptMinuteKline(
     symbol: string,
     options?: eastmoney.ConceptBoardMinuteKlineOptions
   ): Promise<ConceptBoardMinuteTimeline[] | ConceptBoardMinuteKline[]> {
-    return eastmoney.getConceptBoardMinuteKline(this.client, symbol, options);
+    return eastmoney.getConceptMinuteKline(this.client, symbol, options);
   }
 
   // ==================== K 线 ====================

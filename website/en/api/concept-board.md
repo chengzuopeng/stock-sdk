@@ -2,14 +2,14 @@
 
 Get East Money concept sector data, including sector list, real-time quotes, constituents, and K-line data.
 
-## getConceptBoardList
+## getConceptList
 
 Get all concept sector names, codes, and real-time quote overview.
 
 ### Signature
 
 ```typescript
-getConceptBoardList(): Promise<ConceptBoard[]>
+getConceptList(): Promise<ConceptBoard[]>
 ```
 
 ### Return Type
@@ -35,7 +35,7 @@ interface ConceptBoard {
 
 ```typescript
 // Get all concept sectors
-const boards = await sdk.getConceptBoardList();
+const boards = await sdk.getConceptList();
 
 // Print top 5 sectors by change percent
 boards.slice(0, 5).forEach(b => {
@@ -45,14 +45,14 @@ boards.slice(0, 5).forEach(b => {
 
 ---
 
-## getConceptBoardSpot
+## getConceptSpot
 
 Get real-time quote data for a specific concept sector.
 
 ### Signature
 
 ```typescript
-getConceptBoardSpot(symbol: string): Promise<ConceptBoardSpot[]>
+getConceptSpot(symbol: string): Promise<ConceptBoardSpot[]>
 ```
 
 ### Parameters
@@ -76,10 +76,10 @@ Returns indicators including: Latest, High, Low, Open, Volume, Amount, Change%, 
 
 ```typescript
 // Query by sector name
-const spot = await sdk.getConceptBoardSpot('人工智能');
+const spot = await sdk.getConceptSpot('人工智能');
 
 // Query by sector code
-const spot2 = await sdk.getConceptBoardSpot('BK0800');
+const spot2 = await sdk.getConceptSpot('BK0800');
 
 spot.forEach(s => {
   console.log(`${s.item}: ${s.value}`);
@@ -88,14 +88,14 @@ spot.forEach(s => {
 
 ---
 
-## getConceptBoardConstituents
+## getConceptConstituents
 
 Get the constituent stocks of a specific concept sector with their real-time quotes.
 
 ### Signature
 
 ```typescript
-getConceptBoardConstituents(symbol: string): Promise<ConceptBoardConstituent[]>
+getConceptConstituents(symbol: string): Promise<ConceptBoardConstituent[]>
 ```
 
 ### Parameters
@@ -131,7 +131,7 @@ interface ConceptBoardConstituent {
 
 ```typescript
 // Get constituents of AI sector
-const stocks = await sdk.getConceptBoardConstituents('人工智能');
+const stocks = await sdk.getConceptConstituents('人工智能');
 
 // Print top 10 stocks by change percent
 stocks.slice(0, 10).forEach(s => {
@@ -141,14 +141,14 @@ stocks.slice(0, 10).forEach(s => {
 
 ---
 
-## getConceptBoardKline
+## getConceptKline
 
 Get historical K-line data for a concept sector (daily/weekly/monthly).
 
 ### Signature
 
 ```typescript
-getConceptBoardKline(
+getConceptKline(
   symbol: string,
   options?: {
     period?: 'daily' | 'weekly' | 'monthly';
@@ -191,13 +191,13 @@ interface ConceptBoardKline {
 
 ```typescript
 // Get daily K-line
-const dailyKlines = await sdk.getConceptBoardKline('人工智能', {
+const dailyKlines = await sdk.getConceptKline('人工智能', {
   startDate: '20240101',
   endDate: '20241231',
 });
 
 // Get weekly K-line
-const weeklyKlines = await sdk.getConceptBoardKline('BK0800', {
+const weeklyKlines = await sdk.getConceptKline('BK0800', {
   period: 'weekly',
   startDate: '20240101',
   endDate: '20241231',
@@ -210,14 +210,14 @@ dailyKlines.forEach(k => {
 
 ---
 
-## getConceptBoardMinuteKline
+## getConceptMinuteKline
 
 Get minute K-line data for a concept sector (1/5/15/30/60 minutes).
 
 ### Signature
 
 ```typescript
-getConceptBoardMinuteKline(
+getConceptMinuteKline(
   symbol: string,
   options?: {
     period?: '1' | '5' | '15' | '30' | '60';
@@ -271,17 +271,17 @@ interface ConceptBoardMinuteKline {
 
 ```typescript
 // Get 1-minute timeline data
-const timeline = await sdk.getConceptBoardMinuteKline('人工智能', {
+const timeline = await sdk.getConceptMinuteKline('人工智能', {
   period: '1',
 });
 
 // Get 5-minute K-line
-const minuteKlines = await sdk.getConceptBoardMinuteKline('BK0800', {
+const minuteKlines = await sdk.getConceptMinuteKline('BK0800', {
   period: '5',
 });
 
 // Get 60-minute (hourly) K-line
-const hourlyKlines = await sdk.getConceptBoardMinuteKline('人工智能', {
+const hourlyKlines = await sdk.getConceptMinuteKline('人工智能', {
   period: '60',
 });
 
@@ -298,7 +298,7 @@ minuteKlines.forEach(k => {
 
 ```typescript
 // Get sector list first to build name-to-code mapping
-const boards = await sdk.getConceptBoardList();
+const boards = await sdk.getConceptList();
 const boardMap = new Map(boards.map(b => [b.name, b.code]));
 
 // Find code for a specific sector
@@ -309,12 +309,12 @@ const code = boardMap.get('人工智能');  // BK0800
 
 ```typescript
 // Get top 10 concept sectors by change percent
-const boards = await sdk.getConceptBoardList();
+const boards = await sdk.getConceptList();
 const hotBoards = boards.slice(0, 10);
 
 // Get leader stock for each hot sector
 for (const board of hotBoards) {
-  const stocks = await sdk.getConceptBoardConstituents(board.code);
+  const stocks = await sdk.getConceptConstituents(board.code);
   console.log(`${board.name} Leader: ${stocks[0]?.name}`);
 }
 ```

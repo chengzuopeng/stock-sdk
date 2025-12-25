@@ -2,14 +2,14 @@
 
 Get East Money industry sector data, including sector list, real-time quotes, constituents, and K-line data.
 
-## getIndustryBoardList
+## getIndustryList
 
 Get all industry sector names, codes, and real-time quote overview.
 
 ### Signature
 
 ```typescript
-getIndustryBoardList(): Promise<IndustryBoard[]>
+getIndustryList(): Promise<IndustryBoard[]>
 ```
 
 ### Return Type
@@ -35,7 +35,7 @@ interface IndustryBoard {
 
 ```typescript
 // Get all industry sectors
-const boards = await sdk.getIndustryBoardList();
+const boards = await sdk.getIndustryList();
 
 // Print top 5 sectors by change percent
 boards.slice(0, 5).forEach(b => {
@@ -45,14 +45,14 @@ boards.slice(0, 5).forEach(b => {
 
 ---
 
-## getIndustryBoardSpot
+## getIndustrySpot
 
 Get real-time quote data for a specific industry sector.
 
 ### Signature
 
 ```typescript
-getIndustryBoardSpot(symbol: string): Promise<IndustryBoardSpot[]>
+getIndustrySpot(symbol: string): Promise<IndustryBoardSpot[]>
 ```
 
 ### Parameters
@@ -76,10 +76,10 @@ Returns indicators including: Latest, High, Low, Open, Volume, Amount, Change%, 
 
 ```typescript
 // Query by sector name
-const spot = await sdk.getIndustryBoardSpot('互联网服务');
+const spot = await sdk.getIndustrySpot('互联网服务');
 
 // Query by sector code
-const spot2 = await sdk.getIndustryBoardSpot('BK0447');
+const spot2 = await sdk.getIndustrySpot('BK0447');
 
 spot.forEach(s => {
   console.log(`${s.item}: ${s.value}`);
@@ -88,14 +88,14 @@ spot.forEach(s => {
 
 ---
 
-## getIndustryBoardConstituents
+## getIndustryConstituents
 
 Get the constituent stocks of a specific industry sector with their real-time quotes.
 
 ### Signature
 
 ```typescript
-getIndustryBoardConstituents(symbol: string): Promise<IndustryBoardConstituent[]>
+getIndustryConstituents(symbol: string): Promise<IndustryBoardConstituent[]>
 ```
 
 ### Parameters
@@ -131,7 +131,7 @@ interface IndustryBoardConstituent {
 
 ```typescript
 // Get constituents of Internet Services sector
-const stocks = await sdk.getIndustryBoardConstituents('互联网服务');
+const stocks = await sdk.getIndustryConstituents('互联网服务');
 
 // Print top 10 stocks by change percent
 stocks.slice(0, 10).forEach(s => {
@@ -141,14 +141,14 @@ stocks.slice(0, 10).forEach(s => {
 
 ---
 
-## getIndustryBoardKline
+## getIndustryKline
 
 Get historical K-line data for an industry sector (daily/weekly/monthly).
 
 ### Signature
 
 ```typescript
-getIndustryBoardKline(
+getIndustryKline(
   symbol: string,
   options?: {
     period?: 'daily' | 'weekly' | 'monthly';
@@ -191,13 +191,13 @@ interface IndustryBoardKline {
 
 ```typescript
 // Get daily K-line
-const dailyKlines = await sdk.getIndustryBoardKline('互联网服务', {
+const dailyKlines = await sdk.getIndustryKline('互联网服务', {
   startDate: '20240101',
   endDate: '20241231',
 });
 
 // Get weekly K-line
-const weeklyKlines = await sdk.getIndustryBoardKline('BK0447', {
+const weeklyKlines = await sdk.getIndustryKline('BK0447', {
   period: 'weekly',
   startDate: '20240101',
   endDate: '20241231',
@@ -210,14 +210,14 @@ dailyKlines.forEach(k => {
 
 ---
 
-## getIndustryBoardMinuteKline
+## getIndustryMinuteKline
 
 Get minute K-line data for an industry sector (1/5/15/30/60 minutes).
 
 ### Signature
 
 ```typescript
-getIndustryBoardMinuteKline(
+getIndustryMinuteKline(
   symbol: string,
   options?: {
     period?: '1' | '5' | '15' | '30' | '60';
@@ -271,17 +271,17 @@ interface IndustryBoardMinuteKline {
 
 ```typescript
 // Get 1-minute timeline data
-const timeline = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+const timeline = await sdk.getIndustryMinuteKline('互联网服务', {
   period: '1',
 });
 
 // Get 5-minute K-line
-const minuteKlines = await sdk.getIndustryBoardMinuteKline('BK0447', {
+const minuteKlines = await sdk.getIndustryMinuteKline('BK0447', {
   period: '5',
 });
 
 // Get 60-minute (hourly) K-line
-const hourlyKlines = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+const hourlyKlines = await sdk.getIndustryMinuteKline('互联网服务', {
   period: '60',
 });
 
@@ -298,7 +298,7 @@ minuteKlines.forEach(k => {
 
 ```typescript
 // Get sector list first to build name-to-code mapping
-const boards = await sdk.getIndustryBoardList();
+const boards = await sdk.getIndustryList();
 const boardMap = new Map(boards.map(b => [b.name, b.code]));
 
 // Find code for a specific sector
@@ -309,7 +309,7 @@ const code = boardMap.get('互联网服务');  // BK0447
 
 ```typescript
 // Get constituents (already sorted by change percent)
-const stocks = await sdk.getIndustryBoardConstituents('互联网服务');
+const stocks = await sdk.getIndustryConstituents('互联网服务');
 
 // The leader is the top stock
 const leader = stocks[0];

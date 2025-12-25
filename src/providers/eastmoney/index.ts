@@ -18,22 +18,22 @@ export { getUSHistoryKline, type USKlineOptions } from './usKline';
 
 // 行业板块
 export {
-  getIndustryBoardList,
-  getIndustryBoardSpot,
-  getIndustryBoardConstituents,
-  getIndustryBoardKline,
-  getIndustryBoardMinuteKline,
+  getIndustryList,
+  getIndustrySpot,
+  getIndustryConstituents,
+  getIndustryKline,
+  getIndustryMinuteKline,
   type IndustryBoardKlineOptions,
   type IndustryBoardMinuteKlineOptions,
 } from './industryBoard';
 
 // 概念板块
 export {
-  getConceptBoardList,
-  getConceptBoardSpot,
-  getConceptBoardConstituents,
-  getConceptBoardKline,
-  getConceptBoardMinuteKline,
+  getConceptList,
+  getConceptSpot,
+  getConceptConstituents,
+  getConceptKline,
+  getConceptMinuteKline,
   type ConceptBoardKlineOptions,
   type ConceptBoardMinuteKlineOptions,
 } from './conceptBoard';

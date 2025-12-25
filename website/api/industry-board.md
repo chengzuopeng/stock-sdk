@@ -2,14 +2,14 @@
 
 获取东方财富行业板块相关数据，包括板块列表、实时行情、成分股和 K 线数据。
 
-## getIndustryBoardList
+## getIndustryList
 
 获取所有行业板块的名称、代码及实时行情概览。
 
 ### 签名
 
 ```typescript
-getIndustryBoardList(): Promise<IndustryBoard[]>
+getIndustryList(): Promise<IndustryBoard[]>
 ```
 
 ### 返回类型
@@ -35,7 +35,7 @@ interface IndustryBoard {
 
 ```typescript
 // 获取所有行业板块
-const boards = await sdk.getIndustryBoardList();
+const boards = await sdk.getIndustryList();
 
 // 打印涨幅前 5 的板块
 boards.slice(0, 5).forEach(b => {
@@ -45,14 +45,14 @@ boards.slice(0, 5).forEach(b => {
 
 ---
 
-## getIndustryBoardSpot
+## getIndustrySpot
 
 获取指定行业板块的实时行情数据。
 
 ### 签名
 
 ```typescript
-getIndustryBoardSpot(symbol: string): Promise<IndustryBoardSpot[]>
+getIndustrySpot(symbol: string): Promise<IndustryBoardSpot[]>
 ```
 
 ### 参数
@@ -76,10 +76,10 @@ interface IndustryBoardSpot {
 
 ```typescript
 // 使用板块名称查询
-const spot = await sdk.getIndustryBoardSpot('互联网服务');
+const spot = await sdk.getIndustrySpot('互联网服务');
 
 // 使用板块代码查询
-const spot2 = await sdk.getIndustryBoardSpot('BK0447');
+const spot2 = await sdk.getIndustrySpot('BK0447');
 
 spot.forEach(s => {
   console.log(`${s.item}: ${s.value}`);
@@ -88,14 +88,14 @@ spot.forEach(s => {
 
 ---
 
-## getIndustryBoardConstituents
+## getIndustryConstituents
 
 获取指定行业板块的成分股列表及其实时行情。
 
 ### 签名
 
 ```typescript
-getIndustryBoardConstituents(symbol: string): Promise<IndustryBoardConstituent[]>
+getIndustryConstituents(symbol: string): Promise<IndustryBoardConstituent[]>
 ```
 
 ### 参数
@@ -131,7 +131,7 @@ interface IndustryBoardConstituent {
 
 ```typescript
 // 获取互联网服务板块的成分股
-const stocks = await sdk.getIndustryBoardConstituents('互联网服务');
+const stocks = await sdk.getIndustryConstituents('互联网服务');
 
 // 打印涨幅前 10 的股票
 stocks.slice(0, 10).forEach(s => {
@@ -141,14 +141,14 @@ stocks.slice(0, 10).forEach(s => {
 
 ---
 
-## getIndustryBoardKline
+## getIndustryKline
 
 获取行业板块的历史 K 线数据（日/周/月）。
 
 ### 签名
 
 ```typescript
-getIndustryBoardKline(
+getIndustryKline(
   symbol: string,
   options?: {
     period?: 'daily' | 'weekly' | 'monthly';
@@ -191,13 +191,13 @@ interface IndustryBoardKline {
 
 ```typescript
 // 获取日 K 线
-const dailyKlines = await sdk.getIndustryBoardKline('互联网服务', {
+const dailyKlines = await sdk.getIndustryKline('互联网服务', {
   startDate: '20240101',
   endDate: '20241231',
 });
 
 // 获取周 K 线
-const weeklyKlines = await sdk.getIndustryBoardKline('BK0447', {
+const weeklyKlines = await sdk.getIndustryKline('BK0447', {
   period: 'weekly',
   startDate: '20240101',
   endDate: '20241231',
@@ -210,14 +210,14 @@ dailyKlines.forEach(k => {
 
 ---
 
-## getIndustryBoardMinuteKline
+## getIndustryMinuteKline
 
 获取行业板块的分时行情数据（1/5/15/30/60 分钟）。
 
 ### 签名
 
 ```typescript
-getIndustryBoardMinuteKline(
+getIndustryMinuteKline(
   symbol: string,
   options?: {
     period?: '1' | '5' | '15' | '30' | '60';
@@ -271,17 +271,17 @@ interface IndustryBoardMinuteKline {
 
 ```typescript
 // 获取 1 分钟分时数据
-const timeline = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+const timeline = await sdk.getIndustryMinuteKline('互联网服务', {
   period: '1',
 });
 
 // 获取 5 分钟 K 线
-const minuteKlines = await sdk.getIndustryBoardMinuteKline('BK0447', {
+const minuteKlines = await sdk.getIndustryMinuteKline('BK0447', {
   period: '5',
 });
 
 // 获取 60 分钟 K 线
-const hourlyKlines = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+const hourlyKlines = await sdk.getIndustryMinuteKline('互联网服务', {
   period: '60',
 });
 
@@ -298,7 +298,7 @@ minuteKlines.forEach(k => {
 
 ```typescript
 // 先获取板块列表，建立名称到代码的映射
-const boards = await sdk.getIndustryBoardList();
+const boards = await sdk.getIndustryList();
 const boardMap = new Map(boards.map(b => [b.name, b.code]));
 
 // 查找特定板块的代码
@@ -309,7 +309,7 @@ const code = boardMap.get('互联网服务');  // BK0447
 
 ```typescript
 // 获取成分股列表（已按涨跌幅排序）
-const stocks = await sdk.getIndustryBoardConstituents('互联网服务');
+const stocks = await sdk.getIndustryConstituents('互联网服务');
 
 // 龙头股就是涨幅第一的股票
 const leader = stocks[0];

@@ -143,21 +143,21 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 
 | Method | Description |
 |--------|-------------|
-| `getIndustryBoardList` | Industry sector name list |
-| `getIndustryBoardSpot` | Industry sector real-time quotes |
-| `getIndustryBoardConstituents` | Industry sector constituents |
-| `getIndustryBoardKline` | Industry sector historical K-line (daily/weekly/monthly) |
-| `getIndustryBoardMinuteKline` | Industry sector minute K-line (1/5/15/30/60 minutes) |
+| `getIndustryList` | Industry sector name list |
+| `getIndustrySpot` | Industry sector real-time quotes |
+| `getIndustryConstituents` | Industry sector constituents |
+| `getIndustryKline` | Industry sector historical K-line (daily/weekly/monthly) |
+| `getIndustryMinuteKline` | Industry sector minute K-line (1/5/15/30/60 minutes) |
 
 ### Concept Sectors
 
 | Method | Description |
 |--------|-------------|
-| `getConceptBoardList` | Concept sector name list |
-| `getConceptBoardSpot` | Concept sector real-time quotes |
-| `getConceptBoardConstituents` | Concept sector constituents |
-| `getConceptBoardKline` | Concept sector historical K-line (daily/weekly/monthly) |
-| `getConceptBoardMinuteKline` | Concept sector minute K-line (1/5/15/30/60 minutes) |
+| `getConceptList` | Concept sector name list |
+| `getConceptSpot` | Concept sector real-time quotes |
+| `getConceptConstituents` | Concept sector constituents |
+| `getConceptKline` | Concept sector historical K-line (daily/weekly/monthly) |
+| `getConceptMinuteKline` | Concept sector minute K-line (1/5/15/30/60 minutes) |
 
 ### Extended Data
 

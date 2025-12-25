@@ -39,7 +39,7 @@ async function getBoardCode(
 
   // 否则认为是板块名称，需要查询对应的代码
   if (!boardNameCodeMap) {
-    const boards = await getIndustryBoardList(client);
+    const boards = await getIndustryList(client);
     boardNameCodeMap = new Map(boards.map((b) => [b.name, b.code]));
   }
 
@@ -112,7 +112,7 @@ async function fetchPaginatedData<T>(
  * @param client 请求客户端
  * @returns 行业板块列表
  */
-export async function getIndustryBoardList(
+export async function getIndustryList(
   client: RequestClient
 ): Promise<IndustryBoard[]> {
   const baseParams = {
@@ -165,7 +165,7 @@ export async function getIndustryBoardList(
  * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
  * @returns 实时行情指标列表
  */
-export async function getIndustryBoardSpot(
+export async function getIndustrySpot(
   client: RequestClient,
   symbol: string
 ): Promise<IndustryBoardSpot[]> {
@@ -219,7 +219,7 @@ export async function getIndustryBoardSpot(
  * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
  * @returns 成分股列表
  */
-export async function getIndustryBoardConstituents(
+export async function getIndustryConstituents(
   client: RequestClient,
   symbol: string
 ): Promise<IndustryBoardConstituent[]> {
@@ -283,7 +283,7 @@ export interface IndustryBoardKlineOptions {
  * @param options 选项
  * @returns 历史 K 线数据
  */
-export async function getIndustryBoardKline(
+export async function getIndustryKline(
   client: RequestClient,
   symbol: string,
   options: IndustryBoardKlineOptions = {}
@@ -368,7 +368,7 @@ export interface IndustryBoardMinuteKlineOptions {
  * @param options 选项
  * @returns 分时行情数据
  */
-export async function getIndustryBoardMinuteKline(
+export async function getIndustryMinuteKline(
   client: RequestClient,
   symbol: string,
   options: IndustryBoardMinuteKlineOptions = {}

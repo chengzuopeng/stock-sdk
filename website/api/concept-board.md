@@ -2,14 +2,14 @@
 
 获取东方财富概念板块相关数据，包括板块列表、实时行情、成分股和 K 线数据。
 
-## getConceptBoardList
+## getConceptList
 
 获取所有概念板块的名称、代码及实时行情概览。
 
 ### 签名
 
 ```typescript
-getConceptBoardList(): Promise<ConceptBoard[]>
+getConceptList(): Promise<ConceptBoard[]>
 ```
 
 ### 返回类型
@@ -35,7 +35,7 @@ interface ConceptBoard {
 
 ```typescript
 // 获取所有概念板块
-const boards = await sdk.getConceptBoardList();
+const boards = await sdk.getConceptList();
 
 // 打印涨幅前 5 的板块
 boards.slice(0, 5).forEach(b => {
@@ -45,14 +45,14 @@ boards.slice(0, 5).forEach(b => {
 
 ---
 
-## getConceptBoardSpot
+## getConceptSpot
 
 获取指定概念板块的实时行情数据。
 
 ### 签名
 
 ```typescript
-getConceptBoardSpot(symbol: string): Promise<ConceptBoardSpot[]>
+getConceptSpot(symbol: string): Promise<ConceptBoardSpot[]>
 ```
 
 ### 参数
@@ -76,10 +76,10 @@ interface ConceptBoardSpot {
 
 ```typescript
 // 使用板块名称查询
-const spot = await sdk.getConceptBoardSpot('人工智能');
+const spot = await sdk.getConceptSpot('人工智能');
 
 // 使用板块代码查询
-const spot2 = await sdk.getConceptBoardSpot('BK0800');
+const spot2 = await sdk.getConceptSpot('BK0800');
 
 spot.forEach(s => {
   console.log(`${s.item}: ${s.value}`);
@@ -88,14 +88,14 @@ spot.forEach(s => {
 
 ---
 
-## getConceptBoardConstituents
+## getConceptConstituents
 
 获取指定概念板块的成分股列表及其实时行情。
 
 ### 签名
 
 ```typescript
-getConceptBoardConstituents(symbol: string): Promise<ConceptBoardConstituent[]>
+getConceptConstituents(symbol: string): Promise<ConceptBoardConstituent[]>
 ```
 
 ### 参数
@@ -131,7 +131,7 @@ interface ConceptBoardConstituent {
 
 ```typescript
 // 获取人工智能板块的成分股
-const stocks = await sdk.getConceptBoardConstituents('人工智能');
+const stocks = await sdk.getConceptConstituents('人工智能');
 
 // 打印涨幅前 10 的股票
 stocks.slice(0, 10).forEach(s => {
@@ -141,14 +141,14 @@ stocks.slice(0, 10).forEach(s => {
 
 ---
 
-## getConceptBoardKline
+## getConceptKline
 
 获取概念板块的历史 K 线数据（日/周/月）。
 
 ### 签名
 
 ```typescript
-getConceptBoardKline(
+getConceptKline(
   symbol: string,
   options?: {
     period?: 'daily' | 'weekly' | 'monthly';
@@ -191,13 +191,13 @@ interface ConceptBoardKline {
 
 ```typescript
 // 获取日 K 线
-const dailyKlines = await sdk.getConceptBoardKline('人工智能', {
+const dailyKlines = await sdk.getConceptKline('人工智能', {
   startDate: '20240101',
   endDate: '20241231',
 });
 
 // 获取周 K 线
-const weeklyKlines = await sdk.getConceptBoardKline('BK0800', {
+const weeklyKlines = await sdk.getConceptKline('BK0800', {
   period: 'weekly',
   startDate: '20240101',
   endDate: '20241231',
@@ -210,14 +210,14 @@ dailyKlines.forEach(k => {
 
 ---
 
-## getConceptBoardMinuteKline
+## getConceptMinuteKline
 
 获取概念板块的分时行情数据（1/5/15/30/60 分钟）。
 
 ### 签名
 
 ```typescript
-getConceptBoardMinuteKline(
+getConceptMinuteKline(
   symbol: string,
   options?: {
     period?: '1' | '5' | '15' | '30' | '60';
@@ -271,17 +271,17 @@ interface ConceptBoardMinuteKline {
 
 ```typescript
 // 获取 1 分钟分时数据
-const timeline = await sdk.getConceptBoardMinuteKline('人工智能', {
+const timeline = await sdk.getConceptMinuteKline('人工智能', {
   period: '1',
 });
 
 // 获取 5 分钟 K 线
-const minuteKlines = await sdk.getConceptBoardMinuteKline('BK0800', {
+const minuteKlines = await sdk.getConceptMinuteKline('BK0800', {
   period: '5',
 });
 
 // 获取 60 分钟 K 线
-const hourlyKlines = await sdk.getConceptBoardMinuteKline('人工智能', {
+const hourlyKlines = await sdk.getConceptMinuteKline('人工智能', {
   period: '60',
 });
 
@@ -298,7 +298,7 @@ minuteKlines.forEach(k => {
 
 ```typescript
 // 先获取板块列表，建立名称到代码的映射
-const boards = await sdk.getConceptBoardList();
+const boards = await sdk.getConceptList();
 const boardMap = new Map(boards.map(b => [b.name, b.code]));
 
 // 查找特定板块的代码
@@ -309,12 +309,12 @@ const code = boardMap.get('人工智能');  // BK0800
 
 ```typescript
 // 获取涨幅前 10 的概念板块
-const boards = await sdk.getConceptBoardList();
+const boards = await sdk.getConceptList();
 const hotBoards = boards.slice(0, 10);
 
 // 获取每个热门板块的龙头股
 for (const board of hotBoards) {
-  const stocks = await sdk.getConceptBoardConstituents(board.code);
+  const stocks = await sdk.getConceptConstituents(board.code);
   console.log(`${board.name} 龙头: ${stocks[0]?.name}`);
 }
 ```

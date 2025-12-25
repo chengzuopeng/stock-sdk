@@ -1585,9 +1585,9 @@ describe('Technical Indicators', () => {
 
 // ============ 行业板块测试 ============
 describe('行业板块', () => {
-  describe('getIndustryBoardList', () => {
+  describe('getIndustryList', () => {
     it('should return 行业板块名称列表', async () => {
-      const res = await sdk.getIndustryBoardList();
+      const res = await sdk.getIndustryList();
       expect(res.length).toBeGreaterThan(0);
       const board = res[0];
       expect(board).toHaveProperty('rank');
@@ -1600,7 +1600,7 @@ describe('行业板块', () => {
     });
 
     it('should return boards sorted by changePercent', async () => {
-      const res = await sdk.getIndustryBoardList();
+      const res = await sdk.getIndustryList();
       expect(res.length).toBeGreaterThan(1);
       // 验证按涨跌幅降序排列
       for (let i = 0; i < res.length - 1; i++) {
@@ -1611,9 +1611,9 @@ describe('行业板块', () => {
     });
   });
 
-  describe('getIndustryBoardSpot', () => {
+  describe('getIndustrySpot', () => {
     it('should return 行业板块实时行情 by name', async () => {
-      const res = await sdk.getIndustryBoardSpot('互联网服务');
+      const res = await sdk.getIndustrySpot('互联网服务');
       expect(res.length).toBeGreaterThan(0);
       const items = res.map((r) => r.item);
       expect(items).toContain('最新');
@@ -1622,15 +1622,15 @@ describe('行业板块', () => {
     });
 
     it('should return 行业板块实时行情 by code', async () => {
-      const res = await sdk.getIndustryBoardSpot('BK0447');
+      const res = await sdk.getIndustrySpot('BK0447');
       expect(res.length).toBeGreaterThan(0);
       expect(res.find((r) => r.item === '最新')).toBeDefined();
     });
   });
 
-  describe('getIndustryBoardConstituents', () => {
+  describe('getIndustryConstituents', () => {
     it('should return 行业板块成分股 by name', async () => {
-      const res = await sdk.getIndustryBoardConstituents('互联网服务');
+      const res = await sdk.getIndustryConstituents('互联网服务');
       expect(res.length).toBeGreaterThan(0);
       const stock = res[0];
       expect(stock).toHaveProperty('rank');
@@ -1643,15 +1643,15 @@ describe('行业板块', () => {
     });
 
     it('should return 行业板块成分股 by code', async () => {
-      const res = await sdk.getIndustryBoardConstituents('BK0447');
+      const res = await sdk.getIndustryConstituents('BK0447');
       expect(res.length).toBeGreaterThan(0);
       expect(typeof res[0].code).toBe('string');
     });
   });
 
-  describe('getIndustryBoardKline', () => {
+  describe('getIndustryKline', () => {
     it('should return 行业板块日K线', async () => {
-      const res = await sdk.getIndustryBoardKline('互联网服务', {
+      const res = await sdk.getIndustryKline('互联网服务', {
         startDate: '20241201',
         endDate: '20241220',
       });
@@ -1668,7 +1668,7 @@ describe('行业板块', () => {
     });
 
     it('should return 行业板块周K线', async () => {
-      const res = await sdk.getIndustryBoardKline('BK0447', {
+      const res = await sdk.getIndustryKline('BK0447', {
         period: 'weekly',
         startDate: '20241101',
         endDate: '20241231',
@@ -1677,7 +1677,7 @@ describe('行业板块', () => {
     });
 
     it('should return 行业板块月K线', async () => {
-      const res = await sdk.getIndustryBoardKline('互联网服务', {
+      const res = await sdk.getIndustryKline('互联网服务', {
         period: 'monthly',
         startDate: '20240101',
         endDate: '20241231',
@@ -1686,9 +1686,9 @@ describe('行业板块', () => {
     });
   });
 
-  describe('getIndustryBoardMinuteKline', () => {
+  describe('getIndustryMinuteKline', () => {
     it('should return 行业板块1分钟分时数据', async () => {
-      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+      const res = await sdk.getIndustryMinuteKline('互联网服务', {
         period: '1',
       });
       expect(res.length).toBeGreaterThan(0);
@@ -1702,7 +1702,7 @@ describe('行业板块', () => {
     });
 
     it('should return 行业板块5分钟K线', async () => {
-      const res = await sdk.getIndustryBoardMinuteKline('BK0447', {
+      const res = await sdk.getIndustryMinuteKline('BK0447', {
         period: '5',
       });
       expect(res.length).toBeGreaterThan(0);
@@ -1713,21 +1713,21 @@ describe('行业板块', () => {
     });
 
     it('should return 行业板块15分钟K线', async () => {
-      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+      const res = await sdk.getIndustryMinuteKline('互联网服务', {
         period: '15',
       });
       expect(res.length).toBeGreaterThan(0);
     });
 
     it('should return 行业板块30分钟K线', async () => {
-      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+      const res = await sdk.getIndustryMinuteKline('互联网服务', {
         period: '30',
       });
       expect(res.length).toBeGreaterThan(0);
     });
 
     it('should return 行业板块60分钟K线', async () => {
-      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+      const res = await sdk.getIndustryMinuteKline('互联网服务', {
         period: '60',
       });
       expect(res.length).toBeGreaterThan(0);
@@ -1737,7 +1737,7 @@ describe('行业板块', () => {
   describe('错误处理', () => {
     it('should throw error for invalid board name', async () => {
       await expect(
-        sdk.getIndustryBoardSpot('不存在的板块名称')
+        sdk.getIndustrySpot('不存在的板块名称')
       ).rejects.toThrow(/未找到行业板块/);
     });
   });
@@ -1745,9 +1745,9 @@ describe('行业板块', () => {
 
 // ============ 概念板块测试 ============
 describe('概念板块', () => {
-  describe('getConceptBoardList', () => {
+  describe('getConceptList', () => {
     it('should return 概念板块名称列表', async () => {
-      const res = await sdk.getConceptBoardList();
+      const res = await sdk.getConceptList();
       expect(res.length).toBeGreaterThan(0);
       const board = res[0];
       expect(board).toHaveProperty('rank');
@@ -1760,7 +1760,7 @@ describe('概念板块', () => {
     });
 
     it('should return boards sorted by changePercent', async () => {
-      const res = await sdk.getConceptBoardList();
+      const res = await sdk.getConceptList();
       expect(res.length).toBeGreaterThan(1);
       // 验证按涨跌幅降序排列
       for (let i = 0; i < res.length - 1; i++) {
@@ -1771,9 +1771,9 @@ describe('概念板块', () => {
     });
   });
 
-  describe('getConceptBoardSpot', () => {
+  describe('getConceptSpot', () => {
     it('should return 概念板块实时行情 by name', async () => {
-      const res = await sdk.getConceptBoardSpot('人工智能');
+      const res = await sdk.getConceptSpot('人工智能');
       expect(res.length).toBeGreaterThan(0);
       const items = res.map((r) => r.item);
       expect(items).toContain('最新');
@@ -1782,15 +1782,15 @@ describe('概念板块', () => {
     });
 
     it('should return 概念板块实时行情 by code', async () => {
-      const res = await sdk.getConceptBoardSpot('BK0800');
+      const res = await sdk.getConceptSpot('BK0800');
       expect(res.length).toBeGreaterThan(0);
       expect(res.find((r) => r.item === '最新')).toBeDefined();
     });
   });
 
-  describe('getConceptBoardConstituents', () => {
+  describe('getConceptConstituents', () => {
     it('should return 概念板块成分股 by name', async () => {
-      const res = await sdk.getConceptBoardConstituents('人工智能');
+      const res = await sdk.getConceptConstituents('人工智能');
       expect(res.length).toBeGreaterThan(0);
       const stock = res[0];
       expect(stock).toHaveProperty('rank');
@@ -1803,15 +1803,15 @@ describe('概念板块', () => {
     });
 
     it('should return 概念板块成分股 by code', async () => {
-      const res = await sdk.getConceptBoardConstituents('BK0800');
+      const res = await sdk.getConceptConstituents('BK0800');
       expect(res.length).toBeGreaterThan(0);
       expect(typeof res[0].code).toBe('string');
     });
   });
 
-  describe('getConceptBoardKline', () => {
+  describe('getConceptKline', () => {
     it('should return 概念板块日K线', async () => {
-      const res = await sdk.getConceptBoardKline('人工智能', {
+      const res = await sdk.getConceptKline('人工智能', {
         startDate: '20241201',
         endDate: '20241220',
       });
@@ -1828,7 +1828,7 @@ describe('概念板块', () => {
     });
 
     it('should return 概念板块周K线', async () => {
-      const res = await sdk.getConceptBoardKline('BK0800', {
+      const res = await sdk.getConceptKline('BK0800', {
         period: 'weekly',
         startDate: '20241101',
         endDate: '20241231',
@@ -1837,7 +1837,7 @@ describe('概念板块', () => {
     });
 
     it('should return 概念板块月K线', async () => {
-      const res = await sdk.getConceptBoardKline('人工智能', {
+      const res = await sdk.getConceptKline('人工智能', {
         period: 'monthly',
         startDate: '20240101',
         endDate: '20241231',
@@ -1846,9 +1846,9 @@ describe('概念板块', () => {
     });
   });
 
-  describe('getConceptBoardMinuteKline', () => {
+  describe('getConceptMinuteKline', () => {
     it('should return 概念板块1分钟分时数据', async () => {
-      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+      const res = await sdk.getConceptMinuteKline('人工智能', {
         period: '1',
       });
       expect(res.length).toBeGreaterThan(0);
@@ -1862,7 +1862,7 @@ describe('概念板块', () => {
     });
 
     it('should return 概念板块5分钟K线', async () => {
-      const res = await sdk.getConceptBoardMinuteKline('BK0800', {
+      const res = await sdk.getConceptMinuteKline('BK0800', {
         period: '5',
       });
       expect(res.length).toBeGreaterThan(0);
@@ -1873,21 +1873,21 @@ describe('概念板块', () => {
     });
 
     it('should return 概念板块15分钟K线', async () => {
-      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+      const res = await sdk.getConceptMinuteKline('人工智能', {
         period: '15',
       });
       expect(res.length).toBeGreaterThan(0);
     });
 
     it('should return 概念板块30分钟K线', async () => {
-      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+      const res = await sdk.getConceptMinuteKline('人工智能', {
         period: '30',
       });
       expect(res.length).toBeGreaterThan(0);
     });
 
     it('should return 概念板块60分钟K线', async () => {
-      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+      const res = await sdk.getConceptMinuteKline('人工智能', {
         period: '60',
       });
       expect(res.length).toBeGreaterThan(0);
@@ -1897,7 +1897,7 @@ describe('概念板块', () => {
   describe('错误处理', () => {
     it('should throw error for invalid concept board name', async () => {
       await expect(
-        sdk.getConceptBoardSpot('不存在的概念板块')
+        sdk.getConceptSpot('不存在的概念板块')
       ).rejects.toThrow(/未找到概念板块/);
     });
   });

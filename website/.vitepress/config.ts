@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { resolve } from 'path'
 
 // 通过环境变量控制 base 路径
 // - GitHub Pages: DOCS_BASE=/stock-sdk/ (默认)
@@ -299,9 +300,16 @@ export default defineConfig({
 
   // Vite 配置
   vite: {
+    resolve: {
+      alias: {
+        // 开发模式下将 'stock-sdk-local' 指向本地 src 目录
+        'stock-sdk-local': resolve(__dirname, '../../src'),
+      },
+    },
     server: {
       fs: {
-        allow: ['..'],
+        // 允许访问上级目录（用于引用 src）
+        allow: ['../..'],
       },
     },
   },

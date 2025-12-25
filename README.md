@@ -143,21 +143,21 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 
 | 方法 | 说明 |
 |------|------|
-| `getIndustryBoardList` | 行业板块名称列表 |
-| `getIndustryBoardSpot` | 行业板块实时行情 |
-| `getIndustryBoardConstituents` | 行业板块成分股 |
-| `getIndustryBoardKline` | 行业板块历史 K 线（日/周/月） |
-| `getIndustryBoardMinuteKline` | 行业板块分时行情（1/5/15/30/60 分钟） |
+| `getIndustryList` | 行业板块名称列表 |
+| `getIndustrySpot` | 行业板块实时行情 |
+| `getIndustryConstituents` | 行业板块成分股 |
+| `getIndustryKline` | 行业板块历史 K 线（日/周/月） |
+| `getIndustryMinuteKline` | 行业板块分时行情（1/5/15/30/60 分钟） |
 
 ### 概念板块
 
 | 方法 | 说明 |
 |------|------|
-| `getConceptBoardList` | 概念板块名称列表 |
-| `getConceptBoardSpot` | 概念板块实时行情 |
-| `getConceptBoardConstituents` | 概念板块成分股 |
-| `getConceptBoardKline` | 概念板块历史 K 线（日/周/月） |
-| `getConceptBoardMinuteKline` | 概念板块分时行情（1/5/15/30/60 分钟） |
+| `getConceptList` | 概念板块名称列表 |
+| `getConceptSpot` | 概念板块实时行情 |
+| `getConceptConstituents` | 概念板块成分股 |
+| `getConceptKline` | 概念板块历史 K 线（日/周/月） |
+| `getConceptMinuteKline` | 概念板块分时行情（1/5/15/30/60 分钟） |
 
 ### 扩展数据
 

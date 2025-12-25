@@ -48,7 +48,7 @@ async function getConceptCode(
 
   // 否则认为是板块名称，需要查询对应的代码
   if (!conceptNameCodeMap) {
-    const boards = await getConceptBoardList(client);
+    const boards = await getConceptList(client);
     conceptNameCodeMap = new Map(boards.map((b) => [b.name, b.code]));
   }
 
@@ -112,7 +112,7 @@ async function fetchPaginatedData<T>(
  * @param client 请求客户端
  * @returns 概念板块列表
  */
-export async function getConceptBoardList(
+export async function getConceptList(
   client: RequestClient
 ): Promise<ConceptBoard[]> {
   const baseParams = {
@@ -165,7 +165,7 @@ export async function getConceptBoardList(
  * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
  * @returns 实时行情指标列表
  */
-export async function getConceptBoardSpot(
+export async function getConceptSpot(
   client: RequestClient,
   symbol: string
 ): Promise<ConceptBoardSpot[]> {
@@ -219,7 +219,7 @@ export async function getConceptBoardSpot(
  * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
  * @returns 成分股列表
  */
-export async function getConceptBoardConstituents(
+export async function getConceptConstituents(
   client: RequestClient,
   symbol: string
 ): Promise<ConceptBoardConstituent[]> {
@@ -283,7 +283,7 @@ export interface ConceptBoardKlineOptions {
  * @param options 选项
  * @returns 历史 K 线数据
  */
-export async function getConceptBoardKline(
+export async function getConceptKline(
   client: RequestClient,
   symbol: string,
   options: ConceptBoardKlineOptions = {}
@@ -368,7 +368,7 @@ export interface ConceptBoardMinuteKlineOptions {
  * @param options 选项
  * @returns 分时行情数据
  */
-export async function getConceptBoardMinuteKline(
+export async function getConceptMinuteKline(
   client: RequestClient,
   symbol: string,
   options: ConceptBoardMinuteKlineOptions = {}
