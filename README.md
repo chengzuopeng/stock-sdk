@@ -15,9 +15,9 @@
 
 ## Documentation
 
-👉🏻 [官方文档](https://chengzuopeng.github.io/stock-sdk/)
+👉🏻 [官方文档](https://stock-sdk.linkdiary.cn/)
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://chengzuopeng.github.io/stock-sdk/playground/)
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground/)
 
 ## Why stock-sdk？
 
@@ -102,7 +102,7 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 
 ## API 列表
 
-💡 API 详细文档请查阅 [https://chengzuopeng.github.io/stock-sdk/](https://chengzuopeng.github.io/stock-sdk/)
+💡 API 详细文档请查阅 [https://stock-sdk.linkdiary.cn/](https://stock-sdk.linkdiary.cn/)
 
 ### 实时行情
 
@@ -166,7 +166,7 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 
 ---
 
-🌐 [官网](https://chengzuopeng.github.io/stock-sdk) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://chengzuopeng.github.io/stock-sdk/playground) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [官网](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

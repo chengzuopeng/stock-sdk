@@ -13,7 +13,7 @@
 
 **✨ 零依赖 | 🌐 Browser + Node.js | 📦 <10KB | 🧠 完整 TypeScript 类型**
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://chengzuopeng.github.io/stock-sdk/)
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/)
 
 ## Why stock-sdk？
 
@@ -1024,7 +1024,7 @@ yarn dev
 
 ---
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://chengzuopeng.github.io/stock-sdk/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

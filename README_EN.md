@@ -15,9 +15,9 @@ No Python. No backend service. Fetch real-time quotes and K-line data for **A-sh
 
 ## Documentation
 
-👉🏻 [Documentation](https://chengzuopeng.github.io/stock-sdk/)
+👉🏻 [Documentation](https://stock-sdk.linkdiary.cn/)
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://chengzuopeng.github.io/stock-sdk/playground/)
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground/)
 
 ## Why stock-sdk?
 
@@ -102,7 +102,7 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 
 ## API List
 
-💡 For detailed API documentation, please visit [https://chengzuopeng.github.io/stock-sdk/](https://chengzuopeng.github.io/stock-sdk/)
+💡 For detailed API documentation, please visit [https://stock-sdk.linkdiary.cn/](https://stock-sdk.linkdiary.cn/)
 
 ### Real-time Quotes
 
@@ -166,7 +166,7 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 
 ---
 
-🌐 [Website](https://chengzuopeng.github.io/stock-sdk) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://chengzuopeng.github.io/stock-sdk/playground) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [Website](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

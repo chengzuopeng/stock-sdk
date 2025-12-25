@@ -7,7 +7,7 @@ This page records the version update history of Stock SDK.
 ### Improvements
 
 **Documentation Improvements**
-- Official website launched: [https://chengzuopeng.github.io/stock-sdk/](https://chengzuopeng.github.io/stock-sdk/)
+- Official website launched: [https://stock-sdk.linkdiary.cn/](https://stock-sdk.linkdiary.cn/)
 - Improved API documentation introduction
 - One bigfix
 

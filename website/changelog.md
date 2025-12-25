@@ -7,7 +7,7 @@
 ### 优化
 
 **文档优化**
-- 官方网站上线，[https://chengzuopeng.github.io/stock-sdk/](https://chengzuopeng.github.io/stock-sdk/)
+- 官方网站上线，[https://stock-sdk.linkdiary.cn/](https://stock-sdk.linkdiary.cn/)
 - 优化 API 文档介绍
 - 一个 bigfix
 
