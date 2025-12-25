@@ -27,6 +27,14 @@
 - [CCI 商品通道指数](/api/indicator-cci)
 - [ATR 平均真实波幅](/api/indicator-atr)
 
+## 行业板块
+
+- [行业板块](/api/industry-board)
+
+## 概念板块
+
+- [概念板块](/api/concept-board)
+
 ## 批量与扩展
 
 - [代码列表](/api/code-lists)

@@ -20,6 +20,20 @@ export const EM_TRENDS_URL = 'https://push2his.eastmoney.com/api/qt/stock/trends
 export const EM_HK_KLINE_URL = 'https://33.push2his.eastmoney.com/api/qt/stock/kline/get';
 export const EM_US_KLINE_URL = 'https://63.push2his.eastmoney.com/api/qt/stock/kline/get';
 
+// 东方财富行业板块 API
+export const EM_BOARD_LIST_URL = 'https://17.push2.eastmoney.com/api/qt/clist/get';
+export const EM_BOARD_SPOT_URL = 'https://91.push2.eastmoney.com/api/qt/stock/get';
+export const EM_BOARD_CONS_URL = 'https://29.push2.eastmoney.com/api/qt/clist/get';
+export const EM_BOARD_KLINE_URL = 'https://7.push2his.eastmoney.com/api/qt/stock/kline/get';
+export const EM_BOARD_TRENDS_URL = 'https://push2his.eastmoney.com/api/qt/stock/trends2/get';
+
+// 东方财富概念板块 API
+export const EM_CONCEPT_LIST_URL = 'https://79.push2.eastmoney.com/api/qt/clist/get';
+export const EM_CONCEPT_SPOT_URL = 'https://91.push2.eastmoney.com/api/qt/stock/get';
+export const EM_CONCEPT_CONS_URL = 'https://29.push2.eastmoney.com/api/qt/clist/get';
+export const EM_CONCEPT_KLINE_URL = 'https://91.push2his.eastmoney.com/api/qt/stock/kline/get';
+export const EM_CONCEPT_TRENDS_URL = 'https://push2his.eastmoney.com/api/qt/stock/trends2/get';
+
 // 默认配置
 export const DEFAULT_TIMEOUT = 30000;
 export const DEFAULT_BATCH_SIZE = 500;

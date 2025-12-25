@@ -57,6 +57,13 @@ const zhSidebar = {
       ],
     },
     {
+      text: '行业板块',
+      items: [
+        { text: '行业板块', link: '/api/industry-board' },
+        { text: '概念板块', link: '/api/concept-board' },
+      ],
+    },
+    {
       text: '技术指标',
       items: [
         { text: '指标概览', link: '/api/indicators' },
@@ -134,6 +141,13 @@ const enSidebar = {
         { text: 'History K-Line', link: '/en/api/kline' },
         { text: 'Minute K-Line', link: '/en/api/minute-kline' },
         { text: 'Timeline', link: '/en/api/timeline' },
+      ],
+    },
+    {
+      text: 'Industry Sectors',
+      items: [
+        { text: 'Industry Sectors', link: '/en/api/industry-board' },
+        { text: 'Concept Sectors', link: '/en/api/concept-board' },
       ],
     },
     {

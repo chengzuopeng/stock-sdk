@@ -13,6 +13,8 @@ Stock SDK provides a comprehensive API for stock data access.
 | [K-Line](/en/api/kline) | `getHistoryKline` | Historical K-line data |
 | [Minute K-Line](/en/api/minute-kline) | `getMinuteKline` | Minute-level K-line |
 | [Timeline](/en/api/timeline) | `getTodayTimeline` | Today's minute timeline |
+| [Industry Sectors](/en/api/industry-board) | `getIndustryBoardList` | Industry sector data |
+| [Concept Sectors](/en/api/concept-board) | `getConceptBoardList` | Concept sector data |
 | [Indicators](/en/api/indicators) | `getKlineWithIndicators` | K-line with indicators |
 | [Code Lists](/en/api/code-lists) | `getAShareCodeList` | Get all stock codes |
 | [Batch](/en/api/batch) | `getAllAShareQuotes` | Batch market queries |

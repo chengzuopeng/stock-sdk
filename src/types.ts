@@ -365,3 +365,189 @@ export interface HKUSHistoryKline {
   turnoverRate: number | null;
 }
 
+/**
+ * 行业板块信息
+ */
+export interface IndustryBoard {
+  /** 排名 */
+  rank: number;
+  /** 板块名称 */
+  name: string;
+  /** 板块代码 */
+  code: string;
+  /** 最新价 */
+  price: number | null;
+  /** 涨跌额 */
+  change: number | null;
+  /** 涨跌幅% */
+  changePercent: number | null;
+  /** 总市值 */
+  totalMarketCap: number | null;
+  /** 换手率% */
+  turnoverRate: number | null;
+  /** 上涨家数 */
+  riseCount: number | null;
+  /** 下跌家数 */
+  fallCount: number | null;
+  /** 领涨股票名称 */
+  leadingStock: string | null;
+  /** 领涨股票涨跌幅% */
+  leadingStockChangePercent: number | null;
+}
+
+/**
+ * 行业板块实时行情
+ */
+export interface IndustryBoardSpot {
+  /** 指标名称 */
+  item: string;
+  /** 指标值 */
+  value: number | null;
+}
+
+/**
+ * 行业板块成分股
+ */
+export interface IndustryBoardConstituent {
+  /** 序号 */
+  rank: number;
+  /** 股票代码 */
+  code: string;
+  /** 股票名称 */
+  name: string;
+  /** 最新价 */
+  price: number | null;
+  /** 涨跌幅% */
+  changePercent: number | null;
+  /** 涨跌额 */
+  change: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 成交额 */
+  amount: number | null;
+  /** 振幅% */
+  amplitude: number | null;
+  /** 最高价 */
+  high: number | null;
+  /** 最低价 */
+  low: number | null;
+  /** 今开 */
+  open: number | null;
+  /** 昨收 */
+  prevClose: number | null;
+  /** 换手率% */
+  turnoverRate: number | null;
+  /** 市盈率-动态 */
+  pe: number | null;
+  /** 市净率 */
+  pb: number | null;
+}
+
+/**
+ * 行业板块历史 K 线
+ */
+export interface IndustryBoardKline {
+  /** 日期 */
+  date: string;
+  /** 开盘价 */
+  open: number | null;
+  /** 收盘价 */
+  close: number | null;
+  /** 最高价 */
+  high: number | null;
+  /** 最低价 */
+  low: number | null;
+  /** 涨跌幅% */
+  changePercent: number | null;
+  /** 涨跌额 */
+  change: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 成交额 */
+  amount: number | null;
+  /** 振幅% */
+  amplitude: number | null;
+  /** 换手率% */
+  turnoverRate: number | null;
+}
+
+/**
+ * 行业板块 1 分钟分时数据
+ */
+export interface IndustryBoardMinuteTimeline {
+  /** 日期时间 */
+  time: string;
+  /** 开盘价 */
+  open: number | null;
+  /** 收盘价 */
+  close: number | null;
+  /** 最高价 */
+  high: number | null;
+  /** 最低价 */
+  low: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 成交额 */
+  amount: number | null;
+  /** 最新价 */
+  price: number | null;
+}
+
+/**
+ * 行业板块分钟 K 线
+ */
+export interface IndustryBoardMinuteKline {
+  /** 日期时间 */
+  time: string;
+  /** 开盘价 */
+  open: number | null;
+  /** 收盘价 */
+  close: number | null;
+  /** 最高价 */
+  high: number | null;
+  /** 最低价 */
+  low: number | null;
+  /** 涨跌幅% */
+  changePercent: number | null;
+  /** 涨跌额 */
+  change: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 成交额 */
+  amount: number | null;
+  /** 振幅% */
+  amplitude: number | null;
+  /** 换手率% */
+  turnoverRate: number | null;
+}
+
+/**
+ * 概念板块信息（结构同行业板块）
+ */
+export type ConceptBoard = IndustryBoard;
+
+/**
+ * 概念板块实时行情（结构同行业板块）
+ */
+export type ConceptBoardSpot = IndustryBoardSpot;
+
+/**
+ * 概念板块成分股（结构同行业板块）
+ */
+export type ConceptBoardConstituent = IndustryBoardConstituent;
+
+/**
+ * 概念板块历史 K 线（结构同行业板块）
+ */
+export type ConceptBoardKline = IndustryBoardKline;
+
+/**
+ * 概念板块 1 分钟分时数据（结构同行业板块）
+ */
+export type ConceptBoardMinuteTimeline = IndustryBoardMinuteTimeline;
+
+/**
+ * 概念板块分钟 K 线（结构同行业板块）
+ */
+export type ConceptBoardMinuteKline = IndustryBoardMinuteKline;
+

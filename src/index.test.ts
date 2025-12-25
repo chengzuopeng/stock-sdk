@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import StockSDK from './index';
 import { decodeGBK, parseResponse, safeNumber, safeNumberOrNull, chunkArray, asyncPool } from './utils';
+import { getMarketCode, getPeriodCode, getAdjustCode } from './core';
 import {
   calcSMA,
   calcEMA,
@@ -578,6 +579,54 @@ describe('utils', () => {
       await expect(asyncPool([async () => 1], 0)).rejects.toThrow(/concurrency/i);
       await expect(asyncPool([async () => 1], -1)).rejects.toThrow(/concurrency/i);
     });
+
+    it('should handle high concurrency with many fast tasks', async () => {
+      // 测试当并发数很高时，已完成的任务会被正确清理
+      const tasks = Array.from({ length: 20 }, (_, i) => async () => {
+        // 使用固定的延迟确保顺序
+        await new Promise(resolve => setTimeout(resolve, 1));
+        return i;
+      });
+      const output = await asyncPool(tasks, 5);
+      expect(output.length).toBe(20);
+      // 验证所有结果都存在（不验证顺序，因为并发执行顺序不确定）
+      expect(output.sort((a, b) => a - b)).toEqual(Array.from({ length: 20 }, (_, i) => i));
+    });
+  });
+
+  describe('getMarketCode', () => {
+    it('should return 1 for Shanghai stocks', () => {
+      expect(getMarketCode('sh600519')).toBe('1');
+      expect(getMarketCode('600519')).toBe('1');
+      expect(getMarketCode('688001')).toBe('1');
+    });
+
+    it('should return 0 for Shenzhen stocks', () => {
+      expect(getMarketCode('sz000001')).toBe('0');
+      expect(getMarketCode('000001')).toBe('0');
+      expect(getMarketCode('300001')).toBe('0');
+    });
+
+    it('should return 0 for Beijing stocks', () => {
+      expect(getMarketCode('bj430047')).toBe('0');
+      expect(getMarketCode('430047')).toBe('0');
+    });
+  });
+
+  describe('getPeriodCode', () => {
+    it('should return correct period codes', () => {
+      expect(getPeriodCode('daily')).toBe('101');
+      expect(getPeriodCode('weekly')).toBe('102');
+      expect(getPeriodCode('monthly')).toBe('103');
+    });
+  });
+
+  describe('getAdjustCode', () => {
+    it('should return correct adjust codes', () => {
+      expect(getAdjustCode('')).toBe('0');
+      expect(getAdjustCode('qfq')).toBe('1');
+      expect(getAdjustCode('hfq')).toBe('2');
+    });
   });
 });
 
@@ -1147,6 +1196,36 @@ describe('更多边界情况', () => {
       expect(res.length).toBeGreaterThan(0);
       expect(res[0].ma).toBeDefined();
     });
+
+    it('should work without startDate (return all available data)', async () => {
+      const res = await sdk.getKlineWithIndicators('sz000001', {
+        indicators: {
+          ma: { periods: [5] },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[0].ma).toBeDefined();
+    });
+
+    it('should work for HK market without startDate', async () => {
+      const res = await sdk.getKlineWithIndicators('00700', {
+        indicators: {
+          ma: { periods: [5] },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[0].ma).toBeDefined();
+    });
+
+    it('should work for US market without startDate', async () => {
+      const res = await sdk.getKlineWithIndicators('105.MSFT', {
+        indicators: {
+          ma: { periods: [5] },
+        },
+      });
+      expect(res.length).toBeGreaterThan(0);
+      expect(res[0].ma).toBeDefined();
+    });
   });
 });
 
@@ -1251,6 +1330,36 @@ describe('Technical Indicators', () => {
       expect(kdj[8].d).not.toBeNull();
       expect(kdj[8].j).not.toBeNull();
     });
+
+    it('should handle null values in data', () => {
+      const data = [
+        { high: 110, low: 90, close: 100 },
+        { high: null, low: 95, close: 102 },  // null high
+        { high: 115, low: null, close: 105 }, // null low
+        { high: 120, low: 100, close: null }, // null close
+        { high: 125, low: 105, close: 115 },
+        { high: 130, low: 110, close: 120 },
+        { high: 135, low: 115, close: 125 },
+        { high: 140, low: 120, close: 130 },
+        { high: 145, low: 125, close: 135 },
+        { high: 150, low: 130, close: 140 },
+      ];
+      const kdj = calcKDJ(data, { period: 5 });
+      expect(kdj.length).toBe(10);
+      // 包含 null 的数据段应该返回 null
+      expect(kdj[4].k).toBeNull();
+    });
+
+    it('should handle high equals low (division by zero)', () => {
+      const data = Array.from({ length: 10 }, () => ({
+        high: 100, // 高=低
+        low: 100,
+        close: 100,
+      }));
+      const kdj = calcKDJ(data, { period: 5 });
+      expect(kdj.length).toBe(10);
+      expect(kdj[4].k).toBeNull(); // 高=低时返回 null
+    });
   });
 
   describe('calcRSI', () => {
@@ -1274,11 +1383,39 @@ describe('Technical Indicators', () => {
         high: 110,
         low: 90,
         close: 100 + (i % 3) * 5 - 5, // 95, 100, 105 循环
-        volume: 1000,
       }));
       const wr = calcWR(data, { periods: [6] });
       expect(wr.length).toBe(15);
       expect(wr[5].wr6).not.toBeNull();
+    });
+
+    it('should handle null values in data', () => {
+      const data = [
+        { high: 110, low: 90, close: 100 },
+        { high: null, low: 95, close: 102 },  // null high
+        { high: 115, low: null, close: 105 }, // null low
+        { high: 120, low: 100, close: null }, // null close
+        { high: 125, low: 105, close: 115 },
+        { high: 130, low: 110, close: 120 },
+        { high: 135, low: 115, close: 125 },
+        { high: 140, low: 120, close: 130 },
+        { high: 145, low: 125, close: 135 },
+        { high: 150, low: 130, close: 140 },
+      ];
+      const wr = calcWR(data, { periods: [5] });
+      expect(wr.length).toBe(10);
+      expect(wr[4].wr5).toBeNull();
+    });
+
+    it('should handle high equals low', () => {
+      const data = Array.from({ length: 10 }, () => ({
+        high: 100,
+        low: 100,
+        close: 100,
+      }));
+      const wr = calcWR(data, { periods: [5] });
+      expect(wr.length).toBe(10);
+      expect(wr[4].wr5).toBeNull();
     });
   });
 
@@ -1336,6 +1473,32 @@ describe('Technical Indicators', () => {
       const cci = calcCCI(data, { period: 14 });
       expect(cci[19].cci).toBeGreaterThan(0);
     });
+
+    it('should handle null values in data', () => {
+      const data = [
+        { high: 110, low: 90, close: 100 },
+        { high: null, low: 95, close: 102 },  // null high
+        { high: 115, low: null, close: 105 }, // null low
+        { high: 120, low: 100, close: null }, // null close
+        { high: 125, low: 105, close: 115 },
+        { high: 130, low: 110, close: 120 },
+      ];
+      const cci = calcCCI(data, { period: 3 });
+      expect(cci.length).toBe(6);
+    });
+
+    it('should handle zero mean deviation (flat prices)', () => {
+      // 所有价格相同，平均偏差为 0
+      const data = Array.from({ length: 20 }, () => ({
+        high: 100,
+        low: 100,
+        close: 100,
+      }));
+      const cci = calcCCI(data, { period: 5 });
+      expect(cci.length).toBe(20);
+      // 平均偏差为 0 时 CCI 返回 0
+      expect(cci[10].cci).toBe(0);
+    });
   });
 
   describe('calcATR', () => {
@@ -1366,6 +1529,23 @@ describe('Technical Indicators', () => {
       // TR = max(high - low, |high - prevClose|, |low - prevClose|)
       // TR[1] = max(115 - 95, |115 - 100|, |95 - 100|) = max(20, 15, 5) = 20
       expect(atr[1].tr).toBe(20);
+    });
+
+    it('should handle null values in data', () => {
+      const data = [
+        { high: 110, low: 90, close: 100 },
+        { high: null, low: 95, close: 102 },  // null high
+        { high: 115, low: null, close: 105 }, // null low
+        { high: 120, low: 100, close: null }, // null close
+        { high: 125, low: 105, close: 115 },
+        { high: 130, low: 110, close: 120 },
+      ];
+      const atr = calcATR(data, { period: 3 });
+      expect(atr.length).toBe(6);
+      // 含有 null 的位置 TR 应该是 null
+      expect(atr[1].tr).toBeNull();
+      expect(atr[2].tr).toBeNull();
+      expect(atr[3].tr).toBeNull();
     });
   });
 
@@ -1399,6 +1579,326 @@ describe('Technical Indicators', () => {
     it('should handle empty array', () => {
       const result = addIndicators([], { ma: true });
       expect(result).toEqual([]);
+    });
+  });
+});
+
+// ============ 行业板块测试 ============
+describe('行业板块', () => {
+  describe('getIndustryBoardList', () => {
+    it('should return 行业板块名称列表', async () => {
+      const res = await sdk.getIndustryBoardList();
+      expect(res.length).toBeGreaterThan(0);
+      const board = res[0];
+      expect(board).toHaveProperty('rank');
+      expect(board).toHaveProperty('name');
+      expect(board).toHaveProperty('code');
+      expect(board).toHaveProperty('price');
+      expect(board).toHaveProperty('changePercent');
+      expect(board.code).toMatch(/^BK\d+$/);
+      expect(typeof board.name).toBe('string');
+    });
+
+    it('should return boards sorted by changePercent', async () => {
+      const res = await sdk.getIndustryBoardList();
+      expect(res.length).toBeGreaterThan(1);
+      // 验证按涨跌幅降序排列
+      for (let i = 0; i < res.length - 1; i++) {
+        const curr = res[i].changePercent ?? 0;
+        const next = res[i + 1].changePercent ?? 0;
+        expect(curr).toBeGreaterThanOrEqual(next);
+      }
+    });
+  });
+
+  describe('getIndustryBoardSpot', () => {
+    it('should return 行业板块实时行情 by name', async () => {
+      const res = await sdk.getIndustryBoardSpot('互联网服务');
+      expect(res.length).toBeGreaterThan(0);
+      const items = res.map((r) => r.item);
+      expect(items).toContain('最新');
+      expect(items).toContain('涨跌幅');
+      expect(items).toContain('成交量');
+    });
+
+    it('should return 行业板块实时行情 by code', async () => {
+      const res = await sdk.getIndustryBoardSpot('BK0447');
+      expect(res.length).toBeGreaterThan(0);
+      expect(res.find((r) => r.item === '最新')).toBeDefined();
+    });
+  });
+
+  describe('getIndustryBoardConstituents', () => {
+    it('should return 行业板块成分股 by name', async () => {
+      const res = await sdk.getIndustryBoardConstituents('互联网服务');
+      expect(res.length).toBeGreaterThan(0);
+      const stock = res[0];
+      expect(stock).toHaveProperty('rank');
+      expect(stock).toHaveProperty('code');
+      expect(stock).toHaveProperty('name');
+      expect(stock).toHaveProperty('price');
+      expect(stock).toHaveProperty('changePercent');
+      expect(stock).toHaveProperty('pe');
+      expect(stock).toHaveProperty('pb');
+    });
+
+    it('should return 行业板块成分股 by code', async () => {
+      const res = await sdk.getIndustryBoardConstituents('BK0447');
+      expect(res.length).toBeGreaterThan(0);
+      expect(typeof res[0].code).toBe('string');
+    });
+  });
+
+  describe('getIndustryBoardKline', () => {
+    it('should return 行业板块日K线', async () => {
+      const res = await sdk.getIndustryBoardKline('互联网服务', {
+        startDate: '20241201',
+        endDate: '20241220',
+      });
+      expect(res.length).toBeGreaterThan(0);
+      const k = res[0];
+      expect(k).toHaveProperty('date');
+      expect(k).toHaveProperty('open');
+      expect(k).toHaveProperty('close');
+      expect(k).toHaveProperty('high');
+      expect(k).toHaveProperty('low');
+      expect(k).toHaveProperty('volume');
+      expect(k).toHaveProperty('changePercent');
+      expect(k.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('should return 行业板块周K线', async () => {
+      const res = await sdk.getIndustryBoardKline('BK0447', {
+        period: 'weekly',
+        startDate: '20241101',
+        endDate: '20241231',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+
+    it('should return 行业板块月K线', async () => {
+      const res = await sdk.getIndustryBoardKline('互联网服务', {
+        period: 'monthly',
+        startDate: '20240101',
+        endDate: '20241231',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getIndustryBoardMinuteKline', () => {
+    it('should return 行业板块1分钟分时数据', async () => {
+      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+        period: '1',
+      });
+      expect(res.length).toBeGreaterThan(0);
+      const t = res[0];
+      expect(t).toHaveProperty('time');
+      expect(t).toHaveProperty('open');
+      expect(t).toHaveProperty('close');
+      expect(t).toHaveProperty('volume');
+      // 1 分钟数据有 price 字段
+      expect('price' in t).toBe(true);
+    });
+
+    it('should return 行业板块5分钟K线', async () => {
+      const res = await sdk.getIndustryBoardMinuteKline('BK0447', {
+        period: '5',
+      });
+      expect(res.length).toBeGreaterThan(0);
+      const k = res[0];
+      expect(k).toHaveProperty('time');
+      // 5 分钟 K 线有 changePercent 字段
+      expect('changePercent' in k).toBe(true);
+    });
+
+    it('should return 行业板块15分钟K线', async () => {
+      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+        period: '15',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+
+    it('should return 行业板块30分钟K线', async () => {
+      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+        period: '30',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+
+    it('should return 行业板块60分钟K线', async () => {
+      const res = await sdk.getIndustryBoardMinuteKline('互联网服务', {
+        period: '60',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('错误处理', () => {
+    it('should throw error for invalid board name', async () => {
+      await expect(
+        sdk.getIndustryBoardSpot('不存在的板块名称')
+      ).rejects.toThrow(/未找到行业板块/);
+    });
+  });
+});
+
+// ============ 概念板块测试 ============
+describe('概念板块', () => {
+  describe('getConceptBoardList', () => {
+    it('should return 概念板块名称列表', async () => {
+      const res = await sdk.getConceptBoardList();
+      expect(res.length).toBeGreaterThan(0);
+      const board = res[0];
+      expect(board).toHaveProperty('rank');
+      expect(board).toHaveProperty('name');
+      expect(board).toHaveProperty('code');
+      expect(board).toHaveProperty('price');
+      expect(board).toHaveProperty('changePercent');
+      expect(board.code).toMatch(/^BK\d+$/);
+      expect(typeof board.name).toBe('string');
+    });
+
+    it('should return boards sorted by changePercent', async () => {
+      const res = await sdk.getConceptBoardList();
+      expect(res.length).toBeGreaterThan(1);
+      // 验证按涨跌幅降序排列
+      for (let i = 0; i < res.length - 1; i++) {
+        const curr = res[i].changePercent ?? 0;
+        const next = res[i + 1].changePercent ?? 0;
+        expect(curr).toBeGreaterThanOrEqual(next);
+      }
+    });
+  });
+
+  describe('getConceptBoardSpot', () => {
+    it('should return 概念板块实时行情 by name', async () => {
+      const res = await sdk.getConceptBoardSpot('人工智能');
+      expect(res.length).toBeGreaterThan(0);
+      const items = res.map((r) => r.item);
+      expect(items).toContain('最新');
+      expect(items).toContain('涨跌幅');
+      expect(items).toContain('成交量');
+    });
+
+    it('should return 概念板块实时行情 by code', async () => {
+      const res = await sdk.getConceptBoardSpot('BK0800');
+      expect(res.length).toBeGreaterThan(0);
+      expect(res.find((r) => r.item === '最新')).toBeDefined();
+    });
+  });
+
+  describe('getConceptBoardConstituents', () => {
+    it('should return 概念板块成分股 by name', async () => {
+      const res = await sdk.getConceptBoardConstituents('人工智能');
+      expect(res.length).toBeGreaterThan(0);
+      const stock = res[0];
+      expect(stock).toHaveProperty('rank');
+      expect(stock).toHaveProperty('code');
+      expect(stock).toHaveProperty('name');
+      expect(stock).toHaveProperty('price');
+      expect(stock).toHaveProperty('changePercent');
+      expect(stock).toHaveProperty('pe');
+      expect(stock).toHaveProperty('pb');
+    });
+
+    it('should return 概念板块成分股 by code', async () => {
+      const res = await sdk.getConceptBoardConstituents('BK0800');
+      expect(res.length).toBeGreaterThan(0);
+      expect(typeof res[0].code).toBe('string');
+    });
+  });
+
+  describe('getConceptBoardKline', () => {
+    it('should return 概念板块日K线', async () => {
+      const res = await sdk.getConceptBoardKline('人工智能', {
+        startDate: '20241201',
+        endDate: '20241220',
+      });
+      expect(res.length).toBeGreaterThan(0);
+      const k = res[0];
+      expect(k).toHaveProperty('date');
+      expect(k).toHaveProperty('open');
+      expect(k).toHaveProperty('close');
+      expect(k).toHaveProperty('high');
+      expect(k).toHaveProperty('low');
+      expect(k).toHaveProperty('volume');
+      expect(k).toHaveProperty('changePercent');
+      expect(k.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('should return 概念板块周K线', async () => {
+      const res = await sdk.getConceptBoardKline('BK0800', {
+        period: 'weekly',
+        startDate: '20241101',
+        endDate: '20241231',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+
+    it('should return 概念板块月K线', async () => {
+      const res = await sdk.getConceptBoardKline('人工智能', {
+        period: 'monthly',
+        startDate: '20240101',
+        endDate: '20241231',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getConceptBoardMinuteKline', () => {
+    it('should return 概念板块1分钟分时数据', async () => {
+      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+        period: '1',
+      });
+      expect(res.length).toBeGreaterThan(0);
+      const t = res[0];
+      expect(t).toHaveProperty('time');
+      expect(t).toHaveProperty('open');
+      expect(t).toHaveProperty('close');
+      expect(t).toHaveProperty('volume');
+      // 1 分钟数据有 price 字段
+      expect('price' in t).toBe(true);
+    });
+
+    it('should return 概念板块5分钟K线', async () => {
+      const res = await sdk.getConceptBoardMinuteKline('BK0800', {
+        period: '5',
+      });
+      expect(res.length).toBeGreaterThan(0);
+      const k = res[0];
+      expect(k).toHaveProperty('time');
+      // 5 分钟 K 线有 changePercent 字段
+      expect('changePercent' in k).toBe(true);
+    });
+
+    it('should return 概念板块15分钟K线', async () => {
+      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+        period: '15',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+
+    it('should return 概念板块30分钟K线', async () => {
+      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+        period: '30',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+
+    it('should return 概念板块60分钟K线', async () => {
+      const res = await sdk.getConceptBoardMinuteKline('人工智能', {
+        period: '60',
+      });
+      expect(res.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('错误处理', () => {
+    it('should throw error for invalid concept board name', async () => {
+      await expect(
+        sdk.getConceptBoardSpot('不存在的概念板块')
+      ).rejects.toThrow(/未找到概念板块/);
     });
   });
 });

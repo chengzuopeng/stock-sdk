@@ -18,6 +18,18 @@ import type {
   MinuteKline,
   TodayTimelineResponse,
   HKUSHistoryKline,
+  IndustryBoard,
+  IndustryBoardSpot,
+  IndustryBoardConstituent,
+  IndustryBoardKline,
+  IndustryBoardMinuteTimeline,
+  IndustryBoardMinuteKline,
+  ConceptBoard,
+  ConceptBoardSpot,
+  ConceptBoardConstituent,
+  ConceptBoardKline,
+  ConceptBoardMinuteTimeline,
+  ConceptBoardMinuteKline,
 } from './types';
 
 // 重新导出配置类型
@@ -103,6 +115,118 @@ export class StockSDK {
    */
   getTodayTimeline(code: string): Promise<TodayTimelineResponse> {
     return tencent.getTodayTimeline(this.client, code);
+  }
+
+  // ==================== 行业板块 ====================
+
+  /**
+   * 获取行业板块名称列表
+   * @returns 行业板块列表
+   */
+  getIndustryBoardList(): Promise<IndustryBoard[]> {
+    return eastmoney.getIndustryBoardList(this.client);
+  }
+
+  /**
+   * 获取行业板块实时行情
+   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
+   * @returns 实时行情指标列表
+   */
+  getIndustryBoardSpot(symbol: string): Promise<IndustryBoardSpot[]> {
+    return eastmoney.getIndustryBoardSpot(this.client, symbol);
+  }
+
+  /**
+   * 获取行业板块成分股
+   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
+   * @returns 成分股列表
+   */
+  getIndustryBoardConstituents(
+    symbol: string
+  ): Promise<IndustryBoardConstituent[]> {
+    return eastmoney.getIndustryBoardConstituents(this.client, symbol);
+  }
+
+  /**
+   * 获取行业板块历史 K 线（日/周/月）
+   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
+   * @param options 配置选项
+   * @returns 历史 K 线数据
+   */
+  getIndustryBoardKline(
+    symbol: string,
+    options?: eastmoney.IndustryBoardKlineOptions
+  ): Promise<IndustryBoardKline[]> {
+    return eastmoney.getIndustryBoardKline(this.client, symbol, options);
+  }
+
+  /**
+   * 获取行业板块分时行情（1/5/15/30/60 分钟）
+   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
+   * @param options 配置选项
+   * @returns 分时行情数据
+   */
+  getIndustryBoardMinuteKline(
+    symbol: string,
+    options?: eastmoney.IndustryBoardMinuteKlineOptions
+  ): Promise<IndustryBoardMinuteTimeline[] | IndustryBoardMinuteKline[]> {
+    return eastmoney.getIndustryBoardMinuteKline(this.client, symbol, options);
+  }
+
+  // ==================== 概念板块 ====================
+
+  /**
+   * 获取概念板块名称列表
+   * @returns 概念板块列表
+   */
+  getConceptBoardList(): Promise<ConceptBoard[]> {
+    return eastmoney.getConceptBoardList(this.client);
+  }
+
+  /**
+   * 获取概念板块实时行情
+   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
+   * @returns 实时行情指标列表
+   */
+  getConceptBoardSpot(symbol: string): Promise<ConceptBoardSpot[]> {
+    return eastmoney.getConceptBoardSpot(this.client, symbol);
+  }
+
+  /**
+   * 获取概念板块成分股
+   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
+   * @returns 成分股列表
+   */
+  getConceptBoardConstituents(
+    symbol: string
+  ): Promise<ConceptBoardConstituent[]> {
+    return eastmoney.getConceptBoardConstituents(this.client, symbol);
+  }
+
+  /**
+   * 获取概念板块历史 K 线（日/周/月）
+   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
+   * @param options 配置选项
+   * @returns 历史 K 线数据
+   */
+  getConceptBoardKline(
+    symbol: string,
+    options?: eastmoney.ConceptBoardKlineOptions
+  ): Promise<ConceptBoardKline[]> {
+    return eastmoney.getConceptBoardKline(this.client, symbol, options);
+  }
+
+  /**
+   * 获取概念板块分时行情（1/5/15/30/60 分钟）
+   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
+   * @param options 配置选项
+   * @returns 分时行情数据
+   */
+  getConceptBoardMinuteKline(
+    symbol: string,
+    options?: eastmoney.ConceptBoardMinuteKlineOptions
+  ): Promise<ConceptBoardMinuteTimeline[] | ConceptBoardMinuteKline[]> {
+    return eastmoney.getConceptBoardMinuteKline(this.client, symbol, options);
   }
 
   // ==================== K 线 ====================

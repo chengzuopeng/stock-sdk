@@ -50,3 +50,11 @@ export {
   chunkArray,
   asyncPool,
 } from './core';
+
+// 导出选项类型
+export type {
+  IndustryBoardKlineOptions,
+  IndustryBoardMinuteKlineOptions,
+  ConceptBoardKlineOptions,
+  ConceptBoardMinuteKlineOptions,
+} from './providers/eastmoney';

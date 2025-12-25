@@ -65,6 +65,7 @@ const defaultDates = getDefaultDateRange()
 const categories = [
   { key: 'quotes', label: '实时行情', icon: 'lucide:bar-chart-3', color: '#3b82f6' },
   { key: 'kline', label: 'K线数据', icon: 'lucide:line-chart', color: '#22c55e' },
+  { key: 'board', label: '板块数据', icon: 'lucide:layout-grid', color: '#06b6d4' },
   { key: 'indicator', label: '技术指标', icon: 'lucide:trending-up', color: '#f59e0b' },
   { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
   { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
@@ -207,6 +208,110 @@ console.log(timeline.date);         // '20241217'
 console.log(timeline.data.length);  // 240
 console.log(timeline.data[0].price);     // 成交价
 console.log(timeline.data[0].avgPrice);  // 均价`
+  },
+  // 行业板块
+  getIndustryBoardList: {
+    name: 'getIndustryBoardList',
+    desc: '获取行业板块列表',
+    category: 'board',
+    params: [],
+    code: `const boards = await sdk.getIndustryBoardList();
+// 返回: IndustryBoard[]
+console.log(boards[0].name);  // 板块名称
+console.log(boards[0].code);  // BK1027`
+  },
+  getIndustryBoardSpot: {
+    name: 'getIndustryBoardSpot',
+    desc: '获取行业板块实时行情',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' }
+    ],
+    code: `const spot = await sdk.getIndustryBoardSpot('互联网服务');
+// 返回: IndustryBoardSpot[]
+console.log(spot[0].item);   // 指标名称
+console.log(spot[0].value);  // 指标值`
+  },
+  getIndustryBoardConstituents: {
+    name: 'getIndustryBoardConstituents',
+    desc: '获取行业板块成分股',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' }
+    ],
+    code: `const stocks = await sdk.getIndustryBoardConstituents('互联网服务');
+// 返回: IndustryBoardConstituent[]
+console.log(stocks[0].name);  // 股票名称
+console.log(stocks[0].code);  // 股票代码`
+  },
+  getIndustryBoardKline: {
+    name: 'getIndustryBoardKline',
+    desc: '获取行业板块 K 线',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' },
+      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
+    ],
+    code: `const klines = await sdk.getIndustryBoardKline('互联网服务', {
+  period: 'daily',
+  startDate: '20240101'
+});
+console.log(klines[0].date);   // 日期
+console.log(klines[0].close);  // 收盘价`
+  },
+  // 概念板块
+  getConceptBoardList: {
+    name: 'getConceptBoardList',
+    desc: '获取概念板块列表',
+    category: 'board',
+    params: [],
+    code: `const boards = await sdk.getConceptBoardList();
+// 返回: ConceptBoard[]
+console.log(boards[0].name);  // 板块名称
+console.log(boards[0].code);  // BK0800`
+  },
+  getConceptBoardSpot: {
+    name: 'getConceptBoardSpot',
+    desc: '获取概念板块实时行情',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' }
+    ],
+    code: `const spot = await sdk.getConceptBoardSpot('人工智能');
+// 返回: ConceptBoardSpot[]
+console.log(spot[0].item);   // 指标名称
+console.log(spot[0].value);  // 指标值`
+  },
+  getConceptBoardConstituents: {
+    name: 'getConceptBoardConstituents',
+    desc: '获取概念板块成分股',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' }
+    ],
+    code: `const stocks = await sdk.getConceptBoardConstituents('人工智能');
+// 返回: ConceptBoardConstituent[]
+console.log(stocks[0].name);  // 股票名称
+console.log(stocks[0].code);  // 股票代码`
+  },
+  getConceptBoardKline: {
+    name: 'getConceptBoardKline',
+    desc: '获取概念板块 K 线',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' },
+      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
+    ],
+    code: `const klines = await sdk.getConceptBoardKline('人工智能', {
+  period: 'daily',
+  startDate: '20240101'
+});
+console.log(klines[0].date);   // 日期
+console.log(klines[0].close);  // 收盘价`
   },
   getKlineWithIndicators: {
     name: 'getKlineWithIndicators',
@@ -475,6 +580,46 @@ async function fetchData() {
           else if (ind === 'atr') options.indicators.atr = true
         })
         data = await sdk.value.getKlineWithIndicators(params.symbol, options)
+        break
+      }
+      // 行业板块
+      case 'getIndustryBoardList': {
+        data = await sdk.value.getIndustryBoardList()
+        break
+      }
+      case 'getIndustryBoardSpot': {
+        data = await sdk.value.getIndustryBoardSpot(params.symbol)
+        break
+      }
+      case 'getIndustryBoardConstituents': {
+        data = await sdk.value.getIndustryBoardConstituents(params.symbol)
+        break
+      }
+      case 'getIndustryBoardKline': {
+        const options: any = { period: params.period }
+        if (params.startDate) options.startDate = params.startDate
+        if (params.endDate) options.endDate = params.endDate
+        data = await sdk.value.getIndustryBoardKline(params.symbol, options)
+        break
+      }
+      // 概念板块
+      case 'getConceptBoardList': {
+        data = await sdk.value.getConceptBoardList()
+        break
+      }
+      case 'getConceptBoardSpot': {
+        data = await sdk.value.getConceptBoardSpot(params.symbol)
+        break
+      }
+      case 'getConceptBoardConstituents': {
+        data = await sdk.value.getConceptBoardConstituents(params.symbol)
+        break
+      }
+      case 'getConceptBoardKline': {
+        const options: any = { period: params.period }
+        if (params.startDate) options.startDate = params.startDate
+        if (params.endDate) options.endDate = params.endDate
+        data = await sdk.value.getConceptBoardKline(params.symbol, options)
         break
       }
       default:
