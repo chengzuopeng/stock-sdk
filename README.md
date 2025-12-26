@@ -139,6 +139,26 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 | `calcCCI` | 计算商品通道指数 |
 | `calcATR` | 计算平均真实波幅 |
 
+### 行业板块
+
+| 方法 | 说明 |
+|------|------|
+| `getIndustryList` | 行业板块名称列表 |
+| `getIndustrySpot` | 行业板块实时行情 |
+| `getIndustryConstituents` | 行业板块成分股 |
+| `getIndustryKline` | 行业板块历史 K 线（日/周/月） |
+| `getIndustryMinuteKline` | 行业板块分时行情（1/5/15/30/60 分钟） |
+
+### 概念板块
+
+| 方法 | 说明 |
+|------|------|
+| `getConceptList` | 概念板块名称列表 |
+| `getConceptSpot` | 概念板块实时行情 |
+| `getConceptConstituents` | 概念板块成分股 |
+| `getConceptKline` | 概念板块历史 K 线（日/周/月） |
+| `getConceptMinuteKline` | 概念板块分时行情（1/5/15/30/60 分钟） |
+
 ### 扩展数据
 
 | 方法 | 说明 |

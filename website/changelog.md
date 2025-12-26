@@ -2,6 +2,21 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.4.0](https://www.npmjs.com/package/stock-sdk/v/1.4.0)** (2025-12-26)
+
+### 新增功能
+
+**板块数据**
+- 新增行业板块接口：`getIndustryList`、`getIndustrySpot`、`getIndustryConstituents`、`getIndustryKline`、`getIndustryMinuteKline`
+- 新增概念板块接口：`getConceptList`、`getConceptSpot`、`getConceptConstituents`、`getConceptKline`、`getConceptMinuteKline`
+
+### 优化
+
+**Playground**
+- 新增板块数据 API 演示
+- Playground 支持本地开发模式，可直接引用本地源码调试
+
+
 ## **[1.3.1](https://www.npmjs.com/package/stock-sdk/v/1.3.1)** (2025-12-24)
 
 ### 优化
@@ -76,4 +91,121 @@ Stock SDK 遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 - **次版本号**：向下兼容的功能性新增
 - **修订号**：向下兼容的问题修正
 :::
+
+<script setup>
+import { onMounted, onUnmounted } from 'vue'
+
+onMounted(() => {
+  document.body.classList.add('changelog-page')
+})
+
+onUnmounted(() => {
+  document.body.classList.remove('changelog-page')
+})
+</script>
+
+<style>
+/* 更新日志页面专属样式 */
+
+/* 增加背景：极淡的浅灰色背景和微弱的装饰性渐变 */
+body.changelog-page {
+  --vp-layout-max-width: 1400px;
+  background-color: var(--vp-c-bg-alt) !important;
+  background-image: radial-gradient(circle at 50% -20%, var(--vp-c-brand-soft) 0%, transparent 40%) !important;
+  background-attachment: fixed !important;
+}
+
+/* 让内容卡片有白色背景和轻微圆角，形成对比 */
+body.changelog-page .VPDoc .content {
+  padding: 2rem 3rem !important;
+  background: var(--vp-c-bg) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+  margin-top: 2rem !important;
+  margin-bottom: 3rem !important;
+}
+
+/* 深色模式适配 */
+.dark body.changelog-page .VPDoc .content {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.changelog-page .VPDoc {
+  padding: 0 32px !important;
+}
+
+body.changelog-page .VPDoc > .container {
+  max-width: 100% !important;
+}
+
+body.changelog-page .VPDoc > .container > .content {
+  max-width: 1100px !important;
+}
+
+body.changelog-page .vp-doc {
+  max-width: 100% !important;
+}
+
+/* 标题样式微调 */
+body.changelog-page .vp-doc h1 {
+  margin-top: 0 !important;
+  margin-bottom: 1.5rem !important;
+  text-align: center;
+}
+
+body.changelog-page .vp-doc h2 {
+  margin-top: 2.5rem !important;
+  margin-bottom: 1rem !important;
+  padding-bottom: 0.5rem !important;
+  border-bottom: 1px solid var(--vp-c-divider) !important;
+  display: flex !important;
+  align-items: center !important;
+  border-top: 0 !important;
+}
+
+/* 为版本号添加一个小点装饰 */
+body.changelog-page .vp-doc h2::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: var(--vp-c-brand);
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+body.changelog-page .vp-doc h3 {
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+  color: var(--vp-c-brand) !important;
+}
+
+body.changelog-page .vp-doc p {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+body.changelog-page .vp-doc ul,
+body.changelog-page .vp-doc ol {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+body.changelog-page .vp-doc li {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+body.changelog-page .vp-doc hr {
+  margin-top: 2rem !important;
+  margin-bottom: 2rem !important;
+  border: 0 !important;
+  border-top: 2px dashed var(--vp-c-divider) !important;
+}
+
+body.changelog-page .vp-doc .custom-block {
+  margin-top: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+}
+</style>
 

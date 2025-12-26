@@ -139,6 +139,26 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 | `calcCCI` | Calculate Commodity Channel Index |
 | `calcATR` | Calculate Average True Range |
 
+### Industry Sectors
+
+| Method | Description |
+|--------|-------------|
+| `getIndustryList` | Industry sector name list |
+| `getIndustrySpot` | Industry sector real-time quotes |
+| `getIndustryConstituents` | Industry sector constituents |
+| `getIndustryKline` | Industry sector historical K-line (daily/weekly/monthly) |
+| `getIndustryMinuteKline` | Industry sector minute K-line (1/5/15/30/60 minutes) |
+
+### Concept Sectors
+
+| Method | Description |
+|--------|-------------|
+| `getConceptList` | Concept sector name list |
+| `getConceptSpot` | Concept sector real-time quotes |
+| `getConceptConstituents` | Concept sector constituents |
+| `getConceptKline` | Concept sector historical K-line (daily/weekly/monthly) |
+| `getConceptMinuteKline` | Concept sector minute K-line (1/5/15/30/60 minutes) |
+
 ### Extended Data
 
 | Method | Description |

@@ -13,5 +13,6 @@ export { calcATR } from './atr';
 export * from './types';
 
 // 导出指标附加器
-export { addIndicators, KlineWithIndicators } from './addIndicators';
+export { addIndicators } from './addIndicators';
+export type { KlineWithIndicators } from './addIndicators';
 

@@ -1,9 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { resolve } from 'path'
 
-// 通过环境变量控制 base 路径
-// - GitHub Pages: DOCS_BASE=/stock-sdk/ (默认)
-// - 自定义域名: DOCS_BASE=/
-const base = process.env.DOCS_BASE || '/stock-sdk/'
+const base = process.env.DOCS_BASE || '/'
 
 // 中文侧边栏配置
 const zhSidebar = {
@@ -54,6 +52,13 @@ const zhSidebar = {
         { text: '历史 K 线', link: '/api/kline' },
         { text: '分钟 K 线', link: '/api/minute-kline' },
         { text: '分时走势', link: '/api/timeline' },
+      ],
+    },
+    {
+      text: '行业板块',
+      items: [
+        { text: '行业板块', link: '/api/industry-board' },
+        { text: '概念板块', link: '/api/concept-board' },
       ],
     },
     {
@@ -137,6 +142,13 @@ const enSidebar = {
       ],
     },
     {
+      text: 'Industry Sectors',
+      items: [
+        { text: 'Industry Sectors', link: '/en/api/industry-board' },
+        { text: 'Concept Sectors', link: '/en/api/concept-board' },
+      ],
+    },
+    {
       text: 'Technical Indicators',
       items: [
         { text: 'Indicators Overview', link: '/en/api/indicators' },
@@ -170,6 +182,7 @@ export default defineConfig({
   description: '为前端和 Node.js 设计的股票行情 SDK',
 
   base: base,
+  cleanUrls: true, // 去掉 URL 中的 .html 后缀
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
@@ -285,9 +298,16 @@ export default defineConfig({
 
   // Vite 配置
   vite: {
+    resolve: {
+      alias: {
+        // 开发模式下将 'stock-sdk-local' 指向本地 src 目录
+        'stock-sdk-local': resolve(__dirname, '../../src'),
+      },
+    },
     server: {
       fs: {
-        allow: ['..'],
+        // 允许访问上级目录（用于引用 src）
+        allow: ['../..'],
       },
     },
   },

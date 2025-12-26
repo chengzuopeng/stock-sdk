@@ -55,5 +55,19 @@ body.playground-page .VPNavBar .wrapper {
 body.playground-page .VPNavBar .container {
   max-width: 100% !important;
 }
+
+/* Hide page footer */
+body.playground-page .VPFooter {
+  display: none !important;
+}
+
+body.playground-page footer {
+  display: none !important;
+}
+
+/* Prevent page scrolling */
+body.playground-page .VPContent {
+  overflow: hidden !important;
+}
 </style>
 

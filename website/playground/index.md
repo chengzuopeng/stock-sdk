@@ -59,4 +59,18 @@ body.playground-page .VPNavBar .wrapper {
 body.playground-page .VPNavBar .container {
   max-width: 100% !important;
 }
+
+/* 隐藏页面底部 footer */
+body.playground-page .VPFooter {
+  display: none !important;
+}
+
+body.playground-page footer {
+  display: none !important;
+}
+
+/* 防止页面整体滚动 */
+body.playground-page .VPContent {
+  overflow: hidden !important;
+}
 </style>

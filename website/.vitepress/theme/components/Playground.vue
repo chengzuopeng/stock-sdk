@@ -65,6 +65,7 @@ const defaultDates = getDefaultDateRange()
 const categories = [
   { key: 'quotes', label: '实时行情', icon: 'lucide:bar-chart-3', color: '#3b82f6' },
   { key: 'kline', label: 'K线数据', icon: 'lucide:line-chart', color: '#22c55e' },
+  { key: 'board', label: '板块数据', icon: 'lucide:layout-grid', color: '#06b6d4' },
   { key: 'indicator', label: '技术指标', icon: 'lucide:trending-up', color: '#f59e0b' },
   { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
   { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
@@ -207,6 +208,110 @@ console.log(timeline.date);         // '20241217'
 console.log(timeline.data.length);  // 240
 console.log(timeline.data[0].price);     // 成交价
 console.log(timeline.data[0].avgPrice);  // 均价`
+  },
+  // 行业板块
+  getIndustryList: {
+    name: 'getIndustryList',
+    desc: '获取行业板块列表',
+    category: 'board',
+    params: [],
+    code: `const boards = await sdk.getIndustryList();
+// 返回: IndustryBoard[]
+console.log(boards[0].name);  // 板块名称
+console.log(boards[0].code);  // BK1027`
+  },
+  getIndustrySpot: {
+    name: 'getIndustrySpot',
+    desc: '获取行业板块实时行情',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' }
+    ],
+    code: `const spot = await sdk.getIndustrySpot('互联网服务');
+// 返回: IndustryBoardSpot[]
+console.log(spot[0].item);   // 指标名称
+console.log(spot[0].value);  // 指标值`
+  },
+  getIndustryConstituents: {
+    name: 'getIndustryConstituents',
+    desc: '获取行业板块成分股',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' }
+    ],
+    code: `const stocks = await sdk.getIndustryConstituents('互联网服务');
+// 返回: IndustryBoardConstituent[]
+console.log(stocks[0].name);  // 股票名称
+console.log(stocks[0].code);  // 股票代码`
+  },
+  getIndustryKline: {
+    name: 'getIndustryKline',
+    desc: '获取行业板块 K 线',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' },
+      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
+    ],
+    code: `const klines = await sdk.getIndustryKline('互联网服务', {
+  period: 'daily',
+  startDate: '20240101'
+});
+console.log(klines[0].date);   // 日期
+console.log(klines[0].close);  // 收盘价`
+  },
+  // 概念板块
+  getConceptList: {
+    name: 'getConceptList',
+    desc: '获取概念板块列表',
+    category: 'board',
+    params: [],
+    code: `const boards = await sdk.getConceptList();
+// 返回: ConceptBoard[]
+console.log(boards[0].name);  // 板块名称
+console.log(boards[0].code);  // BK0800`
+  },
+  getConceptSpot: {
+    name: 'getConceptSpot',
+    desc: '获取概念板块实时行情',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' }
+    ],
+    code: `const spot = await sdk.getConceptSpot('人工智能');
+// 返回: ConceptBoardSpot[]
+console.log(spot[0].item);   // 指标名称
+console.log(spot[0].value);  // 指标值`
+  },
+  getConceptConstituents: {
+    name: 'getConceptConstituents',
+    desc: '获取概念板块成分股',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' }
+    ],
+    code: `const stocks = await sdk.getConceptConstituents('人工智能');
+// 返回: ConceptBoardConstituent[]
+console.log(stocks[0].name);  // 股票名称
+console.log(stocks[0].code);  // 股票代码`
+  },
+  getConceptKline: {
+    name: 'getConceptKline',
+    desc: '获取概念板块 K 线',
+    category: 'board',
+    params: [
+      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' },
+      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
+    ],
+    code: `const klines = await sdk.getConceptKline('人工智能', {
+  period: 'daily',
+  startDate: '20240101'
+});
+console.log(klines[0].date);   // 日期
+console.log(klines[0].close);  // 收盘价`
   },
   getKlineWithIndicators: {
     name: 'getKlineWithIndicators',
@@ -477,6 +582,46 @@ async function fetchData() {
         data = await sdk.value.getKlineWithIndicators(params.symbol, options)
         break
       }
+      // 行业板块
+      case 'getIndustryList': {
+        data = await sdk.value.getIndustryList()
+        break
+      }
+      case 'getIndustrySpot': {
+        data = await sdk.value.getIndustrySpot(params.symbol)
+        break
+      }
+      case 'getIndustryConstituents': {
+        data = await sdk.value.getIndustryConstituents(params.symbol)
+        break
+      }
+      case 'getIndustryKline': {
+        const options: any = { period: params.period }
+        if (params.startDate) options.startDate = params.startDate
+        if (params.endDate) options.endDate = params.endDate
+        data = await sdk.value.getIndustryKline(params.symbol, options)
+        break
+      }
+      // 概念板块
+      case 'getConceptList': {
+        data = await sdk.value.getConceptList()
+        break
+      }
+      case 'getConceptSpot': {
+        data = await sdk.value.getConceptSpot(params.symbol)
+        break
+      }
+      case 'getConceptConstituents': {
+        data = await sdk.value.getConceptConstituents(params.symbol)
+        break
+      }
+      case 'getConceptKline': {
+        const options: any = { period: params.period }
+        if (params.startDate) options.startDate = params.startDate
+        if (params.endDate) options.endDate = params.endDate
+        data = await sdk.value.getConceptKline(params.symbol, options)
+        break
+      }
       default:
         throw new Error('未知方法')
     }
@@ -503,14 +648,29 @@ function clearResult() {
 }
 
 // 加载 SDK
+async function loadSDK() {
+  // 开发模式下使用本地源码，生产模式下使用 unpkg
+  const isDev = import.meta.env.DEV
+  
+  if (isDev) {
+    // 本地开发：直接引用 src 源码
+    const module = await import('stock-sdk-local') as any
+    const SDKClass = module.StockSDK || module.default
+    return new SDKClass()
+  } else {
+    // 生产环境：从 unpkg 加载
+    const module = await import('https://unpkg.com/stock-sdk/dist/index.js') as any
+    return new module.StockSDK()
+  }
+}
+
 onMounted(async () => {
   initParams()
   try {
-    // @ts-ignore
-    const module = await import('https://unpkg.com/stock-sdk/dist/index.js')
-    sdk.value = new module.StockSDK()
+    sdk.value = await loadSDK()
     sdkLoaded.value = true
-    console.log('🚀 Stock SDK Playground 已加载')
+    const isDev = import.meta.env.DEV
+    console.log(`🚀 Stock SDK Playground 已加载 (${isDev ? '本地开发模式' : '生产模式'})`)
     console.log('💡 提示: 可以在控制台使用 window.sdk 直接调用 SDK 方法')
     ;(window as any).sdk = sdk.value
   } catch (error) {
@@ -668,7 +828,9 @@ watch(currentMethod, () => {
   --pg-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   --pg-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
 
-  min-height: 100vh;
+  /* 固定高度，填满可视区域，不产生外部滚动 */
+  height: calc(100vh - 64px);
+  overflow: hidden;
   background: var(--pg-bg);
   color: var(--pg-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -695,16 +857,29 @@ watch(currentMethod, () => {
 /* Body Layout */
 .playground-body {
   display: flex;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Sidebar */
 .sidebar {
   width: 260px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   background: var(--pg-surface);
   border-right: 1px solid var(--pg-border);
-  overflow-y: auto;
   flex-shrink: 0;
+}
+
+.sidebar-header {
+  flex-shrink: 0;
+}
+
+.method-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
 }
 
 .sidebar-header {
@@ -759,9 +934,6 @@ watch(currentMethod, () => {
   to { transform: rotate(360deg); }
 }
 
-.method-nav {
-  padding: 12px;
-}
 
 .category {
   margin-bottom: 16px;
@@ -816,6 +988,7 @@ watch(currentMethod, () => {
 /* Main Content */
 .main-content {
   flex: 1;
+  min-height: 0; /* 允许 flex 子元素收缩，启用滚动 */
   padding: 24px;
   overflow-y: auto;
   background: var(--pg-bg);
@@ -1100,12 +1273,21 @@ watch(currentMethod, () => {
 
 /* Responsive */
 @media (max-width: 900px) {
+  .playground {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .playground-body {
     flex-direction: column;
+    height: auto;
+    overflow: visible;
   }
 
   .sidebar {
     width: 100%;
+    height: auto;
     border-right: none;
     border-bottom: 1px solid var(--pg-border);
   }
@@ -1115,6 +1297,12 @@ watch(currentMethod, () => {
     flex-wrap: wrap;
     gap: 8px;
     padding: 12px;
+    overflow-y: visible;
+  }
+
+  .main-content {
+    height: auto;
+    overflow-y: visible;
   }
 
   .category {
