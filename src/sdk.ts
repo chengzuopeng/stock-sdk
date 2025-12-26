@@ -345,6 +345,16 @@ export class StockSDK {
     return this.client.getTencentQuote(params);
   }
 
+  // ==================== 扩展数据 ====================
+
+  /**
+   * 获取 A 股交易日历
+   * @returns 交易日期字符串数组，格式如 ['1990-12-19', '1990-12-20', ...]
+   */
+  getTradingCalendar(): Promise<string[]> {
+    return tencent.getTradingCalendar(this.client);
+  }
+
   // ==================== 技术指标 ====================
 
   /**

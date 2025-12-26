@@ -165,6 +165,7 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 |--------|-------------|
 | `getFundFlow` | Fund flow |
 | `getPanelLargeOrder` | Large order ratio |
+| `getTradingCalendar` | A-share trading calendar |
 
 ### Batch Query
 

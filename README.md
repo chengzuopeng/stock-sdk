@@ -165,6 +165,7 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 |------|------|
 | `getFundFlow` | 资金流向 |
 | `getPanelLargeOrder` | 盘口大单占比 |
+| `getTradingCalendar` | A 股交易日历 |
 
 ### 批量查询
 

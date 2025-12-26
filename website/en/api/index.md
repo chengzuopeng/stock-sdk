@@ -18,7 +18,7 @@ Stock SDK provides a comprehensive API for stock data access.
 | [Indicators](/en/api/indicators) | `getKlineWithIndicators` | K-line with indicators |
 | [Code Lists](/en/api/code-lists) | `getAShareCodeList` | Get all stock codes |
 | [Batch](/en/api/batch) | `getAllAShareQuotes` | Batch market queries |
-| [Fund Flow](/en/api/fund-flow) | `getFundFlow` | Capital flow data |
+| [Extended Data](/en/api/fund-flow) | `getFundFlow`, `getTradingCalendar` | Fund flow, trading calendar |
 
 ## SDK Initialization
 

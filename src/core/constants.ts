@@ -11,6 +11,9 @@ export const A_SHARE_LIST_URL = 'https://assets.linkdiary.cn/shares/zh_a_list.js
 export const US_LIST_URL = 'https://assets.linkdiary.cn/shares/us_list.json';
 export const HK_LIST_URL = 'https://assets.linkdiary.cn/shares/hk_list.json';
 
+// A 股交易日历
+export const TRADE_CALENDAR_URL = 'https://assets.linkdiary.cn/shares/trade-data-list.txt';
+
 /** @deprecated 使用 A_SHARE_LIST_URL 代替 */
 export const CODE_LIST_URL = A_SHARE_LIST_URL;
 

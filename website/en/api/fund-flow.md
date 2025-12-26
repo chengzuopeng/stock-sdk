@@ -1,8 +1,65 @@
-# Fund Flow
+# Extended Data
 
-Get capital flow data for stocks.
+## getTradingCalendar
+
+Get A-share trading calendar, returning all trading days from 1990 to the future.
+
+### Signature
+
+```typescript
+getTradingCalendar(): Promise<string[]>
+```
+
+### Return Type
+
+```typescript
+string[]  // Array of trading dates, e.g. ['1990-12-19', '1990-12-20', ...]
+```
+
+### Example
+
+```typescript
+const calendar = await sdk.getTradingCalendar();
+
+console.log(`Total ${calendar.length} trading days`);
+console.log(`First trading day: ${calendar[0]}`);  // 1990-12-19
+console.log(`Last trading day: ${calendar[calendar.length - 1]}`);
+
+// Check if a date is a trading day
+function isTradingDay(date: string): boolean {
+  return calendar.includes(date);
+}
+
+console.log(isTradingDay('2024-01-02'));  // true
+console.log(isTradingDay('2024-01-01'));  // false (New Year's Day)
+```
+
+### Use Cases
+
+```typescript
+// Get recent N trading days
+function getRecentTradingDays(n: number): string[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const idx = calendar.findIndex(d => d >= today);
+  return calendar.slice(Math.max(0, idx - n), idx);
+}
+
+// Count trading days between two dates
+function countTradingDays(start: string, end: string): number {
+  return calendar.filter(d => d >= start && d <= end).length;
+}
+
+// Get next trading day
+function getNextTradingDay(date: string): string | undefined {
+  return calendar.find(d => d > date);
+}
+```
+
+---
 
 ## getFundFlow
+
+Get capital flow data for stocks.
 
 ```typescript
 const flows = await sdk.getFundFlow(['sz000858', 'sh600519']);

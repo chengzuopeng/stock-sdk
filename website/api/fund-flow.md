@@ -1,4 +1,61 @@
-# 资金流向
+# 扩展数据
+
+## getTradingCalendar
+
+获取 A 股交易日历，返回从 1990 年至未来的所有交易日列表。
+
+### 签名
+
+```typescript
+getTradingCalendar(): Promise<string[]>
+```
+
+### 返回类型
+
+```typescript
+string[]  // 交易日期数组，格式如 ['1990-12-19', '1990-12-20', ...]
+```
+
+### 示例
+
+```typescript
+const calendar = await sdk.getTradingCalendar();
+
+console.log(`共有 ${calendar.length} 个交易日`);
+console.log(`第一个交易日: ${calendar[0]}`);  // 1990-12-19
+console.log(`最后一个交易日: ${calendar[calendar.length - 1]}`);
+
+// 判断某天是否为交易日
+function isTradingDay(date: string): boolean {
+  return calendar.includes(date);
+}
+
+console.log(isTradingDay('2024-01-02'));  // true
+console.log(isTradingDay('2024-01-01'));  // false (元旦)
+```
+
+### 应用场景
+
+```typescript
+// 获取最近 N 个交易日
+function getRecentTradingDays(n: number): string[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const idx = calendar.findIndex(d => d >= today);
+  return calendar.slice(Math.max(0, idx - n), idx);
+}
+
+// 计算两个日期之间的交易日数量
+function countTradingDays(start: string, end: string): number {
+  return calendar.filter(d => d >= start && d <= end).length;
+}
+
+// 获取下一个交易日
+function getNextTradingDay(date: string): string | undefined {
+  return calendar.find(d => d > date);
+}
+```
+
+---
 
 ## getFundFlow
 

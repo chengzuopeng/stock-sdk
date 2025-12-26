@@ -31,6 +31,9 @@ export {
   type GetAllAShareQuotesOptions,
 } from './batch';
 
+// 交易日历
+export { getTradingCalendar } from './tradeCalendar';
+
 // 解析器（供内部使用）
 export * from './parsers';
 

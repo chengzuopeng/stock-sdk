@@ -2,6 +2,13 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.4.1](https://www.npmjs.com/package/stock-sdk/v/1.4.1)** (2025-12-26)
+
+### 新增功能
+
+**扩展数据**
+- 新增 A 股交易日历接口 `getTradingCalendar`
+
 ## **[1.4.0](https://www.npmjs.com/package/stock-sdk/v/1.4.0)** (2025-12-26)
 
 ### 新增功能

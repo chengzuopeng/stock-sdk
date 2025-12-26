@@ -2,6 +2,13 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.4.1](https://www.npmjs.com/package/stock-sdk/v/1.4.1)** (2025-12-26)
+
+### New Features
+
+**Extended Data**
+- Added A-share trading calendar API `getTradingCalendar`
+
 ## **[1.4.0](https://www.npmjs.com/package/stock-sdk/v/1.4.0)** (2025-12-26)
 
 ### New Features
