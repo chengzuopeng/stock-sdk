@@ -1902,3 +1902,30 @@ describe('概念板块', () => {
     });
   });
 });
+
+// ==================== 扩展数据 ====================
+
+describe('扩展数据', () => {
+  describe('getTradingCalendar', () => {
+    it('should return A股交易日历', async () => {
+      const res = await sdk.getTradingCalendar();
+      expect(Array.isArray(res)).toBe(true);
+      expect(res.length).toBeGreaterThan(0);
+      // 验证日期格式 YYYY-MM-DD
+      expect(res[0]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      // 验证包含已知的历史交易日
+      expect(res).toContain('1990-12-19'); // 上证所开业日
+      expect(res).toContain('2024-01-02'); // 2024年第一个交易日
+    });
+
+    it('should return dates in chronological order', async () => {
+      const res = await sdk.getTradingCalendar();
+      // 检查前几个日期是按时间顺序排列的
+      for (let i = 1; i < Math.min(10, res.length); i++) {
+        expect(new Date(res[i]).getTime()).toBeGreaterThan(
+          new Date(res[i - 1]).getTime()
+        );
+      }
+    });
+  });
+});

@@ -39,4 +39,4 @@
 
 - [代码列表](/api/code-lists)
 - [批量查询](/api/batch)
-- [资金流向](/api/fund-flow)
+- [扩展数据](/api/fund-flow)（资金流向、交易日历等）

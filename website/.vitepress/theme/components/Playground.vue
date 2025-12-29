@@ -406,6 +406,16 @@ console.log(flows[0].mainNetRatio);  // 主力净流入占比`
 console.log(orders[0].buyLargeRatio);   // 买盘大单占比
 console.log(orders[0].sellLargeRatio);  // 卖盘大单占比`
   },
+  getTradingCalendar: {
+    name: 'getTradingCalendar',
+    desc: '获取 A 股交易日历',
+    category: 'extended',
+    params: [],
+    code: `const calendar = await sdk.getTradingCalendar();
+console.log(calendar.length);        // 交易日总数
+console.log(calendar[0]);            // '1990-12-19' (第一个交易日)
+console.log(calendar.slice(-5));     // 最近 5 个交易日`
+  },
 }
 
 // 按分类分组方法
@@ -513,6 +523,10 @@ async function fetchData() {
       case 'getPanelLargeOrder': {
         const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
         data = await sdk.value.getPanelLargeOrder(codes)
+        break
+      }
+      case 'getTradingCalendar': {
+        data = await sdk.value.getTradingCalendar()
         break
       }
       case 'getHKQuotes': {
