@@ -38,5 +38,6 @@
 ## 批量与扩展
 
 - [代码列表](/api/code-lists)
+- [搜索](/api/search)
 - [批量查询](/api/batch)
 - [扩展数据](/api/fund-flow)（资金流向、交易日历等）

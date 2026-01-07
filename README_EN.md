@@ -179,6 +179,12 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 | `getAllUSShareQuotes` | Get whole-market US stock quotes |
 | `getAllQuotesByCodes` | Batch fetch quotes for specified stocks |
 
+### Search
+
+| Method | Description |
+|--------|-------------|
+| `search` | Search stocks by code/name/pinyin |
+
 ---
 
 ## License

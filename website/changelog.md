@@ -2,6 +2,14 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.4.2](https://www.npmjs.com/package/stock-sdk/v/1.4.2)** (2026-01-07)
+
+### 新增功能
+
+**搜索功能**
+- 新增股票搜索接口 `search`，支持 A股、港股、美股的代码、名称及拼音搜索
+
+
 ## **[1.4.1](https://www.npmjs.com/package/stock-sdk/v/1.4.1)** (2025-12-29)
 
 ### 新增功能
@@ -213,6 +221,10 @@ body.changelog-page .vp-doc hr {
 body.changelog-page .vp-doc .custom-block {
   margin-top: 1.5rem !important;
   margin-bottom: 1.5rem !important;
+}
+
+body.changelog-page .vp-doc h2 a {
+  margin-right: 8px;
 }
 </style>
 

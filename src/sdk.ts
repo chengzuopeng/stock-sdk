@@ -30,6 +30,7 @@ import type {
   ConceptBoardKline,
   ConceptBoardMinuteTimeline,
   ConceptBoardMinuteKline,
+  SearchResult,
 } from './types';
 
 // 重新导出配置类型
@@ -269,6 +270,16 @@ export class StockSDK {
     options?: eastmoney.USKlineOptions
   ): Promise<HKUSHistoryKline[]> {
     return eastmoney.getUSHistoryKline(this.client, symbol, options);
+  }
+
+  // ==================== 搜索 ====================
+
+  /**
+   * 搜索股票
+   * @param keyword 关键词（股票代码、名称、拼音）
+   */
+  search(keyword: string): Promise<SearchResult[]> {
+    return tencent.search(this.client, keyword);
   }
 
   // ==================== 批量 ====================

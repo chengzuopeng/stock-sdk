@@ -34,6 +34,9 @@ export {
 // 交易日历
 export { getTradingCalendar } from './tradeCalendar';
 
+// 搜索
+export { search } from './search';
+
 // 解析器（供内部使用）
 export * from './parsers';
 
