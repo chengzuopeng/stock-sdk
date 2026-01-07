@@ -551,3 +551,16 @@ export type ConceptBoardMinuteTimeline = IndustryBoardMinuteTimeline;
  */
 export type ConceptBoardMinuteKline = IndustryBoardMinuteKline;
 
+/**
+ * 股票搜索结果
+ */
+export interface SearchResult {
+  /** 股票代码（完整，如 sh600519） */
+  code: string;
+  /** 股票名称 */
+  name: string;
+  /** 市场标识 (sh/sz/hk/us) */
+  market: string;
+  /** 资产类别 (GP-A/GP/KJ 等) */
+  type: string;
+}

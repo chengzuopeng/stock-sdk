@@ -1333,16 +1333,16 @@ describe('Technical Indicators', () => {
 
     it('should handle null values in data', () => {
       const data = [
-        { high: 110, low: 90, close: 100 },
-        { high: null, low: 95, close: 102 },  // null high
-        { high: 115, low: null, close: 105 }, // null low
-        { high: 120, low: 100, close: null }, // null close
-        { high: 125, low: 105, close: 115 },
-        { high: 130, low: 110, close: 120 },
-        { high: 135, low: 115, close: 125 },
-        { high: 140, low: 120, close: 130 },
-        { high: 145, low: 125, close: 135 },
-        { high: 150, low: 130, close: 140 },
+        { open: 100, high: 110, low: 90, close: 100 },
+        { open: 100, high: null, low: 95, close: 102 },  // null high
+        { open: 100, high: 115, low: null, close: 105 }, // null low
+        { open: 100, high: 120, low: 100, close: null }, // null close
+        { open: 100, high: 125, low: 105, close: 115 },
+        { open: 100, high: 130, low: 110, close: 120 },
+        { open: 100, high: 135, low: 115, close: 125 },
+        { open: 100, high: 140, low: 120, close: 130 },
+        { open: 100, high: 145, low: 125, close: 135 },
+        { open: 100, high: 150, low: 130, close: 140 },
       ];
       const kdj = calcKDJ(data, { period: 5 });
       expect(kdj.length).toBe(10);
@@ -1352,6 +1352,7 @@ describe('Technical Indicators', () => {
 
     it('should handle high equals low (division by zero)', () => {
       const data = Array.from({ length: 10 }, () => ({
+        open: 100,
         high: 100, // 高=低
         low: 100,
         close: 100,
@@ -1391,16 +1392,16 @@ describe('Technical Indicators', () => {
 
     it('should handle null values in data', () => {
       const data = [
-        { high: 110, low: 90, close: 100 },
-        { high: null, low: 95, close: 102 },  // null high
-        { high: 115, low: null, close: 105 }, // null low
-        { high: 120, low: 100, close: null }, // null close
-        { high: 125, low: 105, close: 115 },
-        { high: 130, low: 110, close: 120 },
-        { high: 135, low: 115, close: 125 },
-        { high: 140, low: 120, close: 130 },
-        { high: 145, low: 125, close: 135 },
-        { high: 150, low: 130, close: 140 },
+        { open: 100, high: 110, low: 90, close: 100 },
+        { open: 100, high: null, low: 95, close: 102 },  // null high
+        { open: 100, high: 115, low: null, close: 105 }, // null low
+        { open: 100, high: 120, low: 100, close: null }, // null close
+        { open: 100, high: 125, low: 105, close: 115 },
+        { open: 100, high: 130, low: 110, close: 120 },
+        { open: 100, high: 135, low: 115, close: 125 },
+        { open: 100, high: 140, low: 120, close: 130 },
+        { open: 100, high: 145, low: 125, close: 135 },
+        { open: 100, high: 150, low: 130, close: 140 },
       ];
       const wr = calcWR(data, { periods: [5] });
       expect(wr.length).toBe(10);
@@ -1409,6 +1410,7 @@ describe('Technical Indicators', () => {
 
     it('should handle high equals low', () => {
       const data = Array.from({ length: 10 }, () => ({
+        open: 100,
         high: 100,
         low: 100,
         close: 100,
@@ -1476,12 +1478,12 @@ describe('Technical Indicators', () => {
 
     it('should handle null values in data', () => {
       const data = [
-        { high: 110, low: 90, close: 100 },
-        { high: null, low: 95, close: 102 },  // null high
-        { high: 115, low: null, close: 105 }, // null low
-        { high: 120, low: 100, close: null }, // null close
-        { high: 125, low: 105, close: 115 },
-        { high: 130, low: 110, close: 120 },
+        { open: 100, high: 110, low: 90, close: 100 },
+        { open: 100, high: null, low: 95, close: 102 },  // null high
+        { open: 100, high: 115, low: null, close: 105 }, // null low
+        { open: 100, high: 120, low: 100, close: null }, // null close
+        { open: 100, high: 125, low: 105, close: 115 },
+        { open: 100, high: 130, low: 110, close: 120 },
       ];
       const cci = calcCCI(data, { period: 3 });
       expect(cci.length).toBe(6);
@@ -1490,6 +1492,7 @@ describe('Technical Indicators', () => {
     it('should handle zero mean deviation (flat prices)', () => {
       // 所有价格相同，平均偏差为 0
       const data = Array.from({ length: 20 }, () => ({
+        open: 100,
         high: 100,
         low: 100,
         close: 100,
@@ -1533,12 +1536,12 @@ describe('Technical Indicators', () => {
 
     it('should handle null values in data', () => {
       const data = [
-        { high: 110, low: 90, close: 100 },
-        { high: null, low: 95, close: 102 },  // null high
-        { high: 115, low: null, close: 105 }, // null low
-        { high: 120, low: 100, close: null }, // null close
-        { high: 125, low: 105, close: 115 },
-        { high: 130, low: 110, close: 120 },
+        { open: 100, high: 110, low: 90, close: 100 },
+        { open: 100, high: null, low: 95, close: 102 },  // null high
+        { open: 100, high: 115, low: null, close: 105 }, // null low
+        { open: 100, high: 120, low: 100, close: null }, // null close
+        { open: 100, high: 125, low: 105, close: 115 },
+        { open: 100, high: 130, low: 110, close: 120 },
       ];
       const atr = calcATR(data, { period: 3 });
       expect(atr.length).toBe(6);
@@ -1926,6 +1929,39 @@ describe('扩展数据', () => {
           new Date(res[i - 1]).getTime()
         );
       }
+    });
+  });
+});
+
+// ==================== 搜索 ====================
+
+describe('搜索', () => {
+  describe('search', () => {
+    it('should search for A-Share (Maotai)', async () => {
+      const res = await sdk.search('maotai');
+      expect(res.length).toBeGreaterThan(0);
+      const item = res.find(r => r.code === 'sh600519');
+      expect(item).toBeDefined();
+      expect(item?.name).toBe('贵州茅台');
+      expect(item?.market).toBe('sh');
+    });
+
+    it('should search for HK Stock (Tencent)', async () => {
+      const res = await sdk.search('00700');
+      expect(res.length).toBeGreaterThan(0);
+      const item = res.find(r => r.code.includes('00700'));
+      expect(item).toBeDefined();
+      expect(item?.name).toContain('腾讯');
+    });
+
+    it('should return empty array for empty keyword', async () => {
+      const res = await sdk.search('');
+      expect(res).toEqual([]);
+    });
+
+    it('should return empty array for non-existent stock', async () => {
+      const res = await sdk.search('non_existent_stock_xyz_12345');
+      expect(Array.isArray(res)).toBe(true);
     });
   });
 });

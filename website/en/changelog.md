@@ -2,6 +2,13 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.4.2](https://www.npmjs.com/package/stock-sdk/v/1.4.2)** (2026-01-07)
+
+### New Features
+
+**Search Functionality**
+- Added stock search API `search`, supporting search by code, name, and pinyin for A-shares, HK stocks, and US stocks
+
 ## **[1.4.1](https://www.npmjs.com/package/stock-sdk/v/1.4.1)** (2025-12-29)
 
 ### New Features
@@ -212,6 +219,10 @@ body.changelog-page .vp-doc hr {
 body.changelog-page .vp-doc .custom-block {
   margin-top: 1.5rem !important;
   margin-bottom: 1.5rem !important;
+}
+
+body.changelog-page .vp-doc h2 a {
+  margin-right: 8px;
 }
 </style>
 

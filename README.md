@@ -179,6 +179,12 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 | `getAllUSShareQuotes` | 获取全市场美股行情 |
 | `getAllQuotesByCodes` | 批量获取指定股票行情 |
 
+### 搜索
+
+| 方法 | 说明 |
+|------|------|
+| `search` | 搜索股票代码/名称/拼音 |
+
 ---
 
 ## 许可证

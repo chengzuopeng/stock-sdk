@@ -67,6 +67,7 @@ const categories = [
   { key: 'kline', label: 'K线数据', icon: 'lucide:line-chart', color: '#22c55e' },
   { key: 'board', label: '板块数据', icon: 'lucide:layout-grid', color: '#06b6d4' },
   { key: 'indicator', label: '技术指标', icon: 'lucide:trending-up', color: '#f59e0b' },
+  { key: 'search', label: '搜索', icon: 'lucide:search', color: '#ec4899' },
   { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
   { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
 ]
@@ -338,6 +339,19 @@ console.log(data[0].macd?.dif);     // MACD DIF
 console.log(data[0].boll?.upper);   // 布林上轨
 console.log(data[0].kdj?.k);        // KDJ K值`
   },
+  search: {
+    name: 'search',
+    desc: '搜索股票',
+    category: 'search',
+    params: [
+      { key: 'keyword', label: '关键词', type: 'text', default: 'maotai', required: true, placeholder: '代码 / 名称 / 拼音' }
+    ],
+    code: `const results = await sdk.search('maotai');
+// 返回: SearchResult[]
+console.log(results[0].name);    // 贵州茅台
+console.log(results[0].code);    // sh600519
+console.log(results[0].market);  // sh`
+  },
   getAShareCodeList: {
     name: 'getAShareCodeList',
     desc: '获取全部 A 股代码',
@@ -594,6 +608,11 @@ async function fetchData() {
           else if (ind === 'atr') options.indicators.atr = true
         })
         data = await sdk.value.getKlineWithIndicators(params.symbol, options)
+        break
+      }
+      // 搜索
+      case 'search': {
+        data = await sdk.value.search(params.keyword)
         break
       }
       // 行业板块

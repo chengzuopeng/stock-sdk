@@ -79,6 +79,7 @@ const zhSidebar = {
       text: '批量与扩展',
       items: [
         { text: '代码列表', link: '/api/code-lists' },
+        { text: '搜索', link: '/api/search' },
         { text: '批量查询', link: '/api/batch' },
         { text: '资金流向', link: '/api/fund-flow' },
       ],
@@ -166,6 +167,7 @@ const enSidebar = {
       text: 'Batch & Extended',
       items: [
         { text: 'Code Lists', link: '/en/api/code-lists' },
+        { text: 'Search', link: '/en/api/search' },
         { text: 'Batch Query', link: '/en/api/batch' },
         { text: 'Fund Flow', link: '/en/api/fund-flow' },
       ],
