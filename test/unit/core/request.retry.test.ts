@@ -2,7 +2,7 @@
  * 重试机制测试
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { RequestClient, HttpError } from './core';
+import { RequestClient, HttpError } from '../../../src/core';
 
 describe('RequestClient 重试机制', () => {
   let originalFetch: typeof globalThis.fetch;

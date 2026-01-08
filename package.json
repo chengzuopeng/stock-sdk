@@ -1,6 +1,6 @@
 {
   "name": "stock-sdk",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -24,6 +24,8 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "RUN_INTEGRATION=1 vitest run",
     "dev": "vitepress dev website",
     "preview": "vitepress preview website",
     "build:docs": "DOCS_BASE=/ vitepress build website",
@@ -58,6 +60,7 @@
     "@iconify/vue": "^5.0.0",
     "@types/node": "^24.10.2",
     "@vitest/coverage-v8": "^4.0.16",
+    "msw": "^2.10.4",
     "tsup": "^8.3.5",
     "typescript": "^5.9.3",
     "vitepress": "^1.6.4",

@@ -18,9 +18,14 @@ import {
 export class HttpError extends Error {
   constructor(
     public readonly status: number,
-    public readonly statusText: string
+    public readonly statusText: string,
+    public readonly url?: string,
+    public readonly provider?: string
   ) {
-    super(`HTTP error! status: ${status}`);
+    const details = statusText ? ` ${statusText}` : '';
+    const urlInfo = url ? `, url: ${url}` : '';
+    const providerInfo = provider ? `, provider: ${provider}` : '';
+    super(`HTTP error! status: ${status}${details}${urlInfo}${providerInfo}`);
     this.name = 'HttpError';
   }
 }
@@ -54,6 +59,10 @@ export interface RequestClientOptions {
   baseUrl?: string;
   timeout?: number;
   retry?: RetryOptions;
+  /** 自定义请求头 */
+  headers?: Record<string, string>;
+  /** 自定义 User-Agent（浏览器环境可能会被忽略） */
+  userAgent?: string;
 }
 
 /**
@@ -74,11 +83,22 @@ export class RequestClient {
   private baseUrl: string;
   private timeout: number;
   private retryOptions: ResolvedRetryOptions;
+  private headers: Record<string, string>;
 
   constructor(options: RequestClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? TENCENT_BASE_URL;
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.retryOptions = this.resolveRetryOptions(options.retry);
+    this.headers = { ...(options.headers ?? {}) };
+
+    if (options.userAgent) {
+      const hasUserAgent = Object.keys(this.headers).some(
+        (key) => key.toLowerCase() === 'user-agent'
+      );
+      if (!hasUserAgent) {
+        this.headers['User-Agent'] = options.userAgent;
+      }
+    }
   }
 
   /**
@@ -95,6 +115,21 @@ export class RequestClient {
       retryOnTimeout: options?.retryOnTimeout ?? true,
       onRetry: options?.onRetry,
     };
+  }
+
+  /**
+   * 从 URL 推断数据源
+   */
+  private inferProvider(url: string): string | undefined {
+    try {
+      const host = new URL(url).hostname;
+      if (host.includes('eastmoney.com')) return 'eastmoney';
+      if (host.includes('gtimg.cn')) return 'tencent';
+      if (host.includes('linkdiary.cn')) return 'linkdiary';
+    } catch {
+      return undefined;
+    }
+    return undefined;
   }
 
   /**
@@ -188,12 +223,16 @@ export class RequestClient {
     return this.executeWithRetry(async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+      const provider = this.inferProvider(url);
 
       try {
-        const resp = await fetch(url, { signal: controller.signal });
+        const resp = await fetch(url, {
+          signal: controller.signal,
+          headers: { ...this.headers },
+        });
 
         if (!resp.ok) {
-          throw new HttpError(resp.status, resp.statusText);
+          throw new HttpError(resp.status, resp.statusText, url, provider);
         }
 
         switch (options.responseType) {
@@ -204,6 +243,12 @@ export class RequestClient {
           default:
             return (await resp.text()) as T;
         }
+      } catch (error) {
+        if (error instanceof Error) {
+          (error as { url?: string; provider?: string }).url = url;
+          (error as { url?: string; provider?: string }).provider = provider;
+        }
+        throw error;
       } finally {
         clearTimeout(timeoutId);
       }

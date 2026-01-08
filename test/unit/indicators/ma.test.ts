@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcSMA, calcEMA, calcWMA, calcMA } from '../../indicators';
+import { calcSMA, calcEMA, calcWMA, calcMA } from '../../../src/indicators';
 
 describe('Indicators - MA', () => {
   describe('calcSMA', () => {

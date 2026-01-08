@@ -17,6 +17,8 @@ const sdk = new StockSDK(options?);
 | `baseUrl` | `string` | `'https://qt.gtimg.cn'` | 腾讯行情请求地址（可替换为代理） |
 | `timeout` | `number` | `30000` | 请求超时时间（毫秒） |
 | `retry` | `RetryOptions` | 见下表 | 重试配置 |
+| `headers` | `Record<string, string>` | - | 自定义请求头 |
+| `userAgent` | `string` | - | 自定义 User-Agent（浏览器环境可能会被忽略） |
 
 ### 重试配置 (RetryOptions)
 
@@ -36,6 +38,10 @@ const sdk = new StockSDK(options?);
 ```typescript
 const sdk = new StockSDK({
   timeout: 10000,
+  headers: {
+    'X-Request-Source': 'my-app',
+  },
+  userAgent: 'StockSDK/1.4',
   retry: {
     maxRetries: 5,
     baseDelay: 500,

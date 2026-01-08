@@ -36,6 +36,8 @@ const sdk = new StockSDK(options?);
 | `baseUrl` | `string` | `'https://qt.gtimg.cn'` | Tencent API endpoint (can use proxy) |
 | `timeout` | `number` | `30000` | Request timeout (ms) |
 | `retry` | `RetryOptions` | See below | Retry configuration |
+| `headers` | `Record<string, string>` | - | Custom request headers |
+| `userAgent` | `string` | - | Custom User-Agent (may be ignored in browsers) |
 
 ### Retry Options (RetryOptions)
 
@@ -55,6 +57,10 @@ const sdk = new StockSDK(options?);
 ```typescript
 const sdk = new StockSDK({
   timeout: 10000,
+  headers: {
+    'X-Request-Source': 'my-app',
+  },
+  userAgent: 'StockSDK/1.4',
   retry: {
     maxRetries: 5,
     baseDelay: 500,
@@ -114,4 +120,3 @@ import {
   // ... and more
 } from 'stock-sdk';
 ```
-

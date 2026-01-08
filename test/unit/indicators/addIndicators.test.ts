@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addIndicators } from '../../indicators';
+import { addIndicators } from '../../../src/indicators';
 
 describe('Indicators - addIndicators', () => {
   it('should add indicators to kline data', () => {

@@ -20,7 +20,7 @@ const sdk = new StockSDK();
 
 #### 可选配置
 
-`StockSDK` 支持传入请求配置，适合设置代理或调整超时：
+`StockSDK` 支持传入请求配置，适合设置代理、调整超时或自定义请求头：
 
 ```typescript
 const sdk = new StockSDK({
@@ -28,6 +28,12 @@ const sdk = new StockSDK({
   baseUrl: '/api/tencent',
   // 请求超时时间（毫秒）
   timeout: 8000,
+  // 自定义请求头
+  headers: {
+    'X-Request-Source': 'my-app',
+  },
+  // 自定义 User-Agent（浏览器环境可能会被忽略）
+  userAgent: 'StockSDK/1.4',
   // 重试配置（可选）
   retry: {
     maxRetries: 5,       // 最大重试次数

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import StockSDK from '../../../index';
+import StockSDK from '../../../../src/index';
 
 const sdk = new StockSDK();
 

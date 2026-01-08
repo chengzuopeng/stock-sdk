@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { chunkArray, asyncPool } from '../../utils';
-import { getMarketCode, getPeriodCode, getAdjustCode } from '../../core';
+import { chunkArray, asyncPool } from '../../../src/utils';
+import { getMarketCode, getPeriodCode, getAdjustCode } from '../../../src/core';
 
 describe('core utils', () => {
   describe('chunkArray', () => {

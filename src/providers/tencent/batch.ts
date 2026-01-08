@@ -26,6 +26,12 @@ interface StockListResponse {
   list: string[];
 }
 
+let cachedAShareCodes: string[] | null = null;
+let cachedAShareCodesNoExchange: string[] | null = null;
+let cachedUSCodes: string[] | null = null;
+let cachedUSCodesNoMarket: string[] | null = null;
+let cachedHKCodes: string[] | null = null;
+
 /**
  * 获取全部 A 股行情的配置选项
  */
@@ -47,31 +53,33 @@ export async function getAShareCodeList(
   client: RequestClient,
   includeExchange: boolean = true
 ): Promise<string[]> {
-  const timeout = client.getTimeout();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const resp = await fetch(A_SHARE_LIST_URL, {
-      signal: controller.signal,
-    });
-
-    if (!resp.ok) {
-      throw new Error(`HTTP error! status: ${resp.status}`);
-    }
-
-    const data: StockListResponse = await resp.json();
-    const codeList = data.list || [];
-
+  if (cachedAShareCodes) {
     if (includeExchange) {
-      return codeList;
+      return cachedAShareCodes.slice();
     }
-
-    // 移除交易所前缀（sh、sz、bj）
-    return codeList.map((code) => code.replace(/^(sh|sz|bj)/, ''));
-  } finally {
-    clearTimeout(timeoutId);
+    if (!cachedAShareCodesNoExchange) {
+      cachedAShareCodesNoExchange = cachedAShareCodes.map((code) =>
+        code.replace(/^(sh|sz|bj)/, '')
+      );
+    }
+    return cachedAShareCodesNoExchange.slice();
   }
+
+  const data = await client.get<StockListResponse>(A_SHARE_LIST_URL, {
+    responseType: 'json',
+  });
+  const codeList = data?.list || [];
+  cachedAShareCodes = codeList;
+  cachedAShareCodesNoExchange = codeList.map((code) =>
+    code.replace(/^(sh|sz|bj)/, '')
+  );
+
+  if (includeExchange) {
+    return codeList.slice();
+  }
+
+  // 移除交易所前缀（sh、sz、bj）
+  return cachedAShareCodesNoExchange.slice();
 }
 
 /**
@@ -83,31 +91,31 @@ export async function getUSCodeList(
   client: RequestClient,
   includeMarket: boolean = true
 ): Promise<string[]> {
-  const timeout = client.getTimeout();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const resp = await fetch(US_LIST_URL, {
-      signal: controller.signal,
-    });
-
-    if (!resp.ok) {
-      throw new Error(`HTTP error! status: ${resp.status}`);
-    }
-
-    const data: StockListResponse = await resp.json();
-    const codeList = data.list || [];
-
+  if (cachedUSCodes) {
     if (includeMarket) {
-      return codeList;
+      return cachedUSCodes.slice();
     }
-
-    // 移除市场前缀（如 105.、106.、107.）
-    return codeList.map((code) => code.replace(/^\d{3}\./, ''));
-  } finally {
-    clearTimeout(timeoutId);
+    if (!cachedUSCodesNoMarket) {
+      cachedUSCodesNoMarket = cachedUSCodes.map((code) =>
+        code.replace(/^\d{3}\./, '')
+      );
+    }
+    return cachedUSCodesNoMarket.slice();
   }
+
+  const data = await client.get<StockListResponse>(US_LIST_URL, {
+    responseType: 'json',
+  });
+  const codeList = data?.list || [];
+  cachedUSCodes = codeList;
+  cachedUSCodesNoMarket = codeList.map((code) => code.replace(/^\d{3}\./, ''));
+
+  if (includeMarket) {
+    return codeList.slice();
+  }
+
+  // 移除市场前缀（如 105.、106.、107.）
+  return cachedUSCodesNoMarket.slice();
 }
 
 /**
@@ -117,24 +125,15 @@ export async function getUSCodeList(
 export async function getHKCodeList(
   client: RequestClient
 ): Promise<string[]> {
-  const timeout = client.getTimeout();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const resp = await fetch(HK_LIST_URL, {
-      signal: controller.signal,
-    });
-
-    if (!resp.ok) {
-      throw new Error(`HTTP error! status: ${resp.status}`);
-    }
-
-    const data: StockListResponse = await resp.json();
-    return data.list || [];
-  } finally {
-    clearTimeout(timeoutId);
+  if (cachedHKCodes) {
+    return cachedHKCodes.slice();
   }
+
+  const data = await client.get<StockListResponse>(HK_LIST_URL, {
+    responseType: 'json',
+  });
+  cachedHKCodes = data?.list || [];
+  return cachedHKCodes.slice();
 }
 
 /**

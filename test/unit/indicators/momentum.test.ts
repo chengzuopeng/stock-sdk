@@ -8,7 +8,7 @@ import {
   calcBIAS,
   calcCCI,
   calcATR,
-} from '../../indicators';
+} from '../../../src/indicators';
 
 describe('Indicators - Momentum and Volatility', () => {
   describe('calcMACD', () => {

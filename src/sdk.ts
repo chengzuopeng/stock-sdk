@@ -508,6 +508,47 @@ export class StockSDK {
   }
 
   /**
+   * 计算实际请求的开始日期（交易日历）
+   */
+  private calcActualStartDateByCalendar(
+    startDate: string,
+    tradingDays: number,
+    calendar: string[]
+  ): string | undefined {
+    if (!calendar || calendar.length === 0) {
+      return undefined;
+    }
+
+    const normalized = this.normalizeDate(startDate);
+    let startIndex = calendar.findIndex((date) => date >= normalized);
+    if (startIndex === -1) {
+      startIndex = calendar.length - 1;
+    }
+    const targetIndex = Math.max(0, startIndex - tradingDays);
+    return this.toCompactDate(calendar[targetIndex]);
+  }
+
+  /**
+   * 统一日期格式为 YYYY-MM-DD
+   */
+  private normalizeDate(dateStr: string): string {
+    if (dateStr.includes('-')) {
+      return dateStr;
+    }
+    if (dateStr.length === 8) {
+      return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+    }
+    return dateStr;
+  }
+
+  /**
+   * 压缩日期格式为 YYYYMMDD
+   */
+  private toCompactDate(dateStr: string): string {
+    return dateStr.replace(/-/g, '');
+  }
+
+  /**
    * 日期字符串转时间戳
    */
   private dateToTimestamp(dateStr: string): number {
@@ -547,10 +588,30 @@ export class StockSDK {
 
     // 步骤 3: 计算实际请求的开始日期
     const ratioMap = { A: 1.5, HK: 1.46, US: 1.45 };
-    const ratio = ratioMap[market];
-    const actualStartDate = startDate
-      ? this.calcActualStartDate(startDate, requiredBars, ratio)
-      : undefined;
+    let actualStartDate: string | undefined;
+
+    if (startDate) {
+      if (market === 'A') {
+        try {
+          const calendar = await tencent.getTradingCalendar(this.client);
+          actualStartDate =
+            this.calcActualStartDateByCalendar(startDate, requiredBars, calendar) ??
+            this.calcActualStartDate(startDate, requiredBars, ratioMap[market]);
+        } catch {
+          actualStartDate = this.calcActualStartDate(
+            startDate,
+            requiredBars,
+            ratioMap[market]
+          );
+        }
+      } else {
+        actualStartDate = this.calcActualStartDate(
+          startDate,
+          requiredBars,
+          ratioMap[market]
+        );
+      }
+    }
 
     // 步骤 4: 请求扩展范围的 K 线数据
     const klineOptions = {
