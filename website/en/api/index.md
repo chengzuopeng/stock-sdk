@@ -26,14 +26,46 @@ Stock SDK provides a comprehensive API for stock data access.
 ```typescript
 import { StockSDK } from 'stock-sdk';
 
-const sdk = new StockSDK();
+const sdk = new StockSDK(options?);
+```
 
-// With configuration
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `baseUrl` | `string` | `'https://qt.gtimg.cn'` | Tencent API endpoint (can use proxy) |
+| `timeout` | `number` | `30000` | Request timeout (ms) |
+| `retry` | `RetryOptions` | See below | Retry configuration |
+
+### Retry Options (RetryOptions)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `maxRetries` | `number` | `3` | Maximum retry attempts |
+| `baseDelay` | `number` | `1000` | Initial backoff delay (ms) |
+| `maxDelay` | `number` | `30000` | Maximum backoff delay (ms) |
+| `backoffMultiplier` | `number` | `2` | Backoff multiplier |
+| `retryableStatusCodes` | `number[]` | `[408, 429, 500, 502, 503, 504]` | HTTP status codes to retry |
+| `retryOnNetworkError` | `boolean` | `true` | Retry on network errors |
+| `retryOnTimeout` | `boolean` | `true` | Retry on timeout |
+| `onRetry` | `function` | - | Retry callback `(attempt, error, delay) => void` |
+
+### Example
+
+```typescript
 const sdk = new StockSDK({
-  baseUrl: '/api/proxy',  // Custom API endpoint
-  timeout: 10000,         // Request timeout (ms)
+  timeout: 10000,
+  retry: {
+    maxRetries: 5,
+    baseDelay: 500,
+    onRetry: (attempt, error, delay) => {
+      console.log(`Retry ${attempt}, waiting ${delay}ms`);
+    }
+  }
 });
 ```
+
+> See [Error Handling & Retry](/en/guide/retry) for details.
 
 ## Stock Code Format
 

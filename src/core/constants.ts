@@ -43,3 +43,9 @@ export const DEFAULT_BATCH_SIZE = 500;
 export const MAX_BATCH_SIZE = 500;
 export const DEFAULT_CONCURRENCY = 7;
 
+// 重试配置
+export const DEFAULT_MAX_RETRIES = 3;
+export const DEFAULT_BASE_DELAY = 1000;
+export const DEFAULT_MAX_DELAY = 30000;
+export const DEFAULT_BACKOFF_MULTIPLIER = 2;
+export const DEFAULT_RETRYABLE_STATUS_CODES = [408, 429, 500, 502, 503, 504];

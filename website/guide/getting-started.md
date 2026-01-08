@@ -28,10 +28,17 @@ const sdk = new StockSDK({
   baseUrl: '/api/tencent',
   // 请求超时时间（毫秒）
   timeout: 8000,
+  // 重试配置（可选）
+  retry: {
+    maxRetries: 5,       // 最大重试次数
+    baseDelay: 1000,     // 初始退避延迟
+  }
 });
 ```
 
 > 建议在应用中复用同一个 `StockSDK` 实例，减少重复初始化。
+> 
+> 详细的重试配置请参考 [错误处理与重试](/guide/retry)。
 
 ### 2. 获取股票行情
 

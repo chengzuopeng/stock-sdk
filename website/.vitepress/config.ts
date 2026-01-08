@@ -25,6 +25,7 @@ const zhSidebar = {
       items: [
         { text: '技术指标', link: '/guide/indicators' },
         { text: '批量查询', link: '/guide/batch' },
+        { text: '错误处理与重试', link: '/guide/retry' },
       ],
     },
     {
@@ -113,6 +114,7 @@ const enSidebar = {
       items: [
         { text: 'Technical Indicators', link: '/en/guide/indicators' },
         { text: 'Batch Query', link: '/en/guide/batch' },
+        { text: 'Error Handling & Retry', link: '/en/guide/retry' },
       ],
     },
     {

@@ -49,7 +49,11 @@ export {
   safeNumberOrNull,
   chunkArray,
   asyncPool,
+  HttpError,
 } from './core';
+
+// 导出配置类型
+export type { RetryOptions, RequestClientOptions } from './core';
 
 // 导出选项类型
 export type {

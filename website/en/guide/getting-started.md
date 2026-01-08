@@ -28,10 +28,17 @@ const sdk = new StockSDK({
   baseUrl: '/api/tencent',
   // Request timeout (milliseconds)
   timeout: 8000,
+  // Retry configuration (optional)
+  retry: {
+    maxRetries: 5,       // Maximum retry attempts
+    baseDelay: 1000,     // Initial backoff delay
+  }
 });
 ```
 
 > It's recommended to reuse the same `StockSDK` instance to reduce repeated initialization.
+> 
+> See [Error Handling & Retry](/en/guide/retry) for detailed retry configuration.
 
 ### 2. Get Stock Quotes
 

@@ -3,7 +3,12 @@
  */
 
 // 请求客户端
-export { RequestClient, type RequestClientOptions } from './request';
+export {
+  RequestClient,
+  HttpError,
+  type RequestClientOptions,
+  type RetryOptions,
+} from './request';
 
 // 解析器
 export {
@@ -53,4 +58,9 @@ export {
   DEFAULT_BATCH_SIZE,
   MAX_BATCH_SIZE,
   DEFAULT_CONCURRENCY,
+  DEFAULT_MAX_RETRIES,
+  DEFAULT_BASE_DELAY,
+  DEFAULT_MAX_DELAY,
+  DEFAULT_BACKOFF_MULTIPLIER,
+  DEFAULT_RETRYABLE_STATUS_CODES,
 } from './constants';
