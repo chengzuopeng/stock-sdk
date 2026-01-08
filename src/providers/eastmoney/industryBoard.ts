@@ -12,7 +12,15 @@ import {
   assertKlinePeriod,
   assertAdjustType,
   assertMinutePeriod,
+  getPeriodCode,
+  getAdjustCode,
 } from '../../core';
+import { toNumberSafe } from '../../core/parser';
+import {
+  fetchPaginatedData,
+  fetchEmHistoryKline,
+  parseEmKlineCsv,
+} from './utils';
 import type {
   IndustryBoard,
   IndustryBoardSpot,
@@ -25,6 +33,9 @@ import type {
 // 板块名称到代码的缓存
 let boardNameCodeMap: Map<string, string> | null = null;
 
+/**
+ * 获取板块代码（支持板块名称或代码）
+ */
 /**
  * 获取板块代码（支持板块名称或代码）
  */
@@ -48,63 +59,6 @@ async function getBoardCode(
     throw new Error(`未找到行业板块: ${symbol}`);
   }
   return code;
-}
-
-/**
- * 安全转换为 toNumber 可接受的类型
- */
-function toNumberSafe(val: unknown): number | null {
-  if (val === null || val === undefined) return null;
-  const str = String(val);
-  return toNumber(str);
-}
-
-/**
- * 分页获取数据
- */
-async function fetchPaginatedData<T>(
-  client: RequestClient,
-  baseUrl: string,
-  baseParams: Record<string, string>,
-  fieldsStr: string,
-  pageSize: number = 100,
-  dataMapper: (item: Record<string, unknown>, index: number) => T
-): Promise<T[]> {
-  const allData: T[] = [];
-  let page = 1;
-  let total = 0;
-
-  do {
-    const params = new URLSearchParams({
-      ...baseParams,
-      pn: String(page),
-      pz: String(pageSize),
-      fields: fieldsStr,
-    });
-
-    const url = `${baseUrl}?${params.toString()}`;
-    const json = await client.get<{
-      data?: { total?: number; diff?: Record<string, unknown>[] };
-    }>(url, { responseType: 'json' });
-
-    const data = json?.data;
-    if (!data || !Array.isArray(data.diff)) {
-      break;
-    }
-
-    if (page === 1) {
-      total = data.total ?? 0;
-    }
-
-    const items = data.diff.map((item, idx) =>
-      dataMapper(item, allData.length + idx + 1)
-    );
-    allData.push(...items);
-
-    page++;
-  } while (allData.length < total);
-
-  return allData;
 }
 
 /**
@@ -300,59 +254,28 @@ export async function getIndustryKline(
 
   const boardCode = await getBoardCode(client, symbol);
 
-  const periodMap = { daily: '101', weekly: '102', monthly: '103' } as const;
-  const adjustMap = { '': '0', qfq: '1', hfq: '2' } as const;
-
   const params = new URLSearchParams({
     secid: `90.${boardCode}`,
     fields1: 'f1,f2,f3,f4,f5,f6',
     fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
-    klt: periodMap[period],
-    fqt: adjustMap[adjust],
+    klt: getPeriodCode(period),
+    fqt: getAdjustCode(adjust),
     beg: startDate,
     end: endDate,
     smplmt: '10000',
     lmt: '1000000',
   });
 
-  const url = `${EM_BOARD_KLINE_URL}?${params.toString()}`;
-  const json = await client.get<{ data?: { klines?: string[] } }>(url, {
-    responseType: 'json',
-  });
+  const url = EM_BOARD_KLINE_URL;
+  const { klines } = await fetchEmHistoryKline(client, url, params);
 
-  const klines = json?.data?.klines;
-  if (!Array.isArray(klines) || klines.length === 0) {
+  if (klines.length === 0) {
     return [];
   }
 
   return klines.map((line) => {
-    const [
-      date,
-      open,
-      close,
-      high,
-      low,
-      volume,
-      amount,
-      amplitude,
-      changePercent,
-      change,
-      turnoverRate,
-    ] = line.split(',');
-
-    return {
-      date,
-      open: toNumber(open),
-      close: toNumber(close),
-      high: toNumber(high),
-      low: toNumber(low),
-      changePercent: toNumber(changePercent),
-      change: toNumber(change),
-      volume: toNumber(volume),
-      amount: toNumber(amount),
-      amplitude: toNumber(amplitude),
-      turnoverRate: toNumber(turnoverRate),
-    };
+    const item = parseEmKlineCsv(line);
+    return { ...item } as IndustryBoardKline;
   });
 }
 

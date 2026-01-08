@@ -60,3 +60,11 @@ export function toNumber(val: string | undefined): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+/**
+ * 安全地将任意值转换为数字
+ */
+export function toNumberSafe(val: unknown): number | null {
+  if (val === null || val === undefined) return null;
+  return toNumber(String(val));
+}
+

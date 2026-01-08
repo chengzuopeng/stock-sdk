@@ -10,8 +10,11 @@ import {
   assertMinutePeriod,
   assertAdjustType,
   toNumber,
+  getPeriodCode,
+  getAdjustCode,
 } from '../../core';
 import type { HistoryKline, MinuteTimeline, MinuteKline } from '../../types';
+import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
 
 export interface HistoryKlineOptions {
   /** K 线周期 */
@@ -55,56 +58,34 @@ export async function getHistoryKline(
   // 移除可能的交易所前缀
   const pureSymbol = symbol.replace(/^(sh|sz|bj)/, '');
 
-  const periodMap = { daily: '101', weekly: '102', monthly: '103' } as const;
-  const adjustMap = { '': '0', qfq: '1', hfq: '2' } as const;
   const secid = `${getMarketCode(symbol)}.${pureSymbol}`;
 
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6',
     fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f116',
     ut: '7eea3edcaed734bea9cbfc24409ed989',
-    klt: periodMap[period],
-    fqt: adjustMap[adjust],
+    klt: getPeriodCode(period),
+    fqt: getAdjustCode(adjust),
     secid,
     beg: startDate,
     end: endDate,
   });
 
-  const url = `${EM_KLINE_URL}?${params.toString()}`;
-  const json = await client.get<any>(url, { responseType: 'json' });
+  const url = EM_KLINE_URL;
+  
+  const { klines } = await fetchEmHistoryKline(client, url, params);
 
-  const klines: string[] | undefined = json?.data?.klines;
-  if (!Array.isArray(klines) || klines.length === 0) {
+  if (klines.length === 0) {
     return [];
   }
 
   return klines.map((line) => {
-    const [
-      date,
-      open,
-      close,
-      high,
-      low,
-      volume,
-      amount,
-      amplitude,
-      changePercent,
-      change,
-      turnoverRate,
-    ] = line.split(',');
+    const item = parseEmKlineCsv(line);
     return {
-      date,
+      ...item,
       code: pureSymbol,
-      open: toNumber(open),
-      close: toNumber(close),
-      high: toNumber(high),
-      low: toNumber(low),
-      volume: toNumber(volume),
-      amount: toNumber(amount),
-      amplitude: toNumber(amplitude),
-      changePercent: toNumber(changePercent),
-      change: toNumber(change),
-      turnoverRate: toNumber(turnoverRate),
+      // A 股历史 K 线接口返回的 CSV 中没有 name，需要自己补充或者忽略
+      // HistoryKline 类型中也没有 name 字段，所以直接复用解析结果
     };
   });
 }
@@ -171,23 +152,21 @@ export async function getMinuteKline(
       .filter((row) => row.time >= start && row.time <= end);
   } else {
     // 5/15/30/60 分钟 K 线，使用 kline/get 接口
-    const adjustMap = { '': '0', qfq: '1', hfq: '2' } as const;
     const params = new URLSearchParams({
       fields1: 'f1,f2,f3,f4,f5,f6',
       fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
       ut: '7eea3edcaed734bea9cbfc24409ed989',
       klt: period,
-      fqt: adjustMap[adjust],
+      fqt: getAdjustCode(adjust || ''), // 分钟线如果不传 adjust，默认为不复权？这里原代码 adjust 可选
       secid,
       beg: '0',
       end: '20500000',
     });
 
-    const url = `${EM_KLINE_URL}?${params.toString()}`;
-    const json = await client.get<any>(url, { responseType: 'json' });
+    const url = EM_KLINE_URL;
+    const { klines } = await fetchEmHistoryKline(client, url, params);
 
-    const klines: string[] | undefined = json?.data?.klines;
-    if (!Array.isArray(klines) || klines.length === 0) {
+    if (klines.length === 0) {
       return [];
     }
 
@@ -197,31 +176,10 @@ export async function getMinuteKline(
 
     return klines
       .map((line) => {
-        const [
-          time,
-          open,
-          close,
-          high,
-          low,
-          volume,
-          amount,
-          amplitude,
-          changePercent,
-          change,
-          turnoverRate,
-        ] = line.split(',');
+        const item = parseEmKlineCsv(line);
         return {
-          time,
-          open: toNumber(open),
-          close: toNumber(close),
-          high: toNumber(high),
-          low: toNumber(low),
-          changePercent: toNumber(changePercent),
-          change: toNumber(change),
-          volume: toNumber(volume),
-          amount: toNumber(amount),
-          amplitude: toNumber(amplitude),
-          turnoverRate: toNumber(turnoverRate),
+          ...item,
+          time: item.date, // 分钟线的第一列是时间
         } as MinuteKline;
       })
       .filter((row) => row.time >= start && row.time <= end);

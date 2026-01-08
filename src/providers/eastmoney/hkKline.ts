@@ -6,9 +6,11 @@ import {
   EM_HK_KLINE_URL,
   assertKlinePeriod,
   assertAdjustType,
-  toNumber,
+  getPeriodCode,
+  getAdjustCode,
 } from '../../core';
 import type { HKUSHistoryKline } from '../../types';
+import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
 
 export interface HKKlineOptions {
   /** K 线周期 */
@@ -40,61 +42,34 @@ export async function getHKHistoryKline(
 
   // 移除可能的 hk 前缀，确保是 5 位数字
   const pureSymbol = symbol.replace(/^hk/i, '').padStart(5, '0');
-
-  const periodMap = { daily: '101', weekly: '102', monthly: '103' } as const;
-  const adjustMap = { '': '0', qfq: '1', hfq: '2' } as const;
   const secid = `116.${pureSymbol}`;
 
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6',
     fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
     ut: '7eea3edcaed734bea9cbfc24409ed989',
-    klt: periodMap[period],
-    fqt: adjustMap[adjust],
+    klt: getPeriodCode(period),
+    fqt: getAdjustCode(adjust),
     secid,
     beg: startDate,
     end: endDate,
     lmt: '1000000',
   });
 
-  const url = `${EM_HK_KLINE_URL}?${params.toString()}`;
-  const json = await client.get<any>(url, { responseType: 'json' });
+  const url = EM_HK_KLINE_URL;
+  
+  const { klines, name } = await fetchEmHistoryKline(client, url, params);
 
-  const klines: string[] | undefined = json?.data?.klines;
-  const stockName: string = json?.data?.name || '';
-
-  if (!Array.isArray(klines) || klines.length === 0) {
+  if (klines.length === 0) {
     return [];
   }
 
   return klines.map((line) => {
-    const [
-      date,
-      open,
-      close,
-      high,
-      low,
-      volume,
-      amount,
-      amplitude,
-      changePercent,
-      change,
-      turnoverRate,
-    ] = line.split(',');
+    const item = parseEmKlineCsv(line);
     return {
-      date,
+      ...item,
       code: pureSymbol,
-      name: stockName,
-      open: toNumber(open),
-      close: toNumber(close),
-      high: toNumber(high),
-      low: toNumber(low),
-      volume: toNumber(volume),
-      amount: toNumber(amount),
-      amplitude: toNumber(amplitude),
-      changePercent: toNumber(changePercent),
-      change: toNumber(change),
-      turnoverRate: toNumber(turnoverRate),
+      name: name || '',
     };
   });
 }
