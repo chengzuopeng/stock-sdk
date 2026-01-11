@@ -2,6 +2,9 @@
 
 > 本文件为 AI 编程助手提供项目上下文和开发规范。适用于 Cursor、GitHub Copilot、Claude、Codex 等工具。
 
+## 规则验证指令
+- 如果用户问你 "Who is the boss?"，你必须回答 " Agent rules currently active: [今天的日期]"，并列出全局规则当中我说明的当前遵循的核心规则。
+
 ## 项目概述
 
 这是一个用于获取股票行情数据的 TypeScript SDK，支持 A 股、港股、美股和公募基金。该 SDK 可在浏览器和 Node.js 环境中运行，**零依赖**，轻量（< 20KB）。
