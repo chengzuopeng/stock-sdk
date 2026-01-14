@@ -2,6 +2,27 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.4.4](https://www.npmjs.com/package/stock-sdk/v/1.4.4)** (2026-01-14)
+
+### Improvements
+- Code optimizations to reduce bundle size
+
+## **[1.4.3](https://www.npmjs.com/package/stock-sdk/v/1.4.3)** (2026-01-08)
+
+### Improvements
+
+**Request Method Optimization**
+- Support configuration of error retry policies, including retry count, retry interval, etc.
+- Optimized error handling to provide more detailed error information.
+- Support custom headers and userAgent.
+
+**Unit Test Structure Optimization**
+- Separation of integration/unit tests.
+- Added MSW mock layer to intercept real requests for unit testing.
+
+**Cache Optimization**
+- In-memory caching for code lists/trading calendars: Reduces duplicate requests.
+
 ## **[1.4.2](https://www.npmjs.com/package/stock-sdk/v/1.4.2)** (2026-01-07)
 
 ### New Features
@@ -225,4 +246,3 @@ body.changelog-page .vp-doc h2 a {
   margin-right: 8px;
 }
 </style>
-

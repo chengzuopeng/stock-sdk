@@ -7,7 +7,7 @@
 
 **[English](./README_EN.md)** | 中文
 
-为 **前端和 Node.js 设计的股票行情 SDK**。
+为 **前端和 Node.js 设计的股票行情 JavaScript SDK**。
 
 无需 Python、无需后端服务，直接在 **浏览器或 Node.js** 中获取 **A 股 / 港股 / 美股 / 公募基金** 的实时行情与 K 线数据。
 
@@ -18,6 +18,8 @@
 👉🏻 [官方文档](https://stock-sdk.linkdiary.cn/)
 
 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground/)
+
+🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/)：基于 stock-sdk 搭建的股票数据大盘演示站点，欢迎体验。
 
 ## Why stock-sdk？
 
@@ -193,7 +195,7 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 
 ---
 
-🌐 [官网](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [官网](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

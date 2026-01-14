@@ -16,6 +16,9 @@ hero:
       text: Playground
       link: /en/playground/
     - theme: alt
+      text: Stock Dashboard
+      link: https://chengzuopeng.github.io/stock-dashboard/
+    - theme: alt
       text: GitHub
       link: https://github.com/chengzuopeng/stock-sdk
 
@@ -87,9 +90,13 @@ If you're a frontend engineer, you may have encountered these problems:
 
 ## 🎯 Use Cases
 
-- 📊 Stock quote dashboard (Web / Admin)
+- 📊 Stock quote dashboard ([Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/))
 - 📈 Data visualization (ECharts / TradingView)
 - 🎓 Stock / finance course demos
 - 🧪 Quantitative strategy prototyping (JS / Node)
 - 🕒 Node.js scheduled quote fetching
+
+---
+
+🌐 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 🎮 [Playground](https://stock-sdk.linkdiary.cn/playground)
 

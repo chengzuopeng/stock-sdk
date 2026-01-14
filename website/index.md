@@ -16,6 +16,9 @@ hero:
       text: 在线体验
       link: /playground/
     - theme: alt
+      text: Stock Dashboard
+      link: https://chengzuopeng.github.io/stock-dashboard/
+    - theme: alt
       text: GitHub
       link: https://github.com/chengzuopeng/stock-sdk
 
@@ -87,8 +90,12 @@ quotes.forEach(q => {
 
 ## 🎯 使用场景
 
-- 📊 股票行情看板（Web / Admin）
+- 📊 股票行情看板 ([Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/))
 - 📈 数据可视化（ECharts / TradingView）
 - 🎓 股票 / 金融课程 Demo
 - 🧪 量化策略原型验证（JS / Node）
 - 🕒 Node.js 定时抓取行情数据
+
+---
+
+🌐 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 🎮 [在线体验](https://stock-sdk.linkdiary.cn/playground)

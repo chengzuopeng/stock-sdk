@@ -37,27 +37,26 @@ interface HKQuote {
 }
 ```
 
-## getHKHistoryKline
 
-Get HK stock historical K-line data.
+## getHKCodeList
+
+Get all HK stock codes.
+
+### Signature
 
 ```typescript
-const klines = await sdk.getHKHistoryKline('00700', {
-  period: 'daily',
-  startDate: '20240101',
-  endDate: '20241231',
-});
+getHKCodeList(): Promise<string[]>
 ```
 
-### Parameters
+### Example
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| code | `string` | Yes | HK stock code |
-| options.period | `'daily' \| 'weekly' \| 'monthly'` | No | K-line period (default: daily) |
-| options.startDate | `string` | No | Start date (YYYYMMDD) |
-| options.endDate | `string` | No | End date (YYYYMMDD) |
-| options.adjust | `'' \| 'qfq' \| 'hfq'` | No | Adjust type (default: hfq) |
+```typescript
+const codes = await sdk.getHKCodeList();
+// ['00700', '09988', '03690', ...]
+
+console.log(`Total ${codes.length} HK stocks`);
+```
+
 
 ## getAllHKShareQuotes
 

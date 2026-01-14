@@ -2,6 +2,12 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.4.4](https://www.npmjs.com/package/stock-sdk/v/1.4.4)** (2026-01-14)
+
+### 优化
+- 一些代码优化，包体积减小
+
+
 ## **[1.4.3](https://www.npmjs.com/package/stock-sdk/v/1.4.3)** (2026-01-08)
 
 ### 优化

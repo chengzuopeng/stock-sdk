@@ -37,36 +37,37 @@ interface USQuote {
 }
 ```
 
-## getUSHistoryKline
 
-Get US stock historical K-line data.
+## getUSCodeList
+
+Get all US stock codes.
+
+### Signature
 
 ```typescript
-// Note: Use market.ticker format for K-line
-const klines = await sdk.getUSHistoryKline('105.MSFT', {
-  period: 'daily',
-  startDate: '20240101',
-  endDate: '20241231',
-});
+getUSCodeList(includeMarket?: boolean): Promise<string[]>
 ```
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| code | `string` | Yes | US stock code (market.ticker) |
-| options.period | `'daily' \| 'weekly' \| 'monthly'` | No | K-line period (default: daily) |
-| options.startDate | `string` | No | Start date (YYYYMMDD) |
-| options.endDate | `string` | No | End date (YYYYMMDD) |
-| options.adjust | `'' \| 'qfq' \| 'hfq'` | No | Adjust type (default: hfq) |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `includeMarket` | `boolean` | `true` | Include market prefix (e.g. `105.`) |
 
-### Market Codes
+### Example
 
-| Code | Market |
-|------|--------|
-| 105 | NASDAQ |
-| 106 | NYSE |
-| 107 | Other |
+```typescript
+// With market prefix (default)
+const codes = await sdk.getUSCodeList();
+// ['105.MSFT', '105.AAPL', '106.BABA', ...]
+
+// Without market prefix
+const pureCodes = await sdk.getUSCodeList(false);
+// ['MSFT', 'AAPL', 'BABA', ...]
+
+console.log(`Total ${codes.length} US stocks`);
+```
+
 
 ## getAllUSShareQuotes
 

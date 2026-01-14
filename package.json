@@ -32,6 +32,8 @@
     "build:pages": "DOCS_BASE=/stock-sdk/ vitepress build website"
   },
   "keywords": [
+    "JavaScript",
+    "TypeScript",
     "stock",
     "sdk",
     "browser",

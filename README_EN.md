@@ -7,7 +7,7 @@
 
 English | **[中文](./README.md)**
 
-A **stock market data SDK for frontend and Node.js**.
+A **stock market data JavaScript SDK for frontend and Node.js**.
 
 No Python. No backend service. Fetch real-time quotes and K-line data for **A-shares / Hong Kong stocks / US stocks / mutual funds** directly in **the browser or Node.js**.
 
@@ -18,6 +18,8 @@ No Python. No backend service. Fetch real-time quotes and K-line data for **A-sh
 👉🏻 [Documentation](https://stock-sdk.linkdiary.cn/)
 
 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground/)
+
+🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/): A stock market dashboard demo built with stock-sdk. Feel free to try it.
 
 ## Why stock-sdk?
 
@@ -193,7 +195,7 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 
 ---
 
-🌐 [Website](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [Website](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 
