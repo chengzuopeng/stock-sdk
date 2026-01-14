@@ -3,11 +3,15 @@ import { TracingInstrumentation } from '@grafana/faro-web-tracing'
 
 /**
  * 初始化 Grafana Faro 监控
- * 仅在浏览器环境中执行
+ * 仅在生产环境的浏览器中执行
  */
 export function initFaro(): void {
-  // SSR 环境下跳过初始化
   if (typeof window === 'undefined') {
+    return
+  }
+
+  // 仅在生产环境上报（VitePress build 时 import.meta.env.PROD 为 true）
+  if (!import.meta.env.PROD) {
     return
   }
 
