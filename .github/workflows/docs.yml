@@ -22,6 +22,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: github-pages
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,6 +43,8 @@ jobs:
 
       - name: Build with VitePress
         run: yarn build:pages
+        env:
+          GRAFANA_SOURCEMAP_TOKEN: ${{ secrets.GRAFANA_SOURCEMAP_TOKEN }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

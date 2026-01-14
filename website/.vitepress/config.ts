@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { resolve } from 'path'
+import faroUploader from '@grafana/faro-rollup-plugin'
 
 const base = process.env.DOCS_BASE || '/'
 
@@ -314,5 +315,23 @@ export default defineConfig({
         allow: ['../..'],
       },
     },
+    build: {
+      sourcemap: true,
+    },
+    plugins: [
+      ...(process.env.GRAFANA_SOURCEMAP_TOKEN
+        ? [
+            faroUploader({
+              appName: 'stock-sdk-docs',
+              endpoint: 'https://faro-api-prod-ap-southeast-1.grafana.net/faro/api/v1',
+              appId: '972',
+              stackId: '1494323',
+              verbose: true,
+              apiKey: process.env.GRAFANA_SOURCEMAP_TOKEN,
+              gzipContents: true,
+            }),
+          ]
+        : []),
+    ],
   },
 })

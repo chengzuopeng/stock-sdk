@@ -57,6 +57,9 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@grafana/faro-rollup-plugin": "^0.7.1",
+    "@grafana/faro-web-sdk": "^2.1.0",
+    "@grafana/faro-web-tracing": "^2.1.0",
     "@iconify/vue": "^5.0.0",
     "@types/node": "^24.10.2",
     "@vitest/coverage-v8": "^4.0.16",
