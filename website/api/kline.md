@@ -24,7 +24,7 @@ getHistoryKline(
 |------|------|--------|------|
 | `symbol` | `string` | - | 股票代码，如 `'000001'` 或 `'sz000001'` |
 | `period` | `string` | `'daily'` | K 线周期：`'daily'` / `'weekly'` / `'monthly'` |
-| `adjust` | `string` | `'hfq'` | 复权类型：`''`（不复权）/ `'qfq'`（前复权）/ `'hfq'`（后复权） |
+| `adjust` | `string` | `'qfq'` | 复权类型：`''`（不复权）/ `'qfq'`（前复权）/ `'hfq'`（后复权） |
 | `startDate` | `string` | - | 开始日期 `YYYYMMDD` |
 | `endDate` | `string` | - | 结束日期 `YYYYMMDD` |
 
@@ -50,7 +50,7 @@ interface HistoryKline {
 ### 示例
 
 ```typescript
-// 获取日线（默认后复权）
+// 获取日线（默认前复权）
 const dailyKlines = await sdk.getHistoryKline('000001');
 
 // 获取周线，前复权，指定日期范围

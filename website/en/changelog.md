@@ -2,6 +2,15 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.4.5](https://www.npmjs.com/package/stock-sdk/v/1.4.5)** (2026-01-15)
+
+### Changes
+
+**Default Adjustment Type Changed**
+- Default price adjustment for all K-line APIs changed from **backward adjustment (`hfq`)** to **forward adjustment (`qfq`)**
+- Affected APIs: `getHistoryKline`, `getHKHistoryKline`, `getUSHistoryKline`, `getMinuteKline`, `getKlineWithIndicators`
+
+
 ## **[1.4.4](https://www.npmjs.com/package/stock-sdk/v/1.4.4)** (2026-01-14)
 
 ### Improvements

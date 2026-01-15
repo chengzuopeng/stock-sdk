@@ -2,6 +2,15 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.4.5](https://www.npmjs.com/package/stock-sdk/v/1.4.5)** (2026-01-15)
+
+### 变更
+
+**默认复权方式调整**
+- 所有 K 线接口的默认复权方式由**后复权 (`hfq`)** 调整为**前复权 (`qfq`)**
+- 受影响接口：`getHistoryKline`、`getHKHistoryKline`、`getUSHistoryKline`、`getMinuteKline`、`getKlineWithIndicators`
+
+
 ## **[1.4.4](https://www.npmjs.com/package/stock-sdk/v/1.4.4)** (2026-01-14)
 
 ### 优化

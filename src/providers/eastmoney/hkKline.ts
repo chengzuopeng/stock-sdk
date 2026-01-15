@@ -33,7 +33,7 @@ export async function getHKHistoryKline(
 ): Promise<HKUSHistoryKline[]> {
   const {
     period = 'daily',
-    adjust = 'hfq',
+    adjust = 'qfq',
     startDate = '19700101',
     endDate = '20500101',
   } = options;

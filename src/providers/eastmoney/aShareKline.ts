@@ -48,7 +48,7 @@ export async function getHistoryKline(
 ): Promise<HistoryKline[]> {
   const {
     period = 'daily',
-    adjust = 'hfq',
+    adjust = 'qfq',
     startDate = '19700101',
     endDate = '20500101',
   } = options;
@@ -100,7 +100,7 @@ export async function getMinuteKline(
 ): Promise<MinuteTimeline[] | MinuteKline[]> {
   const {
     period = '1',
-    adjust = 'hfq',
+    adjust = 'qfq',
     startDate = '1979-09-01 09:32:00',
     endDate = '2222-01-01 09:32:00',
   } = options;

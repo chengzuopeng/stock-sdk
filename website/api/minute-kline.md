@@ -28,7 +28,7 @@ getMinuteKline(
 |------|------|--------|------|
 | `symbol` | `string` | - | 股票代码，如 `'000001'` 或 `'sz000001'` |
 | `period` | `string` | `'1'` | K 线周期：`'1'`（分时）/ `'5'` / `'15'` / `'30'` / `'60'` |
-| `adjust` | `string` | `'hfq'` | 复权类型（仅 5/15/30/60 有效） |
+| `adjust` | `string` | `'qfq'` | 复权类型（仅 5/15/30/60 有效） |
 | `startDate` | `string` | - | 开始时间 `YYYY-MM-DD HH:mm[:ss]` |
 | `endDate` | `string` | - | 结束时间 `YYYY-MM-DD HH:mm[:ss]` |
 

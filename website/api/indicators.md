@@ -36,7 +36,7 @@ getKlineWithIndicators(
 | `symbol` | `string` | - | 股票代码 |
 | `market` | `string` | 自动识别 | 市场类型：`'A'` / `'HK'` / `'US'` |
 | `period` | `string` | `'daily'` | K 线周期 |
-| `adjust` | `string` | `'hfq'` | 复权类型 |
+| `adjust` | `string` | `'qfq'` | 复权类型 |
 | `startDate` | `string` | - | 开始日期 |
 | `endDate` | `string` | - | 结束日期 |
 | `indicators` | `object` | - | 指标配置 |

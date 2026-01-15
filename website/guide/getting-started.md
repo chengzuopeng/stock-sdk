@@ -88,7 +88,7 @@ console.log(`
 ### 4. 获取历史 K 线
 
 ```typescript
-// 获取日 K 线（默认后复权）
+// 获取日 K 线（默认前复权）
 const klines = await sdk.getHistoryKline('sz000858', {
   period: 'daily',
   startDate: '20240101',

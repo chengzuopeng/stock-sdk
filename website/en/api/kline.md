@@ -9,7 +9,7 @@ const klines = await sdk.getHistoryKline('sz000858', {
   period: 'daily',
   startDate: '20240101',
   endDate: '20241231',
-  adjust: 'hfq',
+  adjust: 'qfq',
 });
 ```
 
@@ -21,15 +21,15 @@ const klines = await sdk.getHistoryKline('sz000858', {
 | options.period | `'daily' | 'weekly' | 'monthly'` | No | `'daily'` | K-line period |
 | options.startDate | `string` | No | - | Start date (YYYYMMDD) |
 | options.endDate | `string` | No | - | End date (YYYYMMDD) |
-| options.adjust | `'' | 'qfq' | 'hfq'` | No | `'hfq'` | Price adjustment |
+| options.adjust | `'' | 'qfq' | 'hfq'` | No | `'qfq'` | Price adjustment |
 
 ### Adjustment Types
 
 | Value | Description |
 |-------|-------------|
 | `''` | No adjustment (raw prices) |
-| `'qfq'` | Forward adjustment |
-| `'hfq'` | Backward adjustment (recommended) |
+| `'qfq'` | Forward adjustment (recommended) |
+| `'hfq'` | Backward adjustment |
 
 ### Return Type
 
@@ -61,7 +61,7 @@ const daily = await sdk.getHistoryKline('sz000858', {
   period: 'daily',
   startDate: '20240101',
   endDate: '20241231',
-  adjust: 'hfq',
+  adjust: 'qfq',
 });
 
 daily.forEach(k => {

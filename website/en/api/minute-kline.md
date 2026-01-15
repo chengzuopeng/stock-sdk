@@ -7,7 +7,7 @@ Get minute-level K-line data.
 ```typescript
 const klines = await sdk.getMinuteKline('sz000858', {
   period: '5',
-  adjust: 'hfq',
+  adjust: 'qfq',
 });
 ```
 
@@ -17,7 +17,7 @@ const klines = await sdk.getMinuteKline('sz000858', {
 |-----------|------|----------|---------|-------------|
 | code | `string` | Yes | - | Stock code |
 | options.period | `'1' \| '5' \| '15' \| '30' \| '60'` | No | `'5'` | Minutes per candle |
-| options.adjust | `'' \| 'qfq' \| 'hfq'` | No | `'hfq'` | Price adjustment |
+| options.adjust | `'' \| 'qfq' \| 'hfq'` | No | `'qfq'` | Price adjustment |
 
 ### Return Type
 

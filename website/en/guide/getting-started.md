@@ -88,7 +88,7 @@ Market Cap: ${quote.totalMarketCap}
 ### 4. Get Historical K-Line
 
 ```typescript
-// Get daily K-line (default: backward-adjusted)
+// Get daily K-line (default: forward-adjusted)
 const klines = await sdk.getHistoryKline('sz000858', {
   period: 'daily',
   startDate: '20240101',

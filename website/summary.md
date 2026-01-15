@@ -287,7 +287,7 @@ getHistoryKline(
 |---|---|---|---|
 | `symbol` | `string` | - | A 股代码，如 `000001` 或 `sz000001` |
 | `period` | `string` | `'daily'` | 日/周/月 |
-| `adjust` | `string` | `'hfq'` | 复权类型 |
+| `adjust` | `string` | `'qfq'` | 复权类型 |
 | `startDate` | `string` | - | `YYYYMMDD` |
 | `endDate` | `string` | - | `YYYYMMDD` |
 
@@ -366,7 +366,7 @@ getMinuteKline(
 |---|---|---|---|
 | `symbol` | `string` | - | A 股代码 |
 | `period` | `string` | `'1'` | 分时/分钟周期 |
-| `adjust` | `string` | `'hfq'` | 复权（仅 5/15/30/60 有效） |
+| `adjust` | `string` | `'qfq'` | 复权（仅 5/15/30/60 有效） |
 | `startDate` | `string` | - | `YYYY-MM-DD HH:mm[:ss]` |
 | `endDate` | `string` | - | `YYYY-MM-DD HH:mm[:ss]` |
 
