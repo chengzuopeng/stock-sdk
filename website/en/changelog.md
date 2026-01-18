@@ -2,6 +2,20 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.5.0](https://www.npmjs.com/package/stock-sdk/v/1.5.0)** (2026-01-18)
+
+### New Features
+
+**Technical Indicators**
+- Added 5 new technical indicators: **OBV** (On Balance Volume), **ROC** (Rate of Change), **DMI/ADX** (Directional Movement Index), **SAR** (Parabolic SAR), **KC** (Keltner Channel)
+- Improved documentation and Playground demos for indicator functions
+
+**Batch Query Enhancements**
+- `getAShareCodeList`, `getUSCodeList` parameters upgraded to options object for flexible filtering:
+  - `simple`: Remove exchange/market prefix
+  - `market`: Filter by market
+- `getAllAShareQuotes`, `getAllUSShareQuotes` now support `market` parameter for filtering quotes
+
 ## **[1.4.5](https://www.npmjs.com/package/stock-sdk/v/1.4.5)** (2026-01-15)
 
 ### Changes

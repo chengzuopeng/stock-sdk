@@ -137,13 +137,13 @@ console.log(funds[0].nav);   // 最新净值`
     params: [
       { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '如 sz000001' },
       { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
+      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
       { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
       { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
     ],
     code: `const klines = await sdk.getHistoryKline('sz000001', {
   period: 'daily',
-  adjust: 'hfq',
+  adjust: 'qfq',
   startDate: '20240101',
   endDate: '20241231'
 });
@@ -157,7 +157,7 @@ console.log(klines[0].close);  // 收盘价`
     params: [
       { key: 'symbol', label: '港股代码', type: 'text', default: '00700', required: true, placeholder: '如 00700' },
       { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
+      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
       { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
       { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
     ],
@@ -172,7 +172,7 @@ console.log(klines[0].close);  // 收盘价`
     params: [
       { key: 'symbol', label: '美股代码', type: 'text', default: '105.MSFT', required: true, placeholder: '如 105.MSFT' },
       { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
+      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
       { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
       { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
     ],
@@ -188,12 +188,12 @@ console.log(klines[0].close);  // 收盘价`
     params: [
       { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '如 sz000001' },
       { key: 'period', label: 'K线周期', type: 'select', default: '5', required: false, options: [{ value: '1', label: '1分钟(分时)' }, { value: '5', label: '5分钟' }, { value: '15', label: '15分钟' }, { value: '30', label: '30分钟' }, { value: '60', label: '60分钟' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] }
+      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] }
     ],
     code: `// 获取 5 分钟 K 线
 const klines = await sdk.getMinuteKline('sz000001', {
   period: '5',
-  adjust: 'hfq'
+  adjust: 'qfq'
 });
 console.log(klines[0].time);  // '2024-12-17 09:35'`
   },
@@ -321,23 +321,37 @@ console.log(klines[0].close);  // 收盘价`
     params: [
       { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '支持 A股/港股/美股' },
       { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'hfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
+      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
       { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
       { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'indicators', label: '技术指标', type: 'text', default: 'ma,macd,boll,kdj', required: false, placeholder: 'ma,macd,boll,kdj,rsi,wr' }
+      { key: 'indicators', label: '技术指标', type: 'text', default: 'ma,macd,boll,kdj,rsi', required: false, placeholder: 'ma,macd,boll,kdj,rsi,wr,bias,cci,atr' }
     ],
-    code: `const data = await sdk.getKlineWithIndicators('sz000001', {
+    code: `// 获取带技术指标的 K 线数据
+const data = await sdk.getKlineWithIndicators('sz000001', {
+  period: 'daily',
+  adjust: 'qfq',
+  startDate: '20240101',
   indicators: {
-    ma: { periods: [5, 10, 20] },
+    ma: { periods: [5, 10, 20, 60] },
     macd: true,
     boll: true,
-    kdj: true
+    kdj: true,
+    rsi: { periods: [6, 12, 24] },
+    wr: true,
+    bias: { periods: [6, 12, 24] },
+    cci: { period: 14 },
+    atr: { period: 14 }
   }
 });
+
+// 访问指标数据
+console.log(data[0].date);          // 日期
 console.log(data[0].ma?.ma5);       // MA5
 console.log(data[0].macd?.dif);     // MACD DIF
 console.log(data[0].boll?.upper);   // 布林上轨
-console.log(data[0].kdj?.k);        // KDJ K值`
+console.log(data[0].kdj?.k);        // KDJ K值
+console.log(data[0].rsi?.rsi6);     // RSI6
+console.log(data[0].atr?.atr);      // ATR`
   },
   search: {
     name: 'search',
@@ -357,11 +371,16 @@ console.log(results[0].market);  // sh`
     desc: '获取全部 A 股代码',
     category: 'batch',
     params: [
-      { key: 'includeExchange', label: '包含交易所前缀', type: 'select', default: 'true', required: false, options: [{ value: 'true', label: '是' }, { value: 'false', label: '否' }] }
+      { key: 'simple', label: '简化代码（不含前缀）', type: 'select', default: 'false', required: false, options: [{ value: 'false', label: '否' }, { value: 'true', label: '是' }] },
+      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'sh', label: '上交所 (6开头)' }, { value: 'sz', label: '深交所 (0/3开头)' }, { value: 'bj', label: '北交所 (92开头)' }, { value: 'kc', label: '科创板 (688开头)' }, { value: 'cy', label: '创业板 (30开头)' }] }
     ],
-    code: `const codes = await sdk.getAShareCodeList();
-console.log(codes.length);  // 5000+
-console.log(codes[0]);      // 'bj920000'`
+    code: `// 获取全部 A 股代码
+const codes = await sdk.getAShareCodeList();
+// ['sh600000', 'sz000001', 'bj920001', ...]
+
+// 获取科创板代码（不带前缀）
+const kcCodes = await sdk.getAShareCodeList({ simple: true, market: 'kc' });
+// ['688001', '688002', ...]`
   },
   getHKCodeList: {
     name: 'getHKCodeList',
@@ -376,27 +395,92 @@ console.log(codes[0]);  // '00700'`
     desc: '获取全部美股代码',
     category: 'batch',
     params: [
-      { key: 'includeMarket', label: '包含市场前缀', type: 'select', default: 'true', required: false, options: [{ value: 'true', label: '是' }, { value: 'false', label: '否' }] }
+      { key: 'simple', label: '简化代码（不含前缀）', type: 'select', default: 'false', required: false, options: [{ value: 'false', label: '否' }, { value: 'true', label: '是' }] },
+      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'NASDAQ', label: '纳斯达克 (105)' }, { value: 'NYSE', label: '纽交所 (106)' }, { value: 'AMEX', label: '美交所 (107)' }] }
     ],
-    code: `const codes = await sdk.getUSCodeList();
-console.log(codes[0]);  // '105.MSFT'`
+    code: `// 获取全部美股代码 (带前缀)
+const codes = await sdk.getUSCodeList();
+// ['105.MSFT', '106.BABA', ...]
+
+// 筛选纳斯达克
+const nasdaqCodes = await sdk.getUSCodeList({ market: 'NASDAQ' });
+
+// 纯代码 (不带前缀)
+const pureCodes = await sdk.getUSCodeList({ simple: true });`
   },
   getAllAShareQuotes: {
     name: 'getAllAShareQuotes',
     desc: '获取全市场 A 股行情',
     category: 'batch',
     params: [
+      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'sh', label: '上交所 (6开头)' }, { value: 'sz', label: '深交所 (0/3开头)' }, { value: 'bj', label: '北交所 (92开头)' }, { value: 'kc', label: '科创板 (688开头)' }, { value: 'cy', label: '创业板 (30开头)' }] },
       { key: 'batchSize', label: '批量大小', type: 'number', default: '500', required: false, placeholder: '默认 500' },
       { key: 'concurrency', label: '并发数', type: 'number', default: '7', required: false, placeholder: '默认 7' }
     ],
-    code: `const allQuotes = await sdk.getAllAShareQuotes({
-  batchSize: 500,
-  concurrency: 7,
+    code: `// 获取全部 A 股行情
+const allQuotes = await sdk.getAllAShareQuotes();
+
+// 获取科创板行情
+const kcQuotes = await sdk.getAllAShareQuotes({ market: 'kc' });
+
+// 带进度回调
+const quotes = await sdk.getAllAShareQuotes({
+  market: 'cy',
+  onProgress: (completed, total) => {
+    console.log(\`进度: \${completed}/\${total}\`);
+  }
+});`
+  },
+  getAllHKShareQuotes: {
+    name: 'getAllHKShareQuotes',
+    desc: '获取全市场港股行情',
+    category: 'batch',
+    params: [
+      { key: 'batchSize', label: '批量大小', type: 'number', default: '300', required: false, placeholder: '默认 500' },
+      { key: 'concurrency', label: '并发数', type: 'number', default: '5', required: false, placeholder: '默认 7' }
+    ],
+    code: `// 获取全部港股行情
+const allHKQuotes = await sdk.getAllHKShareQuotes({
+  batchSize: 300,
+  concurrency: 5,
   onProgress: (completed, total) => {
     console.log(\`进度: \${completed}/\${total}\`);
   }
 });
-console.log(\`共获取 \${allQuotes.length} 只股票\`);`
+
+console.log(\`共获取 \${allHKQuotes.length} 只港股\`);
+console.log(allHKQuotes[0].name);      // 股票名称
+console.log(allHKQuotes[0].price);     // 当前价
+console.log(allHKQuotes[0].currency);  // 货币(HKD)`
+  },
+  getAllUSShareQuotes: {
+    name: 'getAllUSShareQuotes',
+    desc: '获取全市场美股行情',
+    category: 'batch',
+    params: [
+      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'NASDAQ', label: '纳斯达克 (105)' }, { value: 'NYSE', label: '纽交所 (106)' }, { value: 'AMEX', label: '美交所 (107)' }] },
+      { key: 'batchSize', label: '批量大小', type: 'number', default: '300', required: false, placeholder: '默认 500' },
+      { key: 'concurrency', label: '并发数', type: 'number', default: '5', required: false, placeholder: '默认 7' }
+    ],
+    code: `// 获取全部美股行情
+const allUSQuotes = await sdk.getAllUSShareQuotes();
+
+// 获取纳斯达克行情
+const nasdaqQuotes = await sdk.getAllUSShareQuotes({ market: 'NASDAQ' });
+
+// 获取纽交所行情（带进度回调）
+const nyseQuotes = await sdk.getAllUSShareQuotes({
+  market: 'NYSE',
+  batchSize: 300,
+  concurrency: 5,
+  onProgress: (completed, total) => {
+    console.log(\`进度: \${completed}/\${total}\`);
+  }
+});
+
+console.log(\`共获取 \${nyseQuotes.length} 只美股\`);
+console.log(nyseQuotes[0].name);           // 股票名称
+console.log(nyseQuotes[0].price);          // 当前价`
   },
   getFundFlow: {
     name: 'getFundFlow',
@@ -455,6 +539,8 @@ const resultCount = ref(0)
 const showCode = ref(false)
 const sdk = ref<any>(null)
 const sdkLoaded = ref(false)
+const showToast = ref(false)
+const toastMessage = ref('')
 
 // 当前方法配置
 const currentConfig = computed(() => methodsConfig[currentMethod.value])
@@ -508,11 +594,17 @@ async function fetchData() {
         break
       }
       case 'getAShareCodeList': {
-        data = await sdk.value.getAShareCodeList(params.includeExchange === 'true')
+        const options: any = {}
+        if (params.simple === 'true') options.simple = true
+        if (params.market) options.market = params.market
+        data = await sdk.value.getAShareCodeList(Object.keys(options).length > 0 ? options : undefined)
         break
       }
       case 'getUSCodeList': {
-        data = await sdk.value.getUSCodeList(params.includeMarket === 'true')
+        const options: any = {}
+        if (params.simple === 'true') options.simple = true
+        if (params.market) options.market = params.market
+        data = await sdk.value.getUSCodeList(Object.keys(options).length > 0 ? options : undefined)
         break
       }
       case 'getHKCodeList': {
@@ -520,13 +612,37 @@ async function fetchData() {
         break
       }
       case 'getAllAShareQuotes': {
-        data = await sdk.value.getAllAShareQuotes({
+        const options: any = {
           batchSize: parseInt(params.batchSize) || 500,
           concurrency: parseInt(params.concurrency) || 7,
           onProgress: (completed: number, total: number) => {
             result.value = `加载中... ${completed}/${total} 批次`
           }
+        }
+        if (params.market) options.market = params.market
+        data = await sdk.value.getAllAShareQuotes(options)
+        break
+      }
+      case 'getAllHKShareQuotes': {
+        data = await sdk.value.getAllHKShareQuotes({
+          batchSize: parseInt(params.batchSize) || 300,
+          concurrency: parseInt(params.concurrency) || 5,
+          onProgress: (completed: number, total: number) => {
+            result.value = `加载中... ${completed}/${total} 批次`
+          }
         })
+        break
+      }
+      case 'getAllUSShareQuotes': {
+        const options: any = {
+          batchSize: parseInt(params.batchSize) || 300,
+          concurrency: parseInt(params.concurrency) || 5,
+          onProgress: (completed: number, total: number) => {
+            result.value = `加载中... ${completed}/${total} 批次`
+          }
+        }
+        if (params.market) options.market = params.market
+        data = await sdk.value.getAllUSShareQuotes(options)
         break
       }
       case 'getFundFlow': {
@@ -706,6 +822,13 @@ onMounted(async () => {
     console.log(`🚀 Stock SDK Playground 已加载 (${isDev ? '本地开发模式' : '生产模式'})`)
     console.log('💡 提示: 可以在控制台使用 window.sdk 直接调用 SDK 方法')
     ;(window as any).sdk = sdk.value
+    
+    // 显示 toast 提示
+    toastMessage.value = '💡 已挂载 window.sdk，可在浏览器控制台直接调试 SDK'
+    showToast.value = true
+    setTimeout(() => {
+      showToast.value = false
+    }, 5000)
   } catch (error) {
     console.error('加载 SDK 失败:', error)
     result.value = '加载 SDK 失败，请检查网络连接或刷新页面重试'
@@ -728,6 +851,13 @@ watch(currentMethod, () => {
 
 <template>
   <div class="playground" :class="{ dark: isDark }">
+    <!-- Toast 提示 -->
+    <Transition name="toast">
+      <div v-if="showToast" class="toast" @click="showToast = false">
+        {{ toastMessage }}
+      </div>
+    </Transition>
+    
     <div class="playground-body">
       <aside class="sidebar">
         <div class="sidebar-header">
@@ -1345,6 +1475,61 @@ watch(currentMethod, () => {
 
   .params-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Toast 样式 */
+.toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.95) 0%, rgba(22, 163, 74, 0.95) 100%);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3), 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+}
+
+.toast:hover {
+  transform: translateX(-50%) scale(1.02);
+}
+
+/* Toast 动画 */
+.toast-enter-active {
+  animation: toast-in 0.4s ease-out;
+}
+
+.toast-leave-active {
+  animation: toast-out 0.3s ease-in forwards;
+}
+
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
   }
 }
 </style>

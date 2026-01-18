@@ -33,8 +33,16 @@ import type {
   SearchResult,
 } from './types';
 
+
 // 重新导出配置类型
-export type { GetAllAShareQuotesOptions } from './providers/tencent/batch';
+export type {
+  GetAllAShareQuotesOptions,
+  AShareMarket,
+  GetAShareCodeListOptions,
+  USMarket,
+  GetUSCodeListOptions,
+  GetAllUSQuotesOptions,
+} from './providers/tencent/batch';
 
 /**
  * 市场类型
@@ -286,18 +294,58 @@ export class StockSDK {
 
   /**
    * 从远程获取 A 股代码列表
-   * @param includeExchange 是否包含交易所前缀（如 sh、sz、bj），默认 true
+   * @param options 配置选项
+   *
+   * @example
+   * // 获取全部 A 股（带交易所前缀）
+   * const codes = await sdk.getAShareCodeList();
+   *
+   * @example
+   * // 获取全部 A 股（不带交易所前缀）
+   * const codes = await sdk.getAShareCodeList({ simple: true });
+   *
+   * @example
+   * // 获取科创板股票
+   * const codes = await sdk.getAShareCodeList({ market: 'kc' });
+   *
+   * @example
+   * // 获取创业板股票（不带前缀）
+   * const codes = await sdk.getAShareCodeList({ simple: true, market: 'cy' });
    */
-  getAShareCodeList(includeExchange: boolean = true): Promise<string[]> {
-    return tencent.getAShareCodeList(this.client, includeExchange);
+  getAShareCodeList(
+    options?: tencent.GetAShareCodeListOptions | boolean
+  ): Promise<string[]> {
+    return tencent.getAShareCodeList(this.client, options);
   }
 
   /**
    * 从远程获取美股代码列表
-   * @param includeMarket 是否包含市场前缀（如 105.、106.），默认 true
+   * @param options 配置选项
+   *
+   * @example
+   * // 获取全部美股（带市场前缀）
+   * const codes = await sdk.getUSCodeList();
+   * // ['105.AAPL', '106.BABA', ...]
+   *
+   * @example
+   * // 获取全部美股（不带市场前缀）
+   * const codes = await sdk.getUSCodeList({ simple: true });
+   * // ['AAPL', 'BABA', ...]
+   *
+   * @example
+   * // 筛选纳斯达克股票
+   * const codes = await sdk.getUSCodeList({ market: 'NASDAQ' });
+   * // ['105.AAPL', ...]
+   *
+   * @example
+   * // 筛选纽交所股票
+   * const codes = await sdk.getUSCodeList({ market: 'NYSE' });
+   * // ['106.BABA', ...]
    */
-  getUSCodeList(includeMarket: boolean = true): Promise<string[]> {
-    return tencent.getUSCodeList(this.client, includeMarket);
+  getUSCodeList(
+    options?: tencent.GetUSCodeListOptions | boolean
+  ): Promise<string[]> {
+    return tencent.getUSCodeList(this.client, options);
   }
 
   /**
@@ -309,12 +357,26 @@ export class StockSDK {
 
   /**
    * 获取全部 A 股实时行情
+   * @param options 配置选项
+   *
+   * @example
+   * // 获取全部 A 股行情
+   * const quotes = await sdk.getAllAShareQuotes();
+   *
+   * @example
+   * // 获取科创板行情
+   * const kcQuotes = await sdk.getAllAShareQuotes({ market: 'kc' });
+   *
+   * @example
+   * // 获取创业板行情
+   * const cyQuotes = await sdk.getAllAShareQuotes({ market: 'cy' });
    */
   async getAllAShareQuotes(
     options: tencent.GetAllAShareQuotesOptions = {}
   ): Promise<FullQuote[]> {
-    const codes = await this.getAShareCodeList();
-    return this.getAllQuotesByCodes(codes, options);
+    const { market, ...batchOptions } = options;
+    const codes = await this.getAShareCodeList({ market });
+    return this.getAllQuotesByCodes(codes, batchOptions);
   }
 
   /**
@@ -329,13 +391,30 @@ export class StockSDK {
 
   /**
    * 获取全部美股实时行情
+   * @param options 配置选项
+   *
+   * @example
+   * // 获取全部美股行情
+   * const quotes = await sdk.getAllUSShareQuotes();
+   *
+   * @example
+   * // 获取纳斯达克股票行情
+   * const nasdaqQuotes = await sdk.getAllUSShareQuotes({ market: 'NASDAQ' });
+   *
+   * @example
+   * // 获取纽交所股票行情（带进度回调）
+   * const nyseQuotes = await sdk.getAllUSShareQuotes({
+   *   market: 'NYSE',
+   *   onProgress: (completed, total) => console.log(`${completed}/${total}`)
+   * });
    */
   async getAllUSShareQuotes(
-    options: tencent.GetAllAShareQuotesOptions = {}
+    options: tencent.GetAllUSQuotesOptions = {}
   ): Promise<USQuote[]> {
-    // 使用不带市场前缀的代码
-    const codes = await this.getUSCodeList(false);
-    return tencent.getAllUSQuotesByCodes(this.client, codes, options);
+    const { market, ...restOptions } = options;
+    // 获取代码列表（不带前缀，可选市场筛选）
+    const codes = await this.getUSCodeList({ simple: true, market });
+    return tencent.getAllUSQuotesByCodes(this.client, codes, restOptions);
   }
 
   /**

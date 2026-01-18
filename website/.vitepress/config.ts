@@ -75,6 +75,11 @@ const zhSidebar = {
         { text: 'BIAS 乖离率', link: '/api/indicator-bias' },
         { text: 'CCI 商品通道指数', link: '/api/indicator-cci' },
         { text: 'ATR 平均真实波幅', link: '/api/indicator-atr' },
+        { text: 'OBV 能量潮', link: '/api/indicator-obv' },
+        { text: 'ROC 变动率', link: '/api/indicator-roc' },
+        { text: 'DMI/ADX 趋向指标', link: '/api/indicator-dmi' },
+        { text: 'SAR 抛物线转向', link: '/api/indicator-sar' },
+        { text: 'KC 肯特纳通道', link: '/api/indicator-kc' },
       ],
     },
     {
@@ -164,6 +169,11 @@ const enSidebar = {
         { text: 'BIAS', link: '/en/api/indicator-bias' },
         { text: 'CCI', link: '/en/api/indicator-cci' },
         { text: 'ATR', link: '/en/api/indicator-atr' },
+        { text: 'OBV', link: '/en/api/indicator-obv' },
+        { text: 'ROC', link: '/en/api/indicator-roc' },
+        { text: 'DMI/ADX', link: '/en/api/indicator-dmi' },
+        { text: 'SAR', link: '/en/api/indicator-sar' },
+        { text: 'KC', link: '/en/api/indicator-kc' },
       ],
     },
     {
@@ -286,7 +296,7 @@ export default defineConfig({
 
     footer: {
       message: 'Released under the ISC License.',
-      copyright: 'Copyright © 2024 chengzuopeng',
+      copyright: 'Copyright © 2025 chengzuopeng',
     },
 
     search: {

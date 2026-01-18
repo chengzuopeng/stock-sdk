@@ -4,7 +4,12 @@
 
 // 默认导出 SDK 类
 export { StockSDK, default } from './sdk';
-export type { MarketType, GetAllAShareQuotesOptions } from './sdk';
+export type {
+  MarketType,
+  GetAllAShareQuotesOptions,
+  AShareMarket,
+  GetAShareCodeListOptions,
+} from './sdk';
 
 // 导出类型
 export * from './types';
@@ -23,6 +28,12 @@ export {
   calcBIAS,
   calcCCI,
   calcATR,
+  // 新增指标
+  calcOBV,
+  calcROC,
+  calcDMI,
+  calcSAR,
+  calcKC,
   addIndicators,
 } from './indicators';
 
@@ -38,6 +49,17 @@ export type {
   BIASOptions,
   CCIOptions,
   ATROptions,
+  // 新增指标类型
+  OBVOptions,
+  OBVResult,
+  ROCOptions,
+  ROCResult,
+  DMIOptions,
+  DMIResult,
+  SAROptions,
+  SARResult,
+  KCOptions,
+  KCResult,
   KlineWithIndicators,
 } from './indicators';
 

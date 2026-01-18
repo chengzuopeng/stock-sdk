@@ -34,6 +34,7 @@
     linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
   background-attachment: fixed;
+  margin-bottom: 0 !important;
 }
 
 /* ===== 3. Hero 区域特效 ===== */
@@ -215,9 +216,10 @@ body:has(.VPHome) .VPNavBarSearchButton {
 }
 
 /* ===== 6. 其它 UI 优化 ===== */
-/* 滚动条定制 */
+/* 滚动条定制 - 使用主题色 */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -225,12 +227,41 @@ body:has(.VPHome) .VPNavBarSearchButton {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--vp-c-divider);
+  background: rgba(248, 113, 113, 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--vp-c-brand-2);
+  background: rgba(248, 113, 113, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(252, 165, 165, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(252, 165, 165, 0.4);
+}
+
+/* 文字选中样式 - 使用主题色 */
+::selection {
+  background: rgba(248, 113, 113, 0.25);
+  color: inherit;
+}
+
+::-moz-selection {
+  background: rgba(248, 113, 113, 0.25);
+  color: inherit;
+}
+
+.dark ::selection {
+  background: rgba(252, 165, 165, 0.3);
+  color: inherit;
+}
+
+.dark ::-moz-selection {
+  background: rgba(252, 165, 165, 0.3);
+  color: inherit;
 }
 
 /* 入场动画 */

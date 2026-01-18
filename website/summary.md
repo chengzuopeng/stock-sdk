@@ -899,11 +899,29 @@ interface ConceptBoardMinuteKline {
 
 ### getAShareCodeList
 ```ts
-getAShareCodeList(includeExchange?: boolean): Promise<string[]>
+getAShareCodeList(options?: GetAShareCodeListOptions): Promise<string[]>
+```
+```ts
+interface GetAShareCodeListOptions {
+  simple?: boolean;   // 是否移除交易所前缀，默认 false
+  market?: 'sh' | 'sz' | 'bj' | 'kc' | 'cy'; // 筛选特定市场/板块
+}
 ```
 | 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `includeExchange` | `boolean` | `true` | 是否带 `sh/sz/bj` 前缀 |
+| `simple` | `boolean` | `false` | 是否移除 `sh/sz/bj` 前缀 |
+| `market` | `AShareMarket` | - | 筛选特定交易所或板块 |
+
+**market 取值说明**
+| 值 | 说明 | 代码特征 |
+|---|---|---|
+| `'sh'` | 上交所 | 6 开头 |
+| `'sz'` | 深交所 | 0 和 3 开头 |
+| `'bj'` | 北交所 | 92 开头 |
+| `'kc'` | 科创板 | 688 开头 |
+| `'cy'` | 创业板 | 30 开头 |
+
+> 兼容旧 API：`getAShareCodeList(includeExchange?: boolean)`
 
 ### getHKCodeList
 ```ts
@@ -912,11 +930,20 @@ getHKCodeList(): Promise<string[]>
 
 ### getUSCodeList
 ```ts
-getUSCodeList(includeMarket?: boolean): Promise<string[]>
+getUSCodeList(options?: GetUSCodeListOptions): Promise<string[]>
+```
+```ts
+interface GetUSCodeListOptions {
+  simple?: boolean;   // 是否移除市场前缀，默认 false
+  market?: 'NASDAQ' | 'NYSE' | 'AMEX'; // 筛选特定市场
+}
 ```
 | 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `includeMarket` | `boolean` | `true` | 是否带市场前缀（如 `105.`） |
+| `simple` | `boolean` | `false` | 是否移除前缀（如 `105.`） |
+| `market` | `USMarket` | - | 筛选市场（NASDAQ/NYSE/AMEX） |
+
+> 兼容旧 API：`getUSCodeList(includeMarket?: boolean)`
 
 ### getAllAShareQuotes
 ```ts

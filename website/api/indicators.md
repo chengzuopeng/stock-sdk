@@ -133,6 +133,11 @@ const usData = await sdk.getKlineWithIndicators('105.MSFT', {
 | [BIAS](/api/indicator-bias) | `calcBIAS` | 乖离率 |
 | [CCI](/api/indicator-cci) | `calcCCI` | 商品通道指数 |
 | [ATR](/api/indicator-atr) | `calcATR` | 平均真实波幅 |
+| [OBV](/api/indicator-obv) | `calcOBV` | 能量潮 |
+| [ROC](/api/indicator-roc) | `calcROC` | 变动率指标 |
+| [DMI/ADX](/api/indicator-dmi) | `calcDMI` | 趋向指标 |
+| [SAR](/api/indicator-sar) | `calcSAR` | 抛物线转向 |
+| [KC](/api/indicator-kc) | `calcKC` | 肯特纳通道 |
 
 ---
 
@@ -154,10 +159,77 @@ import {
   calcBIAS,
   calcCCI,
   calcATR,
+  // 新增指标
+  calcOBV,
+  calcROC,
+  calcDMI,
+  calcSAR,
+  calcKC,
   addIndicators,
 } from 'stock-sdk';
 ```
 
 `addIndicators` 可以把多个指标一次性挂到 K 线数组上，适合图表渲染场景。
+
+---
+
+## 新增指标使用示例
+
+### OBV 能量潮
+
+```typescript
+import { calcOBV } from 'stock-sdk';
+
+const klines = await sdk.getHistoryKline('sz000001');
+const obv = calcOBV(klines, { maPeriod: 20 });
+console.log(obv[30].obv);    // OBV 值
+console.log(obv[30].obvMa);  // OBV 20 日均线
+```
+
+### ROC 变动率
+
+```typescript
+import { calcROC } from 'stock-sdk';
+
+const klines = await sdk.getHistoryKline('sz000001');
+const roc = calcROC(klines, { period: 12, signalPeriod: 6 });
+console.log(roc[20].roc);     // ROC 值
+console.log(roc[25].signal);  // 信号线
+```
+
+### DMI/ADX 趋向指标
+
+```typescript
+import { calcDMI } from 'stock-sdk';
+
+const klines = await sdk.getHistoryKline('sz000001');
+const dmi = calcDMI(klines, { period: 14 });
+console.log(dmi[30].pdi);  // +DI（上升方向）
+console.log(dmi[30].mdi);  // -DI（下降方向）
+console.log(dmi[30].adx);  // ADX（趋势强度）
+```
+
+### SAR 抛物线转向
+
+```typescript
+import { calcSAR } from 'stock-sdk';
+
+const klines = await sdk.getHistoryKline('sz000001');
+const sar = calcSAR(klines);
+console.log(sar[30].sar);    // SAR 值
+console.log(sar[30].trend);  // 趋势方向：1 上升，-1 下降
+```
+
+### KC 肯特纳通道
+
+```typescript
+import { calcKC } from 'stock-sdk';
+
+const klines = await sdk.getHistoryKline('sz000001');
+const kc = calcKC(klines, { emaPeriod: 20, multiplier: 2 });
+console.log(kc[30].upper);  // 上轨
+console.log(kc[30].mid);    // 中轨
+console.log(kc[30].lower);  // 下轨
+```
 
 详细用法请参考各指标的专属文档。

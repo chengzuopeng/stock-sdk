@@ -29,6 +29,11 @@ export {
   getAllHKQuotesByCodes,
   getAllUSQuotesByCodes,
   type GetAllAShareQuotesOptions,
+  type AShareMarket,
+  type GetAShareCodeListOptions,
+  type USMarket,
+  type GetUSCodeListOptions,
+  type GetAllUSQuotesOptions,
 } from './batch';
 
 // 交易日历

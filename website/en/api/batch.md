@@ -4,10 +4,18 @@ Efficiently fetch large amounts of stock data.
 
 ## getAllAShareQuotes
 
-Get all A-Share real-time quotes.
+Get all A-Share real-time quotes. Supports filtering by exchange or board.
 
 ```typescript
-const quotes = await sdk.getAllAShareQuotes({
+// Get all A-Share quotes
+const quotes = await sdk.getAllAShareQuotes();
+
+// Get STAR Market (科创板) quotes only
+const kcQuotes = await sdk.getAllAShareQuotes({ market: 'kc' });
+
+// Get ChiNext (创业板) quotes with progress
+const cyQuotes = await sdk.getAllAShareQuotes({
+  market: 'cy',
   batchSize: 500,
   concurrency: 5,
   onProgress: (completed, total) => {
@@ -20,9 +28,20 @@ const quotes = await sdk.getAllAShareQuotes({
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| market | `AShareMarket` | - | Filter by exchange/board |
 | batchSize | `number` | 500 | Codes per request |
 | concurrency | `number` | 7 | Parallel requests |
 | onProgress | `function` | - | Progress callback |
+
+### AShareMarket Type
+
+| Value | Description | Code Pattern |
+|-------|-------------|--------------|
+| `'sh'` | Shanghai Stock Exchange | Starts with 6 |
+| `'sz'` | Shenzhen Stock Exchange | Starts with 0 or 3 |
+| `'bj'` | Beijing Stock Exchange | Starts with 92 |
+| `'kc'` | STAR Market (科创板) | Starts with 688 |
+| `'cy'` | ChiNext (创业板) | Starts with 30 |
 
 ## getAllHKShareQuotes
 
@@ -37,10 +56,29 @@ const quotes = await sdk.getAllHKShareQuotes({
 
 ## getAllUSShareQuotes
 
-Get all US stock quotes.
+Get all US stock quotes. Supports filtering by market.
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `batchSize` | `number` | `500` | Batch size per request |
+| `concurrency` | `number` | `7` | Max concurrent requests |
+| `onProgress` | `function` | - | Progress callback |
+| `market` | `USMarket` | - | Filter by market: `NASDAQ`, `NYSE`, `AMEX` |
+
+### Example
 
 ```typescript
-const quotes = await sdk.getAllUSShareQuotes({
+// Get all US stocks
+const allQuotes = await sdk.getAllUSShareQuotes();
+
+// Get NASDAQ stocks only
+const nasdaqQuotes = await sdk.getAllUSShareQuotes({ market: 'NASDAQ' });
+
+// Get NYSE stocks with progress
+const nyseQuotes = await sdk.getAllUSShareQuotes({
+  market: 'NYSE',
   concurrency: 5,
   onProgress: (c, t) => console.log(`${c}/${t}`),
 });

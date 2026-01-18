@@ -124,3 +124,87 @@ export interface ATRResult {
   atr: number | null;
 }
 
+// ========== 新增指标类型 ==========
+export interface OBVOptions {
+  /** OBV 均线周期 */
+  maPeriod?: number;
+}
+
+export interface OBVResult {
+  /** OBV 值 */
+  obv: number | null;
+  /** OBV 均线 */
+  obvMa: number | null;
+}
+
+export interface ROCOptions {
+  /** ROC 周期，默认 12 */
+  period?: number;
+  /** 信号线周期 */
+  signalPeriod?: number;
+}
+
+export interface ROCResult {
+  /** ROC 值（百分比） */
+  roc: number | null;
+  /** 信号线 */
+  signal: number | null;
+}
+
+export interface DMIOptions {
+  /** 周期，默认 14 */
+  period?: number;
+  /** ADX 平滑周期 */
+  adxPeriod?: number;
+}
+
+export interface DMIResult {
+  /** +DI 值 */
+  pdi: number | null;
+  /** -DI 值 */
+  mdi: number | null;
+  /** ADX 值 */
+  adx: number | null;
+  /** ADXR 值 */
+  adxr: number | null;
+}
+
+export interface SAROptions {
+  /** 加速因子初始值，默认 0.02 */
+  afStart?: number;
+  /** 加速因子增量，默认 0.02 */
+  afIncrement?: number;
+  /** 加速因子最大值，默认 0.2 */
+  afMax?: number;
+}
+
+export interface SARResult {
+  /** SAR 值 */
+  sar: number | null;
+  /** 趋势方向：1 上升，-1 下降 */
+  trend: 1 | -1 | null;
+  /** 极值点 */
+  ep: number | null;
+  /** 加速因子 */
+  af: number | null;
+}
+
+export interface KCOptions {
+  /** EMA 周期，默认 20 */
+  emaPeriod?: number;
+  /** ATR 周期，默认 10 */
+  atrPeriod?: number;
+  /** ATR 倍数，默认 2 */
+  multiplier?: number;
+}
+
+export interface KCResult {
+  /** 中轨（EMA） */
+  mid: number | null;
+  /** 上轨 */
+  upper: number | null;
+  /** 下轨 */
+  lower: number | null;
+  /** 通道宽度 */
+  width: number | null;
+}

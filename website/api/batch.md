@@ -14,6 +14,7 @@ Stock SDK 提供批量行情查询与混合请求解析，内置并发控制和�
 
 ```typescript
 getAllAShareQuotes(options?: {
+  market?: AShareMarket;
   batchSize?: number;
   concurrency?: number;
   onProgress?: (completed: number, total: number) => void;
@@ -24,9 +25,20 @@ getAllAShareQuotes(options?: {
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
+| `market` | `AShareMarket` | - | 筛选特定交易所或板块 |
 | `batchSize` | `number` | `500` | 单次请求股票数量，最大 500 |
 | `concurrency` | `number` | `7` | 最大并发数 |
 | `onProgress` | `function` | - | 进度回调 |
+
+### AShareMarket 类型
+
+| 值 | 说明 | 代码特征 |
+|----|------|----------|
+| `'sh'` | 上交所 | 6 开头（包含科创板） |
+| `'sz'` | 深交所 | 0 和 3 开头（包含创业板） |
+| `'bj'` | 北交所 | 92 开头 |
+| `'kc'` | 科创板 | 688 开头 |
+| `'cy'` | 创业板 | 30 开头 |
 
 ::: tip 进度回调
 `onProgress(completed, total)` 的计数是 **批次数量**，不是股票数量。
@@ -35,15 +47,21 @@ getAllAShareQuotes(options?: {
 ### 示例
 
 ```typescript
-const allQuotes = await sdk.getAllAShareQuotes({
+// 获取全部 A 股行情
+const allQuotes = await sdk.getAllAShareQuotes();
+
+// 获取科创板行情
+const kcQuotes = await sdk.getAllAShareQuotes({ market: 'kc' });
+
+// 获取创业板行情（带进度回调）
+const cyQuotes = await sdk.getAllAShareQuotes({
+  market: 'cy',
   batchSize: 300,
   concurrency: 5,
   onProgress: (completed, total) => {
     console.log(`进度: ${completed}/${total}`);
   },
 });
-
-console.log(`共获取 ${allQuotes.length} 只股票`);
 
 // 筛选涨幅前 10
 const top10 = allQuotes
@@ -127,13 +145,31 @@ getAllUSShareQuotes(options?: {
   batchSize?: number;
   concurrency?: number;
   onProgress?: (completed: number, total: number) => void;
+  market?: 'NASDAQ' | 'NYSE' | 'AMEX';
 }): Promise<USQuote[]>
 ```
+
+### 参数
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `batchSize` | `number` | `500` | 单次请求的股票数量 |
+| `concurrency` | `number` | `7` | 最大并发请求数 |
+| `onProgress` | `function` | - | 进度回调函数 |
+| `market` | `USMarket` | - | 筛选特定市场 |
 
 ### 示例
 
 ```typescript
-const allUSQuotes = await sdk.getAllUSShareQuotes({
+// 获取全部美股行情
+const allUSQuotes = await sdk.getAllUSShareQuotes();
+
+// 获取纳斯达克股票行情
+const nasdaqQuotes = await sdk.getAllUSShareQuotes({ market: 'NASDAQ' });
+
+// 获取纽交所股票行情（带进度回调）
+const nyseQuotes = await sdk.getAllUSShareQuotes({
+  market: 'NYSE',
   batchSize: 300,
   concurrency: 3,
   onProgress: (completed, total) => {

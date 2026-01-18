@@ -13,9 +13,16 @@ console.log(`Total: ${codes.length} stocks`);
 // Codes include exchange prefix by default
 console.log(codes[0]); // 'sh600000'
 
-// Without prefix
-const codesWithoutPrefix = await sdk.getAShareCodeList(false);
-console.log(codesWithoutPrefix[0]); // '600000'
+// Without prefix (simple mode)
+const pureCodes = await sdk.getAShareCodeList({ simple: true });
+console.log(pureCodes[0]); // '600000'
+
+// Filter by market
+const kcCodes = await sdk.getAShareCodeList({ market: 'kc' }); // STAR Market
+const cyCodes = await sdk.getAShareCodeList({ market: 'cy' }); // ChiNext
+
+// Combine options
+const cyCodsPure = await sdk.getAShareCodeList({ simple: true, market: 'cy' });
 ```
 
 ## Get All HK Stock Codes
@@ -32,8 +39,13 @@ const usCodes = await sdk.getUSCodeList();
 console.log(usCodes[0]); // '105.AAPL'
 
 // Without market prefix
-const usCodesWithoutPrefix = await sdk.getUSCodeList(false);
+const usCodesWithoutPrefix = await sdk.getUSCodeList({ simple: true });
 console.log(usCodesWithoutPrefix[0]); // 'AAPL'
+
+// Filter by market
+const nasdaqCodes = await sdk.getUSCodeList({ market: 'NASDAQ' });
+const nyseCodes = await sdk.getUSCodeList({ market: 'NYSE' });
+const amexCodes = await sdk.getUSCodeList({ market: 'AMEX' });
 ```
 
 ## Batch Get All A-Share Quotes

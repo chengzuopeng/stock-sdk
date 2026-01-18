@@ -12,8 +12,16 @@ const codes = await sdk.getAShareCodeList();
 // ['sh600000', 'sz000001', 'bj430047', ...]
 
 // 不包含交易所前缀
-const pureCodes = await sdk.getAShareCodeList(false);
+const pureCodes = await sdk.getAShareCodeList({ simple: true });
 // ['600000', '000001', '430047', ...]
+
+// 筛选科创板
+const kcCodes = await sdk.getAShareCodeList({ market: 'kc' });
+// ['sh688001', 'sh688002', ...]
+
+// 筛选创业板，不含前缀
+const cyCodes = await sdk.getAShareCodeList({ simple: true, market: 'cy' });
+// ['300001', '300002', ...]
 
 console.log(`共 ${codes.length} 只 A 股`);
 // 共 5000+ 只 A 股
@@ -36,15 +44,24 @@ const codes = await sdk.getUSCodeList();
 // ['105.MSFT', '105.AAPL', '106.BABA', ...]
 
 // 不包含市场前缀
-const pureCodes = await sdk.getUSCodeList(false);
+const pureCodes = await sdk.getUSCodeList({ simple: true });
 // ['MSFT', 'AAPL', 'BABA', ...]
+
+// 筛选纳斯达克股票
+const nasdaqCodes = await sdk.getUSCodeList({ market: 'NASDAQ' });
+// ['105.AAPL', '105.MSFT', ...]
+
+// 筛选纽交所股票
+const nyseCodes = await sdk.getUSCodeList({ market: 'NYSE' });
+// ['106.BABA', ...]
 
 console.log(`共 ${codes.length} 只美股`);
 ```
 
 ::: tip 市场代码说明
-- `105` = 纳斯达克
-- `106` = 纽交所
+- `NASDAQ` (105) = 纳斯达克
+- `NYSE` (106) = 纽交所
+- `AMEX` (107) = 美交所
 - `107` = 其他
 :::
 

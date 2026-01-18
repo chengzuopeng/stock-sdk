@@ -2,6 +2,21 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.5.0](https://www.npmjs.com/package/stock-sdk/v/1.5.0)** (2026-01-18)
+
+### 新增功能
+
+**技术指标**
+- 新增 5 个技术指标：**OBV** (能量潮)、**ROC** (变动率指标)、**DMI/ADX** (趋向指标)、**SAR** (抛物线转向)、**KC** (肯特纳通道)
+- 完善了指标计算函数的文档和 Playground 演示
+
+**批量查询增强**
+- `getAShareCodeList`, `getUSCodeList` 参数升级为对象形式，支持更灵活的筛选：
+  - `simple`: 是否移除交易所前缀
+  - `market`: 按市场筛选（上证、深证、北证、科创、创业）
+- `getAllAShareQuotes`, `getAllUSShareQuotes` 支持按 `market` 筛选全市场行情
+
+
 ## **[1.4.5](https://www.npmjs.com/package/stock-sdk/v/1.4.5)** (2026-01-15)
 
 ### 变更
