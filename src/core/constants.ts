@@ -37,6 +37,9 @@ export const EM_CONCEPT_CONS_URL = 'https://29.push2.eastmoney.com/api/qt/clist/
 export const EM_CONCEPT_KLINE_URL = 'https://91.push2his.eastmoney.com/api/qt/stock/kline/get';
 export const EM_CONCEPT_TRENDS_URL = 'https://push2his.eastmoney.com/api/qt/stock/trends2/get';
 
+// 东方财富数据中心 API
+export const EM_DATACENTER_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get';
+
 // 默认配置
 export const DEFAULT_TIMEOUT = 30000;
 export const DEFAULT_BATCH_SIZE = 500;

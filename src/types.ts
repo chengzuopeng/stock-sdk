@@ -564,3 +564,53 @@ export interface SearchResult {
   /** 资产类别 (GP-A/GP/KJ 等) */
   type: string;
 }
+
+/**
+ * 分红派送详情
+ */
+export interface DividendDetail {
+  /** 股票代码 */
+  code: string;
+  /** 股票名称 */
+  name: string;
+  /** 报告期 YYYY-MM-DD */
+  reportDate: string | null;
+  /** 预案公告日 YYYY-MM-DD */
+  planNoticeDate: string | null;
+  /** 业绩披露日期 YYYY-MM-DD */
+  disclosureDate: string | null;
+  /** 送转总比例（每10股送转X股） */
+  assignTransferRatio: number | null;
+  /** 送股比例（每10股送X股） */
+  bonusRatio: number | null;
+  /** 转股比例（每10股转X股） */
+  transferRatio: number | null;
+  /** 每10股派息(税前)，单位：元 */
+  dividendPretax: number | null;
+  /** 分红描述（如：10派2.36元(含税,扣税后2.124元)） */
+  dividendDesc: string | null;
+  /** 股息率 */
+  dividendYield: number | null;
+  /** 每股收益(元) */
+  eps: number | null;
+  /** 每股净资产(元) */
+  bps: number | null;
+  /** 每股公积金(元) */
+  capitalReserve: number | null;
+  /** 每股未分配利润(元) */
+  unassignedProfit: number | null;
+  /** 净利润同比增长(%) */
+  netProfitYoy: number | null;
+  /** 总股本(股) */
+  totalShares: number | null;
+  /** 股权登记日 YYYY-MM-DD */
+  equityRecordDate: string | null;
+  /** 除权除息日 YYYY-MM-DD */
+  exDividendDate: string | null;
+  /** 现金分红发放日 YYYY-MM-DD */
+  payDate: string | null;
+  /** 方案进度（如：实施分配、股东大会预案等） */
+  assignProgress: string | null;
+  /** 最新公告日期 YYYY-MM-DD */
+  noticeDate: string | null;
+}

@@ -2,6 +2,13 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.6.0](https://www.npmjs.com/package/stock-sdk/v/1.6.0)** (2026-01-24)
+
+### 新增功能
+
+**分红数据**
+- 新增 A 股分红派送详情接口 `getDividendDetail`，支持获取历史分红记录，涵盖现金分红、送转股份、财务指标（EPS、BPS、净利润同比等）、关键日期（登记日、除权日、派息日）及方案进度等 20+ 维度数据
+
 ## **[1.5.0](https://www.npmjs.com/package/stock-sdk/v/1.5.0)** (2026-01-18)
 
 ### 新增功能

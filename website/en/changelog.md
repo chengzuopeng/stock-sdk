@@ -2,6 +2,14 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.6.0](https://www.npmjs.com/package/stock-sdk/v/1.6.0)** (2026-01-24)
+
+### New Features
+
+**Dividend Data**
+- Added A-share dividend details API `getDividendDetail`, supporting historical dividend records covering 20+ dimensions including cash dividends, share transfers, financial indicators (EPS, BPS, net profit YoY, etc.), key dates, and distribution progress
+
+
 ## **[1.5.0](https://www.npmjs.com/package/stock-sdk/v/1.5.0)** (2026-01-18)
 
 ### New Features

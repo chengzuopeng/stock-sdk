@@ -89,6 +89,7 @@ const zhSidebar = {
         { text: '搜索', link: '/api/search' },
         { text: '批量查询', link: '/api/batch' },
         { text: '资金流向', link: '/api/fund-flow' },
+        { text: '分红派送', link: '/api/dividend' },
       ],
     },
     {
@@ -183,6 +184,7 @@ const enSidebar = {
         { text: 'Search', link: '/en/api/search' },
         { text: 'Batch Query', link: '/en/api/batch' },
         { text: 'Fund Flow', link: '/en/api/fund-flow' },
+        { text: 'Dividend', link: '/en/api/dividend' },
       ],
     },
     {
@@ -333,16 +335,16 @@ export default defineConfig({
     plugins: [
       ...(process.env.GRAFANA_SOURCEMAP_TOKEN
         ? [
-            faroUploader({
-              appName: 'stock-sdk-docs',
-              endpoint: 'https://faro-api-prod-ap-southeast-1.grafana.net/faro/api/v1',
-              appId: '972',
-              stackId: '1494323',
-              verbose: true,
-              apiKey: process.env.GRAFANA_SOURCEMAP_TOKEN,
-              gzipContents: true,
-            }),
-          ]
+          faroUploader({
+            appName: 'stock-sdk-docs',
+            endpoint: 'https://faro-api-prod-ap-southeast-1.grafana.net/faro/api/v1',
+            appId: '972',
+            stackId: '1494323',
+            verbose: true,
+            apiKey: process.env.GRAFANA_SOURCEMAP_TOKEN,
+            gzipContents: true,
+          }),
+        ]
         : []),
     ],
   },
