@@ -31,6 +31,7 @@ import type {
   ConceptBoardMinuteTimeline,
   ConceptBoardMinuteKline,
   SearchResult,
+  DividendDetail,
 } from './types';
 
 
@@ -443,6 +444,20 @@ export class StockSDK {
    */
   getTradingCalendar(): Promise<string[]> {
     return tencent.getTradingCalendar(this.client);
+  }
+
+  /**
+   * 获取股票分红派送详情
+   * @param symbol - 股票代码（纯数字或带交易所前缀），如 '600519' 或 'sh600519'
+   * @returns 分红派送详情列表，按报告日期降序排列
+   *
+   * @example
+   * // 获取贵州茅台的分红历史
+   * const dividends = await sdk.getDividendDetail('600519');
+   * console.log(dividends[0].dividendPretax); // 每10股派息(税前)
+   */
+  getDividendDetail(symbol: string): Promise<DividendDetail[]> {
+    return eastmoney.getDividendDetail(this.client, symbol);
   }
 
   // ==================== 技术指标 ====================

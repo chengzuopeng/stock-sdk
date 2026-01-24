@@ -38,3 +38,6 @@ export {
   type ConceptBoardMinuteKlineOptions,
 } from './conceptBoard';
 
+// 分红派送
+export { getDividendDetail } from './dividend';
+

@@ -514,6 +514,29 @@ console.log(calendar.length);        // 交易日总数
 console.log(calendar[0]);            // '1990-12-19' (第一个交易日)
 console.log(calendar.slice(-5));     // 最近 5 个交易日`
   },
+  getDividendDetail: {
+    name: 'getDividendDetail',
+    desc: '获取股票分红派送详情',
+    category: 'extended',
+    params: [
+      { key: 'symbol', label: '股票代码', type: 'text', default: '000001', required: true, placeholder: '如 000001 或 sz000001' }
+    ],
+    code: `const dividends = await sdk.getDividendDetail('000001');
+console.log(dividends.length);              // 分红记录数
+console.log(dividends[0].name);             // 平安银行
+console.log(dividends[0].reportDate);       // 报告期
+console.log(dividends[0].dividendPretax);   // 每10股派息(税前)
+console.log(dividends[0].dividendDesc);     // 10派2.36元(含税,扣税后2.124元)
+console.log(dividends[0].dividendYield);    // 股息率: 0.0203...
+console.log(dividends[0].assignTransferRatio); // 送转总比例
+console.log(dividends[0].eps);              // 每股收益: 1.18
+console.log(dividends[0].bps);              // 每股净资产: 22.68
+console.log(dividends[0].netProfitYoy);     // 净利润同比: -3.89...
+console.log(dividends[0].totalShares);      // 总股本
+console.log(dividends[0].exDividendDate);   // 除权除息日
+console.log(dividends[0].payDate);          // 派息日
+console.log(dividends[0].assignProgress);   // 方案进度: 实施分配`
+  },
 }
 
 // 按分类分组方法
@@ -657,6 +680,10 @@ async function fetchData() {
       }
       case 'getTradingCalendar': {
         data = await sdk.value.getTradingCalendar()
+        break
+      }
+      case 'getDividendDetail': {
+        data = await sdk.value.getDividendDetail(params.symbol)
         break
       }
       case 'getHKQuotes': {
