@@ -1,6 +1,6 @@
 {
   "name": "stock-sdk",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

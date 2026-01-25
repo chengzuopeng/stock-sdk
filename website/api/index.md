@@ -19,6 +19,9 @@ const sdk = new StockSDK(options?);
 | `retry` | `RetryOptions` | 见下表 | 重试配置 |
 | `headers` | `Record<string, string>` | - | 自定义请求头 |
 | `userAgent` | `string` | - | 自定义 User-Agent（浏览器环境可能会被忽略） |
+| `rateLimit` | `RateLimitOptions` | - | 限流配置（防止请求过快被频控） |
+| `rotateUserAgent` | `boolean` | `false` | 是否启用 UA 轮换（仅 Node.js 有效） |
+| `circuitBreaker` | `CircuitBreakerOptions` | - | 熔断器配置（连续失败时暂停请求） |
 
 ### 重试配置 (RetryOptions)
 
@@ -33,7 +36,36 @@ const sdk = new StockSDK(options?);
 | `retryOnTimeout` | `boolean` | `true` | 超时时是否重试 |
 | `onRetry` | `function` | - | 重试回调 `(attempt, error, delay) => void` |
 
-### 示例
+### 限流配置 (RateLimitOptions)
+
+| 参数 | 类型 | 默认值 | 说明 |
+|-----|------|-------|------|
+| `requestsPerSecond` | `number` | `5` | 每秒最大请求数 |
+| `maxBurst` | `number` | `= requestsPerSecond` | 令牌桶容量（允许的突发请求数） |
+
+::: tip 限流建议
+建议配置 `requestsPerSecond: 3~5`，避免触发东方财富的频率限制。
+:::
+
+### 熔断器配置 (CircuitBreakerOptions)
+
+::: warning 默认关闭
+熔断器 **默认关闭**，需要显式配置才会启用。建议在生产环境中开启，防止连续失败导致雪崩效应。
+:::
+
+| 参数 | 类型 | 默认值 | 说明 |
+|-----|------|-------|------|
+| `failureThreshold` | `number` | `5` | 连续失败多少次后触发熔断 |
+| `resetTimeout` | `number` | `30000` | 熔断持续时间（毫秒），之后进入半开状态 |
+| `halfOpenRequests` | `number` | `1` | 半开状态允许的探测请求数 |
+| `onStateChange` | `function` | - | 状态变化回调 `(from, to) => void` |
+
+**熔断器状态说明：**
+- **CLOSED**：正常状态，允许所有请求
+- **OPEN**：熔断状态，拒绝所有请求，抛出 `CircuitBreakerError`
+- **HALF_OPEN**：半开状态，允许少量请求探测服务是否恢复
+
+### 完整配置示例
 
 ```typescript
 const sdk = new StockSDK({
@@ -41,12 +73,32 @@ const sdk = new StockSDK({
   headers: {
     'X-Request-Source': 'my-app',
   },
-  userAgent: 'StockSDK/1.4',
+  userAgent: 'StockSDK/1.6',
+  
+  // 重试配置
   retry: {
     maxRetries: 5,
     baseDelay: 500,
     onRetry: (attempt, error, delay) => {
       console.log(`第 ${attempt} 次重试，等待 ${delay}ms`);
+    }
+  },
+  
+  // 限流配置（推荐开启）
+  rateLimit: {
+    requestsPerSecond: 5,
+    maxBurst: 10,
+  },
+  
+  // UA 轮换（仅 Node.js 有效）
+  rotateUserAgent: true,
+  
+  // 熔断器配置（可选，建议生产环境开启）
+  circuitBreaker: {
+    failureThreshold: 5,
+    resetTimeout: 30000,
+    onStateChange: (from, to) => {
+      console.log(`熔断器状态: ${from} -> ${to}`);
     }
   }
 });
@@ -94,3 +146,4 @@ const sdk = new StockSDK({
 - [搜索](/api/search)
 - [批量查询](/api/batch)
 - [扩展数据](/api/fund-flow)（资金流向、交易日历等）
+- [分红派送](/api/dividend)

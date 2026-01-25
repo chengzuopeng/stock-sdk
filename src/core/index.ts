@@ -65,3 +65,28 @@ export {
   DEFAULT_BACKOFF_MULTIPLIER,
   DEFAULT_RETRYABLE_STATUS_CODES,
 } from './constants';
+
+// 限流器
+export { RateLimiter, type RateLimiterOptions } from './rateLimiter';
+
+// User-Agent 轮换池
+export {
+  getNextUserAgent,
+  getRandomUserAgent,
+  getAllUserAgents,
+} from './userAgentPool';
+
+// 缓存
+export {
+  MemoryCache,
+  createCacheKey,
+  type CacheOptions,
+} from './cache';
+
+// 熔断器
+export {
+  CircuitBreaker,
+  CircuitBreakerError,
+  type CircuitBreakerOptions,
+  type CircuitState,
+} from './circuitBreaker';
