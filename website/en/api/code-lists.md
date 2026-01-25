@@ -141,5 +141,36 @@ console.log(`HK: ${hkCodes.length} stocks`);
 // Get US codes
 const usCodes = await sdk.getUSCodeList();
 console.log(`US: ${usCodes.length} stocks`);
+
+// Get Fund codes
+const codes = await sdk.getFundCodeList();
+console.log(`Funds: ${codes.length} funds`);
 ```
+
+---
+
+## getFundCodeList
+
+Get all fund codes (26000+ funds).
+
+### Signature
+
+```typescript
+getFundCodeList(): Promise<string[]>
+```
+
+### Example
+
+```typescript
+const codes = await sdk.getFundCodeList();
+
+console.log(codes.length);  // 26068
+console.log(codes.slice(0, 5));  // ['000001', '000002', '000003', '000004', '000005']
+```
+
+::: tip Data Notes
+- Fund codes are 6-digit numbers
+- Data is updated daily
+- Includes both on-exchange and off-exchange funds
+:::
 

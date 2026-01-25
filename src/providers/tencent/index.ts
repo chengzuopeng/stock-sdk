@@ -25,6 +25,7 @@ export {
   getAShareCodeList,
   getUSCodeList,
   getHKCodeList,
+  getFundCodeList,
   getAllQuotesByCodes,
   getAllHKQuotesByCodes,
   getAllUSQuotesByCodes,
