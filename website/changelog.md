@@ -2,6 +2,18 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.6.1](https://www.npmjs.com/package/stock-sdk/v/1.6.1)** (2026-01-25)
+
+### 新增功能
+
+**防频控机制**
+- 新增请求限流器（`rateLimit`）：基于令牌桶算法，支持配置每秒请求数和突发容量
+- 新增 User-Agent 轮换（`rotateUserAgent`）：仅 Node.js 环境有效，降低被识别为同一客户端的风险
+- 新增熔断器（`circuitBreaker`）：连续失败时自动暂停请求，防止雪崩效应（默认关闭，需显式配置）
+
+**基础设施**
+- 新增通用内存缓存模块，支持 TTL 过期和 LRU 淘汰策略
+
 ## **[1.6.0](https://www.npmjs.com/package/stock-sdk/v/1.6.0)** (2026-01-24)
 
 ### 新增功能

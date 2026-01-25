@@ -19,6 +19,9 @@ const sdk = new StockSDK(options?);
 | `retry` | `RetryOptions` | See below | Retry configuration |
 | `headers` | `Record<string, string>` | - | Custom request headers |
 | `userAgent` | `string` | - | Custom User-Agent (may be ignored in browsers) |
+| `rateLimit` | `RateLimitOptions` | - | Rate limiting (prevent rate limit errors) |
+| `rotateUserAgent` | `boolean` | `false` | Enable UA rotation (Node.js only) |
+| `circuitBreaker` | `CircuitBreakerOptions` | - | Circuit breaker (pause on consecutive failures) |
 
 ### Retry Options (RetryOptions)
 
@@ -33,7 +36,36 @@ const sdk = new StockSDK(options?);
 | `retryOnTimeout` | `boolean` | `true` | Retry on timeout |
 | `onRetry` | `function` | - | Retry callback `(attempt, error, delay) => void` |
 
-### Example
+### Rate Limit Options (RateLimitOptions)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `requestsPerSecond` | `number` | `5` | Maximum requests per second |
+| `maxBurst` | `number` | `= requestsPerSecond` | Token bucket capacity (burst limit) |
+
+::: tip Recommendation
+Configure `requestsPerSecond: 3~5` to avoid triggering Eastmoney's rate limits.
+:::
+
+### Circuit Breaker Options (CircuitBreakerOptions)
+
+::: warning Disabled by Default
+The circuit breaker is **disabled by default** and must be explicitly configured. Recommended for production environments to prevent cascade failures.
+:::
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `failureThreshold` | `number` | `5` | Number of consecutive failures to trigger open state |
+| `resetTimeout` | `number` | `30000` | Time in ms before transitioning to half-open |
+| `halfOpenRequests` | `number` | `1` | Number of probe requests allowed in half-open state |
+| `onStateChange` | `function` | - | State change callback `(from, to) => void` |
+
+**Circuit Breaker States:**
+- **CLOSED**: Normal state, all requests allowed
+- **OPEN**: Circuit is open, all requests rejected with `CircuitBreakerError`
+- **HALF_OPEN**: Allows limited probe requests to test if service recovered
+
+### Full Configuration Example
 
 ```typescript
 const sdk = new StockSDK({
@@ -41,12 +73,32 @@ const sdk = new StockSDK({
   headers: {
     'X-Request-Source': 'my-app',
   },
-  userAgent: 'StockSDK/1.4',
+  userAgent: 'StockSDK/1.6',
+  
+  // Retry configuration
   retry: {
     maxRetries: 5,
     baseDelay: 500,
     onRetry: (attempt, error, delay) => {
       console.log(`Retry ${attempt}, waiting ${delay}ms`);
+    }
+  },
+  
+  // Rate limiting (recommended)
+  rateLimit: {
+    requestsPerSecond: 5,
+    maxBurst: 10,
+  },
+  
+  // UA rotation (Node.js only)
+  rotateUserAgent: true,
+  
+  // Circuit breaker (optional, recommended for production)
+  circuitBreaker: {
+    failureThreshold: 5,
+    resetTimeout: 30000,
+    onStateChange: (from, to) => {
+      console.log(`Circuit breaker: ${from} -> ${to}`);
     }
   }
 });
@@ -94,4 +146,4 @@ const sdk = new StockSDK({
 - [Search](/en/api/search)
 - [Batch Query](/en/api/batch)
 - [Extended Data](/en/api/fund-flow) (Fund Flow, Trading Calendar, etc.)
-
+- [Dividend Details](/en/api/dividend)

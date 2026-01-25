@@ -38,13 +38,45 @@ const sdk = new StockSDK({
   retry: {
     maxRetries: 5,       // 最大重试次数
     baseDelay: 1000,     // 初始退避延迟
-  }
+  },
+  // 限流配置（防止请求过快被频控）
+  rateLimit: {
+    requestsPerSecond: 5, // 每秒最多 5 个请求
+    maxBurst: 10,         // 允许的突发请求数
+  },
+  // 是否启用 UA 轮换（仅 Node.js 有效）
+  rotateUserAgent: true,
 });
 ```
 
 > 建议在应用中复用同一个 `StockSDK` 实例，减少重复初始化。
 > 
 > 详细的重试配置请参考 [错误处理与重试](/guide/retry)。
+
+::: tip 防频控建议
+如果你遇到东方财富接口频繁返回错误，建议：
+1. 配置 `rateLimit` 限制请求速率（推荐 3-5 次/秒）
+2. 在 Node.js 环境下启用 `rotateUserAgent` 轮换 User-Agent
+3. 对于批量请求，适当降低 `concurrency` 并发数
+4. 配置 `circuitBreaker` 熔断器，连续失败时自动暂停请求
+:::
+
+#### 熔断器配置
+
+当连续多次请求失败时，熔断器会自动暂停请求，避免雪崩效应：
+
+```typescript
+const sdk = new StockSDK({
+  circuitBreaker: {
+    failureThreshold: 5,   // 连续失败 5 次后触发熔断
+    resetTimeout: 30000,   // 熔断 30 秒后尝试恢复
+    halfOpenRequests: 1,   // 半开状态允许 1 个探测请求
+    onStateChange: (from, to) => {
+      console.log(`熔断器状态: ${from} -> ${to}`);
+    }
+  }
+});
+```
 
 ### 2. 获取股票行情
 

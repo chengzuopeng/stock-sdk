@@ -38,13 +38,45 @@ const sdk = new StockSDK({
   retry: {
     maxRetries: 5,       // Maximum retry attempts
     baseDelay: 1000,     // Initial backoff delay
-  }
+  },
+  // Rate limiting (prevent rate limiting errors)
+  rateLimit: {
+    requestsPerSecond: 5, // Max 5 requests per second
+    maxBurst: 10,         // Allow burst of 10 requests
+  },
+  // Enable UA rotation (Node.js only)
+  rotateUserAgent: true,
 });
 ```
 
 > It's recommended to reuse the same `StockSDK` instance to reduce repeated initialization.
 > 
 > See [Error Handling & Retry](/en/guide/retry) for detailed retry configuration.
+
+::: tip Rate Limiting Tips
+If you encounter frequent errors from Eastmoney APIs:
+1. Configure `rateLimit` to limit request rate (recommended: 3-5 req/sec)
+2. Enable `rotateUserAgent` in Node.js to rotate User-Agent
+3. Reduce `concurrency` for batch requests
+4. Configure `circuitBreaker` to auto-pause on consecutive failures
+:::
+
+#### Circuit Breaker Configuration
+
+When consecutive requests fail, the circuit breaker automatically pauses requests to prevent cascade failures:
+
+```typescript
+const sdk = new StockSDK({
+  circuitBreaker: {
+    failureThreshold: 5,   // Open after 5 consecutive failures
+    resetTimeout: 30000,   // Try recovery after 30 seconds
+    halfOpenRequests: 1,   // Allow 1 probe request in half-open state
+    onStateChange: (from, to) => {
+      console.log(`Circuit breaker: ${from} -> ${to}`);
+    }
+  }
+});
+```
 
 ### 2. Get Stock Quotes
 

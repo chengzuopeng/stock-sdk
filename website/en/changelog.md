@@ -2,13 +2,24 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.6.1](https://www.npmjs.com/package/stock-sdk/v/1.6.1)** (2026-01-25)
+
+### New Features
+
+**Rate Limiting & Protection**
+- Added request rate limiter (`rateLimit`): Token bucket algorithm with configurable requests per second and burst capacity
+- Added User-Agent rotation (`rotateUserAgent`): Node.js only, reduces risk of being identified as the same client
+- Added circuit breaker (`circuitBreaker`): Automatically pauses requests on consecutive failures to prevent cascade failures (disabled by default, requires explicit configuration)
+
+**Infrastructure**
+- Added general-purpose memory cache module with TTL expiration and LRU eviction
+
 ## **[1.6.0](https://www.npmjs.com/package/stock-sdk/v/1.6.0)** (2026-01-24)
 
 ### New Features
 
 **Dividend Data**
 - Added A-share dividend details API `getDividendDetail`, supporting historical dividend records covering 20+ dimensions including cash dividends, share transfers, financial indicators (EPS, BPS, net profit YoY, etc.), key dates, and distribution progress
-
 
 ## **[1.5.0](https://www.npmjs.com/package/stock-sdk/v/1.5.0)** (2026-01-18)
 
