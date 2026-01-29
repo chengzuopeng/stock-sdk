@@ -6,6 +6,7 @@ import {
   A_SHARE_LIST_URL,
   US_LIST_URL,
   HK_LIST_URL,
+  FUND_LIST_URL,
   chunkArray,
   asyncPool,
   assertPositiveInteger,
@@ -31,6 +32,7 @@ let cachedAShareCodesNoExchange: string[] | null = null;
 let cachedUSCodes: string[] | null = null;
 let cachedUSCodesNoMarket: string[] | null = null;
 let cachedHKCodes: string[] | null = null;
+let cachedFundCodes: string[] | null = null;
 
 /**
  * A 股市场/板块类型
@@ -408,4 +410,36 @@ export async function getAllUSQuotesByCodes(
 
   const results = await asyncPool(tasks, concurrency);
   return results.flat();
+}
+
+/**
+ * 从远程获取基金代码列表
+ * @param client 请求客户端
+ * @returns 基金代码数组（6 位代码）
+ *
+ * @example
+ * const codes = await getFundCodeList(client);
+ * console.log(codes.length); // 26068
+ * console.log(codes.slice(0, 5)); // ['000001', '000002', ...]
+ */
+export async function getFundCodeList(
+  client: RequestClient
+): Promise<string[]> {
+  if (cachedFundCodes) {
+    return cachedFundCodes.slice();
+  }
+
+  // 请求文本格式数据（逗号分隔：日期,代码1,代码2,...）
+  const text = await client.get<string>(FUND_LIST_URL, {
+    responseType: 'text',
+  });
+
+  // 解析：第一个是日期，后面是代码
+  const parts = text.split(',');
+  // 跳过第一个元素（日期），剩余为基金代码
+  const codes = parts.slice(1).filter((code) => code.trim());
+
+  cachedFundCodes = codes;
+
+  return codes.slice();
 }

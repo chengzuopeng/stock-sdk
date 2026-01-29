@@ -148,3 +148,31 @@ const nasdaqPure = await sdk.getUSCodeList({ simple: true, market: 'NASDAQ' });
 - `NYSE` (106) = 纽交所
 - `AMEX` (107) = 美交所/NYSE Arca
 :::
+
+---
+
+## getFundCodeList
+
+获取全部基金代码列表（26000+ 只基金）。
+
+### 签名
+
+```typescript
+getFundCodeList(): Promise<string[]>
+```
+
+### 示例
+
+```typescript
+const codes = await sdk.getFundCodeList();
+
+console.log(codes.length);  // 26068
+console.log(codes.slice(0, 5));  // ['000001', '000002', '000003', '000004', '000005']
+```
+
+::: tip 数据说明
+- 基金代码为 6 位数字
+- 数据每日更新
+- 包含场内基金和场外基金
+:::
+

@@ -2,6 +2,13 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.6.2](https://www.npmjs.com/package/stock-sdk/v/1.6.2)** (2026-01-25)
+
+### 新增功能
+
+**基金数据**
+- 新增 `getFundCodeList` 方法：获取全部基金代码列表（26000+ 只）
+
 ## **[1.6.1](https://www.npmjs.com/package/stock-sdk/v/1.6.1)** (2026-01-25)
 
 ### 新增功能

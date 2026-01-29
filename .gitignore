@@ -47,3 +47,4 @@ website/.vitepress/cache
 *.tgz
 
 AGENT.md
+localdocs

@@ -9,12 +9,13 @@ Stock SDK 是一个为前端与 Node.js 设计的股票行情 TypeScript SDK，�
 - ESM / CommonJS 双格式
 - 完整 TypeScript 类型与单测覆盖
 - 多市场行情与 K 线数据
-- 内置 MA/MACD/BOLL/KDJ/RSI/WR/BIAS/CCI/ATR 指标
-- 资金流向、盘口大单、批量全市场行情
+- 内置 MA/MACD/BOLL/KDJ/RSI/WR/BIAS/CCI/ATR/OBV/ROC/DMI/SAR/KC 指标
+- 内置重试、限流、UA 轮换与熔断保护
+- 资金流向、盘口大单、分红派送、批量全市场行情
 
 **数据来源**
 - 腾讯财经：A 股/指数、港股、美股、基金、资金流向、盘口大单、分时走势
-- 东方财富：A 股/港股/美股历史 K 线、A 股分钟 K 线、行业/概念板块
+- 东方财富：A 股/港股/美股历史 K 线、A 股分钟 K 线、行业/概念板块、分红派送
 
 **运行环境**
 - 浏览器：现代浏览器（Chrome/Safari/Edge/Firefox）
@@ -61,6 +62,9 @@ const sdk = new StockSDK(options?);
 | `retry` | `RetryOptions` | 见下表 | 重试配置 |
 | `headers` | `Record<string, string>` | - | 自定义请求头 |
 | `userAgent` | `string` | - | 自定义 User-Agent（浏览器环境可能被忽略） |
+| `rateLimit` | `RateLimitOptions` | - | 限流配置（防止请求过快被频控） |
+| `rotateUserAgent` | `boolean` | `false` | 是否启用 UA 轮换（仅 Node.js 有效） |
+| `circuitBreaker` | `CircuitBreakerOptions` | - | 熔断器配置（连续失败时暂停请求） |
 
 **RetryOptions**
 | 参数 | 类型 | 默认值 | 说明 |
@@ -74,13 +78,33 @@ const sdk = new StockSDK(options?);
 | `retryOnTimeout` | `boolean` | `true` | 超时是否重试 |
 | `onRetry` | `function` | - | 回调 `(attempt, error, delay) => void` |
 
+**RateLimitOptions**
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `requestsPerSecond` | `number` | `5` | 每秒最大请求数 |
+| `maxBurst` | `number` | `= requestsPerSecond` | 令牌桶容量（允许的突发请求数） |
+
+**CircuitBreakerOptions（默认关闭）**
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `failureThreshold` | `number` | `5` | 连续失败多少次后触发熔断 |
+| `resetTimeout` | `number` | `30000` | 熔断持续时间（毫秒），之后进入半开状态 |
+| `halfOpenRequests` | `number` | `1` | 半开状态允许的探测请求数 |
+| `onStateChange` | `function` | - | 状态变化回调 `(from, to) => void` |
+
+**熔断器状态说明**
+- **CLOSED**：正常状态，允许所有请求
+- **OPEN**：熔断状态，拒绝所有请求，抛出 `CircuitBreakerError`
+- **HALF_OPEN**：半开状态，允许少量请求探测服务是否恢复
+
 ## 错误处理与重试
 - 默认指数退避：`baseDelay * backoffMultiplier^attempt`
 - HTTP 非 2xx 时抛出 `HttpError`
 - 超时错误为 `DOMException` 且 `name === 'AbortError'`
+- 熔断器处于 `OPEN` 时会抛出 `CircuitBreakerError`（需显式开启）
 
 ## 代码格式与数据说明
-- **A 股/指数**：`sh/sz/bj` 前缀，如 `sh000001`
+- **A 股/指数**：6 位数字或 `sh/sz/bj` 前缀，如 `000001` / `sh000001`
 - **港股**：5 位数字，如 `00700`
 - **美股行情查询**：`AAPL` 等
 - **美股 K 线**：`{市场}.{ticker}`，如 `105.AAPL`（105=纳斯达克，106=纽交所，107=其他）
@@ -640,6 +664,93 @@ interface ATRResult {
 }
 ```
 
+### calcOBV
+```ts
+calcOBV(data: OHLCV[], options?: OBVOptions): OBVResult[]
+```
+```ts
+interface OBVOptions {
+  maPeriod?: number; // OBV 均线周期
+}
+
+interface OBVResult {
+  obv: number | null;
+  obvMa: number | null;
+}
+```
+
+### calcROC
+```ts
+calcROC(data: OHLCV[], options?: ROCOptions): ROCResult[]
+```
+```ts
+interface ROCOptions {
+  period?: number;       // 默认 12
+  signalPeriod?: number; // 信号线周期
+}
+
+interface ROCResult {
+  roc: number | null;
+  signal: number | null;
+}
+```
+
+### calcDMI
+```ts
+calcDMI(data: OHLCV[], options?: DMIOptions): DMIResult[]
+```
+```ts
+interface DMIOptions {
+  period?: number;    // 默认 14
+  adxPeriod?: number; // ADX 平滑周期
+}
+
+interface DMIResult {
+  pdi: number | null;
+  mdi: number | null;
+  adx: number | null;
+  adxr: number | null;
+}
+```
+
+### calcSAR
+```ts
+calcSAR(data: OHLCV[], options?: SAROptions): SARResult[]
+```
+```ts
+interface SAROptions {
+  afStart?: number;     // 默认 0.02
+  afIncrement?: number; // 默认 0.02
+  afMax?: number;       // 默认 0.2
+}
+
+interface SARResult {
+  sar: number | null;
+  trend: 1 | -1 | null;
+  ep: number | null;
+  af: number | null;
+}
+```
+
+### calcKC
+```ts
+calcKC(data: OHLCV[], options?: KCOptions): KCResult[]
+```
+```ts
+interface KCOptions {
+  emaPeriod?: number;  // 默认 20
+  atrPeriod?: number;  // 默认 10
+  multiplier?: number; // 默认 2
+}
+
+interface KCResult {
+  mid: number | null;
+  upper: number | null;
+  lower: number | null;
+  width: number | null;
+}
+```
+
 ### addIndicators
 **用途**：为 K 线数组批量添加多个指标（用于图表渲染场景）  
 **签名（文档示例）**
@@ -945,6 +1056,11 @@ interface GetUSCodeListOptions {
 
 > 兼容旧 API：`getUSCodeList(includeMarket?: boolean)`
 
+### getFundCodeList
+```ts
+getFundCodeList(): Promise<string[]>
+```
+
 ### getAllAShareQuotes
 ```ts
 getAllAShareQuotes(options?: {
@@ -1005,6 +1121,38 @@ batchRaw(params: string): Promise<{ key: string; fields: string[] }[]>
 getTradingCalendar(): Promise<string[]>
 ```
 **返回**：交易日期数组（如 `'1990-12-19'`）
+
+### getDividendDetail
+```ts
+getDividendDetail(symbol: string): Promise<DividendDetail[]>
+```
+**返回**：分红派送详情列表（按报告期降序）
+```ts
+interface DividendDetail {
+  code: string;
+  name: string;
+  reportDate: string | null;
+  planNoticeDate: string | null;
+  disclosureDate: string | null;
+  assignTransferRatio: number | null;
+  bonusRatio: number | null;
+  transferRatio: number | null;
+  dividendPretax: number | null;
+  dividendDesc: string | null;
+  dividendYield: number | null;
+  eps: number | null;
+  bps: number | null;
+  capitalReserve: number | null;
+  unassignedProfit: number | null;
+  netProfitYoy: number | null;
+  totalShares: number | null;
+  equityRecordDate: string | null;
+  exDividendDate: string | null;
+  payDate: string | null;
+  assignProgress: string | null;
+  noticeDate: string | null;
+}
+```
 
 ### getFundFlow
 ```ts

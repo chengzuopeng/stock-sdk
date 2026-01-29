@@ -357,6 +357,18 @@ export class StockSDK {
   }
 
   /**
+   * 从远程获取基金代码列表
+   * @returns 基金代码数组（6 位代码）
+   *
+   * @example
+   * const codes = await sdk.getFundCodeList();
+   * console.log(codes.length); // 26068
+   */
+  getFundCodeList(): Promise<string[]> {
+    return tencent.getFundCodeList(this.client);
+  }
+
+  /**
    * 获取全部 A 股实时行情
    * @param options 配置选项
    *

@@ -10,6 +10,7 @@ export const TENCENT_MINUTE_URL = 'https://web.ifzq.gtimg.cn/appstock/app/minute
 export const A_SHARE_LIST_URL = 'https://assets.linkdiary.cn/shares/zh_a_list.json';
 export const US_LIST_URL = 'https://assets.linkdiary.cn/shares/us_list.json';
 export const HK_LIST_URL = 'https://assets.linkdiary.cn/shares/hk_list.json';
+export const FUND_LIST_URL = 'https://assets.linkdiary.cn/shares/fund_list';
 
 // A 股交易日历
 export const TRADE_CALENDAR_URL = 'https://assets.linkdiary.cn/shares/trade-data-list.txt';

@@ -390,6 +390,15 @@ const kcCodes = await sdk.getAShareCodeList({ simple: true, market: 'kc' });
     code: `const codes = await sdk.getHKCodeList();
 console.log(codes[0]);  // '00700'`
   },
+  getFundCodeList: {
+    name: 'getFundCodeList',
+    desc: '获取全部基金代码',
+    category: 'batch',
+    params: [],
+    code: `const codes = await sdk.getFundCodeList();
+console.log(codes.length);  // 26068
+console.log(codes.slice(0, 5));  // ['000001', '000002', ...]`
+  },
   getUSCodeList: {
     name: 'getUSCodeList',
     desc: '获取全部美股代码',
@@ -632,6 +641,10 @@ async function fetchData() {
       }
       case 'getHKCodeList': {
         data = await sdk.value.getHKCodeList()
+        break
+      }
+      case 'getFundCodeList': {
+        data = await sdk.value.getFundCodeList()
         break
       }
       case 'getAllAShareQuotes': {

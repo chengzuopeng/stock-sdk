@@ -2,6 +2,13 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.6.2](https://www.npmjs.com/package/stock-sdk/v/1.6.2)** (2026-01-25)
+
+### New Features
+
+**Fund Data**
+- Added `getFundCodeList` method: Get all fund codes (26000+ funds)
+
 ## **[1.6.1](https://www.npmjs.com/package/stock-sdk/v/1.6.1)** (2026-01-25)
 
 ### New Features
