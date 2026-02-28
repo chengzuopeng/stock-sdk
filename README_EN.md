@@ -55,6 +55,7 @@ If you're a frontend engineer, you may have encountered these problems:
 - ✅ Real-time quotes for **A-shares, HK stocks, US stocks, mutual funds**
 - ✅ **Historical K-line** (daily/weekly/monthly), **minute K-line** (1/5/15/30/60 minutes), and **today's timeline** data
 - ✅ **Technical indicators**: Built-in MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR and more
+- ✅ **Futures data**: Domestic futures K-line, global futures real-time quotes & K-line, futures inventory data
 - ✅ Extended data such as **fund flow**, **large order ratio**
 - ✅ Get full **A-share code list** (5000+ stocks) and batch fetch **whole-market quotes** (with built-in concurrency control)
 
@@ -160,6 +161,17 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 | `getConceptConstituents` | Concept sector constituents |
 | `getConceptKline` | Concept sector historical K-line (daily/weekly/monthly) |
 | `getConceptMinuteKline` | Concept sector minute K-line (1/5/15/30/60 minutes) |
+
+### Futures
+
+| Method | Description |
+|--------|-------------|
+| `getFuturesKline` | Domestic futures historical K-line (daily/weekly/monthly) |
+| `getGlobalFuturesSpot` | Global futures real-time quotes |
+| `getGlobalFuturesKline` | Global futures historical K-line (daily/weekly/monthly) |
+| `getFuturesInventorySymbols` | Futures inventory symbol list |
+| `getFuturesInventory` | Futures inventory data |
+| `getComexInventory` | COMEX gold/silver inventory |
 
 ### Extended Data
 

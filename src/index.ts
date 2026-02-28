@@ -83,4 +83,9 @@ export type {
   IndustryBoardMinuteKlineOptions,
   ConceptBoardKlineOptions,
   ConceptBoardMinuteKlineOptions,
+  FuturesKlineOptions,
+  GlobalFuturesSpotOptions,
+  GlobalFuturesKlineOptions,
+  FuturesInventoryOptions,
+  ComexInventoryOptions,
 } from './providers/eastmoney';

@@ -552,6 +552,117 @@ export type ConceptBoardMinuteTimeline = IndustryBoardMinuteTimeline;
 export type ConceptBoardMinuteKline = IndustryBoardMinuteKline;
 
 /**
+ * 国内期货交易所
+ */
+export type FuturesExchange = 'SHFE' | 'DCE' | 'CZCE' | 'INE' | 'CFFEX' | 'GFEX';
+
+/**
+ * 国内/全球期货历史 K 线
+ */
+export interface FuturesKline {
+  /** 日期 YYYY-MM-DD */
+  date: string;
+  /** 合约代码 */
+  code: string;
+  /** 合约名称 */
+  name: string;
+  /** 开盘价 */
+  open: number | null;
+  /** 收盘价 */
+  close: number | null;
+  /** 最高价 */
+  high: number | null;
+  /** 最低价 */
+  low: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 成交额 */
+  amount: number | null;
+  /** 振幅% */
+  amplitude: number | null;
+  /** 涨跌幅% */
+  changePercent: number | null;
+  /** 涨跌额 */
+  change: number | null;
+  /** 换手率% */
+  turnoverRate: number | null;
+  /** 持仓量（期货特有） */
+  openInterest: number | null;
+}
+
+/**
+ * 全球期货实时行情
+ */
+export interface GlobalFuturesQuote {
+  /** 合约代码，如 HG00Y */
+  code: string;
+  /** 名称，如 COMEX铜 */
+  name: string;
+  /** 最新价 */
+  price: number | null;
+  /** 涨跌额 */
+  change: number | null;
+  /** 涨跌幅% */
+  changePercent: number | null;
+  /** 今开 */
+  open: number | null;
+  /** 最高 */
+  high: number | null;
+  /** 最低 */
+  low: number | null;
+  /** 昨结算价 */
+  prevSettle: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 买盘量 */
+  buyVolume: number | null;
+  /** 卖盘量 */
+  sellVolume: number | null;
+  /** 持仓量 */
+  openInterest: number | null;
+}
+
+/**
+ * 期货库存品种信息
+ */
+export interface FuturesInventorySymbol {
+  /** 品种代码 */
+  code: string;
+  /** 品种名称 */
+  name: string;
+  /** 市场代码 */
+  marketCode: string;
+}
+
+/**
+ * 期货库存数据
+ */
+export interface FuturesInventory {
+  /** 品种代码，如 RB */
+  code: string;
+  /** 日期 */
+  date: string;
+  /** 库存量 */
+  inventory: number | null;
+  /** 增减 */
+  change: number | null;
+}
+
+/**
+ * COMEX 黄金/白银库存
+ */
+export interface ComexInventory {
+  /** 日期 */
+  date: string;
+  /** 品种（黄金/白银） */
+  name: string;
+  /** 库存量（吨） */
+  storageTon: number | null;
+  /** 库存量（盎司） */
+  storageOunce: number | null;
+}
+
+/**
  * 股票搜索结果
  */
 export interface SearchResult {

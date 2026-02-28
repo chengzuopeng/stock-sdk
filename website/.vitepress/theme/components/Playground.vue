@@ -69,6 +69,7 @@ const categories = [
   { key: 'indicator', label: '技术指标', icon: 'lucide:trending-up', color: '#f59e0b' },
   { key: 'search', label: '搜索', icon: 'lucide:search', color: '#ec4899' },
   { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
+  { key: 'futures', label: '期货行情', icon: 'lucide:flame', color: '#f97316' },
   { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
 ]
 
@@ -491,6 +492,84 @@ console.log(\`共获取 \${nyseQuotes.length} 只美股\`);
 console.log(nyseQuotes[0].name);           // 股票名称
 console.log(nyseQuotes[0].price);          // 当前价`
   },
+  getFuturesKline: {
+    name: 'getFuturesKline',
+    desc: '获取国内期货历史 K 线',
+    category: 'futures',
+    params: [
+      { key: 'symbol', label: '合约代码', type: 'text', default: 'RBM', required: true, placeholder: '如 RBM(主连), rb2510(具体合约)' },
+      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
+    ],
+    code: `// 获取螺纹钢主连日 K
+const klines = await sdk.getFuturesKline('RBM');
+console.log(klines[0].date);          // '2026-02-27'
+console.log(klines[0].close);         // 收盘价
+console.log(klines[0].openInterest);  // 持仓量`
+  },
+  getGlobalFuturesSpot: {
+    name: 'getGlobalFuturesSpot',
+    desc: '获取全球期货实时行情',
+    category: 'futures',
+    params: [],
+    code: `const quotes = await sdk.getGlobalFuturesSpot();
+// 返回 600+ 个国际期货品种
+console.log(quotes[0].name);    // COMEX铜
+console.log(quotes[0].code);    // HG00Y
+console.log(quotes[0].price);   // 最新价
+console.log(quotes[0].changePercent);  // 涨跌幅%`
+  },
+  getGlobalFuturesKline: {
+    name: 'getGlobalFuturesKline',
+    desc: '获取全球期货历史 K 线',
+    category: 'futures',
+    params: [
+      { key: 'symbol', label: '合约代码', type: 'text', default: 'HG00Y', required: true, placeholder: '如 HG00Y(COMEX铜), CL00Y(原油)' },
+      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
+      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
+    ],
+    code: `// 获取 COMEX 铜连续日 K 线
+const klines = await sdk.getGlobalFuturesKline('HG00Y');
+console.log(klines[0].date);          // 日期
+console.log(klines[0].close);         // 收盘价
+console.log(klines[0].openInterest);  // 持仓量`
+  },
+  getFuturesInventorySymbols: {
+    name: 'getFuturesInventorySymbols',
+    desc: '获取期货库存品种列表',
+    category: 'futures',
+    params: [],
+    code: `const symbols = await sdk.getFuturesInventorySymbols();
+console.log(symbols[0].code);  // 品种代码
+console.log(symbols[0].name);  // 品种名称`
+  },
+  getFuturesInventory: {
+    name: 'getFuturesInventory',
+    desc: '获取期货库存数据',
+    category: 'futures',
+    params: [
+      { key: 'symbol', label: '品种代码', type: 'text', default: 'RB', required: true, placeholder: '大写，如 RB, AG, CU' },
+      { key: 'startDate', label: '开始日期', type: 'text', default: '2024-01-01', required: false, placeholder: 'YYYY-MM-DD' }
+    ],
+    code: `const inventory = await sdk.getFuturesInventory('RB');
+console.log(inventory[0].date);       // 日期
+console.log(inventory[0].inventory);  // 库存量
+console.log(inventory[0].change);     // 增减`
+  },
+  getComexInventory: {
+    name: 'getComexInventory',
+    desc: '获取 COMEX 黄金/白银库存',
+    category: 'futures',
+    params: [
+      { key: 'symbol', label: '品种', type: 'select', default: 'gold', required: true, options: [{ value: 'gold', label: '黄金' }, { value: 'silver', label: '白银' }] }
+    ],
+    code: `const inventory = await sdk.getComexInventory('gold');
+console.log(inventory[0].date);         // 日期
+console.log(inventory[0].storageTon);   // 库存量(吨)
+console.log(inventory[0].storageOunce); // 库存量(盎司)`
+  },
   getFundFlow: {
     name: 'getFundFlow',
     desc: '获取资金流向',
@@ -764,6 +843,39 @@ async function fetchData() {
           else if (ind === 'atr') options.indicators.atr = true
         })
         data = await sdk.value.getKlineWithIndicators(params.symbol, options)
+        break
+      }
+      // 期货
+      case 'getFuturesKline': {
+        const options: any = { period: params.period }
+        if (params.startDate) options.startDate = params.startDate
+        if (params.endDate) options.endDate = params.endDate
+        data = await sdk.value.getFuturesKline(params.symbol, options)
+        break
+      }
+      case 'getGlobalFuturesSpot': {
+        data = await sdk.value.getGlobalFuturesSpot()
+        break
+      }
+      case 'getGlobalFuturesKline': {
+        const options: any = { period: params.period }
+        if (params.startDate) options.startDate = params.startDate
+        if (params.endDate) options.endDate = params.endDate
+        data = await sdk.value.getGlobalFuturesKline(params.symbol, options)
+        break
+      }
+      case 'getFuturesInventorySymbols': {
+        data = await sdk.value.getFuturesInventorySymbols()
+        break
+      }
+      case 'getFuturesInventory': {
+        const options: any = {}
+        if (params.startDate) options.startDate = params.startDate
+        data = await sdk.value.getFuturesInventory(params.symbol, options)
+        break
+      }
+      case 'getComexInventory': {
+        data = await sdk.value.getComexInventory(params.symbol)
         break
       }
       // 搜索

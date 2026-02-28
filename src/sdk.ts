@@ -32,6 +32,11 @@ import type {
   ConceptBoardMinuteKline,
   SearchResult,
   DividendDetail,
+  FuturesKline,
+  GlobalFuturesQuote,
+  FuturesInventorySymbol,
+  FuturesInventory,
+  ComexInventory,
 } from './types';
 
 
@@ -470,6 +475,104 @@ export class StockSDK {
    */
   getDividendDetail(symbol: string): Promise<DividendDetail[]> {
     return eastmoney.getDividendDetail(this.client, symbol);
+  }
+
+  // ==================== 期货 ====================
+
+  /**
+   * 获取国内期货历史 K 线（日/周/月）
+   * @param symbol - 合约代码，如 'rb2605'（具体合约）或 'RBM'（主连）
+   * @param options - 配置选项
+   * @returns 期货 K 线数据数组
+   *
+   * @example
+   * // 获取螺纹钢主连日K
+   * const klines = await sdk.getFuturesKline('RBM');
+   *
+   * @example
+   * // 获取沪深300期货具体合约周K
+   * const klines = await sdk.getFuturesKline('IF2604', { period: 'weekly' });
+   */
+  getFuturesKline(
+    symbol: string,
+    options?: eastmoney.FuturesKlineOptions
+  ): Promise<FuturesKline[]> {
+    return eastmoney.getFuturesHistoryKline(this.client, symbol, options);
+  }
+
+  /**
+   * 获取全球期货实时行情
+   * @param options - 配置选项
+   * @returns 全球期货行情数组
+   *
+   * @example
+   * const quotes = await sdk.getGlobalFuturesSpot();
+   * console.log(quotes[0].name); // "COMEX铜"
+   */
+  getGlobalFuturesSpot(
+    options?: eastmoney.GlobalFuturesSpotOptions
+  ): Promise<GlobalFuturesQuote[]> {
+    return eastmoney.getGlobalFuturesSpot(this.client, options);
+  }
+
+  /**
+   * 获取全球期货历史 K 线（日/周/月）
+   * @param symbol - 合约代码，如 'HG00Y'（COMEX铜连续）
+   * @param options - 配置选项
+   * @returns 期货 K 线数据数组
+   *
+   * @example
+   * const klines = await sdk.getGlobalFuturesKline('HG00Y');
+   */
+  getGlobalFuturesKline(
+    symbol: string,
+    options?: eastmoney.GlobalFuturesKlineOptions
+  ): Promise<FuturesKline[]> {
+    return eastmoney.getGlobalFuturesKline(this.client, symbol, options);
+  }
+
+  /**
+   * 获取期货库存品种列表
+   * @returns 品种列表（code + name + marketCode）
+   *
+   * @example
+   * const symbols = await sdk.getFuturesInventorySymbols();
+   * console.log(symbols); // [{code: 'rb', name: '螺纹钢', marketCode: '...'}]
+   */
+  getFuturesInventorySymbols(): Promise<FuturesInventorySymbol[]> {
+    return eastmoney.getFuturesInventorySymbols(this.client);
+  }
+
+  /**
+   * 获取期货库存数据
+   * @param symbol - 品种代码（从 getFuturesInventorySymbols 获取）
+   * @param options - 配置选项
+   * @returns 库存数据数组
+   *
+   * @example
+   * const inventory = await sdk.getFuturesInventory('rb');
+   */
+  getFuturesInventory(
+    symbol: string,
+    options?: eastmoney.FuturesInventoryOptions
+  ): Promise<FuturesInventory[]> {
+    return eastmoney.getFuturesInventory(this.client, symbol, options);
+  }
+
+  /**
+   * 获取 COMEX 黄金/白银库存数据
+   * @param symbol - 'gold' 或 'silver'
+   * @param options - 配置选项
+   * @returns COMEX 库存数据数组
+   *
+   * @example
+   * const goldInventory = await sdk.getComexInventory('gold');
+   */
+  getComexInventory(
+    symbol: 'gold' | 'silver',
+    options?: eastmoney.ComexInventoryOptions
+  ): Promise<ComexInventory[]> {
+    return eastmoney.getComexInventory(this.client, symbol, options);
   }
 
   // ==================== 技术指标 ====================

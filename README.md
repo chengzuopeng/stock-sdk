@@ -55,6 +55,7 @@
 - ✅ **A 股、港股、美股、公募基金**实时行情
 - ✅ **历史 K 线**（日/周/月）、**分钟 K 线**（1/5/15/30/60 分钟）和**当日分时走势**数据
 - ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR 等常用指标计算
+- ✅ **期货行情**：国内期货 K 线、全球期货实时行情与 K 线、期货库存数据
 - ✅ **资金流向**、**盘口大单**等扩展数据
 - ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
 
@@ -160,6 +161,17 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 | `getConceptConstituents` | 概念板块成分股 |
 | `getConceptKline` | 概念板块历史 K 线（日/周/月） |
 | `getConceptMinuteKline` | 概念板块分时行情（1/5/15/30/60 分钟） |
+
+### 期货行情
+
+| 方法 | 说明 |
+|------|------|
+| `getFuturesKline` | 国内期货历史 K 线（日/周/月） |
+| `getGlobalFuturesSpot` | 全球期货实时行情 |
+| `getGlobalFuturesKline` | 全球期货历史 K 线（日/周/月） |
+| `getFuturesInventorySymbols` | 期货库存品种列表 |
+| `getFuturesInventory` | 期货库存数据 |
+| `getComexInventory` | COMEX 黄金/白银库存 |
 
 ### 扩展数据
 

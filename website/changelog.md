@@ -2,6 +2,23 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.7.0](https://www.npmjs.com/package/stock-sdk/v/1.7.0)** (2026-02-28)
+
+### 新增功能
+
+**期货行情**
+- 新增国内期货历史 K 线接口 `getFuturesKline`，支持全部国内期货品种（上期所、大商所、郑商所、上海国际能源交易中心、中金所、广期所），支持主连合约（如 `RBM`）和具体合约（如 `rb2510`），支持日/周/月 K 线
+- 新增全球期货实时行情接口 `getGlobalFuturesSpot`，覆盖 COMEX、NYMEX、CBOT、LME 等主要国际期货交易所，支持 600+ 个品种
+- 新增全球期货历史 K 线接口 `getGlobalFuturesKline`，支持日/周/月 K 线
+- 新增期货库存品种列表接口 `getFuturesInventorySymbols`
+- 新增期货库存数据接口 `getFuturesInventory`，支持查询国内各期货品种的历史库存数据
+- 新增 COMEX 黄金/白银库存接口 `getComexInventory`
+
+### 优化
+
+**Playground**
+- 新增期货行情 API 演示
+
 ## **[1.6.2](https://www.npmjs.com/package/stock-sdk/v/1.6.2)** (2026-01-25)
 
 ### 新增功能

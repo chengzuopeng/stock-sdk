@@ -2,6 +2,23 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.7.0](https://www.npmjs.com/package/stock-sdk/v/1.7.0)** (2026-02-28)
+
+### New Features
+
+**Futures Data**
+- Added domestic futures history K-line API `getFuturesKline`, supporting all domestic futures exchanges (SHFE, DCE, CZCE, INE, CFFEX, GFEX), main continuous contracts (e.g. `RBM`) and specific contracts (e.g. `rb2510`), with daily/weekly/monthly periods
+- Added global futures real-time quotes API `getGlobalFuturesSpot`, covering major international exchanges including COMEX, NYMEX, CBOT, LME, etc., with 600+ instruments
+- Added global futures history K-line API `getGlobalFuturesKline`, supporting daily/weekly/monthly periods
+- Added futures inventory symbol list API `getFuturesInventorySymbols`
+- Added futures inventory data API `getFuturesInventory` for querying historical inventory data of domestic futures varieties
+- Added COMEX gold/silver inventory API `getComexInventory`
+
+### Improvements
+
+**Playground**
+- Added futures data API demonstrations
+
 ## **[1.6.2](https://www.npmjs.com/package/stock-sdk/v/1.6.2)** (2026-01-25)
 
 ### New Features

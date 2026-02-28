@@ -41,3 +41,28 @@ export {
 // 分红派送
 export { getDividendDetail } from './dividend';
 
+// 国内期货 K 线
+export {
+  getFuturesHistoryKline,
+  extractVariety,
+  getFuturesMarketCode,
+  type FuturesKlineOptions,
+} from './futuresKline';
+
+// 全球期货
+export {
+  getGlobalFuturesSpot,
+  getGlobalFuturesKline,
+  type GlobalFuturesSpotOptions,
+  type GlobalFuturesKlineOptions,
+} from './futuresGlobal';
+
+// 期货库存
+export {
+  getFuturesInventorySymbols,
+  getFuturesInventory,
+  getComexInventory,
+  type FuturesInventoryOptions,
+  type ComexInventoryOptions,
+} from './futuresInventory';
+

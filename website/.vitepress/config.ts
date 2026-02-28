@@ -83,6 +83,12 @@ const zhSidebar = {
       ],
     },
     {
+      text: '期货行情',
+      items: [
+        { text: '期货行情', link: '/api/futures' },
+      ],
+    },
+    {
       text: '批量与扩展',
       items: [
         { text: '代码列表', link: '/api/code-lists' },
@@ -175,6 +181,12 @@ const enSidebar = {
         { text: 'DMI/ADX', link: '/en/api/indicator-dmi' },
         { text: 'SAR', link: '/en/api/indicator-sar' },
         { text: 'KC', link: '/en/api/indicator-kc' },
+      ],
+    },
+    {
+      text: 'Futures',
+      items: [
+        { text: 'Futures', link: '/en/api/futures' },
       ],
     },
     {
