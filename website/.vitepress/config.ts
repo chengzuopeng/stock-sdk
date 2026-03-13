@@ -89,6 +89,12 @@ const zhSidebar = {
       ],
     },
     {
+      text: '期权数据',
+      items: [
+        { text: '期权数据', link: '/api/options' },
+      ],
+    },
+    {
       text: '批量与扩展',
       items: [
         { text: '代码列表', link: '/api/code-lists' },
@@ -187,6 +193,12 @@ const enSidebar = {
       text: 'Futures',
       items: [
         { text: 'Futures', link: '/en/api/futures' },
+      ],
+    },
+    {
+      text: 'Options',
+      items: [
+        { text: 'Options', link: '/en/api/options' },
       ],
     },
     {

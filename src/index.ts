@@ -88,4 +88,8 @@ export type {
   GlobalFuturesKlineOptions,
   FuturesInventoryOptions,
   ComexInventoryOptions,
+  CFFEXOptionQuotesOptions,
 } from './providers/eastmoney';
+
+// 导出 JSONP 工具（供高级用户直接使用）
+export { jsonpRequest, extractJsonFromJsonp, type JsonpOptions } from './core';

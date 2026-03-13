@@ -725,3 +725,195 @@ export interface DividendDetail {
   /** 最新公告日期 YYYY-MM-DD */
   noticeDate: string | null;
 }
+
+// ==================== 期权 ====================
+
+/**
+ * 中金所股指期权品种代码
+ */
+export type IndexOptionProduct = 'ho' | 'io' | 'mo';
+
+/**
+ * 期权 T 型报价单条数据（看涨 / 看跌共用）
+ */
+export interface OptionTQuote {
+  /** 合约标识，如 io2504C3600 */
+  symbol: string;
+  /** 买量 */
+  buyVolume: number | null;
+  /** 买价 */
+  buyPrice: number | null;
+  /** 最新价 */
+  price: number | null;
+  /** 卖价 */
+  askPrice: number | null;
+  /** 卖量 */
+  askVolume: number | null;
+  /** 持仓量 */
+  openInterest: number | null;
+  /** 涨跌 */
+  change: number | null;
+  /** 行权价（仅看涨合约含此字段，看跌为 null） */
+  strikePrice: number | null;
+}
+
+/**
+ * 期权 T 型报价结果
+ */
+export interface OptionTQuoteResult {
+  /** 看涨合约列表 */
+  calls: OptionTQuote[];
+  /** 看跌合约列表 */
+  puts: OptionTQuote[];
+}
+
+/**
+ * 期权日 K 线
+ */
+export interface OptionKline {
+  /** 日期 YYYY-MM-DD */
+  date: string;
+  /** 开盘价 */
+  open: number | null;
+  /** 最高价 */
+  high: number | null;
+  /** 最低价 */
+  low: number | null;
+  /** 收盘价 */
+  close: number | null;
+  /** 成交量 */
+  volume: number | null;
+}
+
+/**
+ * 期权分钟行情
+ */
+export interface OptionMinute {
+  /** 时间 HH:mm:ss */
+  time: string;
+  /** 日期 YYYY-MM-DD */
+  date: string;
+  /** 价格 */
+  price: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 持仓量 */
+  openInterest: number | null;
+  /** 均价 */
+  avgPrice: number | null;
+}
+
+/**
+ * ETF 期权到期月份信息
+ */
+export interface ETFOptionMonth {
+  /** 到期月份数组 YYYY-MM */
+  months: string[];
+  /** 标的证券代码 */
+  stockId: string;
+  /** 当前品种标识 */
+  cateId: string;
+  /** 可选品种列表 */
+  cateList: string[];
+}
+
+/**
+ * ETF 期权到期日信息
+ */
+export interface ETFOptionExpireDay {
+  /** 到期日 YYYY-MM-DD */
+  expireDay: string;
+  /** 距到期剩余天数 */
+  remainderDays: number;
+  /** 标的证券代码 */
+  stockId: string;
+  /** 标的名称 */
+  name: string;
+}
+
+/**
+ * 上交所 ETF 期权品种
+ */
+export type ETFOptionCate = '50ETF' | '300ETF' | '500ETF' | '科创50' | '科创板50';
+
+/**
+ * 中金所期权实时行情（东方财富）
+ */
+export interface CFFEXOptionQuote {
+  /** 合约代码，如 MO2603-P-8200 */
+  code: string;
+  /** 合约名称 */
+  name: string;
+  /** 最新价 */
+  price: number | null;
+  /** 涨跌额 */
+  change: number | null;
+  /** 涨跌幅% */
+  changePercent: number | null;
+  /** 成交量 */
+  volume: number | null;
+  /** 成交额 */
+  amount: number | null;
+  /** 持仓量 */
+  openInterest: number | null;
+  /** 行权价 */
+  strikePrice: number | null;
+  /** 剩余天数 */
+  remainDays: number | null;
+  /** 日增 */
+  dailyChange: number | null;
+  /** 昨结算价 */
+  prevSettle: number | null;
+  /** 今开 */
+  open: number | null;
+}
+
+/**
+ * 期权龙虎榜条目
+ */
+export interface OptionLHBItem {
+  /** 交易类型（认沽交易量/认沽持仓量/认购交易量/认购持仓量） */
+  tradeType: string;
+  /** 交易日期 YYYY-MM-DD */
+  date: string;
+  /** 标的代码 */
+  symbol: string;
+  /** 标的名称 */
+  targetName: string;
+  /** 会员简称 */
+  memberName: string;
+  /** 排名 */
+  rank: number;
+  /** 卖量 */
+  sellVolume: number | null;
+  /** 卖量变化 */
+  sellVolumeChange: number | null;
+  /** 净卖量 */
+  netSellVolume: number | null;
+  /** 卖量占比 */
+  sellVolumeRatio: number | null;
+  /** 买量 */
+  buyVolume: number | null;
+  /** 买量变化 */
+  buyVolumeChange: number | null;
+  /** 净买量 */
+  netBuyVolume: number | null;
+  /** 买量占比 */
+  buyVolumeRatio: number | null;
+  /** 卖持仓 */
+  sellPosition: number | null;
+  /** 卖持仓变化 */
+  sellPositionChange: number | null;
+  /** 净卖持仓 */
+  netSellPosition: number | null;
+  /** 卖持仓占比 */
+  sellPositionRatio: number | null;
+  /** 买持仓 */
+  buyPosition: number | null;
+  /** 买持仓变化 */
+  buyPositionChange: number | null;
+  /** 净买持仓 */
+  netBuyPosition: number | null;
+  /** 买持仓占比 */
+  buyPositionRatio: number | null;
+}

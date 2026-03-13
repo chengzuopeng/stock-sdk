@@ -2,6 +2,23 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.8.0](https://www.npmjs.com/package/stock-sdk/v/1.8.0)** (2026-03-13)
+
+### 新增功能
+
+**期权数据**
+- 新增中金所股指期权 T 型报价接口 `getIndexOptionSpot`，支持上证50(ho)、沪深300(io)、中证1000(mo)三大品种
+- 新增股指期权合约日 K 线接口 `getIndexOptionKline`
+- 新增中金所全部期权实时行情列表接口 `getCFFEXOptionQuotes`（东方财富数据源）
+- 新增上交所 ETF 期权到期月份列表接口 `getETFOptionMonths`，支持 50ETF、300ETF、500ETF、科创50
+- 新增 ETF 期权到期日与剩余天数接口 `getETFOptionExpireDay`
+- 新增 ETF 期权当日分钟行情接口 `getETFOptionMinute`
+- 新增 ETF 期权历史日 K 线接口 `getETFOptionDailyKline`
+- 新增 ETF 期权 5 日分钟行情接口 `getETFOption5DayMinute`
+- 新增商品期权 T 型报价接口 `getCommodityOptionSpot`，覆盖 30 个品种（黄金、白银、铜、豆粕、白糖等）
+- 新增商品期权合约日 K 线接口 `getCommodityOptionKline`
+- 新增期权龙虎榜接口 `getOptionLHB`
+
 ## **[1.7.0](https://www.npmjs.com/package/stock-sdk/v/1.7.0)** (2026-02-28)
 
 ### 新增功能

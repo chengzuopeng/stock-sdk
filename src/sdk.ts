@@ -3,7 +3,7 @@
  * 统一对外接口，组合各模块
  */
 import { RequestClient, type RequestClientOptions } from './core';
-import { tencent, eastmoney } from './providers';
+import { tencent, eastmoney, sina } from './providers';
 import { addIndicators, type IndicatorOptions, type KlineWithIndicators } from './indicators';
 import type {
   FullQuote,
@@ -37,6 +37,15 @@ import type {
   FuturesInventorySymbol,
   FuturesInventory,
   ComexInventory,
+  IndexOptionProduct,
+  OptionTQuoteResult,
+  OptionKline,
+  ETFOptionCate,
+  ETFOptionMonth,
+  ETFOptionExpireDay,
+  OptionMinute,
+  CFFEXOptionQuote,
+  OptionLHBItem,
 } from './types';
 
 
@@ -573,6 +582,135 @@ export class StockSDK {
     options?: eastmoney.ComexInventoryOptions
   ): Promise<ComexInventory[]> {
     return eastmoney.getComexInventory(this.client, symbol, options);
+  }
+
+  // ==================== 期权 ====================
+
+  /**
+   * 获取中金所股指期权 T 型报价（看涨 + 看跌）
+   * @param product - 品种代码 'ho'(上证50) / 'io'(沪深300) / 'mo'(中证1000)
+   * @param contract - 合约代码，如 'io2504'
+   *
+   * @example
+   * const spot = await sdk.getIndexOptionSpot('io', 'io2504');
+   * console.log(spot.calls[0].strikePrice); // 行权价
+   */
+  getIndexOptionSpot(
+    product: IndexOptionProduct,
+    contract: string
+  ): Promise<OptionTQuoteResult> {
+    return sina.getIndexOptionSpot(product, contract);
+  }
+
+  /**
+   * 获取中金所股指期权合约日 K 线
+   * @param symbol - 合约代码（含看涨/看跌标识），如 'io2504C3600'
+   *
+   * @example
+   * const klines = await sdk.getIndexOptionKline('io2504C3600');
+   */
+  getIndexOptionKline(symbol: string): Promise<OptionKline[]> {
+    return sina.getIndexOptionKline(symbol);
+  }
+
+  /**
+   * 获取中金所全部期权实时行情列表
+   *
+   * @example
+   * const quotes = await sdk.getCFFEXOptionQuotes();
+   * console.log(quotes[0].code); // 'MO2603-P-8200'
+   */
+  getCFFEXOptionQuotes(
+    options?: eastmoney.CFFEXOptionQuotesOptions
+  ): Promise<CFFEXOptionQuote[]> {
+    return eastmoney.getCFFEXOptionQuotes(this.client, options);
+  }
+
+  /**
+   * 获取上交所 ETF 期权到期月份列表
+   * @param cate - 品种名称，如 '50ETF', '300ETF'
+   *
+   * @example
+   * const info = await sdk.getETFOptionMonths('50ETF');
+   * console.log(info.months); // ['2026-03', '2026-04', ...]
+   */
+  getETFOptionMonths(cate: ETFOptionCate): Promise<ETFOptionMonth> {
+    return sina.getETFOptionMonths(cate);
+  }
+
+  /**
+   * 获取上交所 ETF 期权到期日与剩余天数
+   * @param cate - 品种名称
+   * @param month - 到期月份 YYYY-MM
+   *
+   * @example
+   * const info = await sdk.getETFOptionExpireDay('50ETF', '2026-03');
+   * console.log(info.remainderDays); // 12
+   */
+  getETFOptionExpireDay(
+    cate: ETFOptionCate,
+    month: string
+  ): Promise<ETFOptionExpireDay> {
+    return sina.getETFOptionExpireDay(cate, month);
+  }
+
+  /**
+   * 获取上交所 ETF 期权当日分钟行情
+   * @param code - 期权代码（纯数字），如 '10009633'
+   */
+  getETFOptionMinute(code: string): Promise<OptionMinute[]> {
+    return sina.getETFOptionMinute(code);
+  }
+
+  /**
+   * 获取上交所 ETF 期权历史日 K 线
+   * @param code - 期权代码（纯数字），如 '10009633'
+   */
+  getETFOptionDailyKline(code: string): Promise<OptionKline[]> {
+    return sina.getETFOptionDailyKline(code);
+  }
+
+  /**
+   * 获取上交所 ETF 期权 5 日分钟行情
+   * @param code - 期权代码（纯数字），如 '10009633'
+   */
+  getETFOption5DayMinute(code: string): Promise<OptionMinute[]> {
+    return sina.getETFOption5DayMinute(code);
+  }
+
+  /**
+   * 获取商品期权 T 型报价
+   * @param variety - 品种代码（如 'au', 'cu', 'SR'）
+   * @param contract - 合约代码，如 'au2506'
+   *
+   * @example
+   * const spot = await sdk.getCommodityOptionSpot('au', 'au2506');
+   */
+  getCommodityOptionSpot(
+    variety: string,
+    contract: string
+  ): Promise<OptionTQuoteResult> {
+    return sina.getCommodityOptionSpot(variety, contract);
+  }
+
+  /**
+   * 获取商品期权合约日 K 线
+   * @param symbol - 合约代码（含看涨/看跌标识），如 'm2409C3200'
+   */
+  getCommodityOptionKline(symbol: string): Promise<OptionKline[]> {
+    return sina.getCommodityOptionKline(symbol);
+  }
+
+  /**
+   * 获取期权龙虎榜
+   * @param symbol - 标的代码 '510050' / '510300' / '159919'
+   * @param date - 交易日期 YYYY-MM-DD
+   *
+   * @example
+   * const lhb = await sdk.getOptionLHB('510050', '2022-01-21');
+   */
+  getOptionLHB(symbol: string, date: string): Promise<OptionLHBItem[]> {
+    return eastmoney.getOptionLHB(this.client, symbol, date);
   }
 
   // ==================== 技术指标 ====================

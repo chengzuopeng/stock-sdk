@@ -98,6 +98,72 @@ export const GLOBAL_FUTURES_MARKET: Record<string, number> = {
   LCPT: 109, LZNT: 109, LALT: 109,
 };
 
+// 新浪期权 API
+export const SINA_OPTION_API_URL =
+  'https://stock.finance.sina.com.cn/futures/api/openapi.php/OptionService.getOptionData';
+export const SINA_OPTION_DAYLINE_URL =
+  'https://stock.finance.sina.com.cn/futures/api/jsonp.php/{callback}/FutureOptionAllService.getOptionDayline';
+export const SINA_SSE_OPTION_LIST_URL =
+  'https://stock.finance.sina.com.cn/futures/api/openapi.php/StockOptionService.getStockName';
+export const SINA_SSE_OPTION_EXPIRE_URL =
+  'https://stock.finance.sina.com.cn/futures/api/openapi.php/StockOptionService.getRemainderDay';
+export const SINA_SSE_OPTION_MINUTE_URL =
+  'https://stock.finance.sina.com.cn/futures/api/openapi.php/StockOptionDaylineService.getOptionMinline';
+export const SINA_SSE_OPTION_DAILY_URL =
+  'https://stock.finance.sina.com.cn/futures/api/jsonp_v2.php/{callback}/StockOptionDaylineService.getSymbolInfo';
+export const SINA_SSE_OPTION_5DAY_URL =
+  'https://stock.finance.sina.com.cn/futures/api/openapi.php/StockOptionDaylineService.getFiveDayLine';
+
+// 东方财富期权 API
+export const EM_OPTION_CFFEX_URL = 'https://futsseapi.eastmoney.com/list/option/221';
+export const EM_OPTION_LHB_URL = 'https://datacenter-web.eastmoney.com/api/data/get';
+export const EM_OPTION_LHB_TOKEN = 'b2884a393a59ad64002292a3e90d46a5';
+
+/**
+ * 中金所股指期权品种 -> product 代码映射
+ */
+export const CFFEX_OPTION_PRODUCT_MAP: Record<string, string> = {
+  ho: '上证50',
+  io: '沪深300',
+  mo: '中证1000',
+};
+
+/**
+ * 商品期权品种 -> { product, exchange } 映射
+ */
+export const COMMODITY_OPTION_MAP: Record<string, { product: string; exchange: string }> = {
+  au: { product: 'au_o', exchange: 'shfe' },
+  ag: { product: 'ag_o', exchange: 'shfe' },
+  cu: { product: 'cu_o', exchange: 'shfe' },
+  al: { product: 'al_o', exchange: 'shfe' },
+  zn: { product: 'zn_o', exchange: 'shfe' },
+  ru: { product: 'ru_o', exchange: 'shfe' },
+  sc: { product: 'sc_o', exchange: 'ine' },
+  m: { product: 'm_o', exchange: 'dce' },
+  c: { product: 'c_o', exchange: 'dce' },
+  i: { product: 'i_o', exchange: 'dce' },
+  p: { product: 'p_o', exchange: 'dce' },
+  pp: { product: 'pp_o', exchange: 'dce' },
+  l: { product: 'l_o', exchange: 'dce' },
+  v: { product: 'v_o', exchange: 'dce' },
+  pg: { product: 'pg_o', exchange: 'dce' },
+  y: { product: 'y_o', exchange: 'dce' },
+  a: { product: 'a_o', exchange: 'dce' },
+  b: { product: 'b_o', exchange: 'dce' },
+  eg: { product: 'eg_o', exchange: 'dce' },
+  eb: { product: 'eb_o', exchange: 'dce' },
+  SR: { product: 'SR_o', exchange: 'czce' },
+  CF: { product: 'CF_o', exchange: 'czce' },
+  TA: { product: 'TA_o', exchange: 'czce' },
+  MA: { product: 'MA_o', exchange: 'czce' },
+  RM: { product: 'RM_o', exchange: 'czce' },
+  OI: { product: 'OI_o', exchange: 'czce' },
+  PK: { product: 'PK_o', exchange: 'czce' },
+  PF: { product: 'PF_o', exchange: 'czce' },
+  SA: { product: 'SA_o', exchange: 'czce' },
+  UR: { product: 'UR_o', exchange: 'czce' },
+};
+
 // 默认配置
 export const DEFAULT_TIMEOUT = 30000;
 export const DEFAULT_BATCH_SIZE = 500;
