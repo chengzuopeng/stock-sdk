@@ -56,6 +56,7 @@
 - ✅ **历史 K 线**（日/周/月）、**分钟 K 线**（1/5/15/30/60 分钟）和**当日分时走势**数据
 - ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR 等常用指标计算
 - ✅ **期货行情**：国内期货 K 线、全球期货实时行情与 K 线、期货库存数据
+- ✅ **期权数据**：中金所股指期权、上交所 ETF 期权、商品期权的报价 / K 线 / 分钟行情
 - ✅ **资金流向**、**盘口大单**等扩展数据
 - ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
 
@@ -172,6 +173,22 @@ console.log(`共获取 ${allQuotes.length} 只股票`);
 | `getFuturesInventorySymbols` | 期货库存品种列表 |
 | `getFuturesInventory` | 期货库存数据 |
 | `getComexInventory` | COMEX 黄金/白银库存 |
+
+### 期权数据
+
+| 方法 | 说明 |
+|------|------|
+| `getIndexOptionSpot` | 中金所股指期权 T 型报价（看涨 + 看跌） |
+| `getIndexOptionKline` | 股指期权合约日 K 线 |
+| `getCFFEXOptionQuotes` | 中金所全部期权实时行情列表 |
+| `getETFOptionMonths` | 上交所 ETF 期权到期月份列表 |
+| `getETFOptionExpireDay` | ETF 期权到期日与剩余天数 |
+| `getETFOptionMinute` | ETF 期权当日分钟行情 |
+| `getETFOptionDailyKline` | ETF 期权历史日 K 线 |
+| `getETFOption5DayMinute` | ETF 期权 5 日分钟行情 |
+| `getCommodityOptionSpot` | 商品期权 T 型报价 |
+| `getCommodityOptionKline` | 商品期权合约日 K 线 |
+| `getOptionLHB` | 期权龙虎榜 |
 
 ### 扩展数据
 

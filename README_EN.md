@@ -56,6 +56,7 @@ If you're a frontend engineer, you may have encountered these problems:
 - ✅ **Historical K-line** (daily/weekly/monthly), **minute K-line** (1/5/15/30/60 minutes), and **today's timeline** data
 - ✅ **Technical indicators**: Built-in MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR and more
 - ✅ **Futures data**: Domestic futures K-line, global futures real-time quotes & K-line, futures inventory data
+- ✅ **Options data**: CFFEX index options, SSE ETF options, commodity options (T-quotes / K-line / minute data)
 - ✅ Extended data such as **fund flow**, **large order ratio**
 - ✅ Get full **A-share code list** (5000+ stocks) and batch fetch **whole-market quotes** (with built-in concurrency control)
 
@@ -172,6 +173,22 @@ console.log(`Fetched ${allQuotes.length} stocks`);
 | `getFuturesInventorySymbols` | Futures inventory symbol list |
 | `getFuturesInventory` | Futures inventory data |
 | `getComexInventory` | COMEX gold/silver inventory |
+
+### Options
+
+| Method | Description |
+|--------|-------------|
+| `getIndexOptionSpot` | CFFEX index option T-quotes (calls + puts) |
+| `getIndexOptionKline` | Index option contract daily K-line |
+| `getCFFEXOptionQuotes` | All CFFEX option real-time quotes |
+| `getETFOptionMonths` | SSE ETF option expiration months |
+| `getETFOptionExpireDay` | ETF option expiration date & remaining days |
+| `getETFOptionMinute` | ETF option intraday minute data |
+| `getETFOptionDailyKline` | ETF option historical daily K-line |
+| `getETFOption5DayMinute` | ETF option 5-day minute data |
+| `getCommodityOptionSpot` | Commodity option T-quotes |
+| `getCommodityOptionKline` | Commodity option contract daily K-line |
+| `getOptionLHB` | Option leaderboard (龙虎榜) |
 
 ### Extended Data
 

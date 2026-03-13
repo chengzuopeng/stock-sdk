@@ -70,6 +70,7 @@ const categories = [
   { key: 'search', label: '搜索', icon: 'lucide:search', color: '#ec4899' },
   { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
   { key: 'futures', label: '期货行情', icon: 'lucide:flame', color: '#f97316' },
+  { key: 'options', label: '期权数据', icon: 'lucide:target', color: '#06b6d4' },
   { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
 ]
 
@@ -570,6 +571,86 @@ console.log(inventory[0].date);         // 日期
 console.log(inventory[0].storageTon);   // 库存量(吨)
 console.log(inventory[0].storageOunce); // 库存量(盎司)`
   },
+  getIndexOptionKline: {
+    name: 'getIndexOptionKline',
+    desc: '获取股指期权合约日 K 线',
+    category: 'options',
+    params: [
+      { key: 'symbol', label: '合约代码', type: 'text', default: 'io2506C4000', required: true, placeholder: '如 io2506C4000' }
+    ],
+    code: `const klines = await sdk.getIndexOptionKline('io2506C4000');
+console.log(klines[0].date);   // 日期
+console.log(klines[0].close);  // 收盘价
+console.log(klines[0].volume); // 成交量`
+  },
+  getCFFEXOptionQuotes: {
+    name: 'getCFFEXOptionQuotes',
+    desc: '获取中金所全部期权实时行情',
+    category: 'options',
+    params: [],
+    code: `const quotes = await sdk.getCFFEXOptionQuotes();
+console.log(quotes[0].code);           // 合约代码
+console.log(quotes[0].price);          // 最新价
+console.log(quotes[0].strikePrice);    // 行权价
+console.log(quotes[0].remainDays);     // 剩余天数`
+  },
+  getETFOptionMonths: {
+    name: 'getETFOptionMonths',
+    desc: '获取 ETF 期权到期月份列表',
+    category: 'options',
+    params: [
+      { key: 'cate', label: '品种', type: 'select', default: '50ETF', required: true, options: [{ value: '50ETF', label: '50ETF' }, { value: '300ETF', label: '300ETF' }, { value: '500ETF', label: '500ETF' }, { value: '科创50', label: '科创50' }] }
+    ],
+    code: `const info = await sdk.getETFOptionMonths('50ETF');
+console.log(info.months);   // 到期月份
+console.log(info.stockId);  // 标的代码`
+  },
+  getETFOptionExpireDay: {
+    name: 'getETFOptionExpireDay',
+    desc: '获取 ETF 期权到期日信息',
+    category: 'options',
+    params: [
+      { key: 'cate', label: '品种', type: 'select', default: '50ETF', required: true, options: [{ value: '50ETF', label: '50ETF' }, { value: '300ETF', label: '300ETF' }] },
+      { key: 'month', label: '到期月份', type: 'text', default: '2026-06', required: true, placeholder: '格式 YYYY-MM' }
+    ],
+    code: `const info = await sdk.getETFOptionExpireDay('50ETF', '2026-06');
+console.log(info.expireDay);      // 到期日
+console.log(info.remainderDays);  // 剩余天数`
+  },
+  getETFOptionDailyKline: {
+    name: 'getETFOptionDailyKline',
+    desc: '获取 ETF 期权历史日 K 线',
+    category: 'options',
+    params: [
+      { key: 'code', label: '期权代码', type: 'text', default: '10009633', required: true, placeholder: '纯数字' }
+    ],
+    code: `const klines = await sdk.getETFOptionDailyKline('10009633');
+console.log(klines[0].date);   // 日期
+console.log(klines[0].close);  // 收盘价`
+  },
+  getCommodityOptionKline: {
+    name: 'getCommodityOptionKline',
+    desc: '获取商品期权合约日 K 线',
+    category: 'options',
+    params: [
+      { key: 'symbol', label: '合约代码', type: 'text', default: 'm2509C3200', required: true, placeholder: '如 m2509C3200' }
+    ],
+    code: `const klines = await sdk.getCommodityOptionKline('m2509C3200');
+console.log(klines[0].date);   // 日期
+console.log(klines[0].close);  // 收盘价`
+  },
+  getOptionLHB: {
+    name: 'getOptionLHB',
+    desc: '获取期权龙虎榜',
+    category: 'options',
+    params: [
+      { key: 'symbol', label: '标的代码', type: 'text', default: '510050', required: true, placeholder: '如 510050' },
+      { key: 'date', label: '交易日期', type: 'text', default: '2022-01-21', required: true, placeholder: 'YYYY-MM-DD' }
+    ],
+    code: `const lhb = await sdk.getOptionLHB('510050', '2022-01-21');
+console.log(lhb[0].memberName);  // 会员简称
+console.log(lhb[0].rank);        // 排名`
+  },
   getFundFlow: {
     name: 'getFundFlow',
     desc: '获取资金流向',
@@ -876,6 +957,35 @@ async function fetchData() {
       }
       case 'getComexInventory': {
         data = await sdk.value.getComexInventory(params.symbol)
+        break
+      }
+      // 期权
+      case 'getIndexOptionKline': {
+        data = await sdk.value.getIndexOptionKline(params.symbol)
+        break
+      }
+      case 'getCFFEXOptionQuotes': {
+        data = await sdk.value.getCFFEXOptionQuotes()
+        break
+      }
+      case 'getETFOptionMonths': {
+        data = await sdk.value.getETFOptionMonths(params.cate)
+        break
+      }
+      case 'getETFOptionExpireDay': {
+        data = await sdk.value.getETFOptionExpireDay(params.cate, params.month)
+        break
+      }
+      case 'getETFOptionDailyKline': {
+        data = await sdk.value.getETFOptionDailyKline(params.code)
+        break
+      }
+      case 'getCommodityOptionKline': {
+        data = await sdk.value.getCommodityOptionKline(params.symbol)
+        break
+      }
+      case 'getOptionLHB': {
+        data = await sdk.value.getOptionLHB(params.symbol, params.date)
         break
       }
       // 搜索

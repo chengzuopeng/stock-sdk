@@ -57,6 +57,15 @@ export {
   type GlobalFuturesKlineOptions,
 } from './futuresGlobal';
 
+// 中金所期权实时行情
+export {
+  getCFFEXOptionQuotes,
+  type CFFEXOptionQuotesOptions,
+} from './optionCffex';
+
+// 期权龙虎榜
+export { getOptionLHB } from './optionLhb';
+
 // 期货库存
 export {
   getFuturesInventorySymbols,

@@ -2,6 +2,23 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.8.0](https://www.npmjs.com/package/stock-sdk/v/1.8.0)** (2026-03-13)
+
+### New Features
+
+**Options Data**
+- Added CFFEX index option T-quote API `getIndexOptionSpot`, supporting SSE 50 (ho), CSI 300 (io), CSI 1000 (mo)
+- Added index option contract daily K-line API `getIndexOptionKline`
+- Added all CFFEX option real-time quotes API `getCFFEXOptionQuotes` (Eastmoney data source)
+- Added SSE ETF option expiration month list API `getETFOptionMonths`, supporting 50ETF, 300ETF, 500ETF, STAR 50
+- Added ETF option expiration date & remaining days API `getETFOptionExpireDay`
+- Added ETF option intraday minute data API `getETFOptionMinute`
+- Added ETF option historical daily K-line API `getETFOptionDailyKline`
+- Added ETF option 5-day minute data API `getETFOption5DayMinute`
+- Added commodity option T-quote API `getCommodityOptionSpot`, covering 30 varieties (gold, silver, copper, soybean meal, sugar, etc.)
+- Added commodity option contract daily K-line API `getCommodityOptionKline`
+- Added option leaderboard API `getOptionLHB`
+
 ## **[1.7.0](https://www.npmjs.com/package/stock-sdk/v/1.7.0)** (2026-02-28)
 
 ### New Features
