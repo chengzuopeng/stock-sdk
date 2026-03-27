@@ -13,6 +13,9 @@ hero:
       text: Get Started
       link: /en/guide/getting-started
     - theme: alt
+      text: AI / MCP
+      link: /en/mcp/
+    - theme: alt
       text: Playground
       link: /en/playground/
     - theme: alt
@@ -23,6 +26,10 @@ hero:
       link: https://github.com/chengzuopeng/stock-sdk
 
 features:
+  - icon:
+      src: /icons/brain.svg
+    title: AI / MCP Ready
+    details: Companion MCP Server — one command to integrate with Cursor / Claude / Gemini and 4 built-in quantitative analysis Skills
   - icon:
       src: /icons/rocket.svg
     title: Zero Dependencies
@@ -87,6 +94,29 @@ If you're a frontend engineer, you may have encountered these problems:
 **Stock SDK's goal is simple:**
 
 > Let frontend engineers elegantly get stock quote data using familiar JavaScript / TypeScript.
+
+## 🤖 AI Tool Integration
+
+One command to give your AI assistant real-time stock data capabilities:
+
+```json
+{
+  "mcpServers": {
+    "stock-sdk": {
+      "command": "npx",
+      "args": ["-y", "stock-sdk-mcp"]
+    }
+  }
+}
+```
+
+After configuration, ask directly in Cursor / Claude:
+
+- "Analyze Tencent's recent MACD trend"
+- "Find the top 10 STAR Market stocks by gain today"
+- "Check my portfolio P&L"
+
+👉 [Full MCP setup guide](/en/mcp/installation) | 📖 [Learn about AI Skills](/en/mcp/skills)
 
 ## 🎯 Use Cases
 

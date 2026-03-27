@@ -4,6 +4,8 @@
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
 [![Test Coverage](https://img.shields.io/badge/coverage-95.88%25-brightgreen.svg)](https://github.com/chengzuopeng/stock-sdk)
+[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://www.npmjs.com/package/stock-sdk-mcp)
+[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/en/mcp/)
 
 English | **[中文](./README.md)**
 
@@ -59,6 +61,7 @@ If you're a frontend engineer, you may have encountered these problems:
 - ✅ **Options data**: CFFEX index options, SSE ETF options, commodity options (T-quotes / K-line / minute data)
 - ✅ Extended data such as **fund flow**, **large order ratio**
 - ✅ Get full **A-share code list** (5000+ stocks) and batch fetch **whole-market quotes** (with built-in concurrency control)
+- ✅ **AI / MCP Ready** — Companion [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server, one command to integrate with Cursor / Claude / Gemini and more
 
 ## Installation
 
@@ -103,6 +106,37 @@ const allQuotes = await sdk.getAllAShareQuotes({
 
 console.log(`Fetched ${allQuotes.length} stocks`);
 ```
+
+## 🤖 AI / MCP Integration
+
+Stock SDK comes with a companion MCP Server ([stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp)) for seamless integration with popular AI tools:
+
+| AI Tool | Configuration |
+|---------|---------------|
+| Cursor | `~/.cursor/mcp.json` |
+| Claude Desktop | `claude_desktop_config.json` |
+| OpenClaw | `~/.clawdbot/config.yaml` |
+| Codex CLI | `~/.codex/config.json` |
+| Gemini CLI | `~/.gemini/settings.json` |
+
+**Configuration example:**
+
+```json
+{
+  "mcpServers": {
+    "stock-sdk": {
+      "command": "npx",
+      "args": ["-y", "stock-sdk-mcp"]
+    }
+  }
+}
+```
+
+**4 built-in AI Skills:** Technical Analysis / Smart Screener / Market Overview / Real-time Monitor
+
+👉 [Full MCP Documentation](https://stock-sdk.linkdiary.cn/en/mcp/)
+
+---
 
 ## API List
 

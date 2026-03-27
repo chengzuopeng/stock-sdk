@@ -4,6 +4,8 @@
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
 [![Test Coverage](https://img.shields.io/badge/coverage-95.88%25-brightgreen.svg)](https://github.com/chengzuopeng/stock-sdk)
+[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://www.npmjs.com/package/stock-sdk-mcp)
+[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/mcp/)
 
 **[English](./README_EN.md)** | 中文
 
@@ -59,6 +61,7 @@
 - ✅ **期权数据**：中金所股指期权、上交所 ETF 期权、商品期权的报价 / K 线 / 分钟行情
 - ✅ **资金流向**、**盘口大单**等扩展数据
 - ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
+- ✅ **AI / MCP 就绪** — 配套 [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server，一行命令接入 Cursor / Claude / Gemini 等 AI 工具
 
 ## 安装
 
@@ -103,6 +106,37 @@ const allQuotes = await sdk.getAllAShareQuotes({
 
 console.log(`共获取 ${allQuotes.length} 只股票`);
 ```
+
+## 🤖 AI / MCP 集成
+
+Stock SDK 配套 MCP Server（[stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp)），可一键接入主流 AI 工具：
+
+| AI 工具 | 配置方式 |
+|---------|---------|
+| Cursor | `~/.cursor/mcp.json` |
+| Claude Desktop | `claude_desktop_config.json` |
+| OpenClaw | `~/.clawdbot/config.yaml` |
+| Codex CLI | `~/.codex/config.json` |
+| Gemini CLI | `~/.gemini/settings.json` |
+
+**配置示例：**
+
+```json
+{
+  "mcpServers": {
+    "stock-sdk": {
+      "command": "npx",
+      "args": ["-y", "stock-sdk-mcp"]
+    }
+  }
+}
+```
+
+**内置 4 个专业 AI Skills：** 技术分析 / 智能选股 / 市场概览 / 实时监控
+
+👉 [完整 MCP 文档](https://stock-sdk.linkdiary.cn/mcp/)
+
+---
 
 ## API 列表
 

@@ -4,6 +4,36 @@ import faroUploader from '@grafana/faro-rollup-plugin'
 
 const base = process.env.DOCS_BASE || '/'
 
+// MCP 中文侧边栏配置
+const zhMcpSidebar = {
+  '/mcp/': [
+    {
+      text: 'MCP 与 AI 能力',
+      items: [
+        { text: '概述', link: '/mcp/' },
+        { text: '安装配置', link: '/mcp/installation' },
+        { text: '工具与资源', link: '/mcp/tools' },
+        { text: 'AI Skills 技能', link: '/mcp/skills' },
+      ],
+    },
+  ],
+}
+
+// MCP 英文侧边栏配置
+const enMcpSidebar = {
+  '/en/mcp/': [
+    {
+      text: 'MCP & AI',
+      items: [
+        { text: 'Overview', link: '/en/mcp/' },
+        { text: 'Installation', link: '/en/mcp/installation' },
+        { text: 'Tools & Resources', link: '/en/mcp/tools' },
+        { text: 'AI Skills', link: '/en/mcp/skills' },
+      ],
+    },
+  ],
+}
+
 // 中文侧边栏配置
 const zhSidebar = {
   '/guide/': [
@@ -239,11 +269,12 @@ export default defineConfig({
         nav: [
           { text: '指南', link: '/guide/getting-started' },
           { text: 'API', link: '/api' },
+          { text: 'MCP / AI', link: '/mcp/' },
           { text: 'Playground', link: '/playground' },
           { text: 'Demo', link: 'https://chengzuopeng.github.io/stock-dashboard/' },
           { text: '更新日志', link: '/changelog' },
         ],
-        sidebar: zhSidebar,
+        sidebar: { ...zhSidebar, ...zhMcpSidebar },
         outline: {
           level: [2, 3],
           label: '页面导航',
@@ -289,11 +320,12 @@ export default defineConfig({
         nav: [
           { text: 'Guide', link: '/en/guide/getting-started' },
           { text: 'API', link: '/en/api' },
+          { text: 'MCP / AI', link: '/en/mcp/' },
           { text: 'Playground', link: '/en/playground' },
           { text: 'Demo', link: 'https://chengzuopeng.github.io/stock-dashboard/' },
           { text: 'Changelog', link: '/en/changelog' },
         ],
-        sidebar: enSidebar,
+        sidebar: { ...enSidebar, ...enMcpSidebar },
         outline: {
           level: [2, 3],
           label: 'On this page',
