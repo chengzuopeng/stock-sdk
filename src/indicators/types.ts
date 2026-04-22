@@ -75,6 +75,11 @@ export interface IndicatorOptions {
   bias?: BIASOptions | boolean;
   cci?: CCIOptions | boolean;
   atr?: ATROptions | boolean;
+  obv?: OBVOptions | boolean;
+  roc?: ROCOptions | boolean;
+  dmi?: DMIOptions | boolean;
+  sar?: SAROptions | boolean;
+  kc?: KCOptions | boolean;
 }
 
 // ========== 输出类型 ==========

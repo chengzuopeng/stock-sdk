@@ -67,6 +67,11 @@ export type MarketType = 'A' | 'HK' | 'US';
 export class StockSDK {
   private client: RequestClient;
 
+  /**
+   * 创建 Stock SDK 实例。
+   * 旧的全局 `timeout` / `retry` / `rateLimit` / `circuitBreaker` 配置继续有效，
+   * 也可以通过 `providerPolicies` 为不同数据源覆盖请求治理策略而不影响既有 API。
+   */
   constructor(options: RequestClientOptions = {}) {
     this.client = new RequestClient(options);
   }
@@ -825,6 +830,45 @@ export class StockSDK {
           ? options.atr.period
           : 14;
       maxLookback = Math.max(maxLookback, period);
+    }
+
+    // OBV
+    if (options.obv) {
+      const maPeriod =
+        typeof options.obv === 'object' && options.obv.maPeriod
+          ? options.obv.maPeriod
+          : 0;
+      maxLookback = Math.max(maxLookback, Math.max(2, maPeriod));
+    }
+
+    // ROC
+    if (options.roc) {
+      const cfg = typeof options.roc === 'object' ? options.roc : {};
+      const period = cfg.period ?? 12;
+      const signalPeriod = cfg.signalPeriod ?? 0;
+      maxLookback = Math.max(maxLookback, period + signalPeriod);
+    }
+
+    // DMI
+    if (options.dmi) {
+      const cfg = typeof options.dmi === 'object' ? options.dmi : {};
+      const period = cfg.period ?? 14;
+      const adxPeriod = cfg.adxPeriod ?? period;
+      maxLookback = Math.max(maxLookback, period * 2 + adxPeriod);
+    }
+
+    // SAR
+    if (options.sar) {
+      maxLookback = Math.max(maxLookback, 5);
+    }
+
+    // KC
+    if (options.kc) {
+      const cfg = typeof options.kc === 'object' ? options.kc : {};
+      const emaPeriod = cfg.emaPeriod ?? 20;
+      const atrPeriod = cfg.atrPeriod ?? 10;
+      maxLookback = Math.max(maxLookback, Math.max(emaPeriod * 3, atrPeriod));
+      hasEmaBasedIndicator = true;
     }
 
     const buffer = hasEmaBasedIndicator ? 1.5 : 1.2;

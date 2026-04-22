@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Stock SDK
-  text: Frontend Stock Quote SDK
-  tagline: Zero-dependency, lightweight SDK for browser and Node.js to get real-time quotes and K-line data for A-Share / HK / US stocks and funds
+  text: Stock Market SDK for Browser and Node.js
+  tagline: Zero dependencies, Lightweight distribution, and a single API for quotes, K-line, indicators, futures, options, and AI / MCP workflows
   image:
     src: /logo.svg
     alt: Stock SDK
@@ -13,47 +13,47 @@ hero:
       text: Get Started
       link: /en/guide/getting-started
     - theme: alt
+      text: API Docs
+      link: /en/api
+    - theme: alt
       text: AI / MCP
       link: /en/mcp/
     - theme: alt
       text: Playground
       link: /en/playground/
     - theme: alt
-      text: Stock Dashboard
-      link: https://chengzuopeng.github.io/stock-dashboard/
-    - theme: alt
       text: GitHub
       link: https://github.com/chengzuopeng/stock-sdk
 
 features:
   - icon:
-      src: /icons/brain.svg
-    title: AI / MCP Ready
-    details: Companion MCP Server — one command to integrate with Cursor / Claude / Gemini and 4 built-in quantitative analysis Skills
-  - icon:
       src: /icons/rocket.svg
     title: Zero Dependencies
-    details: Pure TypeScript, no third-party dependencies, < 20KB minified
+    details: Pure TypeScript implementation with zero runtime dependencies and a lightweight distribution for browser and Node.js
   - icon:
       src: /icons/globe.svg
-    title: Dual Runtime
-    details: Supports both browser and Node.js 18+, ESM / CJS dual format
+    title: Multi-market Coverage
+    details: Covers A-share, HK, US, mutual funds, domestic futures, global futures, and multiple option workflows
   - icon:
       src: /icons/chart-bar.svg
-    title: Multi-Market
-    details: A-Share, HK, US stocks and mutual funds real-time quotes and historical K-line data
+    title: From Quotes to Analysis
+    details: Real-time quotes, K-line, timeline, sector data, dividend details, trading calendar, and batch APIs
   - icon:
       src: /icons/trending-up.svg
-    title: Technical Indicators
-    details: Built-in MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR and more
+    title: Built-in Indicators
+    details: Includes MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR, OBV, ROC, DMI, SAR, and KC
+  - icon:
+      src: /icons/brain.svg
+    title: AI / MCP Ready
+    details: Ships with a companion MCP Server for Cursor, Claude, Gemini, and other agent workflows
   - icon:
       src: /icons/coins.svg
-    title: Extended Data
-    details: Fund flow, large order ratio, batch market quotes and more
+    title: Request Governance
+    details: Supports retry, rateLimit, circuitBreaker, and providerPolicies for provider-level request control
   - icon:
       src: /icons/code.svg
     title: TypeScript
-    details: Complete type definitions, smart hints, excellent DX
+    details: Complete typings and the same API shape across browser and Node.js use cases
 ---
 
 <style>
@@ -67,66 +67,54 @@ features:
 }
 </style>
 
-## 📦 Get Stock Quotes in 10 Lines
+## Get Quotes in 10 Lines
 
-```typescript
+```ts
 import { StockSDK } from 'stock-sdk';
 
 const sdk = new StockSDK();
-
-// Get A-Share real-time quotes
 const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
 
-quotes.forEach(q => {
-  console.log(`${q.name}: ${q.price} (${q.changePercent}%)`);
+quotes.forEach((item) => {
+  console.log(`${item.name}: ${item.price} (${item.changePercent}%)`);
 });
 ```
 
-## 🌟 Why Stock SDK?
+## Apply Provider-level Governance
 
-If you're a frontend engineer, you may have encountered these problems:
-
-- Most stock tools are **Python ecosystem**, hard to use directly in frontend
-- Want to build a quote dashboard / demo without maintaining a backend
-- Financial APIs return messy formats, complex encoding (GBK / concurrency / batch)
-- AkShare is powerful, but not suitable for browser or Node.js projects
-
-**Stock SDK's goal is simple:**
-
-> Let frontend engineers elegantly get stock quote data using familiar JavaScript / TypeScript.
-
-## 🤖 AI Tool Integration
-
-One command to give your AI assistant real-time stock data capabilities:
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
+```ts
+const sdk = new StockSDK({
+  timeout: 8000,
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      rateLimit: {
+        requestsPerSecond: 3,
+        maxBurst: 3,
+      },
+    },
+    tencent: {
+      rateLimit: {
+        requestsPerSecond: 8,
+        maxBurst: 16,
+      },
+    },
+  },
+});
 ```
 
-After configuration, ask directly in Cursor / Claude:
+## Good Fits
 
-- "Analyze Tencent's recent MACD trend"
-- "Find the top 10 STAR Market stocks by gain today"
-- "Check my portfolio P&L"
+- Frontend quote dashboards and charting
+- Node.js scheduled jobs and trading-day workflows
+- Quant prototypes and indicator analysis
+- Futures, options, and dividend event dashboards
+- AI agents that need live market data through MCP
 
-👉 [Full MCP setup guide](/en/mcp/installation) | 📖 [Learn about AI Skills](/en/mcp/skills)
+## Continue Reading
 
-## 🎯 Use Cases
-
-- 📊 Stock quote dashboard ([Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/))
-- 📈 Data visualization (ECharts / TradingView)
-- 🎓 Stock / finance course demos
-- 🧪 Quantitative strategy prototyping (JS / Node)
-- 🕒 Node.js scheduled quote fetching
-
----
-
-🌐 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 🎮 [Playground](https://stock-sdk.linkdiary.cn/playground)
-
+- [Quick Start](/en/guide/getting-started)
+- [Request Governance](/en/guide/request-governance)
+- [Futures & Options](/en/guide/futures-options)
+- [Dividend & Calendar](/en/guide/dividend-calendar)
+- [API Overview](/en/api/)

@@ -330,7 +330,7 @@ export async function getAllQuotesByCodes(
     return result;
   });
 
-  const results = await asyncPool(tasks, concurrency);
+  const results = await asyncPool(tasks, concurrency, true);
   return results.flat();
 }
 
@@ -369,7 +369,7 @@ export async function getAllHKQuotesByCodes(
     return result;
   });
 
-  const results = await asyncPool(tasks, concurrency);
+  const results = await asyncPool(tasks, concurrency, true);
   return results.flat();
 }
 
@@ -408,7 +408,7 @@ export async function getAllUSQuotesByCodes(
     return result;
   });
 
-  const results = await asyncPool(tasks, concurrency);
+  const results = await asyncPool(tasks, concurrency, true);
   return results.flat();
 }
 

@@ -10,6 +10,11 @@ import {
   BIASResult,
   CCIResult,
   ATRResult,
+  OBVResult,
+  ROCResult,
+  DMIResult,
+  SARResult,
+  KCResult,
 } from './types';
 import { calcMA } from './ma';
 import { calcMACD } from './macd';
@@ -20,6 +25,11 @@ import { calcWR } from './wr';
 import { calcBIAS } from './bias';
 import { calcCCI } from './cci';
 import { calcATR } from './atr';
+import { calcOBV } from './obv';
+import { calcROC } from './roc';
+import { calcDMI } from './dmi';
+import { calcSAR } from './sar';
+import { calcKC } from './kc';
 
 /**
  * 带技术指标的 K 线数据
@@ -34,6 +44,11 @@ export type KlineWithIndicators<T extends HistoryKline | HKUSHistoryKline> = T &
   bias?: BIASResult;
   cci?: CCIResult;
   atr?: ATRResult;
+  obv?: OBVResult;
+  roc?: ROCResult;
+  dmi?: DMIResult;
+  sar?: SARResult;
+  kc?: KCResult;
 };
 
 /**
@@ -83,6 +98,21 @@ export function addIndicators<T extends HistoryKline | HKUSHistoryKline>(
   const atrResult = options.atr
     ? calcATR(ohlcv, typeof options.atr === 'object' ? options.atr : {})
     : null;
+  const obvResult = options.obv
+    ? calcOBV(ohlcv, typeof options.obv === 'object' ? options.obv : {})
+    : null;
+  const rocResult = options.roc
+    ? calcROC(ohlcv, typeof options.roc === 'object' ? options.roc : {})
+    : null;
+  const dmiResult = options.dmi
+    ? calcDMI(ohlcv, typeof options.dmi === 'object' ? options.dmi : {})
+    : null;
+  const sarResult = options.sar
+    ? calcSAR(ohlcv, typeof options.sar === 'object' ? options.sar : {})
+    : null;
+  const kcResult = options.kc
+    ? calcKC(ohlcv, typeof options.kc === 'object' ? options.kc : {})
+    : null;
 
   return klines.map((kline, i) => ({
     ...kline,
@@ -95,6 +125,10 @@ export function addIndicators<T extends HistoryKline | HKUSHistoryKline>(
     ...(biasResult && { bias: biasResult[i] }),
     ...(cciResult && { cci: cciResult[i] }),
     ...(atrResult && { atr: atrResult[i] }),
+    ...(obvResult && { obv: obvResult[i] }),
+    ...(rocResult && { roc: rocResult[i] }),
+    ...(dmiResult && { dmi: dmiResult[i] }),
+    ...(sarResult && { sar: sarResult[i] }),
+    ...(kcResult && { kc: kcResult[i] }),
   }));
 }
-

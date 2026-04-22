@@ -1,12 +1,13 @@
 # 技术指标
 
-Stock SDK 内置了常用的技术指标计算功能，包括均线、MACD、BOLL、KDJ、RSI、WR 等。
+Stock SDK 支持两种指标工作流：
+
+- 使用 `getKlineWithIndicators`，一次性拉取 K 线并计算指标
+- 使用独立函数，例如 `calcMA`、`calcMACD`、`calcOBV`
 
 ## 一站式获取
 
-最简单的方式是使用 `getKlineWithIndicators` 方法，在获取 K 线数据的同时计算技术指标：
-
-```typescript
+```ts
 const data = await sdk.getKlineWithIndicators('sz000001', {
   startDate: '20240101',
   endDate: '20241231',
@@ -16,127 +17,87 @@ const data = await sdk.getKlineWithIndicators('sz000001', {
     boll: true,
     kdj: true,
     rsi: { periods: [6, 12, 24] },
-    wr: true,
-    bias: { periods: [6, 12, 24] },
-    cci: { period: 14 },
-    atr: { period: 14 },
-  }
+    obv: { maPeriod: 20 },
+    roc: { period: 12, signalPeriod: 6 },
+    dmi: { period: 14, adxPeriod: 6 },
+    sar: true,
+    kc: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
+  },
 });
 
-// 使用数据
-data.forEach(k => {
-  console.log(`${k.date}: ${k.close}`);
-  console.log(`  MA5=${k.ma?.ma5}, MA10=${k.ma?.ma10}`);
-  console.log(`  MACD: DIF=${k.macd?.dif}, DEA=${k.macd?.dea}`);
-  console.log(`  BOLL: 上=${k.boll?.upper}, 中=${k.boll?.mid}, 下=${k.boll?.lower}`);
-  console.log(`  KDJ: K=${k.kdj?.k}, D=${k.kdj?.d}, J=${k.kdj?.j}`);
-  console.log(`  RSI6=${k.rsi?.rsi6}, WR6=${k.wr?.wr6}`);
-});
+console.log(data[30].ma?.ma5);
+console.log(data[30].obv?.obvMa);
+console.log(data[30].roc?.signal);
+console.log(data[30].dmi?.adx);
+console.log(data[30].sar?.sar);
+console.log(data[30].kc?.upper);
 ```
 
-## 市场自动识别
+## 支持的指标
 
-`getKlineWithIndicators` 支持 A 股、港股、美股，会自动识别市场类型：
-
-```typescript
-// A 股（自动识别）
-const aData = await sdk.getKlineWithIndicators('sz000001', {
-  indicators: { ma: true, macd: true }
-});
-
-// 港股（自动识别：5 位代码）
-const hkData = await sdk.getKlineWithIndicators('00700', {
-  indicators: { ma: true, macd: true }
-});
-
-// 美股（自动识别：{market}.{ticker} 格式）
-const usData = await sdk.getKlineWithIndicators('105.MSFT', {
-  indicators: { boll: true, rsi: true }
-});
-
-// 手动指定市场
-const data = await sdk.getKlineWithIndicators('09988', {
-  market: 'HK',  // 明确指定为港股
-  indicators: { boll: true }
-});
-```
-
-## 指标计算说明
-
-- **数据不足时返回 `null`**：多数指标需要 N 日历史数据，前 N-1 个点会是 `null`
-- **范围自动补齐**：`getKlineWithIndicators` 会自动向前补拉足够的 K 线数据，确保指标计算准确，最终只返回你指定的日期范围
-- **输入格式**：独立计算函数接受 `close` 或 `OHLC` 数据，数组长度需一致
+- `ma`
+- `macd`
+- `boll`
+- `kdj`
+- `rsi`
+- `wr`
+- `bias`
+- `cci`
+- `atr`
+- `obv`
+- `roc`
+- `dmi`
+- `sar`
+- `kc`
 
 ## 独立计算函数
 
-如果需要更灵活的控制，可以使用独立的指标计算函数：
-
-```typescript
+```ts
 import {
   calcMA,
-  calcSMA,
-  calcEMA,
   calcMACD,
   calcBOLL,
   calcKDJ,
-  calcRSI,
-  calcWR,
-  calcBIAS,
-  calcCCI,
-  calcATR,
-  addIndicators,
+  calcOBV,
+  calcROC,
+  calcDMI,
+  calcSAR,
+  calcKC,
 } from 'stock-sdk';
 
-// 获取 K 线数据
 const klines = await sdk.getHistoryKline('sz000001');
-const closes = klines.map(k => k.close);
+const closes = klines.map((item) => item.close);
+const ohlc = klines.map((item) => ({
+  open: item.open,
+  high: item.high,
+  low: item.low,
+  close: item.close,
+  volume: item.volume,
+}));
 
-// 计算均线
 const ma = calcMA(closes, { periods: [5, 10, 20], type: 'sma' });
-console.log(ma[10].ma5);  // 第 10 天的 5 日均线
-
-// 计算 MACD
 const macd = calcMACD(closes);
-console.log(macd[50].dif, macd[50].dea, macd[50].macd);
-
-// 计算布林带
 const boll = calcBOLL(closes, { period: 20, stdDev: 2 });
-console.log(boll[30].upper, boll[30].mid, boll[30].lower);
+const kdj = calcKDJ(ohlc, { period: 9, kPeriod: 3, dPeriod: 3 });
+const obv = calcOBV(ohlc, { maPeriod: 20 });
+const roc = calcROC(ohlc, { period: 12, signalPeriod: 6 });
+const dmi = calcDMI(ohlc, { period: 14, adxPeriod: 6 });
+const sar = calcSAR(ohlc, { afStart: 0.02, afIncrement: 0.02, afMax: 0.2 });
+const kc = calcKC(ohlc, { emaPeriod: 20, atrPeriod: 10, multiplier: 2 });
 
-// 计算 KDJ（需要 OHLC 数据）
-const ohlc = klines.map(k => ({
-  open: k.open, high: k.high, low: k.low, close: k.close
-}));
-const kdj = calcKDJ(ohlc, { period: 9 });
-console.log(kdj[20].k, kdj[20].d, kdj[20].j);
-```
-
-### BIAS / CCI / ATR 示例
-
-```typescript
-import { calcBIAS, calcCCI, calcATR } from 'stock-sdk';
-
-const klines = await sdk.getHistoryKline('sz000001');
-const closes = klines.map(k => k.close);
-const ohlc = klines.map(k => ({
-  open: k.open,
-  high: k.high,
-  low: k.low,
-  close: k.close,
-}));
-
-const bias = calcBIAS(closes, { periods: [6, 12, 24] });
-const cci = calcCCI(ohlc, { period: 14 });
-const atr = calcATR(ohlc, { period: 14 });
-
-console.log(bias[30].bias12, cci[30].cci, atr[30].atr);
+console.log(ma[20].ma20);
+console.log(macd[20].dif);
+console.log(kdj[20].k);
+console.log(obv[20].obvMa);
+console.log(roc[20].signal);
+console.log(dmi[20].adx);
+console.log(sar[20].sar);
+console.log(kc[20].upper);
 ```
 
 ## 使用 addIndicators
 
-`addIndicators` 函数可以一次性为 K 线数据添加多个指标：
-
-```typescript
+```ts
 import { addIndicators } from 'stock-sdk';
 
 const klines = await sdk.getHistoryKline('sz000001');
@@ -144,133 +105,26 @@ const klines = await sdk.getHistoryKline('sz000001');
 const withIndicators = addIndicators(klines, {
   ma: { periods: [5, 10] },
   macd: true,
-  boll: true,
-  bias: true,
-  cci: true,
-  atr: true,
+  obv: { maPeriod: 20 },
+  roc: true,
+  dmi: true,
+  sar: true,
+  kc: true,
 });
 
-console.log(withIndicators[50].ma?.ma5);
-console.log(withIndicators[50].macd?.dif);
-console.log(withIndicators[50].bias?.bias6);
+console.log(withIndicators[40].obv?.obv);
+console.log(withIndicators[40].roc?.roc);
+console.log(withIndicators[40].dmi?.pdi);
 ```
 
-## 指标参数说明
+## 计算说明
 
-### MA 均线
+- 大多数指标在样本不足时会返回 `null`
+- `getKlineWithIndicators` 会自动补齐向前所需的历史数据
+- `calcMA` 接收收盘价数组，其余多数趋势类指标接收 `OHLCV[]`
+- 如果需要批量叠加多个指标，优先使用 `addIndicators`
 
-```typescript
-interface MAOptions {
-  periods?: number[];  // 周期数组，默认 [5, 10, 20, 30, 60, 120, 250]
-  type?: 'sma' | 'ema' | 'wma';  // 均线类型，默认 'sma'
-}
-```
+## 相关页面
 
-### MACD
-
-```typescript
-interface MACDOptions {
-  short?: number;   // 短期 EMA 周期，默认 12
-  long?: number;    // 长期 EMA 周期，默认 26
-  signal?: number;  // 信号线周期，默认 9
-}
-```
-
-### BOLL 布林带
-
-```typescript
-interface BOLLOptions {
-  period?: number;  // 均线周期，默认 20
-  stdDev?: number;  // 标准差倍数，默认 2
-}
-```
-
-### KDJ
-
-```typescript
-interface KDJOptions {
-  period?: number;   // RSV 周期，默认 9
-  kPeriod?: number;  // K 平滑周期，默认 3
-  dPeriod?: number;  // D 平滑周期，默认 3
-}
-```
-
-### RSI
-
-```typescript
-interface RSIOptions {
-  periods?: number[];  // 周期数组，默认 [6, 12, 24]
-}
-```
-
-### WR 威廉指标
-
-```typescript
-interface WROptions {
-  periods?: number[];  // 周期数组，默认 [6, 10]
-}
-```
-
-### BIAS 乖离率
-
-```typescript
-interface BIASOptions {
-  periods?: number[];  // 周期数组，默认 [6, 12, 24]
-}
-```
-
-### CCI 商品通道指数
-
-```typescript
-interface CCIOptions {
-  period?: number;  // 周期，默认 14
-}
-```
-
-### ATR 平均真实波幅
-
-```typescript
-interface ATROptions {
-  period?: number;  // 周期，默认 14
-}
-```
-
-## 与图表库集成
-
-### ECharts 示例
-
-```typescript
-const data = await sdk.getKlineWithIndicators('sz000001', {
-  indicators: { ma: { periods: [5, 10, 20] }, macd: true }
-});
-
-const option = {
-  xAxis: { data: data.map(d => d.date) },
-  yAxis: [
-    { /* K 线 */ },
-    { /* MACD */ }
-  ],
-  series: [
-    {
-      type: 'candlestick',
-      data: data.map(d => [d.open, d.close, d.low, d.high])
-    },
-    {
-      type: 'line',
-      name: 'MA5',
-      data: data.map(d => d.ma?.ma5)
-    },
-    {
-      type: 'line',
-      name: 'MA10',
-      data: data.map(d => d.ma?.ma10)
-    },
-    {
-      type: 'bar',
-      name: 'MACD',
-      yAxisIndex: 1,
-      data: data.map(d => d.macd?.macd)
-    },
-  ]
-};
-```
+- [指标 API 总览](/api/indicators)
+- [快速开始](/guide/getting-started)

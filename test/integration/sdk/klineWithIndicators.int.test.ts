@@ -68,6 +68,11 @@ describe('StockSDK - getKlineWithIndicators', () => {
         bias: true,
         cci: true,
         atr: true,
+        obv: true,
+        roc: true,
+        dmi: true,
+        sar: true,
+        kc: true,
       },
     });
     expect(res.length).toBeGreaterThan(0);
@@ -81,6 +86,11 @@ describe('StockSDK - getKlineWithIndicators', () => {
     expect(last.bias).toBeDefined();
     expect(last.cci).toBeDefined();
     expect(last.atr).toBeDefined();
+    expect(last.obv).toBeDefined();
+    expect(last.roc).toBeDefined();
+    expect(last.dmi).toBeDefined();
+    expect(last.sar).toBeDefined();
+    expect(last.kc).toBeDefined();
   });
 
   it('should return kline with BIAS indicators', async () => {

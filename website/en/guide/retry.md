@@ -100,6 +100,55 @@ const sdk = new StockSDK({
 });
 ```
 
+## Provider-level Overrides
+
+Legacy global `timeout` / `retry` / `rateLimit` / `circuitBreaker` settings still act as the default policy.  
+The new `providerPolicies` option only overrides those defaults for a specific provider, so existing initialization code remains compatible.
+
+### Typical Use Cases
+
+- Keep Tencent on the default rate
+- Lower the request rate only for `eastmoney`
+- Enable more aggressive retry or circuit breaker rules for a single provider
+
+```typescript
+const sdk = new StockSDK({
+  retry: {
+    maxRetries: 2,
+    baseDelay: 500,
+  },
+  rateLimit: {
+    requestsPerSecond: 5,
+    maxBurst: 10,
+  },
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      retry: {
+        maxRetries: 5,
+        baseDelay: 800,
+      },
+      rateLimit: {
+        requestsPerSecond: 3,
+        maxBurst: 3,
+      },
+      circuitBreaker: {
+        failureThreshold: 3,
+        resetTimeout: 30000,
+      },
+    },
+  },
+});
+```
+
+### Available Provider Names
+
+- `tencent`
+- `eastmoney`
+- `sina`
+- `linkdiary`
+- `unknown`
+
 ## Error Handling
 
 ### HttpError

@@ -55,36 +55,36 @@ export function chunkArray<T>(array: T[], chunkSize: number): T[][] {
  */
 export async function asyncPool<T>(
   tasks: (() => Promise<T>)[],
-  concurrency: number
+  concurrency: number,
+  preserveOrder = false
 ): Promise<T[]> {
   assertPositiveInteger(concurrency, 'concurrency');
-  const results: T[] = [];
-  const executing: Promise<void>[] = [];
+  if (tasks.length === 0) {
+    return [];
+  }
 
-  for (const task of tasks) {
-    const p = Promise.resolve().then(() => task()).then((result) => {
-      results.push(result);
-    });
+  const results = preserveOrder ? new Array<T>(tasks.length) : [];
+  let nextIndex = 0;
 
-    executing.push(p as Promise<void>);
-
-    if (executing.length >= concurrency) {
-      await Promise.race(executing);
-      // 移除已完成的 promise
-      for (let i = executing.length - 1; i >= 0; i--) {
-        // 检查是否已完成
-        const status = await Promise.race([
-          executing[i].then(() => 'fulfilled'),
-          Promise.resolve('pending'),
-        ]);
-        if (status === 'fulfilled') {
-          executing.splice(i, 1);
+  const workers = Array.from(
+    { length: Math.min(concurrency, tasks.length) },
+    async () => {
+      while (true) {
+        const currentIndex = nextIndex++;
+        if (currentIndex >= tasks.length) {
+          return;
+        }
+        const result = await tasks[currentIndex]();
+        if (preserveOrder) {
+          results[currentIndex] = result;
+        } else {
+          results.push(result);
         }
       }
     }
-  }
+  );
 
-  await Promise.all(executing);
+  await Promise.all(workers);
   return results;
 }
 

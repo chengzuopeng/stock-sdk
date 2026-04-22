@@ -3,7 +3,6 @@
 [![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
-[![Test Coverage](https://img.shields.io/badge/coverage-95.88%25-brightgreen.svg)](https://github.com/chengzuopeng/stock-sdk)
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://www.npmjs.com/package/stock-sdk-mcp)
 [![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/en/mcp/)
 
@@ -13,7 +12,7 @@ A **stock market data JavaScript SDK for frontend and Node.js**.
 
 No Python. No backend service. Fetch real-time quotes and K-line data for **A-shares / Hong Kong stocks / US stocks / mutual funds** directly in **the browser or Node.js**.
 
-**✨ Zero dependencies | 🌐 Browser + Node.js | 📦 <20KB | 🧠 Full TypeScript typings**
+**✨ Zero dependencies | 🌐 Browser + Node.js | 📦 Lightweight distribution | 🧠 Full TypeScript typings**
 
 ## Documentation
 
@@ -50,17 +49,18 @@ If you're a frontend engineer, you may have encountered these problems:
 
 ## Features
 
-- ✅ **Zero dependencies**, lightweight (< 20KB minified)
+- ✅ **Zero dependencies**, lightweight distribution
 - ✅ Works in both **browser** and **Node.js 18+**
 - ✅ Provides both **ESM** and **CommonJS** module formats
 - ✅ Complete **TypeScript** type definitions and unit test coverage
 - ✅ Real-time quotes for **A-shares, HK stocks, US stocks, mutual funds**
 - ✅ **Historical K-line** (daily/weekly/monthly), **minute K-line** (1/5/15/30/60 minutes), and **today's timeline** data
-- ✅ **Technical indicators**: Built-in MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR and more
+- ✅ **Technical indicators**: Built-in MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR, OBV, ROC, DMI, SAR, and KC
 - ✅ **Futures data**: Domestic futures K-line, global futures real-time quotes & K-line, futures inventory data
 - ✅ **Options data**: CFFEX index options, SSE ETF options, commodity options (T-quotes / K-line / minute data)
 - ✅ Extended data such as **fund flow**, **large order ratio**
 - ✅ Get full **A-share code list** (5000+ stocks) and batch fetch **whole-market quotes** (with built-in concurrency control)
+- ✅ Supports **provider-level retry / rate limit / circuit breaker overrides** while keeping legacy global config compatible
 - ✅ **AI / MCP Ready** — Companion [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server, one command to integrate with Cursor / Claude / Gemini and more
 
 ## Installation
@@ -176,6 +176,11 @@ Stock SDK comes with a companion MCP Server ([stock-sdk-mcp](https://www.npmjs.c
 | `calcBIAS` | Calculate BIAS |
 | `calcCCI` | Calculate Commodity Channel Index |
 | `calcATR` | Calculate Average True Range |
+| `calcOBV` | Calculate On Balance Volume |
+| `calcROC` | Calculate Rate of Change |
+| `calcDMI` | Calculate Directional Movement Index |
+| `calcSAR` | Calculate Parabolic SAR |
+| `calcKC` | Calculate Keltner Channel |
 
 ### Industry Sectors
 

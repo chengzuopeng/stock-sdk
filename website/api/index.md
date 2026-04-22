@@ -19,9 +19,10 @@ const sdk = new StockSDK(options?);
 | `retry` | `RetryOptions` | 见下表 | 重试配置 |
 | `headers` | `Record<string, string>` | - | 自定义请求头 |
 | `userAgent` | `string` | - | 自定义 User-Agent（浏览器环境可能会被忽略） |
-| `rateLimit` | `RateLimitOptions` | - | 限流配置（防止请求过快被频控） |
+| `rateLimit` | `RateLimiterOptions` | - | 限流配置（防止请求过快被频控） |
 | `rotateUserAgent` | `boolean` | `false` | 是否启用 UA 轮换（仅 Node.js 有效） |
 | `circuitBreaker` | `CircuitBreakerOptions` | - | 熔断器配置（连续失败时暂停请求） |
+| `providerPolicies` | `Partial<Record<ProviderName, ProviderRequestPolicy>>` | - | 为不同数据源覆盖超时、重试、限流、熔断和请求头策略 |
 
 ### 重试配置 (RetryOptions)
 
@@ -36,7 +37,7 @@ const sdk = new StockSDK(options?);
 | `retryOnTimeout` | `boolean` | `true` | 超时时是否重试 |
 | `onRetry` | `function` | - | 重试回调 `(attempt, error, delay) => void` |
 
-### 限流配置 (RateLimitOptions)
+### 限流配置 (RateLimiterOptions)
 
 | 参数 | 类型 | 默认值 | 说明 |
 |-----|------|-------|------|
@@ -46,6 +47,31 @@ const sdk = new StockSDK(options?);
 ::: tip 限流建议
 建议配置 `requestsPerSecond: 3~5`，避免触发东方财富的频率限制。
 :::
+
+### Provider 策略覆盖 (ProviderRequestPolicy)
+
+全局 `timeout` / `retry` / `rateLimit` / `circuitBreaker` 仍然是默认策略。  
+`providerPolicies` 只会在指定 provider 上覆盖这些默认值，不会影响旧代码的初始化方式。
+
+```typescript
+interface ProviderRequestPolicy {
+  timeout?: number;
+  retry?: RetryOptions;
+  headers?: Record<string, string>;
+  userAgent?: string;
+  rateLimit?: RateLimiterOptions;
+  rotateUserAgent?: boolean;
+  circuitBreaker?: CircuitBreakerOptions;
+}
+```
+
+已内置的 provider 名称：
+
+- `tencent`
+- `eastmoney`
+- `sina`
+- `linkdiary`
+- `unknown`
 
 ### 熔断器配置 (CircuitBreakerOptions)
 
@@ -73,7 +99,7 @@ const sdk = new StockSDK({
   headers: {
     'X-Request-Source': 'my-app',
   },
-  userAgent: 'StockSDK/1.6',
+  userAgent: 'StockSDK/1.8.0',
   
   // 重试配置
   retry: {
@@ -99,6 +125,25 @@ const sdk = new StockSDK({
     resetTimeout: 30000,
     onStateChange: (from, to) => {
       console.log(`熔断器状态: ${from} -> ${to}`);
+    }
+  },
+
+  // 按 provider 覆盖策略
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      retry: {
+        maxRetries: 5,
+        baseDelay: 800,
+      },
+      rateLimit: {
+        requestsPerSecond: 3,
+        maxBurst: 3,
+      },
+      circuitBreaker: {
+        failureThreshold: 3,
+        resetTimeout: 30000,
+      }
     }
   }
 });
@@ -131,6 +176,11 @@ const sdk = new StockSDK({
 - [BIAS 乖离率](/api/indicator-bias)
 - [CCI 商品通道指数](/api/indicator-cci)
 - [ATR 平均真实波幅](/api/indicator-atr)
+- [OBV 能量潮](/api/indicator-obv)
+- [ROC 变动率](/api/indicator-roc)
+- [DMI / ADX 趋向指标](/api/indicator-dmi)
+- [SAR 抛物线转向](/api/indicator-sar)
+- [KC 肯特纳通道](/api/indicator-kc)
 
 ## 行业板块
 

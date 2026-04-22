@@ -100,6 +100,55 @@ const sdk = new StockSDK({
 });
 ```
 
+## Provider 级策略覆盖
+
+旧的全局 `timeout` / `retry` / `rateLimit` / `circuitBreaker` 配置仍然会作为默认策略生效。  
+新增的 `providerPolicies` 只是在指定 provider 上覆盖默认值，因此不会破坏已有初始化代码。
+
+### 适用场景
+
+- 腾讯接口保持默认速率
+- 对 `eastmoney` 单独降低请求频率
+- 仅对某个 provider 开启更激进的重试或熔断
+
+```typescript
+const sdk = new StockSDK({
+  retry: {
+    maxRetries: 2,
+    baseDelay: 500,
+  },
+  rateLimit: {
+    requestsPerSecond: 5,
+    maxBurst: 10,
+  },
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      retry: {
+        maxRetries: 5,
+        baseDelay: 800,
+      },
+      rateLimit: {
+        requestsPerSecond: 3,
+        maxBurst: 3,
+      },
+      circuitBreaker: {
+        failureThreshold: 3,
+        resetTimeout: 30000,
+      },
+    },
+  },
+});
+```
+
+### 可用 provider 名称
+
+- `tencent`
+- `eastmoney`
+- `sina`
+- `linkdiary`
+- `unknown`
+
 ## 错误处理
 
 ### HttpError

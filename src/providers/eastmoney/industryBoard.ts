@@ -10,16 +10,11 @@ import {
   EM_BOARD_TRENDS_URL,
 } from '../../core';
 import {
-  BoardTypeConfig,
   BoardKlineOptions,
   BoardMinuteKlineOptions,
-  createBoardCodeCache,
-  fetchBoardList,
-  fetchBoardSpot,
-  fetchBoardConstituents,
-  fetchBoardKline,
-  fetchBoardMinuteKline,
+  BoardTypeConfig,
 } from './boardCommon';
+import { createBoardProvider } from './boardFactory';
 import type {
   IndustryBoard,
   IndustryBoardSpot,
@@ -41,12 +36,14 @@ const INDUSTRY_CONFIG: BoardTypeConfig = {
   errorPrefix: '未找到行业板块',
 };
 
-// 板块代码缓存
-const codeCache = createBoardCodeCache(INDUSTRY_CONFIG);
-
-async function getBoardCode(client: RequestClient, symbol: string): Promise<string> {
-  return codeCache.getCode(client, symbol, getIndustryList);
-}
+const industryProvider = createBoardProvider<
+  IndustryBoard,
+  IndustryBoardSpot,
+  IndustryBoardConstituent,
+  IndustryBoardKline,
+  IndustryBoardMinuteTimeline,
+  IndustryBoardMinuteKline
+>(INDUSTRY_CONFIG);
 
 // 导出选项类型
 export type IndustryBoardKlineOptions = BoardKlineOptions;
@@ -56,23 +53,21 @@ export type IndustryBoardMinuteKlineOptions = BoardMinuteKlineOptions;
  * 获取东方财富行业板块名称列表
  */
 export async function getIndustryList(client: RequestClient): Promise<IndustryBoard[]> {
-  return fetchBoardList(client, INDUSTRY_CONFIG);
+  return industryProvider.getList(client);
 }
 
 /**
  * 获取东方财富行业板块实时行情
  */
 export async function getIndustrySpot(client: RequestClient, symbol: string): Promise<IndustryBoardSpot[]> {
-  const boardCode = await getBoardCode(client, symbol);
-  return fetchBoardSpot(client, boardCode, INDUSTRY_CONFIG.spotUrl);
+  return industryProvider.getSpot(client, symbol);
 }
 
 /**
  * 获取东方财富行业板块成分股
  */
 export async function getIndustryConstituents(client: RequestClient, symbol: string): Promise<IndustryBoardConstituent[]> {
-  const boardCode = await getBoardCode(client, symbol);
-  return fetchBoardConstituents(client, boardCode, INDUSTRY_CONFIG.consUrl);
+  return industryProvider.getConstituents(client, symbol);
 }
 
 /**
@@ -83,8 +78,7 @@ export async function getIndustryKline(
   symbol: string,
   options: IndustryBoardKlineOptions = {}
 ): Promise<IndustryBoardKline[]> {
-  const boardCode = await getBoardCode(client, symbol);
-  return fetchBoardKline(client, boardCode, INDUSTRY_CONFIG.klineUrl, options);
+  return industryProvider.getKline(client, symbol, options);
 }
 
 /**
@@ -95,6 +89,5 @@ export async function getIndustryMinuteKline(
   symbol: string,
   options: IndustryBoardMinuteKlineOptions = {}
 ): Promise<IndustryBoardMinuteTimeline[] | IndustryBoardMinuteKline[]> {
-  const boardCode = await getBoardCode(client, symbol);
-  return fetchBoardMinuteKline(client, boardCode, INDUSTRY_CONFIG.klineUrl, INDUSTRY_CONFIG.trendsUrl, options);
+  return industryProvider.getMinuteKline(client, symbol, options);
 }

@@ -1,42 +1,34 @@
 # Introduction
 
-Stock SDK is a stock quote SDK designed for frontend and Node.js, providing real-time quotes and K-line data for A-Share, HK, US stocks and mutual funds.
+Stock SDK is a stock market TypeScript SDK for frontend and Node.js with zero dependencies, a Lightweight distribution, and one unified API surface for multiple market data workflows.
 
 ## Features
 
-- 🚀 **Zero Dependencies** - Pure TypeScript implementation, < 20KB minified
-- 🌐 **Dual Runtime** - Supports both browser and Node.js 18+
-- 📊 **Multi-Market** - A-Share, HK, US stocks and mutual funds
-- 📈 **Technical Indicators** - Built-in MA, MACD, BOLL, KDJ, RSI, WR, etc.
-- 💰 **Extended Data** - Fund flow, large order ratio, batch queries
-- 🔧 **TypeScript** - Complete type definitions, excellent DX
+- Works in both browser and Node.js 18+
+- Ships ESM and CommonJS builds
+- Covers A-share, HK, US, mutual funds, futures, and options
+- Provides real-time quotes, K-line, timeline, sector data, dividend details, and trading calendar
+- Includes MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR, OBV, ROC, DMI, SAR, and KC
+- Supports retry, rateLimit, circuitBreaker, and `providerPolicies`
+- Full TypeScript types with frontend-friendly APIs
 
-## Why Stock SDK?
+## Data Sources
 
-Most stock data tools are in the Python ecosystem (like AkShare), which is not convenient for frontend developers. Stock SDK aims to provide:
+- Tencent: real-time quotes, code lists, search, trading calendar, fund flow, and intraday timeline
+- Eastmoney: A-share / HK / US historical K-line, minute K-line, sectors, dividend details, futures, and part of the options data
+- Sina: part of the ETF option minute data and supplemental option workflows
 
-- Native JavaScript/TypeScript support
-- Works directly in browser without backend
-- Unified API for multiple markets
-- Built-in technical indicator calculations
+## Good Fits
 
-## Data Source
+- Frontend quote dashboards and charting
+- Node.js scheduled jobs and trading-day automation
+- Indicator analysis and quant prototypes
+- Futures and options monitoring
+- Dividend event and calendar-based reminders
 
-Stock SDK uses Tencent Finance API (`qt.gtimg.cn`) as the data source, which provides:
-
-- Real-time quotes
-- Historical K-line data
-- Minute-level data
-- Fund flow data
-
-::: warning Disclaimer
-This SDK is for learning and research purposes only. Please comply with relevant laws and regulations, and do not use it for commercial purposes.
-:::
-
-## Quick Links
+## Next Steps
 
 - [Installation](/en/guide/installation)
 - [Quick Start](/en/guide/getting-started)
-- [API Documentation](/en/api/)
-- [Online Playground](/en/playground/)
-
+- [Request Governance](/en/guide/request-governance)
+- [API Overview](/en/api/)

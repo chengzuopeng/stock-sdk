@@ -1,6 +1,6 @@
 # Quick Start
 
-This guide will help you get started with Stock SDK in minutes.
+This page covers the most common setup path. By default, create one `StockSDK` instance and call the APIs directly. If you need finer request control, apply provider-level policies.
 
 ## Installation
 
@@ -8,133 +8,72 @@ This guide will help you get started with Stock SDK in minutes.
 npm install stock-sdk
 ```
 
-## Basic Usage
+## Create an Instance
 
-### 1. Create SDK Instance
-
-```typescript
+```ts
 import { StockSDK } from 'stock-sdk';
 
 const sdk = new StockSDK();
 ```
 
-#### Optional Configuration
+## Optional Configuration
 
-`StockSDK` accepts request configuration for proxy, timeout, or custom headers:
-
-```typescript
+```ts
 const sdk = new StockSDK({
-  // Custom Tencent quote request URL (e.g., local proxy /api/tencent)
   baseUrl: '/api/tencent',
-  // Request timeout (milliseconds)
   timeout: 8000,
-  // Custom headers
   headers: {
-    'X-Request-Source': 'my-app',
+    'X-Request-Source': 'quotes-dashboard',
   },
-  // Custom User-Agent (may be ignored in browsers)
-  userAgent: 'StockSDK/1.4',
-  // Retry configuration (optional)
+  userAgent: 'quotes-dashboard/1.0',
   retry: {
-    maxRetries: 5,       // Maximum retry attempts
-    baseDelay: 1000,     // Initial backoff delay
+    maxRetries: 3,
+    baseDelay: 800,
   },
-  // Rate limiting (prevent rate limiting errors)
   rateLimit: {
-    requestsPerSecond: 5, // Max 5 requests per second
-    maxBurst: 10,         // Allow burst of 10 requests
+    requestsPerSecond: 5,
+    maxBurst: 10,
   },
-  // Enable UA rotation (Node.js only)
   rotateUserAgent: true,
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      rateLimit: {
+        requestsPerSecond: 3,
+        maxBurst: 3,
+      },
+      circuitBreaker: {
+        failureThreshold: 4,
+        resetTimeout: 45000,
+        halfOpenRequests: 1,
+      },
+    },
+  },
 });
 ```
 
-> It's recommended to reuse the same `StockSDK` instance to reduce repeated initialization.
-> 
-> See [Error Handling & Retry](/en/guide/retry) for detailed retry configuration.
+> Reuse the same instance inside your app whenever possible.
 
-::: tip Rate Limiting Tips
-If you encounter frequent errors from Eastmoney APIs:
-1. Configure `rateLimit` to limit request rate (recommended: 3-5 req/sec)
-2. Enable `rotateUserAgent` in Node.js to rotate User-Agent
-3. Reduce `concurrency` for batch requests
-4. Configure `circuitBreaker` to auto-pause on consecutive failures
-:::
+## Fetch Real-time Quotes
 
-#### Circuit Breaker Configuration
-
-When consecutive requests fail, the circuit breaker automatically pauses requests to prevent cascade failures:
-
-```typescript
-const sdk = new StockSDK({
-  circuitBreaker: {
-    failureThreshold: 5,   // Open after 5 consecutive failures
-    resetTimeout: 30000,   // Try recovery after 30 seconds
-    halfOpenRequests: 1,   // Allow 1 probe request in half-open state
-    onStateChange: (from, to) => {
-      console.log(`Circuit breaker: ${from} -> ${to}`);
-    }
-  }
-});
-```
-
-### 2. Get Stock Quotes
-
-```typescript
-// Get simple quotes
+```ts
 const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
 
-quotes.forEach(q => {
-  console.log(`${q.name}: ${q.price} (${q.changePercent}%)`);
-});
-// Shanghai Index: 3200.00 (0.50%)
-// Wuliangye: 150.00 (2.35%)
-// Moutai: 1800.00 (1.20%)
-```
-
-::: tip Code Format
-- **A-Share/Index**: With exchange prefix (`sh`/`sz`/`bj`), e.g., `sh000001`, `sz000858`
-- **HK Stock**: 5-digit number, e.g., `00700`
-- **US Stock**: Use `AAPL`, `MSFT` for quotes; Use `105.AAPL`, `106.BABA` for K-line
-:::
-
-### 3. Get Full Quotes
-
-```typescript
-// Get detailed quote data
-const fullQuotes = await sdk.getFullQuotes(['sz000858']);
-
-const quote = fullQuotes[0];
-console.log(`
-Stock: ${quote.name} (${quote.code})
-Price: ${quote.price}
-Change: ${quote.changePercent}%
-Volume: ${quote.volume}
-Amount: ${quote.amount}
-Turnover: ${quote.turnoverRate}%
-PE: ${quote.pe}
-Market Cap: ${quote.totalMarketCap}
-`);
-```
-
-### 4. Get Historical K-Line
-
-```typescript
-// Get daily K-line (default: forward-adjusted)
-const klines = await sdk.getHistoryKline('sz000858', {
-  period: 'daily',
-  startDate: '20240101',
-  endDate: '20241231',
-});
-
-klines.forEach(k => {
-  console.log(`${k.date}: O ${k.open} H ${k.high} L ${k.low} C ${k.close}`);
+quotes.forEach((item) => {
+  console.log(`${item.name}: ${item.price} (${item.changePercent}%)`);
 });
 ```
 
-### 5. Get K-Line with Technical Indicators
+Code format notes:
 
-```typescript
+- A-share / index: `sh000001`, `sz000858`, `bj430047`
+- HK: `00700`
+- US quotes: `AAPL`, `MSFT`
+- US K-line: `105.AAPL`, `106.BABA`
+
+## Fetch K-line with Indicators
+
+```ts
 const data = await sdk.getKlineWithIndicators('sz000858', {
   startDate: '20240101',
   endDate: '20241231',
@@ -142,92 +81,76 @@ const data = await sdk.getKlineWithIndicators('sz000858', {
     ma: { periods: [5, 10, 20, 60] },
     macd: true,
     boll: true,
-    kdj: true,
-  }
+    obv: { maPeriod: 20 },
+    sar: true,
+  },
 });
 
-data.forEach(k => {
-  console.log(`${k.date}: Close ${k.close}`);
-  console.log(`  MA5=${k.ma?.ma5}, MA10=${k.ma?.ma10}`);
-  console.log(`  MACD: DIF=${k.macd?.dif}, DEA=${k.macd?.dea}`);
-  console.log(`  BOLL: Upper=${k.boll?.upper}, Mid=${k.boll?.mid}, Lower=${k.boll?.lower}`);
-  console.log(`  KDJ: K=${k.kdj?.k}, D=${k.kdj?.d}, J=${k.kdj?.j}`);
+console.log(data[30].ma?.ma5);
+console.log(data[30].macd?.dif);
+console.log(data[30].obv?.obvMa);
+console.log(data[30].sar?.sar);
+```
+
+## Fetch Full-market Data
+
+```ts
+const allQuotes = await sdk.getAllAShareQuotes({
+  batchSize: 300,
+  concurrency: 5,
+  onProgress: (completed, total) => {
+    console.log(`Batch progress: ${completed}/${total}`);
+  },
 });
+
+console.log(allQuotes.length);
 ```
 
-### 6. Get Fund Flow (Optional)
+## HK and US Markets
 
-```typescript
-const flows = await sdk.getFundFlow(['sz000858', 'sh600519']);
-flows.forEach(f => {
-  console.log(`${f.name}: Main Net Inflow ${f.mainNet}`);
-});
-```
-
-### 7. Get Today's Timeline (Optional)
-
-```typescript
-const timeline = await sdk.getTodayTimeline('sz000001');
-console.log(timeline.date, timeline.data[0]);
-```
-
-## HK & US Stocks
-
-### HK Stock Quotes
-
-```typescript
-// Get HK stock quotes
+```ts
 const hkQuotes = await sdk.getHKQuotes(['00700', '09988']);
-console.log(hkQuotes[0].name);  // Tencent
+const usQuotes = await sdk.getUSQuotes(['AAPL', 'MSFT']);
 
-// Get HK stock K-line
 const hkKlines = await sdk.getHKHistoryKline('00700', {
   period: 'daily',
   startDate: '20240101',
 });
-```
 
-### US Stock Quotes
-
-```typescript
-// Get US stock quotes
-const usQuotes = await sdk.getUSQuotes(['AAPL', 'MSFT', 'BABA']);
-console.log(usQuotes[0].name);  // Apple
-
-// Get US stock K-line (use {market}.{ticker} format)
 const usKlines = await sdk.getUSHistoryKline('105.MSFT', {
   period: 'daily',
   startDate: '20240101',
 });
 ```
 
-::: tip US Stock Code Format
-- `105` = NASDAQ (e.g., `105.AAPL`, `105.MSFT`)
-- `106` = NYSE (e.g., `106.BABA`)
-- `107` = Other US markets
-:::
+## Futures and Options
 
-## Batch Get All Market Quotes
-
-```typescript
-// Get all A-Share codes
-const codes = await sdk.getAShareCodeList();
-console.log(`Total ${codes.length} stocks`);
-// Total 5000+ stocks
-
-// Get all A-Share quotes
-const allQuotes = await sdk.getAllAShareQuotes({
-  batchSize: 300,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(`Progress: ${completed}/${total}`);
-  },
+```ts
+const futures = await sdk.getFuturesKline('RBM', {
+  period: 'daily',
+  startDate: '20250101',
 });
-console.log(`Got ${allQuotes.length} stocks`);
+
+const optionSpot = await sdk.getIndexOptionSpot('io', 'io2504');
+
+console.log(futures[0]?.close);
+console.log(optionSpot.calls[0]?.symbol);
+```
+
+## Dividend and Trading Calendar
+
+```ts
+const dividends = await sdk.getDividendDetail('600519');
+const calendar = await sdk.getTradingCalendar();
+
+console.log(dividends[0]?.assignProgress);
+console.log(calendar[0]?.date, calendar[0]?.isOpen);
 ```
 
 ## Next Steps
 
-- Check [API Documentation](/en/api/) for all available methods
-- Try [Online Playground](/en/playground/) for interactive experience
-- Learn about [Technical Indicators](/en/guide/indicators)
+- [Request Governance](/en/guide/request-governance)
+- [Technical Indicators](/en/guide/indicators)
+- [Futures & Options](/en/guide/futures-options)
+- [Dividend & Calendar](/en/guide/dividend-calendar)
+- [API Overview](/en/api/)

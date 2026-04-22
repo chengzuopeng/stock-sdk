@@ -33,7 +33,10 @@ const ema5 = calcEMA(closes, 5);
 const wma5 = calcWMA(closes, 5);
 
 // Generic MA with type
-const ma = calcMA(closes, 5, 'sma'); // 'sma' | 'ema' | 'wma'
+const ma = calcMA(closes, {
+  periods: [5, 10, 20],
+  type: 'sma',
+});
 ```
 
 ## Formula
@@ -48,4 +51,3 @@ Where $\alpha = \frac{2}{n + 1}$
 
 **WMA (Weighted Moving Average)**
 $$WMA = \frac{\sum_{i=1}^{n} (w_i \times P_i)}{\sum_{i=1}^{n} w_i}$$
-

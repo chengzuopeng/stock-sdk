@@ -1,0 +1,347 @@
+{
+  "docVersion": 1,
+  "marketing": {
+    "taglineZh": "零依赖 | Browser + Node.js | 轻量发布包 | 完整 TypeScript 类型",
+    "taglineEn": "Zero dependencies | Browser + Node.js | Lightweight distribution | Full TypeScript typings"
+  },
+  "site": {
+    "descriptionZh": "面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成",
+    "descriptionEn": "Stock market SDK for browser and Node.js with quotes, K-line, indicators, futures, options, and AI / MCP integration"
+  },
+  "requestConfig": {
+    "optionNames": [
+      "baseUrl",
+      "timeout",
+      "retry",
+      "headers",
+      "userAgent",
+      "rateLimit",
+      "rotateUserAgent",
+      "circuitBreaker",
+      "providerPolicies"
+    ],
+    "rateLimitType": "RateLimiterOptions",
+    "providerPoliciesType": "Partial<Record<ProviderName, ProviderRequestPolicy>>",
+    "providerNames": [
+      "tencent",
+      "eastmoney",
+      "sina",
+      "linkdiary",
+      "unknown"
+    ]
+  },
+  "indicatorKeys": [
+    "ma",
+    "macd",
+    "boll",
+    "kdj",
+    "rsi",
+    "wr",
+    "bias",
+    "cci",
+    "atr",
+    "obv",
+    "roc",
+    "dmi",
+    "sar",
+    "kc"
+  ],
+  "indicatorMethods": [
+    "calcMA",
+    "calcMACD",
+    "calcBOLL",
+    "calcKDJ",
+    "calcRSI",
+    "calcWR",
+    "calcBIAS",
+    "calcCCI",
+    "calcATR",
+    "calcOBV",
+    "calcROC",
+    "calcDMI",
+    "calcSAR",
+    "calcKC"
+  ],
+  "summary": {
+    "requestOptionDescriptions": {
+      "baseUrl": "腾讯行情请求地址，可替换为自建代理或网关。",
+      "timeout": "全局请求超时时间，provider 未覆盖时沿用此配置。",
+      "retry": "请求重试策略，支持指数退避、状态码白名单和回调。",
+      "headers": "追加自定义请求头。",
+      "userAgent": "自定义 User-Agent，浏览器环境可能忽略。",
+      "rateLimit": "全局限流器配置，控制请求速率和突发流量。",
+      "rotateUserAgent": "仅 Node.js 生效，自动轮换常见 UA 以降低频控概率。",
+      "circuitBreaker": "全局熔断器配置，连续失败后短暂停止请求。",
+      "providerPolicies": "按 provider 单独覆盖超时、重试、限流、熔断和请求头策略。"
+    },
+    "providerDescriptions": {
+      "tencent": "腾讯财经链路，主要用于实时行情、代码列表、搜索与交易日历。",
+      "eastmoney": "东方财富链路，主要用于 K 线、板块、分红、期货与部分期权数据。",
+      "sina": "新浪链路，主要用于 ETF 期权分钟数据和部分期权场景。",
+      "linkdiary": "项目内保留的扩展 provider 名称，用于兼容额外数据链路。",
+      "unknown": "未能识别 provider 时的兜底策略名称。"
+    },
+    "methodGroups": [
+      {
+        "titleZh": "实时行情",
+        "titleEn": "Real-time Quotes",
+        "methods": [
+          "getFullQuotes",
+          "getSimpleQuotes",
+          "getHKQuotes",
+          "getUSQuotes",
+          "getFundQuotes"
+        ]
+      },
+      {
+        "titleZh": "K 线与分时",
+        "titleEn": "K-line & Timeline",
+        "methods": [
+          "getHistoryKline",
+          "getHKHistoryKline",
+          "getUSHistoryKline",
+          "getMinuteKline",
+          "getTodayTimeline",
+          "getKlineWithIndicators"
+        ]
+      },
+      {
+        "titleZh": "板块与扩展数据",
+        "titleEn": "Boards & Extended Data",
+        "methods": [
+          "getIndustryList",
+          "getIndustrySpot",
+          "getIndustryConstituents",
+          "getIndustryKline",
+          "getConceptList",
+          "getConceptSpot",
+          "getConceptConstituents",
+          "getConceptKline",
+          "getFundFlow",
+          "getPanelLargeOrder",
+          "search",
+          "getTradingCalendar",
+          "getDividendDetail"
+        ]
+      },
+      {
+        "titleZh": "期货与期权",
+        "titleEn": "Futures & Options",
+        "methods": [
+          "getFuturesKline",
+          "getGlobalFuturesSpot",
+          "getGlobalFuturesKline",
+          "getFuturesInventorySymbols",
+          "getFuturesInventory",
+          "getComexInventory",
+          "getIndexOptionSpot",
+          "getIndexOptionKline",
+          "getCFFEXOptionQuotes",
+          "getETFOptionMonths",
+          "getETFOptionExpireDay",
+          "getETFOptionMinute",
+          "getETFOptionDailyKline",
+          "getETFOption5DayMinute",
+          "getCommodityOptionSpot",
+          "getCommodityOptionKline",
+          "getOptionLHB"
+        ]
+      },
+      {
+        "titleZh": "批量与代码列表",
+        "titleEn": "Batch & Code Lists",
+        "methods": [
+          "getAShareCodeList",
+          "getUSCodeList",
+          "getHKCodeList",
+          "getFundCodeList",
+          "getAllAShareQuotes",
+          "getAllHKShareQuotes",
+          "getAllUSShareQuotes",
+          "getAllQuotesByCodes",
+          "batchRaw"
+        ]
+      }
+    ]
+  },
+  "forbiddenTokens": [
+    "RateLimitOptions",
+    "IndicatorConfig",
+    "<20KB",
+    "< 20KB",
+    "StockSDK/1.4",
+    "coverage-95.88%25"
+  ],
+  "docExpectations": {
+    "requiredTokensByFile": {
+      "website/index.md": [
+        "轻量发布包",
+        "providerPolicies",
+        "期货",
+        "期权",
+        "分红派送"
+      ],
+      "website/en/index.md": [
+        "Lightweight distribution",
+        "providerPolicies",
+        "futures",
+        "options",
+        "dividend"
+      ],
+      "README.md": [
+        "轻量发布包",
+        "calcOBV",
+        "calcROC",
+        "calcDMI",
+        "calcSAR",
+        "calcKC"
+      ],
+      "README_EN.md": [
+        "Lightweight distribution",
+        "calcOBV",
+        "calcROC",
+        "calcDMI",
+        "calcSAR",
+        "calcKC"
+      ],
+      "website/api/index.md": [
+        "RateLimiterOptions",
+        "providerPolicies",
+        "ProviderRequestPolicy"
+      ],
+      "website/en/api/index.md": [
+        "RateLimiterOptions",
+        "providerPolicies",
+        "ProviderRequestPolicy"
+      ],
+      "website/guide/introduction.md": [
+        "轻量发布包",
+        "东方财富",
+        "期权",
+        "分红派送"
+      ],
+      "website/en/guide/introduction.md": [
+        "Lightweight distribution",
+        "Eastmoney",
+        "options",
+        "dividend"
+      ],
+      "website/guide/getting-started.md": [
+        "providerPolicies",
+        "rotateUserAgent",
+        "getKlineWithIndicators"
+      ],
+      "website/en/guide/getting-started.md": [
+        "providerPolicies",
+        "rotateUserAgent",
+        "getKlineWithIndicators"
+      ],
+      "website/guide/indicators.md": [
+        "calcOBV",
+        "calcROC",
+        "calcDMI",
+        "calcSAR",
+        "calcKC"
+      ],
+      "website/en/guide/indicators.md": [
+        "calcOBV",
+        "calcROC",
+        "calcDMI",
+        "calcSAR",
+        "calcKC"
+      ],
+      "website/guide/retry.md": [
+        "providerPolicies",
+        "eastmoney"
+      ],
+      "website/en/guide/retry.md": [
+        "providerPolicies",
+        "eastmoney"
+      ],
+      "website/guide/request-governance.md": [
+        "providerPolicies",
+        "RateLimiterOptions",
+        "CircuitBreakerOptions"
+      ],
+      "website/en/guide/request-governance.md": [
+        "providerPolicies",
+        "RateLimiterOptions",
+        "CircuitBreakerOptions"
+      ],
+      "website/guide/futures-options.md": [
+        "getFuturesKline",
+        "getGlobalFuturesSpot",
+        "getIndexOptionSpot",
+        "getETFOptionMonths"
+      ],
+      "website/en/guide/futures-options.md": [
+        "getFuturesKline",
+        "getGlobalFuturesSpot",
+        "getIndexOptionSpot",
+        "getETFOptionMonths"
+      ],
+      "website/guide/dividend-calendar.md": [
+        "getDividendDetail",
+        "getTradingCalendar"
+      ],
+      "website/en/guide/dividend-calendar.md": [
+        "getDividendDetail",
+        "getTradingCalendar"
+      ],
+      "website/api/indicators.md": [
+        "obv?:",
+        "roc?:",
+        "dmi?:",
+        "sar?:",
+        "kc?:"
+      ],
+      "website/en/api/indicators.md": [
+        "IndicatorOptions",
+        "symbol",
+        "obv?:",
+        "roc?:",
+        "dmi?:",
+        "sar?:",
+        "kc?:"
+      ],
+      "website/api/batch.md": [
+        "batchRaw(params: string)",
+        "返回顺序与传入 codes 一致"
+      ],
+      "website/en/api/batch.md": [
+        "batchRaw(params: string)",
+        "returned in the same order as the input `codes`"
+      ],
+      "website/api/hk-quotes.md": [
+        "currency",
+        "/api/code-lists",
+        "/api/batch"
+      ],
+      "website/en/api/hk-quotes.md": [
+        "currency",
+        "/en/api/code-lists",
+        "/en/api/batch"
+      ],
+      "website/api/us-quotes.md": [
+        "turnoverRate",
+        "/api/code-lists",
+        "/api/batch"
+      ],
+      "website/en/api/us-quotes.md": [
+        "turnoverRate",
+        "/en/api/code-lists",
+        "/en/api/batch"
+      ],
+      "website/summary.md": [
+        "此页面由脚本自动生成",
+        "providerPolicies",
+        "getDividendDetail"
+      ]
+    },
+    "parityIgnore": [
+      "summary.md",
+      "mcp/",
+      "playground/"
+    ]
+  }
+}

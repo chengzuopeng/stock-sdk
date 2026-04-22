@@ -10,16 +10,11 @@ import {
   EM_CONCEPT_TRENDS_URL,
 } from '../../core';
 import {
-  BoardTypeConfig,
   BoardKlineOptions,
   BoardMinuteKlineOptions,
-  createBoardCodeCache,
-  fetchBoardList,
-  fetchBoardSpot,
-  fetchBoardConstituents,
-  fetchBoardKline,
-  fetchBoardMinuteKline,
+  BoardTypeConfig,
 } from './boardCommon';
+import { createBoardProvider } from './boardFactory';
 import type {
   ConceptBoard,
   ConceptBoardSpot,
@@ -41,12 +36,14 @@ const CONCEPT_CONFIG: BoardTypeConfig = {
   errorPrefix: '未找到概念板块',
 };
 
-// 板块代码缓存
-const codeCache = createBoardCodeCache(CONCEPT_CONFIG);
-
-async function getConceptCode(client: RequestClient, symbol: string): Promise<string> {
-  return codeCache.getCode(client, symbol, getConceptList);
-}
+const conceptProvider = createBoardProvider<
+  ConceptBoard,
+  ConceptBoardSpot,
+  ConceptBoardConstituent,
+  ConceptBoardKline,
+  ConceptBoardMinuteTimeline,
+  ConceptBoardMinuteKline
+>(CONCEPT_CONFIG);
 
 // 导出选项类型
 export type ConceptBoardKlineOptions = BoardKlineOptions;
@@ -56,23 +53,21 @@ export type ConceptBoardMinuteKlineOptions = BoardMinuteKlineOptions;
  * 获取东方财富概念板块名称列表
  */
 export async function getConceptList(client: RequestClient): Promise<ConceptBoard[]> {
-  return fetchBoardList(client, CONCEPT_CONFIG);
+  return conceptProvider.getList(client);
 }
 
 /**
  * 获取东方财富概念板块实时行情
  */
 export async function getConceptSpot(client: RequestClient, symbol: string): Promise<ConceptBoardSpot[]> {
-  const boardCode = await getConceptCode(client, symbol);
-  return fetchBoardSpot(client, boardCode, CONCEPT_CONFIG.spotUrl);
+  return conceptProvider.getSpot(client, symbol);
 }
 
 /**
  * 获取东方财富概念板块成分股
  */
 export async function getConceptConstituents(client: RequestClient, symbol: string): Promise<ConceptBoardConstituent[]> {
-  const boardCode = await getConceptCode(client, symbol);
-  return fetchBoardConstituents(client, boardCode, CONCEPT_CONFIG.consUrl);
+  return conceptProvider.getConstituents(client, symbol);
 }
 
 /**
@@ -83,8 +78,7 @@ export async function getConceptKline(
   symbol: string,
   options: ConceptBoardKlineOptions = {}
 ): Promise<ConceptBoardKline[]> {
-  const boardCode = await getConceptCode(client, symbol);
-  return fetchBoardKline(client, boardCode, CONCEPT_CONFIG.klineUrl, options);
+  return conceptProvider.getKline(client, symbol, options);
 }
 
 /**
@@ -95,6 +89,5 @@ export async function getConceptMinuteKline(
   symbol: string,
   options: ConceptBoardMinuteKlineOptions = {}
 ): Promise<ConceptBoardMinuteTimeline[] | ConceptBoardMinuteKline[]> {
-  const boardCode = await getConceptCode(client, symbol);
-  return fetchBoardMinuteKline(client, boardCode, CONCEPT_CONFIG.klineUrl, CONCEPT_CONFIG.trendsUrl, options);
+  return conceptProvider.getMinuteKline(client, symbol, options);
 }

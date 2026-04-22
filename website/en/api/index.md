@@ -19,9 +19,10 @@ const sdk = new StockSDK(options?);
 | `retry` | `RetryOptions` | See below | Retry configuration |
 | `headers` | `Record<string, string>` | - | Custom request headers |
 | `userAgent` | `string` | - | Custom User-Agent (may be ignored in browsers) |
-| `rateLimit` | `RateLimitOptions` | - | Rate limiting (prevent rate limit errors) |
+| `rateLimit` | `RateLimiterOptions` | - | Rate limiting (prevent rate limit errors) |
 | `rotateUserAgent` | `boolean` | `false` | Enable UA rotation (Node.js only) |
 | `circuitBreaker` | `CircuitBreakerOptions` | - | Circuit breaker (pause on consecutive failures) |
+| `providerPolicies` | `Partial<Record<ProviderName, ProviderRequestPolicy>>` | - | Override timeout, retry, rate limit, circuit breaker, and headers per provider |
 
 ### Retry Options (RetryOptions)
 
@@ -36,7 +37,7 @@ const sdk = new StockSDK(options?);
 | `retryOnTimeout` | `boolean` | `true` | Retry on timeout |
 | `onRetry` | `function` | - | Retry callback `(attempt, error, delay) => void` |
 
-### Rate Limit Options (RateLimitOptions)
+### Rate Limit Options (RateLimiterOptions)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -46,6 +47,31 @@ const sdk = new StockSDK(options?);
 ::: tip Recommendation
 Configure `requestsPerSecond: 3~5` to avoid triggering Eastmoney's rate limits.
 :::
+
+### Provider Overrides (ProviderRequestPolicy)
+
+Global `timeout` / `retry` / `rateLimit` / `circuitBreaker` settings still work as the default policy.  
+`providerPolicies` only overrides those defaults for a specific provider, so existing initialization code remains compatible.
+
+```typescript
+interface ProviderRequestPolicy {
+  timeout?: number;
+  retry?: RetryOptions;
+  headers?: Record<string, string>;
+  userAgent?: string;
+  rateLimit?: RateLimiterOptions;
+  rotateUserAgent?: boolean;
+  circuitBreaker?: CircuitBreakerOptions;
+}
+```
+
+Built-in provider names:
+
+- `tencent`
+- `eastmoney`
+- `sina`
+- `linkdiary`
+- `unknown`
 
 ### Circuit Breaker Options (CircuitBreakerOptions)
 
@@ -73,7 +99,7 @@ const sdk = new StockSDK({
   headers: {
     'X-Request-Source': 'my-app',
   },
-  userAgent: 'StockSDK/1.6',
+  userAgent: 'StockSDK/1.8.0',
   
   // Retry configuration
   retry: {
@@ -99,6 +125,25 @@ const sdk = new StockSDK({
     resetTimeout: 30000,
     onStateChange: (from, to) => {
       console.log(`Circuit breaker: ${from} -> ${to}`);
+    }
+  },
+
+  // Override strategy for a specific provider
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      retry: {
+        maxRetries: 5,
+        baseDelay: 800,
+      },
+      rateLimit: {
+        requestsPerSecond: 3,
+        maxBurst: 3,
+      },
+      circuitBreaker: {
+        failureThreshold: 3,
+        resetTimeout: 30000,
+      }
     }
   }
 });
@@ -131,6 +176,11 @@ const sdk = new StockSDK({
 - [BIAS](/en/api/indicator-bias)
 - [CCI](/en/api/indicator-cci)
 - [ATR](/en/api/indicator-atr)
+- [OBV](/en/api/indicator-obv)
+- [ROC](/en/api/indicator-roc)
+- [DMI / ADX](/en/api/indicator-dmi)
+- [SAR](/en/api/indicator-sar)
+- [KC](/en/api/indicator-kc)
 
 ## Industry Sectors
 

@@ -66,6 +66,46 @@ describe('core utils', () => {
       expect(output).toEqual([2, 4, 6]);
     });
 
+    it('should keep completion order by default when tasks finish out of order', async () => {
+      const tasks = [
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          return 'first';
+        },
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          return 'second';
+        },
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 15));
+          return 'third';
+        },
+      ];
+
+      const output = await asyncPool(tasks, 2);
+      expect(output).toEqual(['second', 'third', 'first']);
+    });
+
+    it('should preserve input order when preserveOrder is enabled', async () => {
+      const tasks = [
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          return 'first';
+        },
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          return 'second';
+        },
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 15));
+          return 'third';
+        },
+      ];
+
+      const output = await asyncPool(tasks, 2, true);
+      expect(output).toEqual(['first', 'second', 'third']);
+    });
+
     it('should throw for invalid concurrency', async () => {
       await expect(asyncPool([async () => 1], 0)).rejects.toThrow(/concurrency/i);
       await expect(asyncPool([async () => 1], -1)).rejects.toThrow(/concurrency/i);

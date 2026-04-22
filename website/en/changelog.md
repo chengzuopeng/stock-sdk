@@ -2,6 +2,28 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.8.1](https://www.npmjs.com/package/stock-sdk/v/1.8.1)** (2026-04-22)
+
+### Improvements
+
+**Request Governance**
+- Added optional `providerPolicies` to `RequestClient`, allowing provider-level overrides for timeout, retry, rate limiting, circuit breaker, headers, and UA strategy across `tencent`, `eastmoney`, `sina`, and other built-in providers
+- Preserved the existing global `timeout`, `retry`, `rateLimit`, and `circuitBreaker` behavior, so legacy initialization code continues to work unchanged
+- Isolated circuit breaker and rate limiter runtime state by provider, preventing failures from one data source from affecting another
+
+**Technical Indicators**
+- Completed one-stop support for `OBV`, `ROC`, `DMI`, `SAR`, and `KC` in `getKlineWithIndicators` and `addIndicators`
+- Synchronized `IndicatorOptions` and lookback estimation logic for the newly exported indicators
+
+**Batch Query**
+- Whole-market batch APIs now preserve input order internally, so returned quote arrays stay aligned with the requested symbol order
+- The public `asyncPool` export remains backward compatible to avoid breaking existing external utility usage
+
+**Provider Refactor**
+- Introduced Eastmoney history-K-line and board provider factories to reduce duplicated logic across HK/US K-line and industry/concept board modules
+- Public API names, parameters, and return types remain unchanged
+
+
 ## **[1.8.0](https://www.npmjs.com/package/stock-sdk/v/1.8.0)** (2026-03-13)
 
 ### New Features

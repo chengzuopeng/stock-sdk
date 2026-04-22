@@ -1,132 +1,95 @@
 # Batch Query
 
-Efficiently fetch large amounts of stock data.
+Stock SDK provides full-market batch quotes, custom code-list batch quotes, and a low-level mixed raw query API.
+
+::: tip Code Lists
+For market code lists, see [Code Lists](/en/api/code-lists).
+:::
 
 ## getAllAShareQuotes
 
-Get all A-Share real-time quotes. Supports filtering by exchange or board.
-
-```typescript
-// Get all A-Share quotes
-const quotes = await sdk.getAllAShareQuotes();
-
-// Get STAR Market (科创板) quotes only
-const kcQuotes = await sdk.getAllAShareQuotes({ market: 'kc' });
-
-// Get ChiNext (创业板) quotes with progress
-const cyQuotes = await sdk.getAllAShareQuotes({
-  market: 'cy',
-  batchSize: 500,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(`Progress: ${completed}/${total}`);
-  },
-});
+```ts
+getAllAShareQuotes(options?: {
+  market?: AShareMarket;
+  batchSize?: number;
+  concurrency?: number;
+  onProgress?: (completed: number, total: number) => void;
+}): Promise<FullQuote[]>
 ```
 
-### Parameters
+Use it to fetch the entire A-share market with optional `market`, `batchSize`, `concurrency`, and `onProgress`.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| market | `AShareMarket` | - | Filter by exchange/board |
-| batchSize | `number` | 500 | Codes per request |
-| concurrency | `number` | 7 | Parallel requests |
-| onProgress | `function` | - | Progress callback |
+## getAllQuotesByCodes
 
-### AShareMarket Type
+```ts
+getAllQuotesByCodes(
+  codes: string[],
+  options?: {
+    batchSize?: number;
+    concurrency?: number;
+    onProgress?: (completed: number, total: number) => void;
+  }
+): Promise<FullQuote[]>
+```
 
-| Value | Description | Code Pattern |
-|-------|-------------|--------------|
-| `'sh'` | Shanghai Stock Exchange | Starts with 6 |
-| `'sz'` | Shenzhen Stock Exchange | Starts with 0 or 3 |
-| `'bj'` | Beijing Stock Exchange | Starts with 92 |
-| `'kc'` | STAR Market (科创板) | Starts with 688 |
-| `'cy'` | ChiNext (创业板) | Starts with 30 |
+### Returned Order
+
+The results are returned in the same order as the input `codes`, which makes it easier to align with a watchlist, table rows, or your own cache keys.
+
+```ts
+const codes = ['sz000858', 'sh600519', 'sh600000', 'sz000001'];
+const quotes = await sdk.getAllQuotesByCodes(codes, {
+  batchSize: 100,
+  concurrency: 2,
+});
+
+console.log(quotes.map((item) => item.code));
+// ['sz000858', 'sh600519', 'sh600000', 'sz000001']
+```
 
 ## getAllHKShareQuotes
 
-Get all HK stock quotes.
-
-```typescript
-const quotes = await sdk.getAllHKShareQuotes({
-  concurrency: 5,
-  onProgress: (c, t) => console.log(`${c}/${t}`),
-});
+```ts
+getAllHKShareQuotes(options?: {
+  batchSize?: number;
+  concurrency?: number;
+  onProgress?: (completed: number, total: number) => void;
+}): Promise<HKQuote[]>
 ```
 
 ## getAllUSShareQuotes
 
-Get all US stock quotes. Supports filtering by market.
-
-### Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `batchSize` | `number` | `500` | Batch size per request |
-| `concurrency` | `number` | `7` | Max concurrent requests |
-| `onProgress` | `function` | - | Progress callback |
-| `market` | `USMarket` | - | Filter by market: `NASDAQ`, `NYSE`, `AMEX` |
-
-### Example
-
-```typescript
-// Get all US stocks
-const allQuotes = await sdk.getAllUSShareQuotes();
-
-// Get NASDAQ stocks only
-const nasdaqQuotes = await sdk.getAllUSShareQuotes({ market: 'NASDAQ' });
-
-// Get NYSE stocks with progress
-const nyseQuotes = await sdk.getAllUSShareQuotes({
-  market: 'NYSE',
-  concurrency: 5,
-  onProgress: (c, t) => console.log(`${c}/${t}`),
-});
-```
-
-## getAllQuotesByCodes
-
-Get quotes for specific code list.
-
-```typescript
-const codes = ['sh600000', 'sz000001', 'sh600519', ...];
-
-const quotes = await sdk.getAllQuotesByCodes(codes, {
-  batchSize: 100,
-  concurrency: 3,
-});
+```ts
+getAllUSShareQuotes(options?: {
+  batchSize?: number;
+  concurrency?: number;
+  onProgress?: (completed: number, total: number) => void;
+  market?: 'NASDAQ' | 'NYSE' | 'AMEX';
+}): Promise<USQuote[]>
 ```
 
 ## batchRaw
 
-Low-level batch query for mixed data types.
+```ts
+batchRaw(params: string): Promise<{ key: string; fields: string[] }[]>
+```
 
-```typescript
-const result = await sdk.batchRaw([
-  'r_sz000858',  // Real-time quote
-  'r_sh600519',  // Real-time quote
-]);
+`batchRaw` is the low-level mixed query API for advanced cases where you want to parse the raw fields yourself.
+
+```ts
+const raw = await sdk.batchRaw('sz000858,s_sh000001,jj000001');
+
+console.log(raw[0].key);
+console.log(raw[0].fields);
 ```
 
 ## Performance Tips
 
-1. **Adjust concurrency based on network**
-   - Low latency: Use higher concurrency (7-10)
-   - High latency: Use lower concurrency (3-5)
+- Reduce `concurrency` on unstable networks
+- Reduce `batchSize` when each request becomes too large
+- Use `providerPolicies` from [Request Governance](/en/guide/request-governance) for finer-grained control
 
-2. **Use progress callbacks for UI feedback**
-   ```typescript
-   onProgress: (completed, total) => {
-     updateProgressBar(completed / total * 100);
-   }
-   ```
+## Related Pages
 
-3. **Handle errors gracefully**
-   ```typescript
-   try {
-     const quotes = await sdk.getAllAShareQuotes();
-   } catch (error) {
-     // Implement retry or fallback
-   }
-   ```
-
+- [Code Lists](/en/api/code-lists)
+- [Request Governance](/en/guide/request-governance)

@@ -1,13 +1,14 @@
 # Technical Indicators
 
-Stock SDK provides built-in technical indicator calculations.
+Stock SDK supports two indicator workflows:
 
-## Using getKlineWithIndicators
+- Use `getKlineWithIndicators` to fetch K-line and indicators in one call
+- Use standalone functions such as `calcMA`, `calcMACD`, and `calcOBV`
 
-The easiest way to get K-line data with indicators:
+## One-stop K-line with Indicators
 
-```typescript
-const data = await sdk.getKlineWithIndicators('sz000858', {
+```ts
+const data = await sdk.getKlineWithIndicators('sz000001', {
   startDate: '20240101',
   endDate: '20241231',
   indicators: {
@@ -16,145 +17,114 @@ const data = await sdk.getKlineWithIndicators('sz000858', {
     boll: true,
     kdj: true,
     rsi: { periods: [6, 12, 24] },
-    wr: true,
-    bias: { periods: [6, 12, 24] },
-    cci: true,
-    atr: true,
-  }
+    obv: { maPeriod: 20 },
+    roc: { period: 12, signalPeriod: 6 },
+    dmi: { period: 14, adxPeriod: 6 },
+    sar: true,
+    kc: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
+  },
 });
+
+console.log(data[30].ma?.ma5);
+console.log(data[30].obv?.obvMa);
+console.log(data[30].roc?.signal);
+console.log(data[30].dmi?.adx);
+console.log(data[30].sar?.sar);
+console.log(data[30].kc?.upper);
 ```
 
-## Available Indicators
+## Supported Indicators
 
-### MA (Moving Average)
+- `ma`
+- `macd`
+- `boll`
+- `kdj`
+- `rsi`
+- `wr`
+- `bias`
+- `cci`
+- `atr`
+- `obv`
+- `roc`
+- `dmi`
+- `sar`
+- `kc`
 
-```typescript
-// In getKlineWithIndicators
-indicators: {
-  ma: { periods: [5, 10, 20, 60] }
-}
+## Standalone Calculation Functions
 
-// Result
-data[0].ma?.ma5   // 5-period MA
-data[0].ma?.ma10  // 10-period MA
-data[0].ma?.ma20  // 20-period MA
-data[0].ma?.ma60  // 60-period MA
+```ts
+import {
+  calcMA,
+  calcMACD,
+  calcBOLL,
+  calcKDJ,
+  calcOBV,
+  calcROC,
+  calcDMI,
+  calcSAR,
+  calcKC,
+} from 'stock-sdk';
+
+const klines = await sdk.getHistoryKline('sz000001');
+const closes = klines.map((item) => item.close);
+const ohlc = klines.map((item) => ({
+  open: item.open,
+  high: item.high,
+  low: item.low,
+  close: item.close,
+  volume: item.volume,
+}));
+
+const ma = calcMA(closes, { periods: [5, 10, 20], type: 'sma' });
+const macd = calcMACD(closes);
+const boll = calcBOLL(closes, { period: 20, stdDev: 2 });
+const kdj = calcKDJ(ohlc, { period: 9, kPeriod: 3, dPeriod: 3 });
+const obv = calcOBV(ohlc, { maPeriod: 20 });
+const roc = calcROC(ohlc, { period: 12, signalPeriod: 6 });
+const dmi = calcDMI(ohlc, { period: 14, adxPeriod: 6 });
+const sar = calcSAR(ohlc, { afStart: 0.02, afIncrement: 0.02, afMax: 0.2 });
+const kc = calcKC(ohlc, { emaPeriod: 20, atrPeriod: 10, multiplier: 2 });
+
+console.log(ma[20].ma20);
+console.log(macd[20].dif);
+console.log(kdj[20].k);
+console.log(obv[20].obvMa);
+console.log(roc[20].signal);
+console.log(dmi[20].adx);
+console.log(sar[20].sar);
+console.log(kc[20].upper);
 ```
 
-### MACD
+## Using addIndicators
 
-```typescript
-indicators: { macd: true }
+```ts
+import { addIndicators } from 'stock-sdk';
 
-// Result
-data[0].macd?.dif   // DIF line
-data[0].macd?.dea   // DEA line (Signal)
-data[0].macd?.macd  // MACD histogram
+const klines = await sdk.getHistoryKline('sz000001');
+
+const withIndicators = addIndicators(klines, {
+  ma: { periods: [5, 10] },
+  macd: true,
+  obv: { maPeriod: 20 },
+  roc: true,
+  dmi: true,
+  sar: true,
+  kc: true,
+});
+
+console.log(withIndicators[40].obv?.obv);
+console.log(withIndicators[40].roc?.roc);
+console.log(withIndicators[40].dmi?.pdi);
 ```
 
-### BOLL (Bollinger Bands)
+## Notes
 
-```typescript
-indicators: { boll: true }
+- Most indicators return `null` until there is enough history
+- `getKlineWithIndicators` automatically fetches extra lookback data when needed
+- `calcMA` accepts a close-price array, while most trend indicators accept `OHLCV[]`
+- Use `addIndicators` when you want to attach multiple indicators to the same K-line array
 
-// Result
-data[0].boll?.upper  // Upper band
-data[0].boll?.mid    // Middle band
-data[0].boll?.lower  // Lower band
-```
+## Related Pages
 
-### KDJ
-
-```typescript
-indicators: { kdj: true }
-
-// Result
-data[0].kdj?.k  // K line
-data[0].kdj?.d  // D line
-data[0].kdj?.j  // J line
-```
-
-### RSI (Relative Strength Index)
-
-```typescript
-indicators: { rsi: { periods: [6, 12, 24] } }
-
-// Result
-data[0].rsi?.rsi6   // 6-period RSI
-data[0].rsi?.rsi12  // 12-period RSI
-data[0].rsi?.rsi24  // 24-period RSI
-```
-
-### WR (Williams %R)
-
-```typescript
-indicators: { wr: true }
-
-// Result
-data[0].wr?.wr6   // 6-period WR
-data[0].wr?.wr10  // 10-period WR
-```
-
-### BIAS
-
-```typescript
-indicators: { bias: { periods: [6, 12, 24] } }
-
-// Result
-data[0].bias?.bias6   // 6-period BIAS
-data[0].bias?.bias12  // 12-period BIAS
-data[0].bias?.bias24  // 24-period BIAS
-```
-
-### CCI (Commodity Channel Index)
-
-```typescript
-indicators: { cci: true }
-
-// Result
-data[0].cci?.cci  // CCI value
-```
-
-### ATR (Average True Range)
-
-```typescript
-indicators: { atr: true }
-
-// Result
-data[0].atr?.atr  // ATR value
-```
-
-## Manual Calculation
-
-You can also calculate indicators manually using the calculation functions:
-
-```typescript
-import { calcMA, calcMACD, calcBOLL, calcKDJ, calcRSI } from 'stock-sdk';
-
-// Get K-line first
-const klines = await sdk.getHistoryKline('sz000858');
-
-// Calculate MA
-const closes = klines.map(k => k.close);
-const ma5 = calcMA(closes, 5);
-
-// Calculate MACD
-const macdResult = calcMACD(closes);
-// macdResult = { dif: number[], dea: number[], macd: number[] }
-
-// Calculate BOLL
-const bollResult = calcBOLL(closes);
-// bollResult = { upper: number[], mid: number[], lower: number[] }
-
-// Calculate KDJ
-const highs = klines.map(k => k.high);
-const lows = klines.map(k => k.low);
-const kdjResult = calcKDJ(highs, lows, closes);
-// kdjResult = { k: number[], d: number[], j: number[] }
-```
-
-## Next Steps
-
-- [API Documentation](/en/api/indicators) for detailed indicator API
-- [Batch Query](/en/guide/batch) for large-scale data fetching
-
+- [Indicators API Overview](/en/api/indicators)
+- [Quick Start](/en/guide/getting-started)

@@ -7,6 +7,8 @@ export {
   RequestClient,
   HttpError,
   type RequestClientOptions,
+  type ProviderName,
+  type ProviderRequestPolicy,
   type RetryOptions,
 } from './request';
 

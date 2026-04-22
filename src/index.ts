@@ -75,7 +75,12 @@ export {
 } from './core';
 
 // 导出配置类型
-export type { RetryOptions, RequestClientOptions } from './core';
+export type {
+  RetryOptions,
+  RequestClientOptions,
+  ProviderName,
+  ProviderRequestPolicy,
+} from './core';
 
 // 导出选项类型
 export type {

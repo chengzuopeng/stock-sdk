@@ -3,7 +3,6 @@
 [![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
-[![Test Coverage](https://img.shields.io/badge/coverage-95.88%25-brightgreen.svg)](https://github.com/chengzuopeng/stock-sdk)
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://www.npmjs.com/package/stock-sdk-mcp)
 [![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/mcp/)
 
@@ -13,7 +12,7 @@
 
 无需 Python、无需后端服务，直接在 **浏览器或 Node.js** 中获取 **A 股 / 港股 / 美股 / 公募基金** 的实时行情与 K 线数据。
 
-**✨ 零依赖 | 🌐 Browser + Node.js | 📦 <20KB | 🧠 完整 TypeScript 类型**
+**✨ 零依赖 | 🌐 Browser + Node.js | 📦 轻量发布包 | 🧠 完整 TypeScript 类型**
 
 ## Documentation
 
@@ -50,17 +49,18 @@
 
 ## 特性
 
-- ✅ **零依赖**，轻量级（压缩后 < 20KB）
+- ✅ **零依赖**，轻量级发布包
 - ✅ 支持 **浏览器** 和 **Node.js 18+** 双端运行
 - ✅ 同时提供 **ESM** 和 **CommonJS** 两种模块格式
 - ✅ 完整的 **TypeScript** 类型定义和单元测试覆盖
 - ✅ **A 股、港股、美股、公募基金**实时行情
 - ✅ **历史 K 线**（日/周/月）、**分钟 K 线**（1/5/15/30/60 分钟）和**当日分时走势**数据
-- ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR 等常用指标计算
+- ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR、BIAS、CCI、ATR、OBV、ROC、DMI、SAR、KC
 - ✅ **期货行情**：国内期货 K 线、全球期货实时行情与 K 线、期货库存数据
 - ✅ **期权数据**：中金所股指期权、上交所 ETF 期权、商品期权的报价 / K 线 / 分钟行情
 - ✅ **资金流向**、**盘口大单**等扩展数据
 - ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
+- ✅ 支持 **provider 级重试 / 限流 / 熔断策略覆盖**，兼容旧的全局请求配置
 - ✅ **AI / MCP 就绪** — 配套 [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server，一行命令接入 Cursor / Claude / Gemini 等 AI 工具
 
 ## 安装
@@ -176,6 +176,11 @@ Stock SDK 配套 MCP Server（[stock-sdk-mcp](https://www.npmjs.com/package/stoc
 | `calcBIAS` | 计算乖离率 |
 | `calcCCI` | 计算商品通道指数 |
 | `calcATR` | 计算平均真实波幅 |
+| `calcOBV` | 计算能量潮 |
+| `calcROC` | 计算变动率指标 |
+| `calcDMI` | 计算趋向指标 |
+| `calcSAR` | 计算抛物线转向 |
+| `calcKC` | 计算肯特纳通道 |
 
 ### 行业板块
 

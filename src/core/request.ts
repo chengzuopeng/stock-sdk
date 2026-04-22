@@ -16,6 +16,16 @@ import { getNextUserAgent } from './userAgentPool';
 import { CircuitBreaker, CircuitBreakerError, type CircuitBreakerOptions } from './circuitBreaker';
 
 /**
+ * 已知的数据源名称
+ */
+export type ProviderName =
+  | 'tencent'
+  | 'eastmoney'
+  | 'sina'
+  | 'linkdiary'
+  | 'unknown';
+
+/**
  * HTTP 错误类
  */
 export class HttpError extends Error {
@@ -56,6 +66,26 @@ export interface RetryOptions {
 }
 
 /**
+ * Provider 级请求策略
+ */
+export interface ProviderRequestPolicy {
+  /** 请求超时时间（毫秒） */
+  timeout?: number;
+  /** 重试配置 */
+  retry?: RetryOptions;
+  /** 自定义请求头 */
+  headers?: Record<string, string>;
+  /** 自定义 User-Agent（浏览器环境可能会被忽略） */
+  userAgent?: string;
+  /** 限流配置（防止请求过快被频控） */
+  rateLimit?: RateLimiterOptions;
+  /** 是否启用 UA 轮换（仅 Node.js 有效） */
+  rotateUserAgent?: boolean;
+  /** 熔断器配置（连续失败时暂停请求） */
+  circuitBreaker?: CircuitBreakerOptions;
+}
+
+/**
  * 请求客户端配置选项
  */
 export interface RequestClientOptions {
@@ -72,6 +102,11 @@ export interface RequestClientOptions {
   rotateUserAgent?: boolean;
   /** 熔断器配置（连续失败时暂停请求） */
   circuitBreaker?: CircuitBreakerOptions;
+  /**
+   * Provider 级请求策略。
+   * 未配置的 provider 会回退到全局默认配置。
+   */
+  providerPolicies?: Partial<Record<ProviderName, ProviderRequestPolicy>>;
 }
 
 /**
@@ -88,35 +123,61 @@ interface ResolvedRetryOptions {
   onRetry?: (attempt: number, error: Error, delay: number) => void;
 }
 
+/**
+ * 归一化后的 provider 请求策略
+ */
+interface ResolvedProviderPolicy {
+  timeout: number;
+  retry: ResolvedRetryOptions;
+  headers: Record<string, string>;
+  rotateUserAgent: boolean;
+  rateLimit?: RateLimiterOptions;
+  circuitBreaker?: CircuitBreakerOptions;
+}
+
+/**
+ * Provider 级运行时状态
+ */
+interface ProviderRuntimeState {
+  policy: ResolvedProviderPolicy;
+  rateLimiter: RateLimiter | null;
+  circuitBreaker: CircuitBreaker | null;
+}
+
+/**
+ * GET 请求选项
+ */
+interface GetOptions {
+  responseType?: 'text' | 'json' | 'arraybuffer';
+  provider?: ProviderName;
+}
+
 export class RequestClient {
   private baseUrl: string;
-  private timeout: number;
-  private retryOptions: ResolvedRetryOptions;
-  private headers: Record<string, string>;
-  private rateLimiter: RateLimiter | null;
-  private rotateUserAgent: boolean;
-  private circuitBreaker: CircuitBreaker | null;
+  private defaultPolicy: ResolvedProviderPolicy;
+  private providerPolicies: Partial<Record<ProviderName, ResolvedProviderPolicy>>;
+  private runtimeStates: Map<ProviderName, ProviderRuntimeState>;
 
   constructor(options: RequestClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? TENCENT_BASE_URL;
-    this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
-    this.retryOptions = this.resolveRetryOptions(options.retry);
-    this.headers = { ...(options.headers ?? {}) };
-    this.rotateUserAgent = options.rotateUserAgent ?? false;
+    const basePolicy: ProviderRequestPolicy = {
+      timeout: options.timeout,
+      retry: options.retry,
+      headers: options.headers,
+      userAgent: options.userAgent,
+      rateLimit: options.rateLimit,
+      rotateUserAgent: options.rotateUserAgent,
+      circuitBreaker: options.circuitBreaker,
+    };
 
-    // 初始化限流器（如果配置了）
-    this.rateLimiter = options.rateLimit ? new RateLimiter(options.rateLimit) : null;
+    this.defaultPolicy = this.resolveProviderPolicy(basePolicy);
+    this.providerPolicies = {};
+    this.runtimeStates = new Map();
 
-    // 初始化熔断器（如果配置了）
-    this.circuitBreaker = options.circuitBreaker ? new CircuitBreaker(options.circuitBreaker) : null;
-
-    if (options.userAgent) {
-      const hasUserAgent = Object.keys(this.headers).some(
-        (key) => key.toLowerCase() === 'user-agent'
-      );
-      if (!hasUserAgent) {
-        this.headers['User-Agent'] = options.userAgent;
-      }
+    for (const [provider, policy] of Object.entries(options.providerPolicies ?? {})) {
+      const mergedPolicy = this.mergeProviderPolicy(basePolicy, policy);
+      this.providerPolicies[provider as ProviderName] =
+        this.resolveProviderPolicy(mergedPolicy);
     }
   }
 
@@ -137,35 +198,146 @@ export class RequestClient {
   }
 
   /**
+   * 归一化请求头，确保自定义 UA 不会覆盖显式传入的 User-Agent。
+   */
+  private normalizeHeaders(
+    headers?: Record<string, string>,
+    userAgent?: string
+  ): Record<string, string> {
+    const normalizedHeaders = { ...(headers ?? {}) };
+    if (userAgent) {
+      const hasUserAgent = Object.keys(normalizedHeaders).some(
+        (key) => key.toLowerCase() === 'user-agent'
+      );
+      if (!hasUserAgent) {
+        normalizedHeaders['User-Agent'] = userAgent;
+      }
+    }
+    return normalizedHeaders;
+  }
+
+  /**
+   * 合并 provider 策略，嵌套对象按浅合并处理。
+   */
+  private mergeProviderPolicy(
+    base: ProviderRequestPolicy,
+    override?: ProviderRequestPolicy
+  ): ProviderRequestPolicy {
+    if (!override) {
+      return {
+        ...base,
+        headers: { ...(base.headers ?? {}) },
+        retry: base.retry ? { ...base.retry } : undefined,
+        rateLimit: base.rateLimit ? { ...base.rateLimit } : undefined,
+        circuitBreaker: base.circuitBreaker ? { ...base.circuitBreaker } : undefined,
+      };
+    }
+
+    return {
+      timeout: override.timeout ?? base.timeout,
+      retry: override.retry
+        ? { ...(base.retry ?? {}), ...override.retry }
+        : base.retry
+          ? { ...base.retry }
+          : undefined,
+      headers: {
+        ...(base.headers ?? {}),
+        ...(override.headers ?? {}),
+      },
+      userAgent: override.userAgent ?? base.userAgent,
+      rateLimit: override.rateLimit
+        ? { ...(base.rateLimit ?? {}), ...override.rateLimit }
+        : base.rateLimit
+          ? { ...base.rateLimit }
+          : undefined,
+      rotateUserAgent: override.rotateUserAgent ?? base.rotateUserAgent,
+      circuitBreaker: override.circuitBreaker
+        ? { ...(base.circuitBreaker ?? {}), ...override.circuitBreaker }
+        : base.circuitBreaker
+          ? { ...base.circuitBreaker }
+          : undefined,
+    };
+  }
+
+  /**
+   * 解析 provider 策略，填充默认值。
+   */
+  private resolveProviderPolicy(
+    policy: ProviderRequestPolicy = {}
+  ): ResolvedProviderPolicy {
+    return {
+      timeout: policy.timeout ?? DEFAULT_TIMEOUT,
+      retry: this.resolveRetryOptions(policy.retry),
+      headers: this.normalizeHeaders(policy.headers, policy.userAgent),
+      rotateUserAgent: policy.rotateUserAgent ?? false,
+      rateLimit: policy.rateLimit
+        ? { ...policy.rateLimit }
+        : undefined,
+      circuitBreaker: policy.circuitBreaker
+        ? { ...policy.circuitBreaker }
+        : undefined,
+    };
+  }
+
+  /**
+   * 获取 provider 运行时状态，按需初始化限流器和熔断器。
+   */
+  private getProviderState(provider: ProviderName): ProviderRuntimeState {
+    const cached = this.runtimeStates.get(provider);
+    if (cached) {
+      return cached;
+    }
+
+    const policy = this.providerPolicies[provider] ?? this.defaultPolicy;
+    const state: ProviderRuntimeState = {
+      policy,
+      rateLimiter: policy.rateLimit ? new RateLimiter(policy.rateLimit) : null,
+      circuitBreaker: policy.circuitBreaker
+        ? new CircuitBreaker(policy.circuitBreaker)
+        : null,
+    };
+    this.runtimeStates.set(provider, state);
+    return state;
+  }
+
+  /**
    * 从 URL 推断数据源
    */
-  private inferProvider(url: string): string | undefined {
+  private inferProvider(url: string, explicitProvider?: ProviderName): ProviderName {
+    if (explicitProvider) {
+      return explicitProvider;
+    }
+
     try {
       const host = new URL(url).hostname;
       if (host.includes('eastmoney.com')) return 'eastmoney';
       if (host.includes('gtimg.cn')) return 'tencent';
+      if (host.includes('sina.com.cn')) return 'sina';
       if (host.includes('linkdiary.cn')) return 'linkdiary';
     } catch {
-      return undefined;
+      return 'unknown';
     }
-    return undefined;
+    return 'unknown';
   }
 
   /**
    * 获取超时时间
    */
   getTimeout(): number {
-    return this.timeout;
+    return this.defaultPolicy.timeout;
   }
 
   /**
    * 计算指数退避延迟时间
    */
-  private calculateDelay(attempt: number): number {
+  private calculateDelay(
+    attempt: number,
+    retryOptions: ResolvedRetryOptions
+  ): number {
     const delay = Math.min(
-      this.retryOptions.baseDelay *
-      Math.pow(this.retryOptions.backoffMultiplier, attempt),
-      this.retryOptions.maxDelay
+      retryOptions.baseDelay *
+      Math.pow(retryOptions.backoffMultiplier, attempt),
+      retryOptions.maxDelay
     );
     // 添加随机抖动 (0-100ms) 防止惊群效应
     return delay + Math.random() * 100;
@@ -181,25 +353,29 @@ export class RequestClient {
   /**
    * 判断是否应该重试
    */
-  private shouldRetry(error: unknown, attempt: number): boolean {
+  private shouldRetry(
+    error: unknown,
+    attempt: number,
+    retryOptions: ResolvedRetryOptions
+  ): boolean {
     // 超过最大重试次数
-    if (attempt >= this.retryOptions.maxRetries) {
+    if (attempt >= retryOptions.maxRetries) {
       return false;
     }
 
     // 超时错误 (AbortError)
     if (error instanceof DOMException && error.name === 'AbortError') {
-      return this.retryOptions.retryOnTimeout;
+      return retryOptions.retryOnTimeout;
     }
 
     // 网络错误 (fetch 失败，如 DNS 解析失败、连接被拒绝等)
     if (error instanceof TypeError) {
-      return this.retryOptions.retryOnNetworkError;
+      return retryOptions.retryOnNetworkError;
     }
 
     // HTTP 状态码错误
     if (error instanceof HttpError) {
-      return this.retryOptions.retryableStatusCodes.includes(error.status);
+      return retryOptions.retryableStatusCodes.includes(error.status);
     }
 
     return false;
@@ -210,27 +386,32 @@ export class RequestClient {
    */
   private async executeWithRetry<T>(
     requestFn: () => Promise<T>,
+    state: ProviderRuntimeState,
+    provider: ProviderName,
     attempt: number = 0
   ): Promise<T> {
     try {
       const result = await requestFn();
       // 请求成功，记录到熔断器
-      this.circuitBreaker?.recordSuccess();
+      state.circuitBreaker?.recordSuccess();
       return result;
     } catch (error) {
-      if (this.shouldRetry(error, attempt)) {
-        const delay = this.calculateDelay(attempt);
+      if (this.shouldRetry(error, attempt, state.policy.retry)) {
+        const delay = this.calculateDelay(attempt, state.policy.retry);
 
         // 触发重试回调
-        if (this.retryOptions.onRetry && error instanceof Error) {
-          this.retryOptions.onRetry(attempt + 1, error, delay);
+        if (state.policy.retry.onRetry && error instanceof Error) {
+          state.policy.retry.onRetry(attempt + 1, error, delay);
         }
 
         await this.sleep(delay);
-        return this.executeWithRetry(requestFn, attempt + 1);
+        return this.executeWithRetry(requestFn, state, provider, attempt + 1);
       }
       // 重试耗尽，记录失败到熔断器
-      this.circuitBreaker?.recordFailure();
+      state.circuitBreaker?.recordFailure();
+      if (error instanceof Error) {
+        (error as { provider?: ProviderName }).provider = provider;
+      }
       throw error;
     }
   }
@@ -240,28 +421,28 @@ export class RequestClient {
    */
   async get<T = string>(
     url: string,
-    options: {
-      responseType?: 'text' | 'json' | 'arraybuffer';
-    } = {}
+    options: GetOptions = {}
   ): Promise<T> {
+    const provider = this.inferProvider(url, options.provider);
+    const state = this.getProviderState(provider);
+
     // 熔断器检查：如果熔断器打开，直接抛出错误
-    if (this.circuitBreaker && !this.circuitBreaker.canRequest()) {
+    if (state.circuitBreaker && !state.circuitBreaker.canRequest()) {
       throw new CircuitBreakerError('Circuit breaker is OPEN, request rejected');
     }
 
     // 限流：等待获取令牌
-    if (this.rateLimiter) {
-      await this.rateLimiter.acquire();
+    if (state.rateLimiter) {
+      await state.rateLimiter.acquire();
     }
 
     return this.executeWithRetry(async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-      const provider = this.inferProvider(url);
+      const timeoutId = setTimeout(() => controller.abort(), state.policy.timeout);
 
       // 构建请求头，支持 UA 轮换
-      const requestHeaders = { ...this.headers };
-      if (this.rotateUserAgent) {
+      const requestHeaders = { ...state.policy.headers };
+      if (state.policy.rotateUserAgent) {
         const rotatedUA = getNextUserAgent();
         if (rotatedUA) {
           requestHeaders['User-Agent'] = rotatedUA;
@@ -295,7 +476,7 @@ export class RequestClient {
       } finally {
         clearTimeout(timeoutId);
       }
-    });
+    }, state, provider);
   }
 
   /**
@@ -307,6 +488,7 @@ export class RequestClient {
     const url = `${this.baseUrl}/?q=${encodeURIComponent(params)}`;
     const buffer = await this.get<ArrayBuffer>(url, {
       responseType: 'arraybuffer',
+      provider: 'tencent',
     });
     const text = decodeGBK(buffer);
     return parseResponse(text);

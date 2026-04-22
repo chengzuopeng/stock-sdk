@@ -1,6 +1,6 @@
 # Technical Indicators
 
-Get K-line data with built-in technical indicator calculations.
+Get K-line data with built-in technical indicator calculations. Supports A-shares, HK stocks, and US stocks.
 
 ## getKlineWithIndicators
 
@@ -21,6 +21,11 @@ const data = await sdk.getKlineWithIndicators('sz000858', {
     bias: { periods: [6, 12, 24] },
     cci: true,
     atr: true,
+    obv: { maPeriod: 20 },
+    roc: { period: 12, signalPeriod: 6 },
+    dmi: { period: 14 },
+    sar: true,
+    kc: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
   }
 });
 ```
@@ -29,26 +34,32 @@ const data = await sdk.getKlineWithIndicators('sz000858', {
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| code | `string` | Yes | Stock code |
+| symbol | `string` | Yes | Stock symbol |
+| options.market | `'A' \| 'HK' \| 'US'` | No | Market type. Auto-detected by default |
 | options.period | `'daily' \| 'weekly' \| 'monthly'` | No | K-line period |
 | options.startDate | `string` | No | Start date |
 | options.endDate | `string` | No | End date |
 | options.adjust | `'' \| 'qfq' \| 'hfq'` | No | Price adjustment |
-| options.indicators | `IndicatorConfig` | No | Indicators to calculate |
+| options.indicators | `IndicatorOptions` | No | Indicators to calculate |
 
 ### Indicator Configuration
 
 ```typescript
-interface IndicatorConfig {
-  ma?: { periods: number[] };      // Moving Average
-  macd?: boolean;                   // MACD
-  boll?: boolean;                   // Bollinger Bands
-  kdj?: boolean;                    // KDJ
-  rsi?: { periods: number[] };     // RSI
-  wr?: boolean;                     // Williams %R
-  bias?: { periods: number[] };    // BIAS
-  cci?: boolean;                    // CCI
-  atr?: boolean;                    // ATR
+interface IndicatorOptions {
+  ma?: MAOptions | boolean;        // Moving Average
+  macd?: MACDOptions | boolean;    // MACD
+  boll?: BOLLOptions | boolean;    // Bollinger Bands
+  kdj?: KDJOptions | boolean;      // KDJ
+  rsi?: RSIOptions | boolean;      // RSI
+  wr?: WROptions | boolean;        // Williams %R
+  bias?: BIASOptions | boolean;    // BIAS
+  cci?: CCIOptions | boolean;      // CCI
+  atr?: ATROptions | boolean;      // ATR
+  obv?: OBVOptions | boolean;      // On Balance Volume
+  roc?: ROCOptions | boolean;      // Rate of Change
+  dmi?: DMIOptions | boolean;      // Directional Movement Index
+  sar?: SAROptions | boolean;      // Parabolic SAR
+  kc?: KCOptions | boolean;        // Keltner Channel
 }
 ```
 
@@ -100,6 +111,32 @@ interface KlineWithIndicators extends KlineData {
   atr?: {
     atr: number;
   };
+  obv?: {
+    obv: number | null;
+    obvMa: number | null;
+  };
+  roc?: {
+    roc: number | null;
+    signal: number | null;
+  };
+  dmi?: {
+    pdi: number | null;
+    mdi: number | null;
+    adx: number | null;
+    adxr: number | null;
+  };
+  sar?: {
+    sar: number | null;
+    trend: 1 | -1 | null;
+    ep: number | null;
+    af: number | null;
+  };
+  kc?: {
+    mid: number | null;
+    upper: number | null;
+    lower: number | null;
+    width: number | null;
+  };
 }
 ```
 
@@ -116,6 +153,9 @@ const data = await sdk.getKlineWithIndicators('sz000858', {
     ma: { periods: [5, 10, 20] },
     macd: true,
     boll: true,
+    obv: true,
+    dmi: true,
+    kc: true,
   }
 });
 
@@ -124,6 +164,7 @@ data.forEach(k => {
   console.log(`  MA: 5=${k.ma?.ma5}, 10=${k.ma?.ma10}, 20=${k.ma?.ma20}`);
   console.log(`  MACD: DIF=${k.macd?.dif}, DEA=${k.macd?.dea}`);
   console.log(`  BOLL: Upper=${k.boll?.upper}, Mid=${k.boll?.mid}`);
+  console.log(`  OBV=${k.obv?.obv}, ADX=${k.dmi?.adx}, KC Mid=${k.kc?.mid}`);
 });
 ```
 

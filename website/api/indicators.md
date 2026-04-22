@@ -54,6 +54,11 @@ interface IndicatorOptions {
   bias?: BIASOptions | boolean;  // 乖离率
   cci?: CCIOptions | boolean;    // CCI
   atr?: ATROptions | boolean;    // ATR
+  obv?: OBVOptions | boolean;    // OBV 能量潮
+  roc?: ROCOptions | boolean;    // ROC 变动率
+  dmi?: DMIOptions | boolean;    // DMI / ADX 趋向指标
+  sar?: SAROptions | boolean;    // SAR 抛物线转向
+  kc?: KCOptions | boolean;      // KC 肯特纳通道
 }
 ```
 
@@ -73,6 +78,11 @@ const data = await sdk.getKlineWithIndicators('sz000001', {
     bias: { periods: [6, 12, 24] },
     cci: { period: 14 },
     atr: { period: 14 },
+    obv: { maPeriod: 20 },
+    roc: { period: 12, signalPeriod: 6 },
+    dmi: { period: 14 },
+    sar: true,
+    kc: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
   }
 });
 
@@ -84,6 +94,8 @@ data.forEach(k => {
   console.log(`  KDJ: K=${k.kdj?.k}, D=${k.kdj?.d}, J=${k.kdj?.j}`);
   console.log(`  RSI6=${k.rsi?.rsi6}, WR6=${k.wr?.wr6}`);
   console.log(`  BIAS6=${k.bias?.bias6}, CCI=${k.cci?.cci}, ATR=${k.atr?.atr}`);
+  console.log(`  OBV=${k.obv?.obv}, ROC=${k.roc?.roc}, ADX=${k.dmi?.adx}`);
+  console.log(`  SAR=${k.sar?.sar}, KC中轨=${k.kc?.mid}`);
 });
 ```
 

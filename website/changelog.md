@@ -2,6 +2,28 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.8.1](https://www.npmjs.com/package/stock-sdk/v/1.8.1)** (2026-04-22)
+
+### 优化
+
+**请求治理**
+- `RequestClient` 新增可选 `providerPolicies` 配置，支持按 `tencent`、`eastmoney`、`sina` 等数据源覆盖超时、重试、限流、熔断、请求头与 UA 策略
+- 保留原有全局 `timeout`、`retry`、`rateLimit`、`circuitBreaker` 配置语义，旧初始化方式无需修改
+- provider 级熔断与限流状态改为相互隔离，避免某个数据源的失败状态污染其他数据源
+
+**技术指标**
+- 补齐 `getKlineWithIndicators` / `addIndicators` 对 `OBV`、`ROC`、`DMI`、`SAR`、`KC` 的一站式支持
+- 同步补齐新增指标的 `IndicatorOptions` 类型与 lookback 估算逻辑
+
+**批量查询**
+- 全市场批量接口内部切换为稳定顺序执行，返回结果与输入代码顺序保持一致
+- 公开导出的 `asyncPool` 保持旧调用兼容，避免对已有外部工具用法产生破坏性影响
+
+**Provider 重构**
+- 提取东方财富历史 K 线工厂与板块工厂，减少港股 / 美股 K 线和行业 / 概念板块实现中的重复代码
+- 对外 API 名称、参数和返回结构保持不变
+
+
 ## **[1.8.0](https://www.npmjs.com/package/stock-sdk/v/1.8.0)** (2026-03-13)
 
 ### 新增功能
@@ -334,4 +356,3 @@ body.changelog-page .vp-doc h2 a {
   margin-right: 8px;
 }
 </style>
-

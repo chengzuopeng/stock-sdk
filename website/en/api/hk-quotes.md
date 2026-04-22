@@ -1,97 +1,61 @@
 # HK Stock Quotes
 
-Get real-time quotes for Hong Kong stocks.
+This page covers HK real-time quotes only. For HK code lists and full-market batch quotes, see [Code Lists](/en/api/code-lists) and [Batch Query](/en/api/batch).
 
 ## getHKQuotes
 
-```typescript
-const quotes = await sdk.getHKQuotes(['00700', '09988']);
+```ts
+getHKQuotes(codes: string[]): Promise<HKQuote[]>
 ```
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| codes | `string[]` | Yes | HK stock codes (5 digits) |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `codes` | `string[]` | HK stock codes such as `['00700', '09988']` |
 
 ### Return Type
 
-```typescript
+```ts
 interface HKQuote {
-  code: string;           // Stock code
-  name: string;           // Stock name
-  price: number;          // Current price (HKD)
-  change: number;         // Price change
-  changePercent: number;  // Change percentage
-  volume: number;         // Trading volume
-  amount: number;         // Trading amount
-  high: number;           // Day high
-  low: number;            // Day low
-  open: number;           // Open price
-  prevClose: number;      // Previous close
-  time: string;           // Quote time
-  high52w: number;        // 52-week high
-  low52w: number;         // 52-week low
-  pe: number;             // P/E ratio
-  marketCap: number;      // Market cap
+  marketId: string;
+  name: string;
+  code: string;
+  price: number;
+  prevClose: number;
+  open: number;
+  volume: number;
+  time: string;
+  change: number;
+  changePercent: number;
+  high: number;
+  low: number;
+  amount: number;
+  lotSize: number | null;
+  circulatingMarketCap: number | null;
+  totalMarketCap: number | null;
+  currency: string;
+  raw: string[];
 }
-```
-
-
-## getHKCodeList
-
-Get all HK stock codes.
-
-### Signature
-
-```typescript
-getHKCodeList(): Promise<string[]>
 ```
 
 ### Example
 
-```typescript
-const codes = await sdk.getHKCodeList();
-// ['00700', '09988', '03690', ...]
+```ts
+const quotes = await sdk.getHKQuotes(['00700', '09988']);
 
-console.log(`Total ${codes.length} HK stocks`);
-```
-
-
-## getAllHKShareQuotes
-
-Get all HK stock quotes.
-
-```typescript
-const allQuotes = await sdk.getAllHKShareQuotes({
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(`Progress: ${completed}/${total}`);
-  },
+quotes.forEach((item) => {
+  console.log(`${item.name}: ${item.price} ${item.currency}`);
 });
 ```
 
-## Example
+## Code Format
 
-```typescript
-import { StockSDK } from 'stock-sdk';
+- HK stock codes use 5 digits, for example `00700`
+- No exchange prefix is needed
 
-const sdk = new StockSDK();
+## Related Pages
 
-// Get HK stock quotes
-const quotes = await sdk.getHKQuotes(['00700', '09988', '03690']);
-quotes.forEach(q => {
-  console.log(`${q.name}: HKD ${q.price} (${q.changePercent}%)`);
-});
-// Tencent: HKD 350.00 (1.50%)
-// Alibaba-W: HKD 80.00 (-0.50%)
-// Meituan-W: HKD 120.00 (2.00%)
-
-// Get HK stock K-line
-const klines = await sdk.getHKHistoryKline('00700', {
-  period: 'daily',
-  startDate: '20240101',
-});
-console.log(`Got ${klines.length} K-line records`);
-```
-
+- [Code Lists](/en/api/code-lists)
+- [Batch Query](/en/api/batch)
+- [K-line APIs](/en/api/kline)

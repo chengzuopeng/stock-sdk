@@ -57,6 +57,9 @@ const zhSidebar = {
         { text: '技术指标', link: '/guide/indicators' },
         { text: '批量查询', link: '/guide/batch' },
         { text: '错误处理与重试', link: '/guide/retry' },
+        { text: '请求治理', link: '/guide/request-governance' },
+        { text: '期货与期权', link: '/guide/futures-options' },
+        { text: '分红与交易日历', link: '/guide/dividend-calendar' },
       ],
     },
     {
@@ -164,6 +167,9 @@ const enSidebar = {
         { text: 'Technical Indicators', link: '/en/guide/indicators' },
         { text: 'Batch Query', link: '/en/guide/batch' },
         { text: 'Error Handling & Retry', link: '/en/guide/retry' },
+        { text: 'Request Governance', link: '/en/guide/request-governance' },
+        { text: 'Futures & Options', link: '/en/guide/futures-options' },
+        { text: 'Dividend & Calendar', link: '/en/guide/dividend-calendar' },
       ],
     },
     {
@@ -250,7 +256,8 @@ const enSidebar = {
 
 export default defineConfig({
   title: 'Stock SDK',
-  description: '为前端和 Node.js 设计的股票行情 SDK',
+  description:
+    'Stock market SDK for browser and Node.js with quotes, K-line, indicators, futures, options, and AI / MCP integration',
 
   base: base,
   cleanUrls: true, // 去掉 URL 中的 .html 后缀
@@ -258,6 +265,24 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
     ['meta', { name: 'theme-color', content: '#3eaf7c' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: 'Stock SDK' }],
+    [
+      'meta',
+      {
+        property: 'og:title',
+        content: 'Stock SDK',
+      },
+    ],
+    [
+      'meta',
+      {
+        property: 'og:description',
+        content:
+          'Stock market SDK for browser and Node.js with quotes, K-line, indicators, futures, options, and AI / MCP integration',
+      },
+    ],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
   ],
 
   // 国际化配置
@@ -265,10 +290,13 @@ export default defineConfig({
     root: {
       label: '简体中文',
       lang: 'zh-CN',
+      title: 'Stock SDK',
+      description:
+        '面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成',
       themeConfig: {
         nav: [
           { text: '指南', link: '/guide/getting-started' },
-          { text: 'API', link: '/api' },
+          { text: 'API', link: '/api/' },
           { text: 'MCP / AI', link: '/mcp/' },
           { text: 'Playground', link: '/playground' },
           { text: 'Demo', link: 'https://chengzuopeng.github.io/stock-dashboard/' },
@@ -316,10 +344,13 @@ export default defineConfig({
       label: 'English',
       lang: 'en-US',
       link: '/en/',
+      title: 'Stock SDK',
+      description:
+        'Stock market SDK for browser and Node.js with quotes, K-line, indicators, futures, options, and AI / MCP integration',
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/guide/getting-started' },
-          { text: 'API', link: '/en/api' },
+          { text: 'API', link: '/en/api/' },
           { text: 'MCP / AI', link: '/en/mcp/' },
           { text: 'Playground', link: '/en/playground' },
           { text: 'Demo', link: 'https://chengzuopeng.github.io/stock-dashboard/' },
