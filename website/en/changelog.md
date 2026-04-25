@@ -2,7 +2,7 @@
 
 This page records the version update history of Stock SDK.
 
-## **[1.8.2](https://www.npmjs.com/package/stock-sdk/v/1.8.2)** (2026-04-25)
+## **[1.8.3](https://www.npmjs.com/package/stock-sdk/v/1.8.3)** (2026-04-25)
 
 > This release does not add business APIs. It focuses on system architecture, request stability, type compatibility, and documentation tooling while keeping existing usage compatible.
 

@@ -2,7 +2,7 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
-## **[1.8.2](https://www.npmjs.com/package/stock-sdk/v/1.8.2)** (2026-04-25)
+## **[1.8.3](https://www.npmjs.com/package/stock-sdk/v/1.8.3)** (2026-04-25)
 
 > 本版本不新增业务 API，重点面向系统架构、请求稳定性、类型兼容和文档工程化改造，现有用法保持兼容。
 
