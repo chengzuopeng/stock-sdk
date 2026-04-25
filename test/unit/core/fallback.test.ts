@@ -38,6 +38,38 @@ describe('HostFallbackManager', () => {
     expect(stats.find((item) => item.host === '7.push2his.eastmoney.com')?.successCount).toBe(1);
   });
 
+  it('should try healthy fallback hosts before a cooling original host', () => {
+    const manager = new HostFallbackManager();
+    const error = normalizeRequestError(new TypeError('fetch failed'), {
+      provider: 'eastmoney',
+      url: 'https://push2his.eastmoney.com/test',
+    });
+
+    manager.recordFailure('https://push2his.eastmoney.com/test', error);
+
+    const urls = manager.getCandidateUrls(
+      'https://push2his.eastmoney.com/api/qt/stock/kline/get',
+      'eastmoney'
+    );
+
+    expect(urls[0]).toContain('7.push2his.eastmoney.com');
+    expect(urls[urls.length - 1]).toContain('push2his.eastmoney.com');
+  });
+
+  it('should return empty stats for providers without host fallback pools', () => {
+    const manager = new HostFallbackManager();
+    const error = normalizeRequestError(new TypeError('fetch failed'), {
+      provider: 'eastmoney',
+      url: 'https://push2his.eastmoney.com/test',
+    });
+
+    manager.recordFailure('https://push2his.eastmoney.com/test', error);
+
+    expect(manager.getStats('tencent')).toEqual([]);
+    expect(manager.getStats('unknown')).toEqual([]);
+    expect(manager.getStats()).toHaveLength(1);
+  });
+
   it('should only fallback for retryable network-like failures', () => {
     const manager = new HostFallbackManager();
     const networkError = normalizeRequestError(new TypeError('network error'));

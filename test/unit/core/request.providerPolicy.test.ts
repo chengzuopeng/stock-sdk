@@ -111,4 +111,33 @@ describe('RequestClient provider policies', () => {
     expect(callCount).toBe(2);
     expect(acquire).toHaveBeenCalledTimes(2);
   });
+
+  it('should replace case-insensitive User-Agent headers when rotating UA', async () => {
+    let requestHeaders: Record<string, string> | undefined;
+
+    globalThis.fetch = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+      requestHeaders = init?.headers as Record<string, string>;
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve('success'),
+      });
+    });
+
+    const client = new RequestClient({
+      rotateUserAgent: true,
+      headers: {
+        'user-agent': 'custom-lowercase-ua',
+        'X-Request-Source': 'unit-test',
+      },
+      retry: { maxRetries: 0 },
+    });
+
+    await expect(client.get('https://qt.gtimg.cn/test')).resolves.toBe('success');
+
+    expect(requestHeaders).toBeDefined();
+    expect(requestHeaders?.['user-agent']).toBeUndefined();
+    expect(requestHeaders?.['User-Agent']).toBeDefined();
+    expect(requestHeaders?.['User-Agent']).not.toBe('custom-lowercase-ua');
+    expect(requestHeaders?.['X-Request-Source']).toBe('unit-test');
+  });
 });

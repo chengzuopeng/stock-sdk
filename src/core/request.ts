@@ -248,6 +248,11 @@ export class RequestClient {
     if (state.policy.rotateUserAgent) {
       const rotatedUA = getNextUserAgent();
       if (rotatedUA) {
+        for (const key of Object.keys(requestHeaders)) {
+          if (key.toLowerCase() === 'user-agent') {
+            delete requestHeaders[key];
+          }
+        }
         requestHeaders['User-Agent'] = rotatedUA;
       }
     }

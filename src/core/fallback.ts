@@ -95,8 +95,9 @@ export class HostFallbackManager {
     });
 
     const orderedHosts = unique([
-      parsedUrl.hostname,
+      ...(healthyHosts.includes(parsedUrl.hostname) ? [parsedUrl.hostname] : []),
       ...healthyHosts.filter((host) => host !== parsedUrl.hostname),
+      ...(coolingHosts.includes(parsedUrl.hostname) ? [parsedUrl.hostname] : []),
       ...coolingHosts.filter((host) => host !== parsedUrl.hostname),
     ]);
 
@@ -169,19 +170,16 @@ export class HostFallbackManager {
       return stats;
     }
 
-    const allowedHosts = new Set<string>();
-    for (const host of [
-      ...EASTMONEY_PUSH2_HIS_HOSTS,
-      ...EASTMONEY_PUSH2_HOSTS,
-    ]) {
-      if (provider === 'eastmoney') {
-        allowedHosts.add(host);
-      }
+    if (provider !== 'eastmoney') {
+      return [];
     }
 
-    return stats.filter((state) =>
-      allowedHosts.size > 0 ? allowedHosts.has(state.host) : true
-    );
+    const allowedHosts = new Set([
+      ...EASTMONEY_PUSH2_HIS_HOSTS,
+      ...EASTMONEY_PUSH2_HOSTS,
+    ]);
+
+    return stats.filter((state) => allowedHosts.has(state.host));
   }
 
   private safeGetHost(url: string): string | null {
