@@ -31,14 +31,14 @@ interface OptionTQuoteResult {
 
 interface OptionTQuote {
   symbol: string;        // 合约标识
-  buyVolume: number;     // 买量
-  buyPrice: number;      // 买价
-  price: number;         // 最新价
-  askPrice: number;      // 卖价
-  askVolume: number;     // 卖量
-  openInterest: number;  // 持仓量
-  change: number;        // 涨跌
-  strikePrice: number;   // 行权价（看跌为 null）
+  buyVolume: number | null;     // 买量
+  buyPrice: number | null;      // 买价
+  price: number | null;         // 最新价
+  askPrice: number | null;      // 卖价
+  askVolume: number | null;     // 卖量
+  openInterest: number | null;  // 持仓量
+  change: number | null;        // 涨跌
+  strikePrice: number | null;   // 行权价（看跌为 null）
 }
 ```
 
@@ -61,11 +61,11 @@ const klines = await sdk.getIndexOptionKline('io2504C3600');
 ```ts
 interface OptionKline {
   date: string;    // 日期 YYYY-MM-DD
-  open: number;    // 开盘价
-  high: number;    // 最高价
-  low: number;     // 最低价
-  close: number;   // 收盘价
-  volume: number;  // 成交量
+  open: number | null;    // 开盘价
+  high: number | null;    // 最高价
+  low: number | null;     // 最低价
+  close: number | null;   // 收盘价
+  volume: number | null;  // 成交量
 }
 ```
 
@@ -84,17 +84,17 @@ console.log(quotes[0].code); // 'MO2603-P-8200'
 interface CFFEXOptionQuote {
   code: string;           // 合约代码
   name: string;           // 合约名称
-  price: number;          // 最新价
-  change: number;         // 涨跌额
-  changePercent: number;  // 涨跌幅%
-  volume: number;         // 成交量
-  amount: number;         // 成交额
-  openInterest: number;   // 持仓量
-  strikePrice: number;    // 行权价
-  remainDays: number;     // 剩余天数
-  dailyChange: number;    // 日增
-  prevSettle: number;     // 昨结算价
-  open: number;           // 今开
+  price: number | null;          // 最新价
+  change: number | null;         // 涨跌额
+  changePercent: number | null;  // 涨跌幅%
+  volume: number | null;         // 成交量
+  amount: number | null;         // 成交额
+  openInterest: number | null;   // 持仓量
+  strikePrice: number | null;    // 行权价
+  remainDays: number | null;     // 剩余天数
+  dailyChange: number | null;    // 日增
+  prevSettle: number | null;     // 昨结算价
+  open: number | null;           // 今开
 }
 ```
 
@@ -145,6 +145,15 @@ console.log(info.remainderDays);  // 12
 
 **返回值：** `ETFOptionExpireDay`
 
+```ts
+interface ETFOptionExpireDay {
+  expireDay: string;     // 到期日
+  remainderDays: number; // 剩余天数
+  stockId: string;       // 标的证券代码
+  name: string;          // 标的名称
+}
+```
+
 ### getETFOptionMinute
 
 获取上交所 ETF 期权当日分钟行情。
@@ -165,10 +174,10 @@ const minutes = await sdk.getETFOptionMinute('10009633');
 interface OptionMinute {
   time: string;          // 时间 HH:mm:ss
   date: string;          // 日期 YYYY-MM-DD
-  price: number;         // 价格
-  volume: number;        // 成交量
-  openInterest: number;  // 持仓量
-  avgPrice: number;      // 均价
+  price: number | null;         // 价格
+  volume: number | null;        // 成交量
+  openInterest: number | null;  // 持仓量
+  avgPrice: number | null;      // 均价
 }
 ```
 
@@ -275,8 +284,10 @@ interface OptionLHBItem {
   targetName: string;  // 标的名称
   memberName: string;  // 会员简称
   rank: number;        // 排名
-  sellVolume: number;  // 卖量
-  buyVolume: number;   // 买量
+  sellVolume: number | null;  // 卖量
+  buyVolume: number | null;   // 买量
   // ...更多字段
 }
 ```
+
+该返回值同时保留了 `tradeDate`、`volume`、`amount`、`openInterest`、`side` 等旧字段别名，便于兼容历史调用。

@@ -107,6 +107,45 @@ const allQuotes = await sdk.getAllAShareQuotes({
 console.log(`共获取 ${allQuotes.length} 只股票`);
 ```
 
+## 请求治理与错误码
+
+```ts
+import { StockSDK, HttpError, getSdkErrorCode } from 'stock-sdk';
+
+const sdk = new StockSDK({
+  retry: { maxRetries: 2, baseDelay: 500 },
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      rateLimit: { requestsPerSecond: 3, maxBurst: 3 },
+    },
+  },
+});
+
+try {
+  await sdk.getSimpleQuotes(['sh600519']);
+} catch (error) {
+  if (error instanceof HttpError) {
+    console.log(error.status, error.statusText);
+  }
+
+  console.log(getSdkErrorCode(error)); // HTTP_ERROR / NETWORK_ERROR / TIMEOUT ...
+}
+```
+
+`getSdkErrorCode` 只做标准化识别，不会改变原始错误实例类型。网络错误仍然保持 `TypeError`，超时仍然保持 `AbortError` / `DOMException` 的兼容行为。
+
+## 开发校验命令
+
+```bash
+yarn typecheck
+yarn build
+yarn test
+yarn test:integration:smoke
+# 全量集成回归
+yarn test:integration:full
+```
+
 ## 🤖 AI / MCP 集成
 
 Stock SDK 配套 MCP Server（[stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp)），可一键接入主流 AI 工具：

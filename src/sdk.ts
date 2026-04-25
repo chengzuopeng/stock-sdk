@@ -1,10 +1,8 @@
 /**
  * Stock SDK - 门面类
- * 统一对外接口，组合各模块
+ * 统一对外接口，组合各个 service
  */
 import { RequestClient, type RequestClientOptions } from './core';
-import { tencent, eastmoney, sina } from './providers';
-import { addIndicators, type IndicatorOptions, type KlineWithIndicators } from './indicators';
 import type {
   FullQuote,
   SimpleQuote,
@@ -47,7 +45,16 @@ import type {
   CFFEXOptionQuote,
   OptionLHBItem,
 } from './types';
-
+import { type KlineWithIndicators } from './indicators';
+import {
+  BoardService,
+  FuturesService,
+  IndicatorService,
+  KlineService,
+  OptionsService,
+  QuoteService,
+  type KlineWithIndicatorsOptions,
+} from './sdk/index';
 
 // 重新导出配置类型
 export type {
@@ -59,13 +66,14 @@ export type {
   GetAllUSQuotesOptions,
 } from './providers/tencent/batch';
 
-/**
- * 市场类型
- */
-export type MarketType = 'A' | 'HK' | 'US';
-
 export class StockSDK {
-  private client: RequestClient;
+  private readonly client: RequestClient;
+  private readonly quoteService: QuoteService;
+  private readonly boardService: BoardService;
+  private readonly klineService: KlineService;
+  private readonly futuresService: FuturesService;
+  private readonly optionsService: OptionsService;
+  private readonly indicatorService: IndicatorService;
 
   /**
    * 创建 Stock SDK 实例。
@@ -74,994 +82,512 @@ export class StockSDK {
    */
   constructor(options: RequestClientOptions = {}) {
     this.client = new RequestClient(options);
+    this.quoteService = new QuoteService(this.client);
+    this.boardService = new BoardService(this.client);
+    this.klineService = new KlineService(this.client);
+    this.futuresService = new FuturesService(this.client);
+    this.optionsService = new OptionsService(this.client);
+    this.indicatorService = new IndicatorService(
+      this.klineService,
+      this.quoteService
+    );
   }
 
-  // ==================== 行情 ====================
-
   /**
-   * 获取 A 股 / 指数 全量行情
-   * @param codes 股票代码数组，如 ['sz000858', 'sh600000']
+   * 获取 A 股完整行情（腾讯接口）
+   * @param codes 股票代码数组（如 `['sh600519', 'sz000001']`）
    */
   getFullQuotes(codes: string[]): Promise<FullQuote[]> {
-    return tencent.getFullQuotes(this.client, codes);
+    return this.quoteService.getFullQuotes(codes);
   }
 
   /**
-   * 获取简要行情
-   * @param codes 股票代码数组，如 ['sz000858', 'sh000001']
+   * 获取 A 股简化行情（腾讯接口）
+   * @param codes 股票代码数组
    */
   getSimpleQuotes(codes: string[]): Promise<SimpleQuote[]> {
-    return tencent.getSimpleQuotes(this.client, codes);
+    return this.quoteService.getSimpleQuotes(codes);
   }
 
   /**
-   * 获取港股扩展行情
-   * @param codes 港股代码数组，如 ['09988', '00700']
+   * 获取港股行情
+   * @param codes 港股代码数组（如 `['hk00700']`）
    */
   getHKQuotes(codes: string[]): Promise<HKQuote[]> {
-    return tencent.getHKQuotes(this.client, codes);
+    return this.quoteService.getHKQuotes(codes);
   }
 
   /**
-   * 获取美股简要行情
-   * @param codes 美股代码数组，如 ['BABA', 'AAPL']
+   * 获取美股行情
+   * @param codes 美股代码数组（如 `['usAAPL']`）
    */
   getUSQuotes(codes: string[]): Promise<USQuote[]> {
-    return tencent.getUSQuotes(this.client, codes);
+    return this.quoteService.getUSQuotes(codes);
   }
 
   /**
-   * 获取公募基金行情
-   * @param codes 基金代码数组，如 ['000001', '110011']
+   * 获取基金行情（场内/场外）
+   * @param codes 基金代码数组
    */
   getFundQuotes(codes: string[]): Promise<FundQuote[]> {
-    return tencent.getFundQuotes(this.client, codes);
+    return this.quoteService.getFundQuotes(codes);
   }
 
-  // ==================== 资金流向 ====================
-
   /**
-   * 获取资金流向
-   * @param codes 股票代码数组，如 ['sz000858', 'sh600000']
+   * 获取资金流向数据
+   * @param codes 股票代码数组
    */
   getFundFlow(codes: string[]): Promise<FundFlow[]> {
-    return tencent.getFundFlow(this.client, codes);
+    return this.quoteService.getFundFlow(codes);
   }
 
   /**
-   * 获取盘口大单占比
-   * @param codes 股票代码数组，如 ['sz000858', 'sh600000']
+   * 获取盘口大单/异动数据
+   * @param codes 股票代码数组
    */
   getPanelLargeOrder(codes: string[]): Promise<PanelLargeOrder[]> {
-    return tencent.getPanelLargeOrder(this.client, codes);
+    return this.quoteService.getPanelLargeOrder(codes);
   }
 
-  // ==================== 分时 ====================
-
   /**
-   * 获取当日分时走势数据
-   * @param code 股票代码，如 'sz000001' 或 'sh600000'
+   * 获取当日分时数据
+   * @param code 单只股票代码
    */
   getTodayTimeline(code: string): Promise<TodayTimelineResponse> {
-    return tencent.getTodayTimeline(this.client, code);
+    return this.quoteService.getTodayTimeline(code);
   }
 
-  // ==================== 行业板块 ====================
-
   /**
-   * 获取行业板块名称列表
-   * @returns 行业板块列表
+   * 获取行业板块列表（东方财富）
    */
   getIndustryList(): Promise<IndustryBoard[]> {
-    return eastmoney.getIndustryList(this.client);
+    return this.boardService.getIndustryList();
   }
 
   /**
-   * 获取行业板块实时行情
-   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
-   * @returns 实时行情指标列表
+   * 获取行业板块成分股实时行情
+   * @param symbol 行业板块代码
    */
   getIndustrySpot(symbol: string): Promise<IndustryBoardSpot[]> {
-    return eastmoney.getIndustrySpot(this.client, symbol);
+    return this.boardService.getIndustrySpot(symbol);
   }
 
   /**
-   * 获取行业板块成分股
-   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
-   * @returns 成分股列表
+   * 获取行业板块成分股列表
+   * @param symbol 行业板块代码
    */
-  getIndustryConstituents(
-    symbol: string
-  ): Promise<IndustryBoardConstituent[]> {
-    return eastmoney.getIndustryConstituents(this.client, symbol);
+  getIndustryConstituents(symbol: string): Promise<IndustryBoardConstituent[]> {
+    return this.boardService.getIndustryConstituents(symbol);
   }
 
   /**
-   * 获取行业板块历史 K 线（日/周/月）
-   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
-   * @param options 配置选项
-   * @returns 历史 K 线数据
+   * 获取行业板块历史 K 线
+   * @param symbol 行业板块代码
+   * @param options K 线参数
    */
   getIndustryKline(
     symbol: string,
-    options?: eastmoney.IndustryBoardKlineOptions
+    options?: import('./providers/eastmoney').IndustryBoardKlineOptions
   ): Promise<IndustryBoardKline[]> {
-    return eastmoney.getIndustryKline(this.client, symbol, options);
+    return this.boardService.getIndustryKline(symbol, options);
   }
 
   /**
-   * 获取行业板块分时行情（1/5/15/30/60 分钟）
-   * @param symbol 行业板块名称（如"小金属"）或代码（如"BK1027"）
-   * @param options 配置选项
-   * @returns 分时行情数据
+   * 获取行业板块分时/分钟 K 线
+   * @param symbol 行业板块代码
+   * @param options 周期参数（不传周期则返回当日分时）
    */
   getIndustryMinuteKline(
     symbol: string,
-    options?: eastmoney.IndustryBoardMinuteKlineOptions
+    options?: import('./providers/eastmoney').IndustryBoardMinuteKlineOptions
   ): Promise<IndustryBoardMinuteTimeline[] | IndustryBoardMinuteKline[]> {
-    return eastmoney.getIndustryMinuteKline(this.client, symbol, options);
+    return this.boardService.getIndustryMinuteKline(symbol, options);
   }
 
-  // ==================== 概念板块 ====================
-
   /**
-   * 获取概念板块名称列表
-   * @returns 概念板块列表
+   * 获取概念板块列表（东方财富）
    */
   getConceptList(): Promise<ConceptBoard[]> {
-    return eastmoney.getConceptList(this.client);
+    return this.boardService.getConceptList();
   }
 
   /**
-   * 获取概念板块实时行情
-   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
-   * @returns 实时行情指标列表
+   * 获取概念板块成分股实时行情
+   * @param symbol 概念板块代码
    */
   getConceptSpot(symbol: string): Promise<ConceptBoardSpot[]> {
-    return eastmoney.getConceptSpot(this.client, symbol);
+    return this.boardService.getConceptSpot(symbol);
   }
 
   /**
-   * 获取概念板块成分股
-   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
-   * @returns 成分股列表
+   * 获取概念板块成分股列表
+   * @param symbol 概念板块代码
    */
-  getConceptConstituents(
-    symbol: string
-  ): Promise<ConceptBoardConstituent[]> {
-    return eastmoney.getConceptConstituents(this.client, symbol);
+  getConceptConstituents(symbol: string): Promise<ConceptBoardConstituent[]> {
+    return this.boardService.getConceptConstituents(symbol);
   }
 
   /**
-   * 获取概念板块历史 K 线（日/周/月）
-   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
-   * @param options 配置选项
-   * @returns 历史 K 线数据
+   * 获取概念板块历史 K 线
+   * @param symbol 概念板块代码
+   * @param options K 线参数
    */
   getConceptKline(
     symbol: string,
-    options?: eastmoney.ConceptBoardKlineOptions
+    options?: import('./providers/eastmoney').ConceptBoardKlineOptions
   ): Promise<ConceptBoardKline[]> {
-    return eastmoney.getConceptKline(this.client, symbol, options);
+    return this.boardService.getConceptKline(symbol, options);
   }
 
   /**
-   * 获取概念板块分时行情（1/5/15/30/60 分钟）
-   * @param symbol 概念板块名称（如"人工智能"）或代码（如"BK0800"）
-   * @param options 配置选项
-   * @returns 分时行情数据
+   * 获取概念板块分时/分钟 K 线
+   * @param symbol 概念板块代码
+   * @param options 周期参数（不传周期则返回当日分时）
    */
   getConceptMinuteKline(
     symbol: string,
-    options?: eastmoney.ConceptBoardMinuteKlineOptions
+    options?: import('./providers/eastmoney').ConceptBoardMinuteKlineOptions
   ): Promise<ConceptBoardMinuteTimeline[] | ConceptBoardMinuteKline[]> {
-    return eastmoney.getConceptMinuteKline(this.client, symbol, options);
+    return this.boardService.getConceptMinuteKline(symbol, options);
   }
 
-  // ==================== K 线 ====================
-
   /**
-   * 获取 A 股历史 K 线（日/周/月）
+   * 获取 A 股历史 K 线（日/周/月，含复权）
+   * @param symbol 股票代码
+   * @param options K 线参数
    */
   getHistoryKline(
     symbol: string,
-    options?: eastmoney.HistoryKlineOptions
+    options?: import('./providers/eastmoney').HistoryKlineOptions
   ): Promise<HistoryKline[]> {
-    return eastmoney.getHistoryKline(this.client, symbol, options);
+    return this.klineService.getHistoryKline(symbol, options);
   }
 
   /**
-   * 获取 A 股分钟 K 线或分时数据
+   * 获取 A 股分时/分钟 K 线
+   * @param symbol 股票代码
+   * @param options 周期参数（不传周期则返回当日分时）
    */
   getMinuteKline(
     symbol: string,
-    options?: eastmoney.MinuteKlineOptions
+    options?: import('./providers/eastmoney').MinuteKlineOptions
   ): Promise<MinuteTimeline[] | MinuteKline[]> {
-    return eastmoney.getMinuteKline(this.client, symbol, options);
+    return this.klineService.getMinuteKline(symbol, options);
   }
 
   /**
-   * 获取港股历史 K 线（日/周/月）
+   * 获取港股历史 K 线
+   * @param symbol 港股代码
+   * @param options K 线参数
    */
   getHKHistoryKline(
     symbol: string,
-    options?: eastmoney.HKKlineOptions
+    options?: import('./providers/eastmoney').HKKlineOptions
   ): Promise<HKUSHistoryKline[]> {
-    return eastmoney.getHKHistoryKline(this.client, symbol, options);
+    return this.klineService.getHKHistoryKline(symbol, options);
   }
 
   /**
-   * 获取美股历史 K 线（日/周/月）
+   * 获取美股历史 K 线
+   * @param symbol 美股代码
+   * @param options K 线参数
    */
   getUSHistoryKline(
     symbol: string,
-    options?: eastmoney.USKlineOptions
+    options?: import('./providers/eastmoney').USKlineOptions
   ): Promise<HKUSHistoryKline[]> {
-    return eastmoney.getUSHistoryKline(this.client, symbol, options);
+    return this.klineService.getUSHistoryKline(symbol, options);
   }
 
-  // ==================== 搜索 ====================
-
   /**
-   * 搜索股票
-   * @param keyword 关键词（股票代码、名称、拼音）
+   * 模糊搜索股票/指数/基金等
+   * @param keyword 关键词（代码 / 名称 / 拼音）
    */
   search(keyword: string): Promise<SearchResult[]> {
-    return tencent.search(this.client, keyword);
+    return this.quoteService.search(keyword);
   }
 
-  // ==================== 批量 ====================
-
   /**
-   * 从远程获取 A 股代码列表
-   * @param options 配置选项
-   *
-   * @example
-   * // 获取全部 A 股（带交易所前缀）
-   * const codes = await sdk.getAShareCodeList();
-   *
-   * @example
-   * // 获取全部 A 股（不带交易所前缀）
-   * const codes = await sdk.getAShareCodeList({ simple: true });
-   *
-   * @example
-   * // 获取科创板股票
-   * const codes = await sdk.getAShareCodeList({ market: 'kc' });
-   *
-   * @example
-   * // 获取创业板股票（不带前缀）
-   * const codes = await sdk.getAShareCodeList({ simple: true, market: 'cy' });
+   * 获取 A 股全量代码列表
+   * @param options 过滤选项；传 `boolean` 兼容旧版「是否包含交易所前缀」用法
    */
   getAShareCodeList(
-    options?: tencent.GetAShareCodeListOptions | boolean
+    options?: import('./providers/tencent/batch').GetAShareCodeListOptions | boolean
   ): Promise<string[]> {
-    return tencent.getAShareCodeList(this.client, options);
+    return this.quoteService.getAShareCodeList(options);
   }
 
   /**
-   * 从远程获取美股代码列表
-   * @param options 配置选项
-   *
-   * @example
-   * // 获取全部美股（带市场前缀）
-   * const codes = await sdk.getUSCodeList();
-   * // ['105.AAPL', '106.BABA', ...]
-   *
-   * @example
-   * // 获取全部美股（不带市场前缀）
-   * const codes = await sdk.getUSCodeList({ simple: true });
-   * // ['AAPL', 'BABA', ...]
-   *
-   * @example
-   * // 筛选纳斯达克股票
-   * const codes = await sdk.getUSCodeList({ market: 'NASDAQ' });
-   * // ['105.AAPL', ...]
-   *
-   * @example
-   * // 筛选纽交所股票
-   * const codes = await sdk.getUSCodeList({ market: 'NYSE' });
-   * // ['106.BABA', ...]
+   * 获取美股全量代码列表
+   * @param options 过滤选项；传 `boolean` 兼容旧版「是否包含市场前缀」用法
    */
   getUSCodeList(
-    options?: tencent.GetUSCodeListOptions | boolean
+    options?: import('./providers/tencent/batch').GetUSCodeListOptions | boolean
   ): Promise<string[]> {
-    return tencent.getUSCodeList(this.client, options);
+    return this.quoteService.getUSCodeList(options);
   }
 
   /**
-   * 从远程获取港股代码列表
+   * 获取港股全量代码列表
    */
   getHKCodeList(): Promise<string[]> {
-    return tencent.getHKCodeList(this.client);
+    return this.quoteService.getHKCodeList();
   }
 
   /**
-   * 从远程获取基金代码列表
-   * @returns 基金代码数组（6 位代码）
-   *
-   * @example
-   * const codes = await sdk.getFundCodeList();
-   * console.log(codes.length); // 26068
+   * 获取基金全量代码列表
    */
   getFundCodeList(): Promise<string[]> {
-    return tencent.getFundCodeList(this.client);
+    return this.quoteService.getFundCodeList();
   }
 
   /**
-   * 获取全部 A 股实时行情
-   * @param options 配置选项
-   *
-   * @example
-   * // 获取全部 A 股行情
-   * const quotes = await sdk.getAllAShareQuotes();
-   *
-   * @example
-   * // 获取科创板行情
-   * const kcQuotes = await sdk.getAllAShareQuotes({ market: 'kc' });
-   *
-   * @example
-   * // 获取创业板行情
-   * const cyQuotes = await sdk.getAllAShareQuotes({ market: 'cy' });
+   * 批量拉取全部 A 股完整行情
+   * @param options 批量请求参数（如批大小、并发等）
    */
-  async getAllAShareQuotes(
-    options: tencent.GetAllAShareQuotesOptions = {}
+  getAllAShareQuotes(
+    options: import('./providers/tencent/batch').GetAllAShareQuotesOptions = {}
   ): Promise<FullQuote[]> {
-    const { market, ...batchOptions } = options;
-    const codes = await this.getAShareCodeList({ market });
-    return this.getAllQuotesByCodes(codes, batchOptions);
+    return this.quoteService.getAllAShareQuotes(options);
   }
 
   /**
-   * 获取全部港股实时行情
+   * 批量拉取全部港股行情
+   * @param options 批量请求参数
    */
-  async getAllHKShareQuotes(
-    options: tencent.GetAllAShareQuotesOptions = {}
+  getAllHKShareQuotes(
+    options: import('./providers/tencent/batch').GetAllAShareQuotesOptions = {}
   ): Promise<HKQuote[]> {
-    const codes = await this.getHKCodeList();
-    return tencent.getAllHKQuotesByCodes(this.client, codes, options);
+    return this.quoteService.getAllHKShareQuotes(options);
   }
 
   /**
-   * 获取全部美股实时行情
-   * @param options 配置选项
-   *
-   * @example
-   * // 获取全部美股行情
-   * const quotes = await sdk.getAllUSShareQuotes();
-   *
-   * @example
-   * // 获取纳斯达克股票行情
-   * const nasdaqQuotes = await sdk.getAllUSShareQuotes({ market: 'NASDAQ' });
-   *
-   * @example
-   * // 获取纽交所股票行情（带进度回调）
-   * const nyseQuotes = await sdk.getAllUSShareQuotes({
-   *   market: 'NYSE',
-   *   onProgress: (completed, total) => console.log(`${completed}/${total}`)
-   * });
+   * 批量拉取全部美股行情
+   * @param options 批量请求参数
    */
-  async getAllUSShareQuotes(
-    options: tencent.GetAllUSQuotesOptions = {}
+  getAllUSShareQuotes(
+    options: import('./providers/tencent/batch').GetAllUSQuotesOptions = {}
   ): Promise<USQuote[]> {
-    const { market, ...restOptions } = options;
-    // 获取代码列表（不带前缀，可选市场筛选）
-    const codes = await this.getUSCodeList({ simple: true, market });
-    return tencent.getAllUSQuotesByCodes(this.client, codes, restOptions);
+    return this.quoteService.getAllUSShareQuotes(options);
   }
 
   /**
-   * 获取全部股票实时行情（使用自定义股票代码列表）
+   * 按给定代码列表批量拉取完整行情
+   * @param codes 股票代码数组
+   * @param options 批量请求参数
    */
   getAllQuotesByCodes(
     codes: string[],
-    options: tencent.GetAllAShareQuotesOptions = {}
+    options: import('./providers/tencent/batch').GetAllAShareQuotesOptions = {}
   ): Promise<FullQuote[]> {
-    return tencent.getAllQuotesByCodes(this.client, codes, options);
+    return this.quoteService.getAllQuotesByCodes(codes, options);
   }
 
   /**
-   * 批量混合查询，返回原始解析结果（key + fields）
-   * @param params 如 'sz000858,s_sh000001,jj000001'
+   * 直接调用腾讯批量行情原始接口（高级用法）
+   * @param params 拼接后的查询参数（如 `'sh600519,sz000001'`）
    */
-  async batchRaw(params: string): Promise<{ key: string; fields: string[] }[]> {
-    return this.client.getTencentQuote(params);
+  batchRaw(params: string): Promise<{ key: string; fields: string[] }[]> {
+    return this.quoteService.batchRaw(params);
   }
 
-  // ==================== 扩展数据 ====================
-
   /**
-   * 获取 A 股交易日历
-   * @returns 交易日期字符串数组，格式如 ['1990-12-19', '1990-12-20', ...]
+   * 获取交易日历（A 股）
    */
   getTradingCalendar(): Promise<string[]> {
-    return tencent.getTradingCalendar(this.client);
+    return this.quoteService.getTradingCalendar();
   }
 
   /**
-   * 获取股票分红派送详情
-   * @param symbol - 股票代码（纯数字或带交易所前缀），如 '600519' 或 'sh600519'
-   * @returns 分红派送详情列表，按报告日期降序排列
-   *
-   * @example
-   * // 获取贵州茅台的分红历史
-   * const dividends = await sdk.getDividendDetail('600519');
-   * console.log(dividends[0].dividendPretax); // 每10股派息(税前)
+   * 获取分红配股明细
+   * @param symbol 股票代码
    */
   getDividendDetail(symbol: string): Promise<DividendDetail[]> {
-    return eastmoney.getDividendDetail(this.client, symbol);
+    return this.quoteService.getDividendDetail(symbol);
   }
 
-  // ==================== 期货 ====================
-
   /**
-   * 获取国内期货历史 K 线（日/周/月）
-   * @param symbol - 合约代码，如 'rb2605'（具体合约）或 'RBM'（主连）
-   * @param options - 配置选项
-   * @returns 期货 K 线数据数组
-   *
-   * @example
-   * // 获取螺纹钢主连日K
-   * const klines = await sdk.getFuturesKline('RBM');
-   *
-   * @example
-   * // 获取沪深300期货具体合约周K
-   * const klines = await sdk.getFuturesKline('IF2604', { period: 'weekly' });
+   * 获取国内期货历史 K 线
+   * @param symbol 期货合约代码
+   * @param options K 线参数
    */
   getFuturesKline(
     symbol: string,
-    options?: eastmoney.FuturesKlineOptions
+    options?: import('./providers/eastmoney').FuturesKlineOptions
   ): Promise<FuturesKline[]> {
-    return eastmoney.getFuturesHistoryKline(this.client, symbol, options);
+    return this.futuresService.getFuturesKline(symbol, options);
   }
 
   /**
    * 获取全球期货实时行情
-   * @param options - 配置选项
-   * @returns 全球期货行情数组
-   *
-   * @example
-   * const quotes = await sdk.getGlobalFuturesSpot();
-   * console.log(quotes[0].name); // "COMEX铜"
+   * @param options 筛选选项
    */
   getGlobalFuturesSpot(
-    options?: eastmoney.GlobalFuturesSpotOptions
+    options?: import('./providers/eastmoney').GlobalFuturesSpotOptions
   ): Promise<GlobalFuturesQuote[]> {
-    return eastmoney.getGlobalFuturesSpot(this.client, options);
+    return this.futuresService.getGlobalFuturesSpot(options);
   }
 
   /**
-   * 获取全球期货历史 K 线（日/周/月）
-   * @param symbol - 合约代码，如 'HG00Y'（COMEX铜连续）
-   * @param options - 配置选项
-   * @returns 期货 K 线数据数组
-   *
-   * @example
-   * const klines = await sdk.getGlobalFuturesKline('HG00Y');
+   * 获取全球期货历史 K 线
+   * @param symbol 期货合约代码
+   * @param options K 线参数
    */
   getGlobalFuturesKline(
     symbol: string,
-    options?: eastmoney.GlobalFuturesKlineOptions
+    options?: import('./providers/eastmoney').GlobalFuturesKlineOptions
   ): Promise<FuturesKline[]> {
-    return eastmoney.getGlobalFuturesKline(this.client, symbol, options);
+    return this.futuresService.getGlobalFuturesKline(symbol, options);
   }
 
   /**
    * 获取期货库存品种列表
-   * @returns 品种列表（code + name + marketCode）
-   *
-   * @example
-   * const symbols = await sdk.getFuturesInventorySymbols();
-   * console.log(symbols); // [{code: 'rb', name: '螺纹钢', marketCode: '...'}]
    */
   getFuturesInventorySymbols(): Promise<FuturesInventorySymbol[]> {
-    return eastmoney.getFuturesInventorySymbols(this.client);
+    return this.futuresService.getFuturesInventorySymbols();
   }
 
   /**
-   * 获取期货库存数据
-   * @param symbol - 品种代码（从 getFuturesInventorySymbols 获取）
-   * @param options - 配置选项
-   * @returns 库存数据数组
-   *
-   * @example
-   * const inventory = await sdk.getFuturesInventory('rb');
+   * 获取指定品种的期货库存历史
+   * @param symbol 品种代码
+   * @param options 查询参数
    */
   getFuturesInventory(
     symbol: string,
-    options?: eastmoney.FuturesInventoryOptions
+    options?: import('./providers/eastmoney').FuturesInventoryOptions
   ): Promise<FuturesInventory[]> {
-    return eastmoney.getFuturesInventory(this.client, symbol, options);
+    return this.futuresService.getFuturesInventory(symbol, options);
   }
 
   /**
-   * 获取 COMEX 黄金/白银库存数据
-   * @param symbol - 'gold' 或 'silver'
-   * @param options - 配置选项
-   * @returns COMEX 库存数据数组
-   *
-   * @example
-   * const goldInventory = await sdk.getComexInventory('gold');
+   * 获取 COMEX 黄金/白银库存
+   * @param symbol `'gold'` 或 `'silver'`
+   * @param options 查询参数
    */
   getComexInventory(
     symbol: 'gold' | 'silver',
-    options?: eastmoney.ComexInventoryOptions
+    options?: import('./providers/eastmoney').ComexInventoryOptions
   ): Promise<ComexInventory[]> {
-    return eastmoney.getComexInventory(this.client, symbol, options);
+    return this.futuresService.getComexInventory(symbol, options);
   }
 
-  // ==================== 期权 ====================
-
   /**
-   * 获取中金所股指期权 T 型报价（看涨 + 看跌）
-   * @param product - 品种代码 'ho'(上证50) / 'io'(沪深300) / 'mo'(中证1000)
-   * @param contract - 合约代码，如 'io2504'
-   *
-   * @example
-   * const spot = await sdk.getIndexOptionSpot('io', 'io2504');
-   * console.log(spot.calls[0].strikePrice); // 行权价
+   * 获取股指期权 T 型报价
+   * @param product 期权品种
+   * @param contract 合约月份等参数
    */
   getIndexOptionSpot(
     product: IndexOptionProduct,
     contract: string
   ): Promise<OptionTQuoteResult> {
-    return sina.getIndexOptionSpot(product, contract);
+    return this.optionsService.getIndexOptionSpot(product, contract);
   }
 
   /**
-   * 获取中金所股指期权合约日 K 线
-   * @param symbol - 合约代码（含看涨/看跌标识），如 'io2504C3600'
-   *
-   * @example
-   * const klines = await sdk.getIndexOptionKline('io2504C3600');
+   * 获取股指期权日 K 线
+   * @param symbol 合约代码
    */
   getIndexOptionKline(symbol: string): Promise<OptionKline[]> {
-    return sina.getIndexOptionKline(symbol);
+    return this.optionsService.getIndexOptionKline(symbol);
   }
 
   /**
-   * 获取中金所全部期权实时行情列表
-   *
-   * @example
-   * const quotes = await sdk.getCFFEXOptionQuotes();
-   * console.log(quotes[0].code); // 'MO2603-P-8200'
+   * 获取中金所期权当日报价（IO/MO 等）
+   * @param options 筛选选项
    */
   getCFFEXOptionQuotes(
-    options?: eastmoney.CFFEXOptionQuotesOptions
+    options?: import('./providers/eastmoney').CFFEXOptionQuotesOptions
   ): Promise<CFFEXOptionQuote[]> {
-    return eastmoney.getCFFEXOptionQuotes(this.client, options);
+    return this.optionsService.getCFFEXOptionQuotes(options);
   }
 
   /**
-   * 获取上交所 ETF 期权到期月份列表
-   * @param cate - 品种名称，如 '50ETF', '300ETF'
-   *
-   * @example
-   * const info = await sdk.getETFOptionMonths('50ETF');
-   * console.log(info.months); // ['2026-03', '2026-04', ...]
+   * 获取 ETF 期权可用月份
+   * @param cate ETF 期权品种
    */
   getETFOptionMonths(cate: ETFOptionCate): Promise<ETFOptionMonth> {
-    return sina.getETFOptionMonths(cate);
+    return this.optionsService.getETFOptionMonths(cate);
   }
 
   /**
-   * 获取上交所 ETF 期权到期日与剩余天数
-   * @param cate - 品种名称
-   * @param month - 到期月份 YYYY-MM
-   *
-   * @example
-   * const info = await sdk.getETFOptionExpireDay('50ETF', '2026-03');
-   * console.log(info.remainderDays); // 12
+   * 获取 ETF 期权指定月份的合约列表/到期日
+   * @param cate ETF 期权品种
+   * @param month 月份（如 `'202405'`）
    */
   getETFOptionExpireDay(
     cate: ETFOptionCate,
     month: string
   ): Promise<ETFOptionExpireDay> {
-    return sina.getETFOptionExpireDay(cate, month);
+    return this.optionsService.getETFOptionExpireDay(cate, month);
   }
 
   /**
-   * 获取上交所 ETF 期权当日分钟行情
-   * @param code - 期权代码（纯数字），如 '10009633'
+   * 获取 ETF 期权当日分时
+   * @param code 合约代码
    */
   getETFOptionMinute(code: string): Promise<OptionMinute[]> {
-    return sina.getETFOptionMinute(code);
+    return this.optionsService.getETFOptionMinute(code);
   }
 
   /**
-   * 获取上交所 ETF 期权历史日 K 线
-   * @param code - 期权代码（纯数字），如 '10009633'
+   * 获取 ETF 期权日 K 线
+   * @param code 合约代码
    */
   getETFOptionDailyKline(code: string): Promise<OptionKline[]> {
-    return sina.getETFOptionDailyKline(code);
+    return this.optionsService.getETFOptionDailyKline(code);
   }
 
   /**
-   * 获取上交所 ETF 期权 5 日分钟行情
-   * @param code - 期权代码（纯数字），如 '10009633'
+   * 获取 ETF 期权 5 日分时
+   * @param code 合约代码
    */
   getETFOption5DayMinute(code: string): Promise<OptionMinute[]> {
-    return sina.getETFOption5DayMinute(code);
+    return this.optionsService.getETFOption5DayMinute(code);
   }
 
   /**
    * 获取商品期权 T 型报价
-   * @param variety - 品种代码（如 'au', 'cu', 'SR'）
-   * @param contract - 合约代码，如 'au2506'
-   *
-   * @example
-   * const spot = await sdk.getCommodityOptionSpot('au', 'au2506');
+   * @param variety 品种
+   * @param contract 合约
    */
   getCommodityOptionSpot(
     variety: string,
     contract: string
   ): Promise<OptionTQuoteResult> {
-    return sina.getCommodityOptionSpot(variety, contract);
+    return this.optionsService.getCommodityOptionSpot(variety, contract);
   }
 
   /**
-   * 获取商品期权合约日 K 线
-   * @param symbol - 合约代码（含看涨/看跌标识），如 'm2409C3200'
+   * 获取商品期权日 K 线
+   * @param symbol 合约代码
    */
   getCommodityOptionKline(symbol: string): Promise<OptionKline[]> {
-    return sina.getCommodityOptionKline(symbol);
+    return this.optionsService.getCommodityOptionKline(symbol);
   }
 
   /**
    * 获取期权龙虎榜
-   * @param symbol - 标的代码 '510050' / '510300' / '159919'
-   * @param date - 交易日期 YYYY-MM-DD
-   *
-   * @example
-   * const lhb = await sdk.getOptionLHB('510050', '2022-01-21');
+   * @param symbol 合约代码
+   * @param date 日期 `YYYY-MM-DD`
    */
   getOptionLHB(symbol: string, date: string): Promise<OptionLHBItem[]> {
-    return eastmoney.getOptionLHB(this.client, symbol, date);
-  }
-
-  // ==================== 技术指标 ====================
-
-  /**
-   * 市场类型识别
-   */
-  private detectMarket(symbol: string): MarketType {
-    // 美股: 市场代码.股票代码，如 105.MSFT, 106.BABA
-    if (/^\d{3}\.[A-Z]+$/i.test(symbol)) {
-      return 'US';
-    }
-    // 港股: 5 位纯数字，如 00700, 09988
-    if (/^\d{5}$/.test(symbol)) {
-      return 'HK';
-    }
-    // A 股: 6 位数字或带 sh/sz/bj 前缀
-    return 'A';
+    return this.optionsService.getOptionLHB(symbol, date);
   }
 
   /**
-   * 安全获取数组最大值
+   * 获取带技术指标的 K 线（A 股 / 港股 / 美股自动识别）
+   * @param symbol 股票代码
+   * @param options 配置（市场、周期、复权、日期范围、指标列表等）
+   * @see {@link KlineWithIndicatorsOptions}
    */
-  private safeMax(arr: number[], defaultValue: number = 0): number {
-    if (!arr || arr.length === 0) return defaultValue;
-    return Math.max(...arr);
-  }
-
-  /**
-   * 计算各指标所需的最大前置天数
-   */
-  private calcRequiredLookback(options: IndicatorOptions): number {
-    let maxLookback = 0;
-    let hasEmaBasedIndicator = false;
-
-    // MA 均线
-    if (options.ma) {
-      const cfg = typeof options.ma === 'object' ? options.ma : {};
-      const periods = cfg.periods ?? [5, 10, 20, 30, 60, 120, 250];
-      const type = cfg.type ?? 'sma';
-      maxLookback = Math.max(maxLookback, this.safeMax(periods, 20));
-      if (type === 'ema') hasEmaBasedIndicator = true;
-    }
-
-    // MACD
-    if (options.macd) {
-      const cfg = typeof options.macd === 'object' ? options.macd : {};
-      const long = cfg.long ?? 26;
-      const signal = cfg.signal ?? 9;
-      maxLookback = Math.max(maxLookback, long * 3 + signal);
-      hasEmaBasedIndicator = true;
-    }
-
-    // BOLL
-    if (options.boll) {
-      const period =
-        typeof options.boll === 'object' && options.boll.period
-          ? options.boll.period
-          : 20;
-      maxLookback = Math.max(maxLookback, period);
-    }
-
-    // KDJ
-    if (options.kdj) {
-      const period =
-        typeof options.kdj === 'object' && options.kdj.period
-          ? options.kdj.period
-          : 9;
-      maxLookback = Math.max(maxLookback, period);
-    }
-
-    // RSI
-    if (options.rsi) {
-      const periods =
-        typeof options.rsi === 'object' && options.rsi.periods
-          ? options.rsi.periods
-          : [6, 12, 24];
-      maxLookback = Math.max(maxLookback, this.safeMax(periods, 14) + 1);
-    }
-
-    // WR
-    if (options.wr) {
-      const periods =
-        typeof options.wr === 'object' && options.wr.periods
-          ? options.wr.periods
-          : [6, 10];
-      maxLookback = Math.max(maxLookback, this.safeMax(periods, 10));
-    }
-
-    // BIAS
-    if (options.bias) {
-      const periods =
-        typeof options.bias === 'object' && options.bias.periods
-          ? options.bias.periods
-          : [6, 12, 24];
-      maxLookback = Math.max(maxLookback, this.safeMax(periods, 12));
-    }
-
-    // CCI
-    if (options.cci) {
-      const period =
-        typeof options.cci === 'object' && options.cci.period
-          ? options.cci.period
-          : 14;
-      maxLookback = Math.max(maxLookback, period);
-    }
-
-    // ATR
-    if (options.atr) {
-      const period =
-        typeof options.atr === 'object' && options.atr.period
-          ? options.atr.period
-          : 14;
-      maxLookback = Math.max(maxLookback, period);
-    }
-
-    // OBV
-    if (options.obv) {
-      const maPeriod =
-        typeof options.obv === 'object' && options.obv.maPeriod
-          ? options.obv.maPeriod
-          : 0;
-      maxLookback = Math.max(maxLookback, Math.max(2, maPeriod));
-    }
-
-    // ROC
-    if (options.roc) {
-      const cfg = typeof options.roc === 'object' ? options.roc : {};
-      const period = cfg.period ?? 12;
-      const signalPeriod = cfg.signalPeriod ?? 0;
-      maxLookback = Math.max(maxLookback, period + signalPeriod);
-    }
-
-    // DMI
-    if (options.dmi) {
-      const cfg = typeof options.dmi === 'object' ? options.dmi : {};
-      const period = cfg.period ?? 14;
-      const adxPeriod = cfg.adxPeriod ?? period;
-      maxLookback = Math.max(maxLookback, period * 2 + adxPeriod);
-    }
-
-    // SAR
-    if (options.sar) {
-      maxLookback = Math.max(maxLookback, 5);
-    }
-
-    // KC
-    if (options.kc) {
-      const cfg = typeof options.kc === 'object' ? options.kc : {};
-      const emaPeriod = cfg.emaPeriod ?? 20;
-      const atrPeriod = cfg.atrPeriod ?? 10;
-      maxLookback = Math.max(maxLookback, Math.max(emaPeriod * 3, atrPeriod));
-      hasEmaBasedIndicator = true;
-    }
-
-    const buffer = hasEmaBasedIndicator ? 1.5 : 1.2;
-    return Math.ceil(maxLookback * buffer);
-  }
-
-  /**
-   * 计算实际请求的开始日期
-   */
-  private calcActualStartDate(
-    startDate: string,
-    tradingDays: number,
-    ratio: number = 1.5
-  ): string {
-    const naturalDays = Math.ceil(tradingDays * ratio);
-    const date = new Date(
-      parseInt(startDate.slice(0, 4)),
-      parseInt(startDate.slice(4, 6)) - 1,
-      parseInt(startDate.slice(6, 8))
-    );
-    date.setDate(date.getDate() - naturalDays);
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    return `${year}${month}${day}`;
-  }
-
-  /**
-   * 计算实际请求的开始日期（交易日历）
-   */
-  private calcActualStartDateByCalendar(
-    startDate: string,
-    tradingDays: number,
-    calendar: string[]
-  ): string | undefined {
-    if (!calendar || calendar.length === 0) {
-      return undefined;
-    }
-
-    const normalized = this.normalizeDate(startDate);
-    let startIndex = calendar.findIndex((date) => date >= normalized);
-    if (startIndex === -1) {
-      startIndex = calendar.length - 1;
-    }
-    const targetIndex = Math.max(0, startIndex - tradingDays);
-    return this.toCompactDate(calendar[targetIndex]);
-  }
-
-  /**
-   * 统一日期格式为 YYYY-MM-DD
-   */
-  private normalizeDate(dateStr: string): string {
-    if (dateStr.includes('-')) {
-      return dateStr;
-    }
-    if (dateStr.length === 8) {
-      return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
-    }
-    return dateStr;
-  }
-
-  /**
-   * 压缩日期格式为 YYYYMMDD
-   */
-  private toCompactDate(dateStr: string): string {
-    return dateStr.replace(/-/g, '');
-  }
-
-  /**
-   * 日期字符串转时间戳
-   */
-  private dateToTimestamp(dateStr: string): number {
-    const normalized = dateStr.includes('-')
-      ? dateStr
-      : `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
-    return new Date(normalized).getTime();
-  }
-
-  /**
-   * 获取带技术指标的历史 K 线
-   */
-  async getKlineWithIndicators(
+  getKlineWithIndicators(
     symbol: string,
-    options: {
-      /** 市场类型，不传则自动识别 */
-      market?: MarketType;
-      /** K 线周期 */
-      period?: 'daily' | 'weekly' | 'monthly';
-      /** 复权类型 */
-      adjust?: '' | 'qfq' | 'hfq';
-      /** 开始日期 YYYYMMDD */
-      startDate?: string;
-      /** 结束日期 YYYYMMDD */
-      endDate?: string;
-      /** 技术指标配置 */
-      indicators?: IndicatorOptions;
-    } = {}
+    options: KlineWithIndicatorsOptions = {}
   ): Promise<KlineWithIndicators<HistoryKline | HKUSHistoryKline>[]> {
-    const { startDate, endDate, indicators = {} } = options;
-
-    // 步骤 1: 识别市场
-    const market = options.market ?? this.detectMarket(symbol);
-
-    // 步骤 2: 计算所需前置 K 线根数
-    const requiredBars = this.calcRequiredLookback(indicators);
-
-    // 步骤 3: 计算实际请求的开始日期
-    const ratioMap = { A: 1.5, HK: 1.46, US: 1.45 };
-    let actualStartDate: string | undefined;
-
-    if (startDate) {
-      if (market === 'A') {
-        try {
-          const calendar = await tencent.getTradingCalendar(this.client);
-          actualStartDate =
-            this.calcActualStartDateByCalendar(startDate, requiredBars, calendar) ??
-            this.calcActualStartDate(startDate, requiredBars, ratioMap[market]);
-        } catch {
-          actualStartDate = this.calcActualStartDate(
-            startDate,
-            requiredBars,
-            ratioMap[market]
-          );
-        }
-      } else {
-        actualStartDate = this.calcActualStartDate(
-          startDate,
-          requiredBars,
-          ratioMap[market]
-        );
-      }
-    }
-
-    // 步骤 4: 请求扩展范围的 K 线数据
-    const klineOptions = {
-      period: options.period,
-      adjust: options.adjust,
-      startDate: actualStartDate,
-      endDate: options.endDate,
-    };
-
-    let allKlines: (HistoryKline | HKUSHistoryKline)[];
-    switch (market) {
-      case 'HK':
-        allKlines = await this.getHKHistoryKline(symbol, klineOptions);
-        break;
-      case 'US':
-        allKlines = await this.getUSHistoryKline(symbol, klineOptions);
-        break;
-      default:
-        allKlines = await this.getHistoryKline(symbol, klineOptions);
-    }
-
-    // 步骤 5: 检查是否有足够的前置数据（按需补拉策略）
-    if (startDate && allKlines.length < requiredBars) {
-      switch (market) {
-        case 'HK':
-          allKlines = await this.getHKHistoryKline(symbol, {
-            ...klineOptions,
-            startDate: undefined,
-          });
-          break;
-        case 'US':
-          allKlines = await this.getUSHistoryKline(symbol, {
-            ...klineOptions,
-            startDate: undefined,
-          });
-          break;
-        default:
-          allKlines = await this.getHistoryKline(symbol, {
-            ...klineOptions,
-            startDate: undefined,
-          });
-      }
-    }
-
-    // 步骤 6: 计算技术指标
-    const withIndicators = addIndicators(allKlines, indicators);
-
-    // 步骤 7: 过滤返回用户请求的日期范围
-    if (startDate) {
-      const startTs = this.dateToTimestamp(startDate);
-      const endTs = endDate ? this.dateToTimestamp(endDate) : Infinity;
-      return withIndicators.filter((k) => {
-        const ts = this.dateToTimestamp(k.date);
-        return ts >= startTs && ts <= endTs;
-      });
-    }
-
-    return withIndicators;
+    return this.indicatorService.getKlineWithIndicators(symbol, options);
   }
 }
+
+export type { MarketType, KlineWithIndicatorsOptions } from './sdk/index';
 
 export default StockSDK;

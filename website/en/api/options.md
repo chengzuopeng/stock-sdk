@@ -31,14 +31,14 @@ interface OptionTQuoteResult {
 
 interface OptionTQuote {
   symbol: string;        // Contract identifier
-  buyVolume: number;     // Bid volume
-  buyPrice: number;      // Bid price
-  price: number;         // Last price
-  askPrice: number;      // Ask price
-  askVolume: number;     // Ask volume
-  openInterest: number;  // Open interest
-  change: number;        // Price change
-  strikePrice: number;   // Strike price (null for puts)
+  buyVolume: number | null;     // Bid volume
+  buyPrice: number | null;      // Bid price
+  price: number | null;         // Last price
+  askPrice: number | null;      // Ask price
+  askVolume: number | null;     // Ask volume
+  openInterest: number | null;  // Open interest
+  change: number | null;        // Price change
+  strikePrice: number | null;   // Strike price (null for puts)
 }
 ```
 
@@ -61,11 +61,11 @@ const klines = await sdk.getIndexOptionKline('io2504C3600');
 ```ts
 interface OptionKline {
   date: string;    // Date YYYY-MM-DD
-  open: number;    // Open price
-  high: number;    // High price
-  low: number;     // Low price
-  close: number;   // Close price
-  volume: number;  // Volume
+  open: number | null;    // Open price
+  high: number | null;    // High price
+  low: number | null;     // Low price
+  close: number | null;   // Close price
+  volume: number | null;  // Volume
 }
 ```
 
@@ -84,17 +84,17 @@ console.log(quotes[0].code); // 'MO2603-P-8200'
 interface CFFEXOptionQuote {
   code: string;           // Contract code
   name: string;           // Contract name
-  price: number;          // Last price
-  change: number;         // Price change
-  changePercent: number;  // Change percent
-  volume: number;         // Volume
-  amount: number;         // Amount
-  openInterest: number;   // Open interest
-  strikePrice: number;    // Strike price
-  remainDays: number;     // Days to expiry
-  dailyChange: number;    // Daily change
-  prevSettle: number;     // Previous settlement
-  open: number;           // Open price
+  price: number | null;          // Last price
+  change: number | null;         // Price change
+  changePercent: number | null;  // Change percent
+  volume: number | null;         // Volume
+  amount: number | null;         // Amount
+  openInterest: number | null;   // Open interest
+  strikePrice: number | null;    // Strike price
+  remainDays: number | null;     // Days to expiry
+  dailyChange: number | null;    // Daily change
+  prevSettle: number | null;     // Previous settlement
+  open: number | null;           // Open price
 }
 ```
 
@@ -145,6 +145,15 @@ console.log(info.remainderDays);  // 12
 
 **Returns:** `ETFOptionExpireDay`
 
+```ts
+interface ETFOptionExpireDay {
+  expireDay: string;     // Expiration date
+  remainderDays: number; // Remaining days
+  stockId: string;       // Underlying security code
+  name: string;          // Underlying name
+}
+```
+
 ### getETFOptionMinute
 
 Get SSE ETF option intraday minute data.
@@ -165,10 +174,10 @@ const minutes = await sdk.getETFOptionMinute('10009633');
 interface OptionMinute {
   time: string;          // Time HH:mm:ss
   date: string;          // Date YYYY-MM-DD
-  price: number;         // Price
-  volume: number;        // Volume
-  openInterest: number;  // Open interest
-  avgPrice: number;      // Average price
+  price: number | null;         // Price
+  volume: number | null;        // Volume
+  openInterest: number | null;  // Open interest
+  avgPrice: number | null;      // Average price
 }
 ```
 
@@ -275,8 +284,10 @@ interface OptionLHBItem {
   targetName: string;  // Underlying name
   memberName: string;  // Member abbreviation
   rank: number;        // Rank
-  sellVolume: number;  // Sell volume
-  buyVolume: number;   // Buy volume
+  sellVolume: number | null;  // Sell volume
+  buyVolume: number | null;   // Buy volume
   // ...more fields
 }
 ```
+
+The return value also keeps legacy aliases such as `tradeDate`, `volume`, `amount`, `openInterest`, and `side` for backward compatibility.

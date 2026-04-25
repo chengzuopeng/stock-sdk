@@ -149,6 +149,19 @@ const sdk = new StockSDK({
 - `linkdiary`
 - `unknown`
 
+## Host Fallback 与重试预算
+
+部分 provider（如 `eastmoney`）内置了多组镜像 host。当首个 host 触发可
+fallback 的错误（网络错误 / 超时 / 5xx 等）时，SDK 会自动切换到下一个候选 host。
+
+为了避免「`maxRetries` × host 数」造成的延迟倍乘，SDK 采用以下策略：
+
+- **首个 host**：使用配置中的完整 `retry` 预算（默认最多 4 次：1 + `maxRetries`）。
+- **后续 fallback host**：每个仅尝试 1 次（`maxRetries` 强制为 0）。
+
+因此最多请求次数 ≈ `(maxRetries + 1) + (候选 host 数 - 1)`，在保留容灾能力的同时
+避免长时间阻塞。host 不可达时也会被熔断器与 host 健康统计联合限制。
+
 ## 错误处理
 
 ### HttpError
@@ -184,6 +197,27 @@ try {
   }
 }
 ```
+
+### 标准化错误码
+
+如果你需要统一分类错误，但又不想失去原始 `TypeError` / `AbortError` / `HttpError` 实例，可以使用 `getSdkErrorCode`：
+
+```typescript
+import { getSdkErrorCode, HttpError } from 'stock-sdk';
+
+try {
+  await sdk.getSimpleQuotes(['sh000001']);
+} catch (error) {
+  if (error instanceof HttpError) {
+    console.log(`HTTP 错误: ${error.status}`);
+  }
+
+  console.log(getSdkErrorCode(error));
+  // 可能返回：HTTP_ERROR / RATE_LIMITED / NETWORK_ERROR / TIMEOUT / CIRCUIT_OPEN ...
+}
+```
+
+`onRetry` 回调收到的仍然是原始错误实例，只是附加了标准化元数据，因此旧的错误处理代码不需要改。
 
 ## 配置参考
 

@@ -47,7 +47,7 @@ interface BoardProvider<
  * 创建行业板块 / 概念板块 provider。
  */
 export function createBoardProvider<
-  TBoard,
+  TBoard extends { name: string; code: string },
   TSpot,
   TConstituent,
   TKline,
@@ -66,7 +66,7 @@ export function createBoardProvider<
   const codeCache = createBoardCodeCache(config);
 
   async function getList(client: RequestClient): Promise<TBoard[]> {
-    return fetchBoardList(client, config) as Promise<TBoard[]>;
+    return fetchBoardList(client, config) as unknown as Promise<TBoard[]>;
   }
 
   async function getBoardCode(
@@ -76,10 +76,7 @@ export function createBoardProvider<
     return codeCache.getCode(
       client,
       symbol,
-      getList as unknown as (client: RequestClient) => Promise<{
-        name: string;
-        code: string;
-      }[]>
+      getList
     );
   }
 

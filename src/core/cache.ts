@@ -32,6 +32,7 @@ interface CacheEntry<T> {
  */
 export class MemoryCache<T = unknown> {
   private cache: Map<string, CacheEntry<T>> = new Map();
+  private inflight: Map<string, Promise<T>> = new Map();
   private defaultTTL: number;
   private maxSize: number;
 
@@ -102,6 +103,7 @@ export class MemoryCache<T = unknown> {
    */
   clear(): void {
     this.cache.clear();
+    this.inflight.clear();
   }
 
   /**
@@ -161,9 +163,50 @@ export class MemoryCache<T = unknown> {
       return cached;
     }
 
-    const value = await fetcher();
-    this.set(key, value, ttl);
-    return value;
+    const inflight = this.inflight.get(key);
+    if (inflight) {
+      return inflight;
+    }
+
+    const nextPromise = fetcher()
+      .then((value) => {
+        this.set(key, value, ttl);
+        return value;
+      })
+      .finally(() => {
+        this.inflight.delete(key);
+      });
+
+    this.inflight.set(key, nextPromise);
+    return nextPromise;
+  }
+}
+
+const sharedCaches = new Map<string, MemoryCache<unknown>>();
+
+/**
+ * 获取具名共享缓存
+ */
+export function getSharedCache<T = unknown>(
+  namespace: string,
+  options?: CacheOptions
+): MemoryCache<T> {
+  const cached = sharedCaches.get(namespace);
+  if (cached) {
+    return cached as MemoryCache<T>;
+  }
+
+  const nextCache = new MemoryCache<T>(options);
+  sharedCaches.set(namespace, nextCache as MemoryCache<unknown>);
+  return nextCache;
+}
+
+/**
+ * 清空所有共享缓存
+ */
+export function clearSharedCaches(): void {
+  for (const cache of sharedCaches.values()) {
+    cache.clear();
   }
 }
 

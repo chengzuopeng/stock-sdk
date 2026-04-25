@@ -99,7 +99,7 @@ const sdk = new StockSDK({
   headers: {
     'X-Request-Source': 'my-app',
   },
-  userAgent: 'StockSDK/1.8.0',
+  userAgent: 'my-stock-app/1.0',
   
   // Retry configuration
   retry: {

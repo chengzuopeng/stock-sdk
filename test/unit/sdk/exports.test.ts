@@ -17,4 +17,10 @@ describe('模块导出', () => {
     expect(module.StockSDK).toBeDefined();
     // GetAllAShareQuotesOptions is a type checked at compile time.
   });
+
+  it('should export indicator registry and error helpers', async () => {
+    const module = await import('../../../src/index');
+    expect(module.INDICATOR_REGISTRY).toBeDefined();
+    expect(module.getSdkErrorCode).toBeDefined();
+  });
 });

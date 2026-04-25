@@ -1,7 +1,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateDocMeta } from './generate-doc-meta.js';
+import {
+  generateDocMeta,
+  renderSummaryMarkdown,
+} from './generate-doc-meta.js';
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFilePath);
@@ -53,7 +56,7 @@ function isIgnoredParityPath(relativePath, ignoredPatterns) {
 }
 
 const docsMeta = await readJson('docs-meta/sdk.json');
-const generatedMeta = await generateDocMeta({ write: true });
+const generatedMeta = await generateDocMeta({ write: false });
 const errors = [];
 const websiteMarkdownFiles = await listMarkdownFiles('website');
 const docFilesToScan = ['README.md', 'README_EN.md', ...websiteMarkdownFiles];
@@ -92,6 +95,12 @@ for (const group of docsMeta.summary.methodGroups) {
       errors.push(`Summary method group references missing SDK method: ${method}`);
     }
   }
+}
+
+const expectedSummary = `${renderSummaryMarkdown(docsMeta, generatedMeta)}\n`;
+const actualSummary = await readText('website/summary.md');
+if (actualSummary !== expectedSummary) {
+  errors.push('website/summary.md is out of date. Run `yarn docs:meta`.');
 }
 
 for (const [file, requiredTokens] of Object.entries(

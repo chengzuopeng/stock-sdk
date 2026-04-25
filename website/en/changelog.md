@@ -2,6 +2,32 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.8.2](https://www.npmjs.com/package/stock-sdk/v/1.8.2)** (2026-04-25)
+
+> This release does not add business APIs. It focuses on system architecture, request stability, type compatibility, and documentation tooling while keeping existing usage compatible.
+
+### Improvements
+
+**Architecture and Request Governance**
+- Split the `StockSDK` facade into quote, K-line, board, futures, options, and indicator services while preserving the public method surface
+- Split public types into domain files under `src/types/`; the legacy `src/types.ts` barrel remains available for compatibility
+- Added Eastmoney host fallback and counted retry / fallback requests against the `rateLimit` budget
+
+**Type Compatibility**
+- Made `TodayTimelineResponse.preClose` optional to avoid type breaks in existing mocks or manually constructed objects
+- Preserved the raw Tencent search `SearchResult.type` string and added `category` as the normalized asset classification, keeping checks such as `type === 'GP-A'` working
+- Kept legacy fields on `OptionLHBItem` and `ComexInventory`, with clearer replacement-field semantics
+
+**Documentation and Tooling**
+- Added documentation metadata generation, documentation consistency checks, and a CI workflow
+- Updated Search, Options, Timeline, Retry, and Request Governance documentation, and fixed the GitHub Pages deployment workflow
+
+### Compatibility
+
+- This release contains no breaking changes
+- Existing `StockSDK` initialization, SDK method names, option shapes, and main return structures remain compatible
+
+
 ## **[1.8.1](https://www.npmjs.com/package/stock-sdk/v/1.8.1)** (2026-04-22)
 
 ### Improvements

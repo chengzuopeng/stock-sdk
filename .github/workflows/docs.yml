@@ -5,6 +5,13 @@ on:
     branches: [main, master]
     paths:
       - 'website/**'
+      - 'src/**'
+      - 'scripts/**'
+      - 'docs-meta/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - 'tsconfig.json'
+      - 'tsup.config.ts'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -39,7 +46,7 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install --frozen-lockfile
 
       - name: Build with VitePress
         run: yarn build:pages
@@ -61,4 +68,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

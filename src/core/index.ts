@@ -5,12 +5,30 @@
 // 请求客户端
 export {
   RequestClient,
-  HttpError,
   type RequestClientOptions,
+} from './request';
+export {
+  HttpError,
+  SdkError,
+  UpstreamEmptyError,
+  NotFoundError,
+  InvalidArgumentError,
+  InvalidSymbolError,
+  attachErrorMetadata,
+  normalizeRequestError,
+  getSdkErrorCode,
+  isSdkError,
+  type RequestError,
+  type SdkErrorCode,
+} from './errors';
+export {
   type ProviderName,
   type ProviderRequestPolicy,
   type RetryOptions,
-} from './request';
+  mergeProviderPolicy,
+  resolveProviderPolicy,
+  inferProviderFromUrl,
+} from './providerPolicy';
 
 // 解析器
 export {
@@ -101,6 +119,8 @@ export {
 export {
   MemoryCache,
   createCacheKey,
+  getSharedCache,
+  clearSharedCaches,
   type CacheOptions,
 } from './cache';
 
@@ -114,3 +134,9 @@ export {
   type CircuitBreakerOptions,
   type CircuitState,
 } from './circuitBreaker';
+
+// Host fallback
+export {
+  HostFallbackManager,
+  type HostHealthStats,
+} from './fallback';

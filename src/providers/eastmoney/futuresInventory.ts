@@ -197,6 +197,9 @@ export async function getComexInventory(
       name: nameMap[symbol] ?? symbol,
       storageTon: toNumberSafe(item.STORAGE_TON),
       storageOunce: toNumberSafe(item.STORAGE_OUNCE),
+      inventory: toNumberSafe(item.STORAGE_TON),
+      change: null,
+      market: symbol,
     }));
     allData.push(...items);
     page++;

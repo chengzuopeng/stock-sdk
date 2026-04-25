@@ -6,6 +6,7 @@
  * - OPEN: 熔断状态，拒绝所有请求
  * - HALF_OPEN: 半开状态，允许少量请求探测
  */
+import { SdkError } from './errors';
 
 /**
  * 熔断器状态
@@ -29,9 +30,9 @@ export interface CircuitBreakerOptions {
 /**
  * 熔断器错误
  */
-export class CircuitBreakerError extends Error {
+export class CircuitBreakerError extends SdkError {
   constructor(message: string = 'Circuit breaker is OPEN') {
-    super(message);
+    super({ code: 'CIRCUIT_OPEN', message });
     this.name = 'CircuitBreakerError';
   }
 }

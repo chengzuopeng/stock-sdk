@@ -1,89 +1,39 @@
 /**
- * HTTP 请求客户端（带重试机制、限流和熔断）
+ * HTTP 请求客户端（带重试机制、限流、熔断和 host fallback）
  */
 import { decodeGBK, parseResponse } from './parser';
-import {
-  DEFAULT_TIMEOUT,
-  TENCENT_BASE_URL,
-  DEFAULT_MAX_RETRIES,
-  DEFAULT_BASE_DELAY,
-  DEFAULT_MAX_DELAY,
-  DEFAULT_BACKOFF_MULTIPLIER,
-  DEFAULT_RETRYABLE_STATUS_CODES,
-} from './constants';
+import { TENCENT_BASE_URL } from './constants';
 import { RateLimiter, type RateLimiterOptions } from './rateLimiter';
 import { getNextUserAgent } from './userAgentPool';
-import { CircuitBreaker, CircuitBreakerError, type CircuitBreakerOptions } from './circuitBreaker';
+import {
+  CircuitBreaker,
+  CircuitBreakerError,
+  type CircuitBreakerOptions,
+} from './circuitBreaker';
+import { HostFallbackManager, type HostHealthStats } from './fallback';
+import {
+  HttpError,
+  getSdkErrorCode,
+  normalizeRequestError,
+  type RequestError,
+} from './errors';
+import {
+  inferProviderFromUrl,
+  mergeProviderPolicy,
+  resolveProviderPolicy,
+  type ProviderName,
+  type ProviderRequestPolicy,
+  type ResolvedProviderPolicy,
+  type ResolvedRetryOptions,
+  type RetryOptions,
+} from './providerPolicy';
 
-/**
- * 已知的数据源名称
- */
-export type ProviderName =
-  | 'tencent'
-  | 'eastmoney'
-  | 'sina'
-  | 'linkdiary'
-  | 'unknown';
-
-/**
- * HTTP 错误类
- */
-export class HttpError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly statusText: string,
-    public readonly url?: string,
-    public readonly provider?: string
-  ) {
-    const details = statusText ? ` ${statusText}` : '';
-    const urlInfo = url ? `, url: ${url}` : '';
-    const providerInfo = provider ? `, provider: ${provider}` : '';
-    super(`HTTP error! status: ${status}${details}${urlInfo}${providerInfo}`);
-    this.name = 'HttpError';
-  }
-}
-
-/**
- * 重试配置选项
- */
-export interface RetryOptions {
-  /** 最大重试次数，默认 3 */
-  maxRetries?: number;
-  /** 初始退避时间（毫秒），默认 1000 */
-  baseDelay?: number;
-  /** 最大退避时间（毫秒），默认 30000 */
-  maxDelay?: number;
-  /** 退避系数，默认 2 */
-  backoffMultiplier?: number;
-  /** 可重试的 HTTP 状态码，默认 [408, 429, 500, 502, 503, 504] */
-  retryableStatusCodes?: number[];
-  /** 是否在网络错误时重试，默认 true */
-  retryOnNetworkError?: boolean;
-  /** 是否在超时时重试，默认 true */
-  retryOnTimeout?: boolean;
-  /** 重试回调（用于日志等） */
-  onRetry?: (attempt: number, error: Error, delay: number) => void;
-}
-
-/**
- * Provider 级请求策略
- */
-export interface ProviderRequestPolicy {
-  /** 请求超时时间（毫秒） */
-  timeout?: number;
-  /** 重试配置 */
-  retry?: RetryOptions;
-  /** 自定义请求头 */
-  headers?: Record<string, string>;
-  /** 自定义 User-Agent（浏览器环境可能会被忽略） */
-  userAgent?: string;
-  /** 限流配置（防止请求过快被频控） */
-  rateLimit?: RateLimiterOptions;
-  /** 是否启用 UA 轮换（仅 Node.js 有效） */
-  rotateUserAgent?: boolean;
-  /** 熔断器配置（连续失败时暂停请求） */
-  circuitBreaker?: CircuitBreakerOptions;
-}
+export { HttpError } from './errors';
+export type {
+  ProviderName,
+  ProviderRequestPolicy,
+  RetryOptions,
+} from './providerPolicy';
 
 /**
  * 请求客户端配置选项
@@ -110,32 +60,6 @@ export interface RequestClientOptions {
 }
 
 /**
- * 内部使用的完整重试配置
- */
-interface ResolvedRetryOptions {
-  maxRetries: number;
-  baseDelay: number;
-  maxDelay: number;
-  backoffMultiplier: number;
-  retryableStatusCodes: number[];
-  retryOnNetworkError: boolean;
-  retryOnTimeout: boolean;
-  onRetry?: (attempt: number, error: Error, delay: number) => void;
-}
-
-/**
- * 归一化后的 provider 请求策略
- */
-interface ResolvedProviderPolicy {
-  timeout: number;
-  retry: ResolvedRetryOptions;
-  headers: Record<string, string>;
-  rotateUserAgent: boolean;
-  rateLimit?: RateLimiterOptions;
-  circuitBreaker?: CircuitBreakerOptions;
-}
-
-/**
  * Provider 级运行时状态
  */
 interface ProviderRuntimeState {
@@ -153,10 +77,11 @@ interface GetOptions {
 }
 
 export class RequestClient {
-  private baseUrl: string;
-  private defaultPolicy: ResolvedProviderPolicy;
-  private providerPolicies: Partial<Record<ProviderName, ResolvedProviderPolicy>>;
-  private runtimeStates: Map<ProviderName, ProviderRuntimeState>;
+  private readonly baseUrl: string;
+  private readonly defaultPolicy: ResolvedProviderPolicy;
+  private readonly providerPolicies: Partial<Record<ProviderName, ResolvedProviderPolicy>>;
+  private readonly runtimeStates: Map<ProviderName, ProviderRuntimeState>;
+  private readonly fallbackManager: HostFallbackManager;
 
   constructor(options: RequestClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? TENCENT_BASE_URL;
@@ -170,113 +95,16 @@ export class RequestClient {
       circuitBreaker: options.circuitBreaker,
     };
 
-    this.defaultPolicy = this.resolveProviderPolicy(basePolicy);
+    this.defaultPolicy = resolveProviderPolicy(basePolicy);
     this.providerPolicies = {};
     this.runtimeStates = new Map();
+    this.fallbackManager = new HostFallbackManager();
 
     for (const [provider, policy] of Object.entries(options.providerPolicies ?? {})) {
-      const mergedPolicy = this.mergeProviderPolicy(basePolicy, policy);
+      const mergedPolicy = mergeProviderPolicy(basePolicy, policy);
       this.providerPolicies[provider as ProviderName] =
-        this.resolveProviderPolicy(mergedPolicy);
+        resolveProviderPolicy(mergedPolicy);
     }
-  }
-
-  /**
-   * 解析重试配置，填充默认值
-   */
-  private resolveRetryOptions(options?: RetryOptions): ResolvedRetryOptions {
-    return {
-      maxRetries: options?.maxRetries ?? DEFAULT_MAX_RETRIES,
-      baseDelay: options?.baseDelay ?? DEFAULT_BASE_DELAY,
-      maxDelay: options?.maxDelay ?? DEFAULT_MAX_DELAY,
-      backoffMultiplier: options?.backoffMultiplier ?? DEFAULT_BACKOFF_MULTIPLIER,
-      retryableStatusCodes: options?.retryableStatusCodes ?? DEFAULT_RETRYABLE_STATUS_CODES,
-      retryOnNetworkError: options?.retryOnNetworkError ?? true,
-      retryOnTimeout: options?.retryOnTimeout ?? true,
-      onRetry: options?.onRetry,
-    };
-  }
-
-  /**
-   * 归一化请求头，确保自定义 UA 不会覆盖显式传入的 User-Agent。
-   */
-  private normalizeHeaders(
-    headers?: Record<string, string>,
-    userAgent?: string
-  ): Record<string, string> {
-    const normalizedHeaders = { ...(headers ?? {}) };
-    if (userAgent) {
-      const hasUserAgent = Object.keys(normalizedHeaders).some(
-        (key) => key.toLowerCase() === 'user-agent'
-      );
-      if (!hasUserAgent) {
-        normalizedHeaders['User-Agent'] = userAgent;
-      }
-    }
-    return normalizedHeaders;
-  }
-
-  /**
-   * 合并 provider 策略，嵌套对象按浅合并处理。
-   */
-  private mergeProviderPolicy(
-    base: ProviderRequestPolicy,
-    override?: ProviderRequestPolicy
-  ): ProviderRequestPolicy {
-    if (!override) {
-      return {
-        ...base,
-        headers: { ...(base.headers ?? {}) },
-        retry: base.retry ? { ...base.retry } : undefined,
-        rateLimit: base.rateLimit ? { ...base.rateLimit } : undefined,
-        circuitBreaker: base.circuitBreaker ? { ...base.circuitBreaker } : undefined,
-      };
-    }
-
-    return {
-      timeout: override.timeout ?? base.timeout,
-      retry: override.retry
-        ? { ...(base.retry ?? {}), ...override.retry }
-        : base.retry
-          ? { ...base.retry }
-          : undefined,
-      headers: {
-        ...(base.headers ?? {}),
-        ...(override.headers ?? {}),
-      },
-      userAgent: override.userAgent ?? base.userAgent,
-      rateLimit: override.rateLimit
-        ? { ...(base.rateLimit ?? {}), ...override.rateLimit }
-        : base.rateLimit
-          ? { ...base.rateLimit }
-          : undefined,
-      rotateUserAgent: override.rotateUserAgent ?? base.rotateUserAgent,
-      circuitBreaker: override.circuitBreaker
-        ? { ...(base.circuitBreaker ?? {}), ...override.circuitBreaker }
-        : base.circuitBreaker
-          ? { ...base.circuitBreaker }
-          : undefined,
-    };
-  }
-
-  /**
-   * 解析 provider 策略，填充默认值。
-   */
-  private resolveProviderPolicy(
-    policy: ProviderRequestPolicy = {}
-  ): ResolvedProviderPolicy {
-    return {
-      timeout: policy.timeout ?? DEFAULT_TIMEOUT,
-      retry: this.resolveRetryOptions(policy.retry),
-      headers: this.normalizeHeaders(policy.headers, policy.userAgent),
-      rotateUserAgent: policy.rotateUserAgent ?? false,
-      rateLimit: policy.rateLimit
-        ? { ...policy.rateLimit }
-        : undefined,
-      circuitBreaker: policy.circuitBreaker
-        ? { ...policy.circuitBreaker }
-        : undefined,
-    };
   }
 
   /**
@@ -301,30 +129,17 @@ export class RequestClient {
   }
 
   /**
-   * 从 URL 推断数据源
-   */
-  private inferProvider(url: string, explicitProvider?: ProviderName): ProviderName {
-    if (explicitProvider) {
-      return explicitProvider;
-    }
-
-    try {
-      const host = new URL(url).hostname;
-      if (host.includes('eastmoney.com')) return 'eastmoney';
-      if (host.includes('gtimg.cn')) return 'tencent';
-      if (host.includes('sina.com.cn')) return 'sina';
-      if (host.includes('linkdiary.cn')) return 'linkdiary';
-    } catch {
-      return 'unknown';
-    }
-    return 'unknown';
-  }
-
-  /**
-   * 获取超时时间
+   * 获取默认超时时间
    */
   getTimeout(): number {
     return this.defaultPolicy.timeout;
+  }
+
+  /**
+   * 获取 host 健康状态
+   */
+  getHostHealth(provider?: ProviderName): HostHealthStats[] {
+    return this.fallbackManager.getStats(provider);
   }
 
   /**
@@ -339,7 +154,7 @@ export class RequestClient {
       Math.pow(retryOptions.backoffMultiplier, attempt),
       retryOptions.maxDelay
     );
-    // 添加随机抖动 (0-100ms) 防止惊群效应
+
     return delay + Math.random() * 100;
   }
 
@@ -354,26 +169,25 @@ export class RequestClient {
    * 判断是否应该重试
    */
   private shouldRetry(
-    error: unknown,
+    error: RequestError,
     attempt: number,
     retryOptions: ResolvedRetryOptions
   ): boolean {
-    // 超过最大重试次数
     if (attempt >= retryOptions.maxRetries) {
       return false;
     }
 
-    // 超时错误 (AbortError)
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    const code = getSdkErrorCode(error);
+
+    if (code === 'TIMEOUT') {
       return retryOptions.retryOnTimeout;
     }
 
-    // 网络错误 (fetch 失败，如 DNS 解析失败、连接被拒绝等)
-    if (error instanceof TypeError) {
+    if (code === 'NETWORK_ERROR') {
       return retryOptions.retryOnNetworkError;
     }
 
-    // HTTP 状态码错误
+    // RATE_LIMITED 一定来自 HttpError(429)，统一交给下面的 HttpError 分支处理
     if (error instanceof HttpError) {
       return retryOptions.retryableStatusCodes.includes(error.status);
     }
@@ -382,101 +196,149 @@ export class RequestClient {
   }
 
   /**
-   * 带重试的请求执行器（集成熔断器）
+   * 单 host 带重试的请求执行器
    */
   private async executeWithRetry<T>(
     requestFn: () => Promise<T>,
-    state: ProviderRuntimeState,
-    provider: ProviderName,
+    retryOptions: ResolvedRetryOptions,
+    context: {
+      provider: ProviderName;
+      url: string;
+      timeout: number;
+    },
     attempt: number = 0
   ): Promise<T> {
     try {
-      const result = await requestFn();
-      // 请求成功，记录到熔断器
-      state.circuitBreaker?.recordSuccess();
-      return result;
+      return await requestFn();
     } catch (error) {
-      if (this.shouldRetry(error, attempt, state.policy.retry)) {
-        const delay = this.calculateDelay(attempt, state.policy.retry);
+      const normalized = normalizeRequestError(error, context);
 
-        // 触发重试回调
-        if (state.policy.retry.onRetry && error instanceof Error) {
-          state.policy.retry.onRetry(attempt + 1, error, delay);
+      if (this.shouldRetry(normalized, attempt, retryOptions)) {
+        const delay = this.calculateDelay(attempt, retryOptions);
+
+        if (retryOptions.onRetry) {
+          retryOptions.onRetry(attempt + 1, normalized, delay);
         }
 
         await this.sleep(delay);
-        return this.executeWithRetry(requestFn, state, provider, attempt + 1);
+        return this.executeWithRetry(requestFn, retryOptions, context, attempt + 1);
       }
-      // 重试耗尽，记录失败到熔断器
-      state.circuitBreaker?.recordFailure();
-      if (error instanceof Error) {
-        (error as { provider?: ProviderName }).provider = provider;
-      }
-      throw error;
+
+      throw normalized;
     }
   }
 
   /**
-   * 发送 GET 请求（带自动重试、限流和熔断保护）
+   * 执行单次 HTTP 请求
+   */
+  private async performRequest<T>(
+    url: string,
+    state: ProviderRuntimeState,
+    provider: ProviderName,
+    responseType: GetOptions['responseType'] = 'text'
+  ): Promise<T> {
+    if (state.rateLimiter) {
+      await state.rateLimiter.acquire();
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), state.policy.timeout);
+
+    const requestHeaders = { ...state.policy.headers };
+    if (state.policy.rotateUserAgent) {
+      const rotatedUA = getNextUserAgent();
+      if (rotatedUA) {
+        requestHeaders['User-Agent'] = rotatedUA;
+      }
+    }
+
+    try {
+      const resp = await fetch(url, {
+        signal: controller.signal,
+        headers: requestHeaders,
+      });
+
+      if (!resp.ok) {
+        throw new HttpError(resp.status, resp.statusText, url, provider);
+      }
+
+      switch (responseType) {
+        case 'json':
+          return await resp.json();
+        case 'arraybuffer':
+          return (await resp.arrayBuffer()) as T;
+        default:
+          return (await resp.text()) as T;
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * 发送 GET 请求（带自动重试、限流、熔断和 fallback）
    */
   async get<T = string>(
     url: string,
     options: GetOptions = {}
   ): Promise<T> {
-    const provider = this.inferProvider(url, options.provider);
+    const provider = inferProviderFromUrl(url, options.provider);
     const state = this.getProviderState(provider);
 
-    // 熔断器检查：如果熔断器打开，直接抛出错误
     if (state.circuitBreaker && !state.circuitBreaker.canRequest()) {
       throw new CircuitBreakerError('Circuit breaker is OPEN, request rejected');
     }
 
-    // 限流：等待获取令牌
-    if (state.rateLimiter) {
-      await state.rateLimiter.acquire();
-    }
+    const candidateUrls = this.fallbackManager.getCandidateUrls(url, provider);
+    let lastError: RequestError | undefined;
 
-    return this.executeWithRetry(async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), state.policy.timeout);
-
-      // 构建请求头，支持 UA 轮换
-      const requestHeaders = { ...state.policy.headers };
-      if (state.policy.rotateUserAgent) {
-        const rotatedUA = getNextUserAgent();
-        if (rotatedUA) {
-          requestHeaders['User-Agent'] = rotatedUA;
-        }
-      }
+    for (let index = 0; index < candidateUrls.length; index++) {
+      const candidateUrl = candidateUrls[index];
+      // 仅首个 host 走完整重试预算；后续 fallback host 只尝试一次，
+      // 避免 (maxRetries+1) × hosts 的延迟倍乘。
+      const retryForHost: ResolvedRetryOptions =
+        index === 0
+          ? state.policy.retry
+          : { ...state.policy.retry, maxRetries: 0 };
 
       try {
-        const resp = await fetch(url, {
-          signal: controller.signal,
-          headers: requestHeaders,
-        });
+        const result = await this.executeWithRetry(
+          () => this.performRequest<T>(candidateUrl, state, provider, options.responseType),
+          retryForHost,
+          {
+            provider,
+            url: candidateUrl,
+            timeout: state.policy.timeout,
+          }
+        );
 
-        if (!resp.ok) {
-          throw new HttpError(resp.status, resp.statusText, url, provider);
-        }
-
-        switch (options.responseType) {
-          case 'json':
-            return await resp.json();
-          case 'arraybuffer':
-            return (await resp.arrayBuffer()) as T;
-          default:
-            return (await resp.text()) as T;
-        }
+        state.circuitBreaker?.recordSuccess();
+        this.fallbackManager.recordSuccess(candidateUrl);
+        return result;
       } catch (error) {
-        if (error instanceof Error) {
-          (error as { url?: string; provider?: string }).url = url;
-          (error as { url?: string; provider?: string }).provider = provider;
+        const normalized = normalizeRequestError(error, {
+          provider,
+          url: candidateUrl,
+          timeout: state.policy.timeout,
+        });
+        lastError = normalized;
+        this.fallbackManager.recordFailure(candidateUrl, normalized);
+
+        const shouldTryNextHost =
+          index < candidateUrls.length - 1 &&
+          this.fallbackManager.shouldFallback(normalized);
+
+        if (shouldTryNextHost) {
+          continue;
         }
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
+
+        state.circuitBreaker?.recordFailure();
+        throw normalized;
       }
-    }, state, provider);
+    }
+
+    state.circuitBreaker?.recordFailure();
+    throw lastError ?? new CircuitBreakerError('Request failed without a concrete error');
   }
 
   /**

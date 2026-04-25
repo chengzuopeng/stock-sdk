@@ -2,6 +2,32 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.8.2](https://www.npmjs.com/package/stock-sdk/v/1.8.2)** (2026-04-25)
+
+> 本版本不新增业务 API，重点面向系统架构、请求稳定性、类型兼容和文档工程化改造，现有用法保持兼容。
+
+### 优化
+
+**架构与请求治理**
+- `StockSDK` 门面拆分为报价、K 线、板块、期货、期权和指标等领域 service，公开方法和调用方式保持不变
+- 公共类型按领域拆分到 `src/types/`，原 `src/types.ts` 继续作为向后兼容出口
+- 新增东方财富 host fallback，并让 retry / fallback 请求计入 `rateLimit` 预算
+
+**类型兼容**
+- `TodayTimelineResponse.preClose` 调整为可选字段，避免外部 mock 或手动构造对象时出现类型破坏
+- `SearchResult.type` 保持腾讯接口原始类型字符串，新增 `category` 作为标准化资产分类，兼容旧的 `type === 'GP-A'` 等判断
+- `OptionLHBItem` 和 `ComexInventory` 继续保留旧字段，并补充更清晰的新字段语义
+
+**文档与工程**
+- 新增文档元数据生成、文档一致性校验和 CI 工作流
+- 修正搜索、期权、Timeline、重试与请求治理相关文档，并更新 GitHub Pages 部署流程
+
+### 兼容性
+
+- 本版本不包含破坏性变更
+- 旧的 `StockSDK` 初始化方式、SDK 方法名、参数结构和主要返回结构保持兼容
+
+
 ## **[1.8.1](https://www.npmjs.com/package/stock-sdk/v/1.8.1)** (2026-04-22)
 
 ### 优化

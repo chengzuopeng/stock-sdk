@@ -22,3 +22,12 @@ export * from './types';
 // 导出指标附加器
 export { addIndicators } from './addIndicators';
 export type { KlineWithIndicators } from './addIndicators';
+
+// 导出指标注册表
+export {
+  INDICATOR_REGISTRY,
+  buildIndicatorContext,
+  getEnabledIndicatorKeys,
+  estimateIndicatorLookback,
+  type IndicatorKey,
+} from './registry';

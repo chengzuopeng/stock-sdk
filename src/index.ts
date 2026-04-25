@@ -35,6 +35,10 @@ export {
   calcSAR,
   calcKC,
   addIndicators,
+  INDICATOR_REGISTRY,
+  buildIndicatorContext,
+  getEnabledIndicatorKeys,
+  estimateIndicatorLookback,
 } from './indicators';
 
 // 导出指标类型
@@ -61,6 +65,7 @@ export type {
   KCOptions,
   KCResult,
   KlineWithIndicators,
+  IndicatorKey,
 } from './indicators';
 
 // 为了向后兼容，导出工具函数
@@ -72,6 +77,8 @@ export {
   chunkArray,
   asyncPool,
   HttpError,
+  SdkError,
+  getSdkErrorCode,
 } from './core';
 
 // 导出配置类型
@@ -80,6 +87,7 @@ export type {
   RequestClientOptions,
   ProviderName,
   ProviderRequestPolicy,
+  RequestError,
 } from './core';
 
 // 导出选项类型

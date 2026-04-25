@@ -170,6 +170,7 @@
     "<20KB",
     "< 20KB",
     "StockSDK/1.4",
+    "StockSDK/1.8.0",
     "coverage-95.88%25"
   ],
   "docExpectations": {
@@ -213,6 +214,14 @@
         "RateLimiterOptions",
         "providerPolicies",
         "ProviderRequestPolicy"
+      ],
+      "website/api/timeline.md": [
+        "TodayTimelineResponse",
+        "preClose?: number"
+      ],
+      "website/en/api/timeline.md": [
+        "TodayTimelineResponse",
+        "preClose?: number"
       ],
       "website/guide/introduction.md": [
         "轻量发布包",

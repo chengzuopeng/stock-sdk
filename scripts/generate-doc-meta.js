@@ -55,14 +55,13 @@ function extractNamedExports(source) {
 }
 
 function extractSdkMethods(source) {
-  const classMatch = source.match(/export class StockSDK \{([\s\S]*?)\n\}/m);
-  if (!classMatch) {
+  if (!source.includes('export class StockSDK')) {
     return [];
   }
 
   const methods = new Set();
-  for (const match of classMatch[1].matchAll(
-    /^\s{2}(?:async\s+)?(?!constructor\b)([A-Za-z0-9_]+)\([^)]*\):/gm
+  for (const match of source.matchAll(
+    /^\s{2}(?:async\s+)?(?!constructor\b)([A-Za-z0-9_]+)\(/gm
   )) {
     methods.add(match[1]);
   }
@@ -129,7 +128,7 @@ function renderMethodGroup(group, sdkMethods) {
   ].join('\n');
 }
 
-function renderSummaryMarkdown(docsMeta, meta) {
+export function renderSummaryMarkdown(docsMeta, meta) {
   const requestRows = meta.request.optionNames
     .map((optionName) => {
       const type = getRequestOptionType(optionName, docsMeta);
@@ -163,7 +162,6 @@ function renderSummaryMarkdown(docsMeta, meta) {
   return `# Stock SDK 文档总览
 
 > 此页面由脚本自动生成，请不要手动编辑。
-> 生成时间：${meta.generatedAt}
 
 ## 项目定位
 
@@ -214,11 +212,20 @@ ${methodGroups}
 
 export async function generateDocMeta(options = {}) {
   const { write = true } = options;
-  const [packageJson, docsMeta, requestSource, indicatorTypesSource, indicatorIndexSource, sdkSource] =
+  const [
+    packageJson,
+    docsMeta,
+    requestSource,
+    providerPolicySource,
+    indicatorTypesSource,
+    indicatorIndexSource,
+    sdkSource,
+  ] =
     await Promise.all([
       readJson('package.json'),
       readJson('docs-meta/sdk.json'),
       readText('src/core/request.ts'),
+      readText('src/core/providerPolicy.ts'),
       readText('src/indicators/types.ts'),
       readText('src/indicators/index.ts'),
       readText('src/sdk.ts'),
@@ -250,7 +257,7 @@ export async function generateDocMeta(options = {}) {
     marketing: docsMeta.marketing,
     request: {
       optionNames: extractOptionalKeys(requestOptionsBody),
-      providerNames: extractProviderNames(requestSource),
+      providerNames: extractProviderNames(providerPolicySource),
       rateLimitType: docsMeta.requestConfig.rateLimitType,
       providerPoliciesType: docsMeta.requestConfig.providerPoliciesType,
     },

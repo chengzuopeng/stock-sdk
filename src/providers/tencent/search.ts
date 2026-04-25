@@ -3,7 +3,7 @@
  * 支持浏览器（JSONP）和 Node.js（fetch）双端
  */
 import { RequestClient } from '../../core/request';
-import { SearchResult } from '../../types';
+import { SearchResult, type SearchResultType } from '../../types';
 
 /** Smartbox 搜索接口基础 URL */
 const SEARCH_URL = 'https://smartbox.gtimg.cn/s3/';
@@ -26,9 +26,45 @@ function decodeUnicode(str: string): string {
 }
 
 /**
- * 解析 Smartbox 返回的原始字符串
- * @param raw 原始字符串 "sh~600519~贵州茅台~gzmt~GP-A^..."
+ * 把腾讯 Smartbox 返回的原始资产类型字符串归一化为 {@link SearchResultType}
+ *
+ * 已知的原始类型映射（不区分大小写）：
+ * - 股票：`GP` / `GP-A` / `GP-B`              → `'stock'`
+ * - 指数：`ZS`                                → `'index'`
+ * - 基金：`ETF` / `LOF` / `KJ` / `KJ-HB` /
+ *         `KJ-CX` / `QDII` / `QDII-ETF` /
+ *         `QDII-LOF` / `QDII-FOF` / `JJ`     → `'fund'`
+ * - 债券：`ZQ`                                → `'bond'`
+ * - 期货：`QH`                                → `'futures'`
+ * - 期权：`QZ` / `OPTION`                     → `'option'`
+ * - 其余                                       → `'other'`
+ *
+ * @param rawType 上游 `SearchResult.type` 原始字符串
  */
+export function normalizeSearchType(rawType: string): SearchResultType {
+  const upper = rawType.toUpperCase();
+
+  // 顺序很关键：QDII-ETF / QDII-LOF 等以 QDII 开头的复合类型必须先归到基金
+  if (
+    upper.startsWith('QDII') ||
+    upper.startsWith('ETF') ||
+    upper.startsWith('LOF') ||
+    upper.startsWith('KJ') ||
+    upper.startsWith('JJ') ||
+    upper.includes('FUND')
+  ) {
+    return 'fund';
+  }
+
+  if (upper.startsWith('GP') || upper.includes('STOCK')) return 'stock';
+  if (upper === 'ZS' || upper.includes('INDEX')) return 'index';
+  if (upper.startsWith('ZQ') || upper.includes('BOND')) return 'bond';
+  if (upper.startsWith('QH') || upper.includes('FUTURE')) return 'futures';
+  if (upper.startsWith('QZ') || upper.includes('OPTION')) return 'option';
+
+  return 'other';
+}
+
 function parseSearchResult(raw: string): SearchResult[] {
   if (!raw || raw === 'N') return [];
 
@@ -45,7 +81,10 @@ function parseSearchResult(raw: string): SearchResult[] {
       code: market + pureCode,
       name,
       market,
+      // 保留上游原始类型字符串以维持向后兼容
       type,
+      // 标准化后的资产分类，便于跨数据源统一判断
+      category: normalizeSearchType(type),
     };
   });
 }

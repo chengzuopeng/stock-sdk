@@ -149,6 +149,25 @@ const sdk = new StockSDK({
 - `linkdiary`
 - `unknown`
 
+## Host Fallback & Retry Budget
+
+Some providers (e.g. `eastmoney`) ship with several mirror hosts. When the first
+host fails with a fallback-eligible error (network / timeout / 5xx, etc.), the
+SDK automatically switches to the next candidate host.
+
+To avoid the `maxRetries × hostCount` latency blow-up, the SDK applies the
+following strategy:
+
+- **First host**: uses the full `retry` budget (default up to 4 attempts:
+  `1 + maxRetries`).
+- **Subsequent fallback hosts**: each is tried only once (`maxRetries` is
+  forced to 0).
+
+The total request count is therefore roughly
+`(maxRetries + 1) + (candidateHosts - 1)`, which preserves disaster recovery
+while preventing long blocking. Unreachable hosts are also throttled by the
+circuit breaker and host health stats.
+
 ## Error Handling
 
 ### HttpError
@@ -184,6 +203,27 @@ try {
   }
 }
 ```
+
+### Standardized Error Codes
+
+If you want consistent error classification without losing the original `TypeError` / `AbortError` / `HttpError` instance, use `getSdkErrorCode`:
+
+```typescript
+import { getSdkErrorCode, HttpError } from 'stock-sdk';
+
+try {
+  await sdk.getSimpleQuotes(['sh000001']);
+} catch (error) {
+  if (error instanceof HttpError) {
+    console.log(`HTTP Error: ${error.status}`);
+  }
+
+  console.log(getSdkErrorCode(error));
+  // Possible values: HTTP_ERROR / RATE_LIMITED / NETWORK_ERROR / TIMEOUT / CIRCUIT_OPEN ...
+}
+```
+
+The `onRetry` callback still receives the original error instance with standardized metadata attached, so existing error handling stays compatible.
 
 ## Configuration Reference
 

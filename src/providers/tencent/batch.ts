@@ -7,6 +7,7 @@ import {
   US_LIST_URL,
   HK_LIST_URL,
   FUND_LIST_URL,
+  getSharedCache,
   chunkArray,
   asyncPool,
   assertPositiveInteger,
@@ -27,12 +28,23 @@ interface StockListResponse {
   list: string[];
 }
 
-let cachedAShareCodes: string[] | null = null;
-let cachedAShareCodesNoExchange: string[] | null = null;
-let cachedUSCodes: string[] | null = null;
-let cachedUSCodesNoMarket: string[] | null = null;
-let cachedHKCodes: string[] | null = null;
-let cachedFundCodes: string[] | null = null;
+const codeListCache = getSharedCache<string[]>('tencent:code-lists', {
+  defaultTTL: 6 * 60 * 60 * 1000,
+  maxSize: 16,
+});
+
+async function fetchJsonCodeList(
+  client: RequestClient,
+  cacheKey: string,
+  url: string
+): Promise<string[]> {
+  return codeListCache.getOrFetch(cacheKey, async () => {
+    const data = await client.get<StockListResponse>(url, {
+      responseType: 'json',
+    });
+    return data?.list || [];
+  });
+}
 
 /**
  * A 股市场/板块类型
@@ -174,20 +186,10 @@ export async function getAShareCodeList(
     market = options.market;
   }
 
-  // 确保缓存已加载
-  if (!cachedAShareCodes) {
-    const data = await client.get<StockListResponse>(A_SHARE_LIST_URL, {
-      responseType: 'json',
-    });
-    const codeList = data?.list || [];
-    cachedAShareCodes = codeList;
-    cachedAShareCodesNoExchange = codeList.map((code) =>
-      code.replace(/^(sh|sz|bj)/, '')
-    );
-  }
+  const allCodes = await fetchJsonCodeList(client, 'a-share:full', A_SHARE_LIST_URL);
 
   // 筛选市场
-  let result = cachedAShareCodes!;
+  let result = allCodes;
   if (market) {
     result = result.filter((code) => matchMarket(code, market));
   }
@@ -250,18 +252,8 @@ export async function getUSCodeList(
     market = options.market;
   }
 
-  // 确保缓存已加载
-  if (!cachedUSCodes) {
-    const data = await client.get<StockListResponse>(US_LIST_URL, {
-      responseType: 'json',
-    });
-    cachedUSCodes = data?.list || [];
-    cachedUSCodesNoMarket = cachedUSCodes.map((code) =>
-      code.replace(/^\d{3}\./, '')
-    );
-  }
-
-  let result = cachedUSCodes.slice();
+  const allCodes = await fetchJsonCodeList(client, 'us:full', US_LIST_URL);
+  let result = allCodes.slice();
 
   // 筛选市场
   if (market) {
@@ -284,15 +276,8 @@ export async function getUSCodeList(
 export async function getHKCodeList(
   client: RequestClient
 ): Promise<string[]> {
-  if (cachedHKCodes) {
-    return cachedHKCodes.slice();
-  }
-
-  const data = await client.get<StockListResponse>(HK_LIST_URL, {
-    responseType: 'json',
-  });
-  cachedHKCodes = data?.list || [];
-  return cachedHKCodes.slice();
+  const codes = await fetchJsonCodeList(client, 'hk:full', HK_LIST_URL);
+  return codes.slice();
 }
 
 /**
@@ -425,21 +410,13 @@ export async function getAllUSQuotesByCodes(
 export async function getFundCodeList(
   client: RequestClient
 ): Promise<string[]> {
-  if (cachedFundCodes) {
-    return cachedFundCodes.slice();
-  }
-
-  // 请求文本格式数据（逗号分隔：日期,代码1,代码2,...）
-  const text = await client.get<string>(FUND_LIST_URL, {
-    responseType: 'text',
+  const codes = await codeListCache.getOrFetch('fund:full', async () => {
+    const text = await client.get<string>(FUND_LIST_URL, {
+      responseType: 'text',
+    });
+    const parts = text.split(',');
+    return parts.slice(1).filter((code) => code.trim());
   });
-
-  // 解析：第一个是日期，后面是代码
-  const parts = text.split(',');
-  // 跳过第一个元素（日期），剩余为基金代码
-  const codes = parts.slice(1).filter((code) => code.trim());
-
-  cachedFundCodes = codes;
 
   return codes.slice();
 }

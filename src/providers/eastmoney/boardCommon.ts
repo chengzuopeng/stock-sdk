@@ -4,6 +4,7 @@
  */
 import {
   RequestClient,
+  getSharedCache,
   toNumber,
   assertKlinePeriod,
   assertAdjustType,
@@ -11,6 +12,7 @@ import {
   getPeriodCode,
   getAdjustCode,
 } from '../../core';
+import { NotFoundError } from '../../core/errors';
 import { toNumberSafe } from '../../core/parser';
 import {
   fetchPaginatedData,
@@ -78,24 +80,34 @@ export interface BoardMinuteKlineOptions {
  * 创建板块名称到代码的映射管理器
  */
 export function createBoardCodeCache(config: BoardTypeConfig) {
-  let nameCodeMap: Map<string, string> | null = null;
+  const cache = getSharedCache<Record<string, string>>(
+    `eastmoney:board-code-map:${config.type}`,
+    {
+      defaultTTL: 60 * 60 * 1000,
+      maxSize: 4,
+    }
+  );
 
   return {
     async getCode(
       client: RequestClient,
       symbol: string,
-      listFn: (client: RequestClient) => Promise<IndustryBoard[]>
+      listFn: (
+        client: RequestClient
+      ) => Promise<Array<{ name: string; code: string }>>
     ): Promise<string> {
       if (symbol.startsWith('BK')) {
         return symbol;
       }
-      if (!nameCodeMap) {
+
+      const nameCodeMap = await cache.getOrFetch('name-code-map', async () => {
         const boards = await listFn(client);
-        nameCodeMap = new Map(boards.map((b) => [b.name, b.code]));
-      }
-      const code = nameCodeMap.get(symbol);
+        return Object.fromEntries(boards.map((board) => [board.name, board.code]));
+      });
+
+      const code = nameCodeMap[symbol];
       if (!code) {
-        throw new Error(`${config.errorPrefix}: ${symbol}`);
+        throw new NotFoundError(`${config.errorPrefix}: ${symbol}`, 'eastmoney');
       }
       return code;
     },
@@ -318,6 +330,7 @@ export async function fetchBoardMinuteKline(
 
     return trends.map((line) => {
       const [time, open, close, high, low, volume, amount, price] = line.split(',');
+      const latestPrice = toNumber(price);
       return {
         time,
         open: toNumber(open),
@@ -326,7 +339,8 @@ export async function fetchBoardMinuteKline(
         low: toNumber(low),
         volume: toNumber(volume),
         amount: toNumber(amount),
-        price: toNumber(price),
+        price: latestPrice,
+        avgPrice: latestPrice,
       } as IndustryBoardMinuteTimeline;
     });
   } else {

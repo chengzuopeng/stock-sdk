@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CircuitBreakerError,
+  RateLimiter,
   RequestClient,
 } from '../../../src/core';
 
@@ -80,5 +81,34 @@ describe('RequestClient provider policies', () => {
     await expect(
       client.get('https://qt.gtimg.cn/test')
     ).resolves.toBe('tencent-ok');
+  });
+
+  it('should apply rate limiting to every retry attempt', async () => {
+    const acquire = vi
+      .spyOn(RateLimiter.prototype, 'acquire')
+      .mockResolvedValue(undefined);
+    let callCount = 0;
+
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.reject(new TypeError('Network error'));
+      }
+
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve('success'),
+      });
+    });
+
+    const client = new RequestClient({
+      rateLimit: { requestsPerSecond: 1, maxBurst: 1 },
+      retry: { maxRetries: 1, baseDelay: 1 },
+    });
+
+    await expect(client.get('https://qt.gtimg.cn/test')).resolves.toBe('success');
+
+    expect(callCount).toBe(2);
+    expect(acquire).toHaveBeenCalledTimes(2);
   });
 });

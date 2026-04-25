@@ -26,6 +26,7 @@ getTodayTimeline(code: string): Promise<TodayTimelineResponse>
 interface TodayTimelineResponse {
   code: string;             // 股票代码
   date: string;             // 交易日期 YYYYMMDD
+  preClose?: number;        // 前收盘价，部分上游异常场景可能缺失
   data: TodayTimeline[];    // 分时数据列表
 }
 
@@ -45,6 +46,7 @@ const timeline = await sdk.getTodayTimeline('sz000001');
 
 console.log(`股票代码: ${timeline.code}`);
 console.log(`交易日期: ${timeline.date}`);
+console.log(`前收盘价: ${timeline.preClose ?? '未知'}`);
 console.log(`数据条数: ${timeline.data.length}`);
 
 // 查看第一条数据（09:30）
@@ -100,4 +102,3 @@ console.log(avgPrice === timeline.data[100].avgPrice);  // true
 
 - **getTodayTimeline**: 适合实时盯盘、日内交易分析
 - **getMinuteKline**: 适合多日分时图、短线分析
-

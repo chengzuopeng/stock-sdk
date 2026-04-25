@@ -2,7 +2,12 @@
  * 缓存模块单元测试
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MemoryCache, createCacheKey } from '../../src/core/cache';
+import {
+  MemoryCache,
+  clearSharedCaches,
+  createCacheKey,
+  getSharedCache,
+} from '../../src/core/cache';
 
 describe('MemoryCache', () => {
   beforeEach(() => {
@@ -122,6 +127,49 @@ describe('MemoryCache', () => {
     const result2 = await cache.getOrFetch('key1', fetcher);
     expect(result2).toBe('fetched-value');
     expect(fetchCount).toBe(1); // 没有再次调用 fetcher
+  });
+
+  it('should dedupe concurrent getOrFetch calls', async () => {
+    vi.useRealTimers();
+
+    const cache = new MemoryCache<string>();
+    const fetcher = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return 'shared-result';
+    });
+
+    const [value1, value2] = await Promise.all([
+      cache.getOrFetch('key1', fetcher),
+      cache.getOrFetch('key1', fetcher),
+    ]);
+
+    expect(value1).toBe('shared-result');
+    expect(value2).toBe('shared-result');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('shared cache registry', () => {
+  afterEach(() => {
+    clearSharedCaches();
+  });
+
+  it('should return the same cache instance for the same namespace', () => {
+    const cacheA = getSharedCache<string>('codes');
+    const cacheB = getSharedCache<string>('codes');
+
+    cacheA.set('a', '1');
+    expect(cacheB.get('a')).toBe('1');
+    expect(cacheA).toBe(cacheB);
+  });
+
+  it('should clear registered shared caches', () => {
+    const cache = getSharedCache<string>('calendar');
+    cache.set('today', 'open');
+
+    clearSharedCaches();
+
+    expect(cache.get('today')).toBeUndefined();
   });
 });
 

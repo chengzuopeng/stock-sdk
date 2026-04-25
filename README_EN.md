@@ -107,6 +107,45 @@ const allQuotes = await sdk.getAllAShareQuotes({
 console.log(`Fetched ${allQuotes.length} stocks`);
 ```
 
+## Request Governance & Error Codes
+
+```ts
+import { StockSDK, HttpError, getSdkErrorCode } from 'stock-sdk';
+
+const sdk = new StockSDK({
+  retry: { maxRetries: 2, baseDelay: 500 },
+  providerPolicies: {
+    eastmoney: {
+      timeout: 12000,
+      rateLimit: { requestsPerSecond: 3, maxBurst: 3 },
+    },
+  },
+});
+
+try {
+  await sdk.getSimpleQuotes(['sh600519']);
+} catch (error) {
+  if (error instanceof HttpError) {
+    console.log(error.status, error.statusText);
+  }
+
+  console.log(getSdkErrorCode(error)); // HTTP_ERROR / NETWORK_ERROR / TIMEOUT ...
+}
+```
+
+`getSdkErrorCode` only standardizes classification. It does not replace the original error instance, so network failures still behave like `TypeError` and timeouts remain compatible with `AbortError` / `DOMException`.
+
+## Development Commands
+
+```bash
+yarn typecheck
+yarn build
+yarn test
+yarn test:integration:smoke
+# Full integration sweep
+yarn test:integration:full
+```
+
 ## 🤖 AI / MCP Integration
 
 Stock SDK comes with a companion MCP Server ([stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp)) for seamless integration with popular AI tools:

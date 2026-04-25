@@ -37,12 +37,17 @@ export async function getTodayTimeline(
       return {
         code,
         date: '',
+        preClose: 0,
         data: [],
       };
     }
 
     const rawData: string[] = stockData.data?.data || [];
     const date: string = stockData.data?.date || '';
+    const quoteFields = Array.isArray(stockData.qt?.[code])
+      ? stockData.qt[code]
+      : [];
+    const preClose = parseFloat(quoteFields[4] ?? '') || 0;
 
     // 解析分时数据："0930 11.47 1715 1967105.00"
     // 格式：时间 成交价 累计成交量 累计成交额
@@ -86,10 +91,10 @@ export async function getTodayTimeline(
     return {
       code,
       date,
+      preClose,
       data,
     };
   } finally {
     clearTimeout(timeoutId);
   }
 }
-
