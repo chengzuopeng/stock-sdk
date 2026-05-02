@@ -58,7 +58,10 @@ If you're a frontend engineer, you may have encountered these problems:
 - ✅ **Technical indicators**: Built-in MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR, OBV, ROC, DMI, SAR, and KC
 - ✅ **Futures data**: Domestic futures K-line, global futures real-time quotes & K-line, futures inventory data
 - ✅ **Options data**: CFFEX index options, SSE ETF options, commodity options (T-quotes / K-line / minute data)
-- ✅ Extended data such as **fund flow**, **large order ratio**
+- ✅ **Fund flow** (individual / market / ranking / sector), **large order ratio**, **limit-up pools**, **stock changes**
+- ✅ **Northbound / Southbound capital** (minute, summary, holding rank, history, individual)
+- ✅ **Dragon-Tiger List** (detail, stock stats, institution flow, branch ranking, seat detail)
+- ✅ **Block trade** + **margin trading** full data set
 - ✅ Get full **A-share code list** (5000+ stocks) and batch fetch **whole-market quotes** (with built-in concurrency control)
 - ✅ Supports **provider-level retry / rate limit / circuit breaker overrides** while keeping legacy global config compatible
 - ✅ **AI / MCP Ready** — Companion [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server, one command to integrate with Cursor / Claude / Gemini and more
@@ -272,9 +275,58 @@ Stock SDK comes with a companion MCP Server ([stock-sdk-mcp](https://www.npmjs.c
 
 | Method | Description |
 |--------|-------------|
-| `getFundFlow` | Fund flow |
+| `getFundFlow` | Fund flow (batch by codes) |
 | `getPanelLargeOrder` | Large order ratio |
 | `getTradingCalendar` | A-share trading calendar |
+| `getDividendDetail` | Stock dividend & bonus details |
+
+### Fund Flow (Deep)
+
+| Method | Description |
+|--------|-------------|
+| `getIndividualFundFlow` | Individual stock fund flow history (daily/weekly/monthly) |
+| `getMarketFundFlow` | Market fund flow (Shanghai + Shenzhen indices) |
+| `getFundFlowRank` | Fund flow ranking (today / 3-day / 5-day / 10-day) |
+| `getSectorFundFlowRank` | Sector fund flow ranking (industry / concept / region) |
+| `getSectorFundFlowHistory` | Single sector's historical fund flow |
+
+### Northbound / Stock Connect
+
+| Method | Description |
+|--------|-------------|
+| `getNorthboundMinute` | Northbound / Southbound minute data |
+| `getNorthboundFlowSummary` | Stock Connect market flow summary |
+| `getNorthboundHoldingRank` | Northbound / Shanghai / Shenzhen holding rank |
+| `getNorthboundHistory` | Northbound / Southbound capital history |
+| `getNorthboundIndividual` | Per-stock northbound holding history |
+
+### Limit-Up Pool / Stock Changes
+
+| Method | Description |
+|--------|-------------|
+| `getZTPool` | 6 pools: limit-up / yesterday / strong / sub-new / broken / limit-down |
+| `getStockChanges` | 22 change types (rocket launch / large buy / limit-up seal etc.) |
+| `getBoardChanges` | Daily board change details |
+
+### Dragon-Tiger List
+
+| Method | Description |
+|--------|-------------|
+| `getDragonTigerDetail` | Dragon-tiger detail (by date range) |
+| `getDragonTigerStockStats` | Stock listing statistics (1m / 3m / 6m / 1y) |
+| `getDragonTigerInstitution` | Institution buy/sell statistics |
+| `getDragonTigerBranchRank` | Brokerage branch ranking |
+| `getDragonTigerStockSeatDetail` | Per-stock seat detail (buy + sell sides) |
+
+### Block Trade / Margin Trading
+
+| Method | Description |
+|--------|-------------|
+| `getBlockTradeMarketStat` | Block trade market summary (daily) |
+| `getBlockTradeDetail` | Block trade detail entries |
+| `getBlockTradeDailyStat` | Block trade daily statistics (by stock) |
+| `getMarginAccountInfo` | Margin trading account statistics |
+| `getMarginTargetList` | Margin trading target securities |
 
 ### Batch Query
 

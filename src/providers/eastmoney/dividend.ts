@@ -2,18 +2,9 @@
  * 东方财富 - 分红派送详情
  * 数据来源：https://data.eastmoney.com/yjfp/detail/{symbol}.html
  */
-import { RequestClient, EM_DATACENTER_URL } from '../../core';
+import { type RequestClient } from '../../core';
 import type { DividendDetail } from '../../types';
-
-/**
- * 分红派送详情 API 响应结构
- */
-interface DividendApiResponse {
-  result?: {
-    pages?: number;
-    data?: DividendApiItem[];
-  };
-}
+import { fetchDatacenterList } from './datacenter';
 
 /**
  * 分红派送 API 原始数据项（根据实际 API 返回确认）
@@ -96,15 +87,15 @@ function mapToDividendDetail(item: DividendApiItem): DividendDetail {
 
     // 现金分红信息 - 修正映射
     dividendPretax: item.PRETAX_BONUS_RMB ?? null,
-    dividendDesc: item.IMPL_PLAN_PROFILE ?? null, // ✅ 修正：IMPL_PLAN_PROFILE 是描述
-    dividendYield: item.DIVIDENT_RATIO ?? null, // ✅ 修正：DIVIDENT_RATIO 是股息率
+    dividendDesc: item.IMPL_PLAN_PROFILE ?? null,
+    dividendYield: item.DIVIDENT_RATIO ?? null,
 
     // 财务指标 - 修正映射
     eps: item.BASIC_EPS ?? null,
-    bps: item.BVPS ?? null, // ✅ 修正：BVPS 是每股净资产
+    bps: item.BVPS ?? null,
     capitalReserve: item.PER_CAPITAL_RESERVE ?? null,
     unassignedProfit: item.PER_UNASSIGN_PROFIT ?? null,
-    netProfitYoy: item.PNP_YOY_RATIO ?? null, // ✅ 修正：PNP_YOY_RATIO 是净利润同比
+    netProfitYoy: item.PNP_YOY_RATIO ?? null,
     totalShares: item.TOTAL_SHARES ?? null,
 
     // 关键日期
@@ -113,13 +104,14 @@ function mapToDividendDetail(item: DividendApiItem): DividendDetail {
     payDate: parseDate(item.PAY_DATE),
 
     // 进度信息 - 修正映射
-    assignProgress: item.ASSIGN_PROGRESS ?? null, // ✅ 修正：ASSIGN_PROGRESS 是方案进度
+    assignProgress: item.ASSIGN_PROGRESS ?? null,
     noticeDate: parseDate(item.NOTICE_DATE),
   };
 }
 
 /**
  * 获取股票分红派送详情
+ *
  * @param client - 请求客户端
  * @param symbol - 股票代码（纯数字或带交易所前缀，如 '600519' 或 'sh600519'）
  * @returns 分红派送详情列表，按报告日期降序排列
@@ -131,43 +123,15 @@ export async function getDividendDetail(
   // 移除可能的交易所前缀
   const pureSymbol = symbol.replace(/^(sh|sz|bj)/, '');
 
-  const allData: DividendDetail[] = [];
-  let page = 1;
-  let totalPages = 1;
-
-  do {
-    const params = new URLSearchParams({
+  return fetchDatacenterList(
+    client,
+    {
+      reportName: 'RPT_SHAREBONUS_DET',
       sortColumns: 'REPORT_DATE',
       sortTypes: '-1',
-      pageSize: '500',
-      pageNumber: String(page),
-      reportName: 'RPT_SHAREBONUS_DET',
-      columns: 'ALL',
-      quoteColumns: '',
-      source: 'WEB',
-      client: 'WEB',
+      pageSize: 500,
       filter: `(SECURITY_CODE="${pureSymbol}")`,
-    });
-
-    const url = `${EM_DATACENTER_URL}?${params.toString()}`;
-    const json = await client.get<DividendApiResponse>(url, {
-      responseType: 'json',
-    });
-
-    const result = json?.result;
-    if (!result || !Array.isArray(result.data)) {
-      break;
-    }
-
-    // 首次请求获取总页数
-    if (page === 1) {
-      totalPages = result.pages ?? 1;
-    }
-
-    const items = result.data.map(mapToDividendDetail);
-    allData.push(...items);
-    page++;
-  } while (page <= totalPages);
-
-  return allData;
+    },
+    (item) => mapToDividendDetail(item as DividendApiItem)
+  );
 }

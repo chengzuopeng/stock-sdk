@@ -197,3 +197,17 @@ const sdk = new StockSDK({
 - [批量查询](/api/batch)
 - [扩展数据](/api/fund-flow)（资金流向、交易日历等）
 - [分红派送](/api/dividend)
+
+## 资金流向（深度）
+
+- [个股 / 大盘 / 排名 / 板块](/api/fund-flow-deep)
+- [沪深港通 / 北向资金](/api/northbound)
+
+## 盘口与龙虎榜
+
+- [涨停板 / 盘口异动](/api/market-event)
+- [龙虎榜](/api/dragon-tiger)
+
+## 其他数据
+
+- [大宗交易 / 融资融券](/api/block-trade-margin)

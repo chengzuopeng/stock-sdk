@@ -102,6 +102,15 @@ export type {
   FuturesInventoryOptions,
   ComexInventoryOptions,
   CFFEXOptionQuotesOptions,
+  // Phase 1/2 新增选项类型
+  FundFlowOptions,
+  FundFlowRankOptions,
+  NorthboundHoldingRankOptions,
+  NorthboundHistoryOptions,
+  DatacenterQuery,
+  DatacenterResult,
+  BlockTradeDateOptions,
+  DragonTigerDateOptions,
 } from './providers/eastmoney';
 
 // 导出 JSONP 工具（供高级用户直接使用）

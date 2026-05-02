@@ -2,6 +2,46 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.9.0](https://www.npmjs.com/package/stock-sdk/v/1.9.0)** (2026-05-02)
+
+### 新增功能
+
+**资金流向（深度）**
+- `getIndividualFundFlow` 个股资金流历史（日/周/月）
+- `getMarketFundFlow` 大盘资金流（上证 + 深证）
+- `getFundFlowRank` 个股资金流排名（今日/3 日/5 日/10 日）
+- `getSectorFundFlowRank` 板块资金流排名（行业/概念/地域）
+- `getSectorFundFlowHistory` 单板块历史资金流
+
+**沪深港通 / 北向资金**
+- `getNorthboundMinute` 北向 / 南向资金分时
+- `getNorthboundFlowSummary` 沪深港通市场资金流向汇总
+- `getNorthboundHoldingRank` 北向 / 沪股通 / 深股通持股个股排行
+- `getNorthboundHistory` 北向 / 南向资金历史
+- `getNorthboundIndividual` 个股北向持仓历史
+
+**涨停板 / 盘口异动**
+- `getZTPool` 涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停 6 大股池
+- `getStockChanges` 22 种盘口异动（火箭发射、大笔买入、封涨停 等）
+- `getBoardChanges` 当日板块异动详情
+
+**龙虎榜**
+- `getDragonTigerDetail` 龙虎榜详情（按日期范围）
+- `getDragonTigerStockStats` 个股上榜统计（近 1/3/6 月、1 年）
+- `getDragonTigerInstitution` 机构买卖统计
+- `getDragonTigerBranchRank` 营业部排行
+- `getDragonTigerStockSeatDetail` 个股某日上榜席位明细
+
+**大宗交易 / 融资融券**
+- `getBlockTradeMarketStat` / `getBlockTradeDetail` / `getBlockTradeDailyStat` 大宗交易市场总览、明细、按股汇总
+- `getMarginAccountInfo` / `getMarginTargetList` 融资融券账户统计与标的明细
+
+### 优化
+
+- 抽取 datacenter 通用请求器 `fetchDatacenter` / `fetchDatacenterList`，统一封装分页、参数构建与响应解析；`dividend.ts` / `futuresInventory.ts` 已改为使用通用函数
+- Playground 新增 23 个交互演示，覆盖全部新方法
+
+
 ## **[1.8.3](https://www.npmjs.com/package/stock-sdk/v/1.8.3)** (2026-04-25)
 
 > 本版本不新增业务 API，重点面向系统架构、请求稳定性、类型兼容和文档工程化改造，现有用法保持兼容。

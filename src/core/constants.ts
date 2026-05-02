@@ -41,6 +41,18 @@ export const EM_CONCEPT_TRENDS_URL = 'https://push2his.eastmoney.com/api/qt/stoc
 // 东方财富数据中心 API
 export const EM_DATACENTER_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get';
 
+// 东方财富资金流 API（push2his 日线资金流）
+export const EM_FFLOW_URL = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get';
+
+// 东方财富个股/板块资金流排名 API（push2 通用 clist）
+export const EM_CLIST_URL = 'https://push2.eastmoney.com/api/qt/clist/get';
+
+// 东方财富北向资金分时 API
+export const EM_NORTHBOUND_MINUTE_URL = 'https://push2.eastmoney.com/api/qt/kamtbs.rtmin/get';
+
+// 东方财富涨停板 / 盘口异动 API 基地址（push2ex 提供 ZT pool 等专题接口）
+export const EM_TOPIC_BASE_URL = 'https://push2ex.eastmoney.com';
+
 // 东方财富期货 API
 export const EM_FUTURES_KLINE_URL = 'https://push2his.eastmoney.com/api/qt/stock/kline/get';
 export const EM_FUTURES_GLOBAL_SPOT_URL =

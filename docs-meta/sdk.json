@@ -161,6 +161,59 @@
           "getAllQuotesByCodes",
           "batchRaw"
         ]
+      },
+      {
+        "titleZh": "资金流向（深度）",
+        "titleEn": "Fund Flow (Deep)",
+        "methods": [
+          "getIndividualFundFlow",
+          "getMarketFundFlow",
+          "getFundFlowRank",
+          "getSectorFundFlowRank",
+          "getSectorFundFlowHistory"
+        ]
+      },
+      {
+        "titleZh": "沪深港通 / 北向资金",
+        "titleEn": "Northbound / Stock Connect",
+        "methods": [
+          "getNorthboundMinute",
+          "getNorthboundFlowSummary",
+          "getNorthboundHoldingRank",
+          "getNorthboundHistory",
+          "getNorthboundIndividual"
+        ]
+      },
+      {
+        "titleZh": "涨停板 / 盘口异动",
+        "titleEn": "Limit-Up Pool / Stock Changes",
+        "methods": [
+          "getZTPool",
+          "getStockChanges",
+          "getBoardChanges"
+        ]
+      },
+      {
+        "titleZh": "龙虎榜",
+        "titleEn": "Dragon-Tiger List",
+        "methods": [
+          "getDragonTigerDetail",
+          "getDragonTigerStockStats",
+          "getDragonTigerInstitution",
+          "getDragonTigerBranchRank",
+          "getDragonTigerStockSeatDetail"
+        ]
+      },
+      {
+        "titleZh": "大宗交易 / 融资融券",
+        "titleEn": "Block Trade / Margin Trading",
+        "methods": [
+          "getBlockTradeMarketStat",
+          "getBlockTradeDetail",
+          "getBlockTradeDailyStat",
+          "getMarginAccountInfo",
+          "getMarginTargetList"
+        ]
       }
     ]
   },
@@ -344,7 +397,13 @@
       "website/summary.md": [
         "此页面由脚本自动生成",
         "providerPolicies",
-        "getDividendDetail"
+        "getDividendDetail",
+        "getIndividualFundFlow",
+        "getNorthboundMinute",
+        "getZTPool",
+        "getDragonTigerDetail",
+        "getBlockTradeMarketStat",
+        "getMarginAccountInfo"
       ]
     },
     "parityIgnore": [
