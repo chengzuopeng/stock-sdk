@@ -18,7 +18,8 @@
     "dev": "vitepress dev website",
     "preview": "vitepress preview website",
     "build:docs": "yarn docs:meta && DOCS_BASE=/ vitepress build website",
-    "build:pages": "yarn docs:meta && DOCS_BASE=/stock-sdk/ vitepress build website"
+    "build:pages": "yarn docs:meta && DOCS_BASE=/stock-sdk/ vitepress build website",
+    "prepare": "node ./scripts/install-git-hooks.js"
   },
   "exports": {
     ".": {

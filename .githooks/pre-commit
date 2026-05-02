@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# Pre-commit hook: keep website/summary.md in sync with src/ and docs-meta changes.
+#
+# 仅当 src/ 或 docs-meta/sdk.json 出现在暂存区时才会触发，
+# 避免文档/测试单独提交时被拖慢（build 约 3s）。
+#
+# 自动行为：
+#   1. 跑 `yarn docs:meta` 重新生成 summary.md / sdk-meta.json
+#   2. 如果生成结果与暂存区不一致，自动 git add，避免 commit 后 docs:check 仍然失败
+#   3. 任何步骤失败都会中止提交，并打印恢复指引
+#
+# 跳过方法：
+#   - `git commit --no-verify`（不推荐，会让 CI docs:check 失败）
+#   - `STOCK_SDK_SKIP_DOCS_HOOK=1 git commit ...`（局部跳过）
+#
+
+if [ "$STOCK_SDK_SKIP_DOCS_HOOK" = "1" ]; then
+  echo "[pre-commit] STOCK_SDK_SKIP_DOCS_HOOK=1 set, skipping docs sync."
+  exit 0
+fi
+
+# 只在相关文件变更时触发
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+if ! echo "$STAGED" | grep -qE '^(src/|docs-meta/sdk\.json$)'; then
+  exit 0
+fi
+
+echo "[pre-commit] src/ 或 docs-meta/sdk.json 有变更，正在同步 website/summary.md ..."
+
+# 如果项目还没装依赖，跳过并提示
+if [ ! -d node_modules ]; then
+  echo "[pre-commit] node_modules 未安装，跳过 docs sync。请先 yarn install。"
+  exit 0
+fi
+
+# 运行 docs:meta（输出走 stderr，不污染 stdout）
+if ! yarn --silent docs:meta >/dev/null 2>&1; then
+  echo "[pre-commit] yarn docs:meta 失败，提交已中止。" >&2
+  echo "[pre-commit] 请手动运行 yarn docs:meta 排查问题。" >&2
+  exit 1
+fi
+
+# 如果 summary.md / sdk-meta.json 被改动，自动加入暂存
+CHANGED_DOCS=""
+for f in website/summary.md website/.generated/sdk-meta.json; do
+  if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
+    git add "$f"
+    CHANGED_DOCS="$CHANGED_DOCS $f"
+  fi
+done
+
+if [ -n "$CHANGED_DOCS" ]; then
+  echo "[pre-commit] 已自动重新生成并暂存：$CHANGED_DOCS"
+fi
+
+exit 0
