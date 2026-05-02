@@ -8,6 +8,7 @@ import {
   type RequestClient,
   EM_FFLOW_URL,
   EM_CLIST_URL,
+  EM_DATA_TOKEN,
   getMarketCode,
   toNumber,
   toNumberSafe,
@@ -219,11 +220,17 @@ const STOCK_FS = 'm:0+t:6+f:!2,m:0+t:13+f:!2,m:0+t:80+f:!2,m:1+t:2+f:!2,m:1+t:23
 
 /**
  * 通用 push2 clist 全分页拉取。
+ *
+ * @param client      - 请求客户端
+ * @param baseParams  - clist 基础参数（不含 pn / pz）
+ * @param pageSize    - 每页大小，默认 100
+ * @param maxPages    - 安全上限，默认 1000；命中时会输出 warning 提示截断
  */
 async function fetchClistAllPages(
   client: RequestClient,
   baseParams: Record<string, string>,
-  pageSize = 100
+  pageSize = 100,
+  maxPages = 1000
 ): Promise<Record<string, unknown>[]> {
   const allItems: Record<string, unknown>[] = [];
   let page = 1;
@@ -243,7 +250,17 @@ async function fetchClistAllPages(
     allItems.push(...data.diff);
     if (allItems.length >= total || data.diff.length < pageSize) break;
     page++;
-  } while (allItems.length < total && page <= 100);
+  } while (allItems.length < total && page <= maxPages);
+
+  // 命中安全阀但仍未拉完时，提示调用方避免静默截断
+  if (page > maxPages && allItems.length < total) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[stock-sdk] fetchClistAllPages truncated at maxPages=${maxPages} ` +
+        `(server reports total=${total}, fetched=${allItems.length}). ` +
+        `Pass a larger \`maxPages\` to fetch the full dataset.`
+    );
+  }
 
   return allItems;
 }
@@ -276,7 +293,7 @@ export async function getIndividualFundFlow(
     secid,
     fields1: 'f1,f2,f3,f7',
     fields2: FFLOW_FIELDS_2,
-    ut: 'b2884a393a59ad64002292a3e90d46a5',
+    ut: EM_DATA_TOKEN,
   });
 
   const url = `${EM_FFLOW_URL}?${params.toString()}`;
@@ -304,7 +321,7 @@ export async function getMarketFundFlow(
     secid2: '0.399001',
     fields1: 'f1,f2,f3,f7',
     fields2: FFLOW_FIELDS_2,
-    ut: 'b2884a393a59ad64002292a3e90d46a5',
+    ut: EM_DATA_TOKEN,
   });
 
   const url = `${EM_FFLOW_URL}?${params.toString()}`;
@@ -339,7 +356,7 @@ export async function getFundFlowRank(
     np: '1',
     fltt: '2',
     invt: '2',
-    ut: 'b2884a393a59ad64002292a3e90d46a5',
+    ut: EM_DATA_TOKEN,
     fs: STOCK_FS,
     fields: config.fields,
   };
@@ -393,7 +410,7 @@ export async function getSectorFundFlowRank(
     np: '1',
     fltt: '2',
     invt: '2',
-    ut: 'b2884a393a59ad64002292a3e90d46a5',
+    ut: EM_DATA_TOKEN,
     fs,
     fields,
   };
@@ -443,7 +460,7 @@ export async function getSectorFundFlowHistory(
     secid,
     fields1: 'f1,f2,f3,f7',
     fields2: FFLOW_FIELDS_2,
-    ut: 'b2884a393a59ad64002292a3e90d46a5',
+    ut: EM_DATA_TOKEN,
   });
 
   const url = `${EM_FFLOW_URL}?${params.toString()}`;

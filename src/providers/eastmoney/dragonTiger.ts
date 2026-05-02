@@ -12,7 +12,7 @@ import type {
   DragonTigerBranchItem,
   DragonTigerSeatItem,
 } from '../../types';
-import { fetchDatacenterList } from './datacenter';
+import { fetchDatacenterList, parseDcDate } from './datacenter';
 
 /** 龙虎榜统计周期 → STATISTICS_CYCLE 映射 */
 const PERIOD_MAP: Record<DragonTigerPeriod, string> = {
@@ -30,14 +30,6 @@ function toIsoDate(date: string): string {
     return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
   }
   return date;
-}
-
-/** 提取日期前缀 YYYY-MM-DD */
-function parseDateOnly(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const str = String(value);
-  const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] : str;
 }
 
 /**
@@ -67,7 +59,7 @@ export async function getDragonTigerDetail(
     (item) => ({
       code: String(item.SECURITY_CODE ?? ''),
       name: String(item.SECURITY_NAME_ABBR ?? ''),
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       close: toNumberSafe(item.CLOSE_PRICE),
       changePercent: toNumberSafe(item.CHANGE_RATE),
       netBuyAmount: toNumberSafe(item.BILLBOARD_NET_AMT),
@@ -116,7 +108,7 @@ export async function getDragonTigerStockStats(
     (item) => ({
       code: String(item.SECURITY_CODE ?? ''),
       name: String(item.SECURITY_NAME_ABBR ?? ''),
-      latestDate: parseDateOnly(item.LATEST_TDATE),
+      latestDate: parseDcDate(item.LATEST_TDATE),
       close: toNumberSafe(item.CLOSE_PRICE),
       changePercent: toNumberSafe(item.CHANGE_RATE),
       count: toNumberSafe(item.BILLBOARD_TIMES),
@@ -156,7 +148,7 @@ export async function getDragonTigerInstitution(
     (item) => ({
       code: String(item.SECURITY_CODE ?? ''),
       name: String(item.SECURITY_NAME_ABBR ?? ''),
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       close: toNumberSafe(item.CLOSE_PRICE),
       changePercent: toNumberSafe(item.CHANGE_RATE),
       buyOrgCount: toNumberSafe(item.BUY_TIMES),

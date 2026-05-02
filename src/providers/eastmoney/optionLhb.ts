@@ -2,7 +2,7 @@
  * 东方财富 - 期权龙虎榜
  * 数据来源：https://datacenter-web.eastmoney.com/api/data/get
  */
-import { RequestClient, EM_OPTION_LHB_URL, EM_OPTION_LHB_TOKEN } from '../../core';
+import { RequestClient, EM_OPTION_LHB_URL, EM_DATA_TOKEN } from '../../core';
 import { toNumberSafe } from '../../core/parser';
 import type { OptionLHBItem } from '../../types';
 
@@ -47,7 +47,7 @@ export async function getOptionLHB(
     ps: '200',
     source: 'IFBILLBOARD',
     client: 'WEB',
-    ut: EM_OPTION_LHB_TOKEN,
+    ut: EM_DATA_TOKEN,
     filter: `(SECURITY_CODE="${symbol}")(TRADE_DATE='${date}')`,
   });
 

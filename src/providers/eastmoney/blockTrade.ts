@@ -9,7 +9,7 @@ import type {
   BlockTradeDetailItem,
   BlockTradeDailyStatItem,
 } from '../../types';
-import { fetchDatacenterList } from './datacenter';
+import { fetchDatacenterList, parseDcDate } from './datacenter';
 
 /** 把 YYYYMMDD 转为 YYYY-MM-DD（datacenter filter 要求） */
 function toIsoDate(date?: string): string | undefined {
@@ -18,14 +18,6 @@ function toIsoDate(date?: string): string | undefined {
     return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
   }
   return date;
-}
-
-/** 提取日期前缀 YYYY-MM-DD */
-function parseDateOnly(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const str = String(value);
-  const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] : str;
 }
 
 /**
@@ -57,7 +49,7 @@ export async function getBlockTradeMarketStat(
       pageSize: 500,
     },
     (item) => ({
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       shClose: toNumberSafe(item.CLOSE_PRICE ?? item.SH_CLOSE_PRICE),
       shChangePercent: toNumberSafe(item.CHANGE_RATE ?? item.SH_CHANGE_RATE),
       totalAmount: toNumberSafe(item.TURNOVER ?? item.TOTAL_AMOUNT),
@@ -93,7 +85,7 @@ export async function getBlockTradeDetail(
     (item) => ({
       code: String(item.SECURITY_CODE ?? ''),
       name: String(item.SECURITY_NAME_ABBR ?? ''),
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       close: toNumberSafe(item.CLOSE_PRICE),
       changePercent: toNumberSafe(item.CHANGE_RATE),
       dealPrice: toNumberSafe(item.DEAL_PRICE ?? item.PRICE),
@@ -130,7 +122,7 @@ export async function getBlockTradeDailyStat(
     (item) => ({
       code: String(item.SECURITY_CODE ?? ''),
       name: String(item.SECURITY_NAME_ABBR ?? ''),
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       changePercent: toNumberSafe(item.CHANGE_RATE),
       close: toNumberSafe(item.CLOSE_PRICE),
       dealCount: toNumberSafe(item.DEAL_NUM ?? item.DEAL_COUNT),

@@ -76,6 +76,23 @@ describe('TopicData - getZTPool', () => {
     expect(result).toEqual([]);
   });
 
+  it('always sends a date param even when caller omits it (push2ex requires date)', async () => {
+    let capturedDate: string | null = null;
+    server.use(
+      http.get(`${ZT_BASE}/getTopicZTPool`, ({ request }) => {
+        const url = new URL(request.url);
+        capturedDate = url.searchParams.get('date');
+        return HttpResponse.json({ data: { pool: [] } });
+      })
+    );
+
+    await sdk.getZTPool('zt'); // 不传 date
+
+    expect(capturedDate).not.toBeNull();
+    // 默认应使用北京时间 YYYYMMDD（8 位数字）
+    expect(capturedDate).toMatch(/^\d{8}$/);
+  });
+
   it('uses different endpoint for strong pool', async () => {
     let endpointCalled = '';
     server.use(

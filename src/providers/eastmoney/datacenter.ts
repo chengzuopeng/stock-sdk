@@ -179,3 +179,16 @@ export async function fetchDatacenterList<T>(
   const result = await fetchDatacenter(client, query, mapper);
   return result.data;
 }
+
+/**
+ * 提取 datacenter 响应中常见的日期字段为 YYYY-MM-DD 字符串。
+ *
+ * - 兼容 `2024-01-15`、`2024-01-15 00:00:00`、`2024-01-15T00:00:00.000` 等格式
+ * - 无法识别的输入原样返回，空值返回空字符串
+ */
+export function parseDcDate(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : str;
+}

@@ -2,7 +2,12 @@
  * 东方财富 - 涨停板 / 盘口异动
  * 数据来源：https://push2ex.eastmoney.com/...
  */
-import { type RequestClient, EM_TOPIC_BASE_URL, toNumberSafe } from '../../core';
+import {
+  type RequestClient,
+  EM_TOPIC_BASE_URL,
+  EM_PUSH_TOKEN,
+  toNumberSafe,
+} from '../../core';
 import type {
   ZTPoolType,
   ZTPoolItem,
@@ -189,11 +194,30 @@ function normalizeDate(date?: string): string | undefined {
 }
 
 /**
+ * 获取北京时间（UTC+8）当天的 YYYYMMDD 字符串。
+ *
+ * 不直接用 `new Date()` + `getFullYear()` 是为了避免本地时区与北京时区不一致：
+ * 例如美西用户半夜的本地日期可能比北京时区早一天，会拿到无数据。
+ *
+ * 注：服务端对非交易日（周末 / 节假日）会回退到最近一个交易日，
+ * 因此这里不需要显式判断是否是交易日。
+ */
+function getBeijingDateString(): string {
+  // UTC+8 偏移（北京无 DST）
+  const beijingNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const year = beijingNow.getUTCFullYear();
+  const month = String(beijingNow.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(beijingNow.getUTCDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
+}
+
+/**
  * 获取涨停股池（涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停）
  *
  * @param client - 请求客户端
  * @param type - 池子类型
- * @param date - 交易日 YYYYMMDD 或 YYYY-MM-DD（默认为最近交易日）
+ * @param date - 交易日 YYYYMMDD 或 YYYY-MM-DD；不传时使用北京时间今天的日期。
+ *               服务端对非交易日会自动回退到最近一个交易日。
  * @returns 股池列表
  */
 export async function getZTPool(
@@ -206,12 +230,14 @@ export async function getZTPool(
     throw new RangeError(`Invalid ZTPool type: ${type}.`);
   }
 
-  const today = new Date();
-  const defaultDate = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  const queryDate = normalizeDate(date) ?? defaultDate;
+  // push2ex 接口必须传 date 参数：
+  // - 不传 date → 服务端返回 { rc:102, data:null }（拿不到数据）
+  // - 传非交易日 → 服务端会自动归到最近交易日
+  // 因此这里默认始终传北京时间今天的日期
+  const queryDate = normalizeDate(date) ?? getBeijingDateString();
 
   const params = new URLSearchParams({
-    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    ut: EM_PUSH_TOKEN,
     dpt: 'wz.ztzt',
     Pageindex: '0',
     pagesize: '10000',
@@ -249,7 +275,7 @@ export async function getStockChanges(
     type: code,
     pageindex: '0',
     pagesize: '5000',
-    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    ut: EM_PUSH_TOKEN,
     dpt: 'wzchanges',
   });
 
@@ -282,7 +308,7 @@ export async function getBoardChanges(
   client: RequestClient
 ): Promise<BoardChangeItem[]> {
   const params = new URLSearchParams({
-    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    ut: EM_PUSH_TOKEN,
     dpt: 'wzchanges',
     pageindex: '0',
     pagesize: '5000',

@@ -4,15 +4,7 @@
  */
 import { type RequestClient, toNumberSafe } from '../../core';
 import type { MarginAccountItem, MarginTargetItem } from '../../types';
-import { fetchDatacenterList } from './datacenter';
-
-/** 提取日期前缀 YYYY-MM-DD */
-function parseDateOnly(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const str = String(value);
-  const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] : str;
-}
+import { fetchDatacenterList, parseDcDate } from './datacenter';
 
 /**
  * 融资融券账户统计（按日）
@@ -30,7 +22,7 @@ export async function getMarginAccountInfo(
       pageSize: 500,
     },
     (item) => ({
-      date: parseDateOnly(item.STATISTICS_DATE ?? item.TRADE_DATE),
+      date: parseDcDate(item.STATISTICS_DATE ?? item.TRADE_DATE),
       finBalance: toNumberSafe(item.FIN_BALANCE),
       loanBalance: toNumberSafe(item.LOAN_BALANCE),
       finBuyAmount: toNumberSafe(item.FIN_BUY_AMT),
@@ -67,7 +59,7 @@ export async function getMarginTargetList(
     (item) => ({
       code: String(item.SECURITY_CODE ?? ''),
       name: String(item.SECURITY_NAME_ABBR ?? ''),
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       finBalance: toNumberSafe(item.FIN_BALANCE),
       finBuyAmount: toNumberSafe(item.FIN_BUY_AMT),
       finRepayAmount: toNumberSafe(item.FIN_REPAY_AMT),

@@ -7,6 +7,7 @@
 import {
   type RequestClient,
   EM_NORTHBOUND_MINUTE_URL,
+  EM_DATA_TOKEN,
   toNumber,
   toNumberSafe,
 } from '../../core';
@@ -20,7 +21,7 @@ import type {
   NorthboundHistoryItem,
   NorthboundIndividualItem,
 } from '../../types';
-import { fetchDatacenterList } from './datacenter';
+import { fetchDatacenterList, parseDcDate } from './datacenter';
 
 /** 北向持股排行选项 */
 export interface NorthboundHoldingRankOptions {
@@ -108,7 +109,7 @@ export async function getNorthboundMinute(
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4',
     fields2: 'f51,f54,f52,f58,f53,f62,f56,f57,f60,f61',
-    ut: 'b2884a393a59ad64002292a3e90d46a5',
+    ut: EM_DATA_TOKEN,
   });
 
   const url = `${EM_NORTHBOUND_MINUTE_URL}?${params.toString()}`;
@@ -139,16 +140,6 @@ function formatDate(value: string): string {
 }
 
 /**
- * 提取日期前缀 YYYY-MM-DD（兼容 ISO 时间戳）。
- */
-function parseDateOnly(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const str = String(value);
-  const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] : str;
-}
-
-/**
  * 获取沪深港通市场资金流向汇总（北向/南向 + 港股通沪深拆分）
  *
  * @param client - 请求客户端
@@ -172,7 +163,7 @@ export async function getNorthboundFlowSummary(
       fetchAllPages: false,
     },
     (item) => ({
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       type: String(item.MUTUAL_TYPE ?? ''),
       boardName: String(item.MUTUAL_TYPE_NAME ?? ''),
       direction: String(item.FUNDS_DIRECTION ?? ''),
@@ -224,7 +215,7 @@ export async function getNorthboundHoldingRank(
       filter: filters.join(''),
     },
     (item) => ({
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       code: String(item.SECURITY_CODE ?? ''),
       name: String(item.SECURITY_NAME ?? item.SECURITY_NAME_ABBR ?? ''),
       close: toNumberSafe(item.CLOSE_PRICE),
@@ -273,7 +264,7 @@ export async function getNorthboundHistory(
       filter: filters.join(''),
     },
     (item) => ({
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       netBuyAmount: toNumberSafe(item.NET_DEAL_AMT),
       buyAmount: toNumberSafe(item.BUY_AMT),
       sellAmount: toNumberSafe(item.SELL_AMT),
@@ -318,7 +309,7 @@ export async function getNorthboundIndividual(
       filter: filters.join(''),
     },
     (item) => ({
-      date: parseDateOnly(item.TRADE_DATE),
+      date: parseDcDate(item.TRADE_DATE),
       holdShares: toNumberSafe(item.HOLD_SHARES),
       holdMarketValue: toNumberSafe(item.HOLD_MARKET_CAP),
       holdRatioFloat: toNumberSafe(item.HOLD_RATIO),
