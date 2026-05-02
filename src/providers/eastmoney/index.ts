@@ -75,3 +75,63 @@ export {
   type ComexInventoryOptions,
 } from './futuresInventory';
 
+// 通用 datacenter 请求器
+export {
+  fetchDatacenter,
+  fetchDatacenterList,
+  type DatacenterQuery,
+  type DatacenterResult,
+} from './datacenter';
+
+// 资金流向
+export {
+  getIndividualFundFlow,
+  getMarketFundFlow,
+  getFundFlowRank,
+  getSectorFundFlowRank,
+  getSectorFundFlowHistory,
+  type FundFlowOptions,
+  type FundFlowRankOptions,
+} from './fundFlow';
+
+// 北向资金 / 沪深港通
+export {
+  getNorthboundMinute,
+  getNorthboundFlowSummary,
+  getNorthboundHoldingRank,
+  getNorthboundHistory,
+  getNorthboundIndividual,
+  type NorthboundHoldingRankOptions,
+  type NorthboundHistoryOptions,
+} from './northbound';
+
+// 涨停板 / 盘口异动
+export {
+  getZTPool,
+  getStockChanges,
+  getBoardChanges,
+} from './topicData';
+
+// 龙虎榜
+export {
+  getDragonTigerDetail,
+  getDragonTigerStockStats,
+  getDragonTigerInstitution,
+  getDragonTigerBranchRank,
+  getDragonTigerStockSeatDetail,
+} from './dragonTiger';
+
+// 大宗交易
+export {
+  getBlockTradeMarketStat,
+  getBlockTradeDetail,
+  getBlockTradeDailyStat,
+} from './blockTrade';
+export type { BlockTradeDateOptions } from '../../types/blockTrade';
+
+// 融资融券
+export { getMarginAccountInfo, getMarginTargetList } from './margin';
+
+// 龙虎榜：透出参数类型供 service / sdk.ts 引用
+export type { DragonTigerDateOptions } from '../../types/dragonTiger';
+

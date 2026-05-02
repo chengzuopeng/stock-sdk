@@ -44,6 +44,34 @@ import type {
   OptionMinute,
   CFFEXOptionQuote,
   OptionLHBItem,
+  // Phase 1/2 新增类型
+  StockFundFlowDaily,
+  FundFlowRankItem,
+  SectorFundFlowItem,
+  MarketFundFlow,
+  NorthboundDirection,
+  NorthboundMinuteItem,
+  NorthboundFlowSummary,
+  NorthboundHoldingRankItem,
+  NorthboundHistoryItem,
+  NorthboundIndividualItem,
+  ZTPoolType,
+  ZTPoolItem,
+  StockChangeType,
+  StockChangeItem,
+  BoardChangeItem,
+  DragonTigerDateOptions,
+  DragonTigerPeriod,
+  DragonTigerDetailItem,
+  DragonTigerStockStatItem,
+  DragonTigerInstitutionItem,
+  DragonTigerBranchItem,
+  DragonTigerSeatItem,
+  BlockTradeMarketStatItem,
+  BlockTradeDetailItem,
+  BlockTradeDailyStatItem,
+  MarginAccountItem,
+  MarginTargetItem,
 } from './types';
 import { type KlineWithIndicators } from './indicators';
 import {
@@ -53,6 +81,11 @@ import {
   KlineService,
   OptionsService,
   QuoteService,
+  FundFlowService,
+  NorthboundService,
+  MarketEventService,
+  DragonTigerService,
+  DataService,
   type KlineWithIndicatorsOptions,
 } from './sdk/index';
 
@@ -74,6 +107,11 @@ export class StockSDK {
   private readonly futuresService: FuturesService;
   private readonly optionsService: OptionsService;
   private readonly indicatorService: IndicatorService;
+  private readonly fundFlowService: FundFlowService;
+  private readonly northboundService: NorthboundService;
+  private readonly marketEventService: MarketEventService;
+  private readonly dragonTigerService: DragonTigerService;
+  private readonly dataService: DataService;
 
   /**
    * 创建 Stock SDK 实例。
@@ -91,6 +129,11 @@ export class StockSDK {
       this.klineService,
       this.quoteService
     );
+    this.fundFlowService = new FundFlowService(this.client);
+    this.northboundService = new NorthboundService(this.client);
+    this.marketEventService = new MarketEventService(this.client);
+    this.dragonTigerService = new DragonTigerService(this.client);
+    this.dataService = new DataService(this.client);
   }
 
   /**
@@ -585,6 +628,229 @@ export class StockSDK {
     options: KlineWithIndicatorsOptions = {}
   ): Promise<KlineWithIndicators<HistoryKline | HKUSHistoryKline>[]> {
     return this.indicatorService.getKlineWithIndicators(symbol, options);
+  }
+
+  // ============================================================
+  // Phase 1: 资金流向 (FundFlow)
+  // ============================================================
+
+  /**
+   * 获取个股资金流历史（日 / 周 / 月）
+   * @param symbol 股票代码（支持带或不带 sh/sz/bj 前缀）
+   * @param options 周期选项
+   */
+  getIndividualFundFlow(
+    symbol: string,
+    options?: import('./providers/eastmoney').FundFlowOptions
+  ): Promise<StockFundFlowDaily[]> {
+    return this.fundFlowService.getIndividualFundFlow(symbol, options);
+  }
+
+  /** 获取大盘资金流（上证 + 深证综合） */
+  getMarketFundFlow(): Promise<MarketFundFlow[]> {
+    return this.fundFlowService.getMarketFundFlow();
+  }
+
+  /**
+   * 获取个股资金流排名（沪深北 A 股全市场）
+   * @param options 排名周期：'today' | '3day' | '5day' | '10day'
+   */
+  getFundFlowRank(
+    options?: import('./providers/eastmoney').FundFlowRankOptions
+  ): Promise<FundFlowRankItem[]> {
+    return this.fundFlowService.getFundFlowRank(options);
+  }
+
+  /**
+   * 获取板块资金流排名（行业 / 概念 / 地域）
+   * @param options 排名周期 + 板块类型
+   */
+  getSectorFundFlowRank(
+    options?: import('./providers/eastmoney').FundFlowRankOptions
+  ): Promise<SectorFundFlowItem[]> {
+    return this.fundFlowService.getSectorFundFlowRank(options);
+  }
+
+  /**
+   * 获取单个板块的历史资金流
+   * @param symbol 板块编号（如 'BK0438' 或全前缀 '90.BK0438'）
+   * @param options 周期选项
+   */
+  getSectorFundFlowHistory(
+    symbol: string,
+    options?: import('./providers/eastmoney').FundFlowOptions
+  ): Promise<StockFundFlowDaily[]> {
+    return this.fundFlowService.getSectorFundFlowHistory(symbol, options);
+  }
+
+  // ============================================================
+  // Phase 1: 北向资金 / 沪深港通 (Northbound)
+  // ============================================================
+
+  /**
+   * 获取北向 / 南向资金分时数据
+   * @param direction 方向：'north' (北向，默认) 或 'south' (南向)
+   */
+  getNorthboundMinute(direction?: NorthboundDirection): Promise<NorthboundMinuteItem[]> {
+    return this.northboundService.getNorthboundMinute(direction);
+  }
+
+  /** 获取沪深港通市场资金流向汇总（北向 + 南向 + 港股通拆分） */
+  getNorthboundFlowSummary(): Promise<NorthboundFlowSummary[]> {
+    return this.northboundService.getNorthboundFlowSummary();
+  }
+
+  /**
+   * 获取北向 / 沪股通 / 深股通持股个股排行
+   * @param options 市场（沪/深/全部） + 周期
+   */
+  getNorthboundHoldingRank(
+    options?: import('./providers/eastmoney').NorthboundHoldingRankOptions
+  ): Promise<NorthboundHoldingRankItem[]> {
+    return this.northboundService.getNorthboundHoldingRank(options);
+  }
+
+  /**
+   * 获取北向 / 南向资金历史
+   * @param direction 方向
+   * @param options 起止日期
+   */
+  getNorthboundHistory(
+    direction?: NorthboundDirection,
+    options?: import('./providers/eastmoney').NorthboundHistoryOptions
+  ): Promise<NorthboundHistoryItem[]> {
+    return this.northboundService.getNorthboundHistory(direction, options);
+  }
+
+  /**
+   * 获取个股的北向持仓历史
+   * @param symbol 股票代码
+   * @param options 起止日期
+   */
+  getNorthboundIndividual(
+    symbol: string,
+    options?: import('./providers/eastmoney').NorthboundHistoryOptions
+  ): Promise<NorthboundIndividualItem[]> {
+    return this.northboundService.getNorthboundIndividual(symbol, options);
+  }
+
+  // ============================================================
+  // Phase 1: 涨停板 / 盘口异动 (MarketEvent)
+  // ============================================================
+
+  /**
+   * 获取涨停股池（涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停）
+   * @param type 池子类型，默认 'zt'
+   * @param date 交易日 YYYYMMDD 或 YYYY-MM-DD（默认今天）
+   */
+  getZTPool(type?: ZTPoolType, date?: string): Promise<ZTPoolItem[]> {
+    return this.marketEventService.getZTPool(type, date);
+  }
+
+  /**
+   * 获取个股盘口异动（共 22 种异动类型）
+   * @param type 异动类型，默认 'large_buy'
+   */
+  getStockChanges(type?: StockChangeType): Promise<StockChangeItem[]> {
+    return this.marketEventService.getStockChanges(type);
+  }
+
+  /** 获取板块异动详情（当日板块异动汇总） */
+  getBoardChanges(): Promise<BoardChangeItem[]> {
+    return this.marketEventService.getBoardChanges();
+  }
+
+  // ============================================================
+  // Phase 2: 龙虎榜 (DragonTiger)
+  // ============================================================
+
+  /**
+   * 获取龙虎榜详情
+   * @param options 起止日期 YYYYMMDD
+   */
+  getDragonTigerDetail(options: DragonTigerDateOptions): Promise<DragonTigerDetailItem[]> {
+    return this.dragonTigerService.getDragonTigerDetail(options);
+  }
+
+  /**
+   * 获取个股上榜统计
+   * @param period 统计周期（默认近一月）
+   */
+  getDragonTigerStockStats(period?: DragonTigerPeriod): Promise<DragonTigerStockStatItem[]> {
+    return this.dragonTigerService.getDragonTigerStockStats(period);
+  }
+
+  /**
+   * 获取机构买卖统计
+   * @param options 起止日期 YYYYMMDD
+   */
+  getDragonTigerInstitution(
+    options: DragonTigerDateOptions
+  ): Promise<DragonTigerInstitutionItem[]> {
+    return this.dragonTigerService.getDragonTigerInstitution(options);
+  }
+
+  /**
+   * 获取营业部排行
+   * @param period 统计周期
+   */
+  getDragonTigerBranchRank(period?: DragonTigerPeriod): Promise<DragonTigerBranchItem[]> {
+    return this.dragonTigerService.getDragonTigerBranchRank(period);
+  }
+
+  /**
+   * 获取个股某日上榜席位明细（买入榜 + 卖出榜合并）
+   * @param symbol 股票代码
+   * @param date 上榜日期 YYYYMMDD 或 YYYY-MM-DD
+   */
+  getDragonTigerStockSeatDetail(symbol: string, date: string): Promise<DragonTigerSeatItem[]> {
+    return this.dragonTigerService.getDragonTigerStockSeatDetail(symbol, date);
+  }
+
+  // ============================================================
+  // Phase 2: 大宗交易 (BlockTrade)
+  // ============================================================
+
+  /** 获取大宗交易市场每日统计 */
+  getBlockTradeMarketStat(): Promise<BlockTradeMarketStatItem[]> {
+    return this.dataService.getBlockTradeMarketStat();
+  }
+
+  /**
+   * 获取大宗交易明细
+   * @param options 起止日期
+   */
+  getBlockTradeDetail(
+    options?: import('./providers/eastmoney').BlockTradeDateOptions
+  ): Promise<BlockTradeDetailItem[]> {
+    return this.dataService.getBlockTradeDetail(options);
+  }
+
+  /**
+   * 获取大宗交易每日统计（按股票汇总）
+   * @param options 起止日期
+   */
+  getBlockTradeDailyStat(
+    options?: import('./providers/eastmoney').BlockTradeDateOptions
+  ): Promise<BlockTradeDailyStatItem[]> {
+    return this.dataService.getBlockTradeDailyStat(options);
+  }
+
+  // ============================================================
+  // Phase 2: 融资融券 (Margin)
+  // ============================================================
+
+  /** 获取融资融券账户统计 */
+  getMarginAccountInfo(): Promise<MarginAccountItem[]> {
+    return this.dataService.getMarginAccountInfo();
+  }
+
+  /**
+   * 获取融资融券标的明细
+   * @param date 指定交易日 YYYY-MM-DD（默认服务端最新交易日）
+   */
+  getMarginTargetList(date?: string): Promise<MarginTargetItem[]> {
+    return this.dataService.getMarginTargetList(date);
   }
 }
 

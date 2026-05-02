@@ -2,6 +2,46 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.9.0](https://www.npmjs.com/package/stock-sdk/v/1.9.0)** (2026-05-02)
+
+### New Features
+
+**Fund Flow (Deep)**
+- `getIndividualFundFlow` — Per-stock fund flow history (daily/weekly/monthly)
+- `getMarketFundFlow` — Market fund flow (SH + SZ indices)
+- `getFundFlowRank` — Stock fund flow ranking (today / 3-day / 5-day / 10-day)
+- `getSectorFundFlowRank` — Sector fund flow ranking (industry / concept / region)
+- `getSectorFundFlowHistory` — Single sector's historical fund flow
+
+**Northbound / Stock Connect**
+- `getNorthboundMinute` — Northbound / Southbound minute data
+- `getNorthboundFlowSummary` — Stock Connect market flow summary
+- `getNorthboundHoldingRank` — Northbound / SH-Connect / SZ-Connect holding rank
+- `getNorthboundHistory` — Northbound / Southbound capital history
+- `getNorthboundIndividual` — Per-stock northbound holding history
+
+**Limit-Up Pool / Stock Changes**
+- `getZTPool` — 6 pools: limit-up / yesterday / strong / sub-new / broken / limit-down
+- `getStockChanges` — 22 change types (rocket launch, large buy, limit-up seal, etc.)
+- `getBoardChanges` — Daily board change details
+
+**Dragon-Tiger List**
+- `getDragonTigerDetail` — Dragon-tiger detail (by date range)
+- `getDragonTigerStockStats` — Stock listing statistics (1m / 3m / 6m / 1y)
+- `getDragonTigerInstitution` — Institution buy/sell statistics
+- `getDragonTigerBranchRank` — Brokerage branch ranking
+- `getDragonTigerStockSeatDetail` — Per-stock seat detail (buy + sell sides)
+
+**Block Trade / Margin Trading**
+- `getBlockTradeMarketStat` / `getBlockTradeDetail` / `getBlockTradeDailyStat` — Block trade market summary, detail, per-stock aggregates
+- `getMarginAccountInfo` / `getMarginTargetList` — Margin trading account statistics and target securities
+
+### Improvements
+
+- Extracted shared datacenter helpers `fetchDatacenter` / `fetchDatacenterList` that unify pagination, param building, and response parsing; `dividend.ts` and `futuresInventory.ts` now reuse them
+- Playground gained 23 interactive demos covering every new method
+
+
 ## **[1.8.3](https://www.npmjs.com/package/stock-sdk/v/1.8.3)** (2026-04-25)
 
 > This release does not add business APIs. It focuses on system architecture, request stability, type compatibility, and documentation tooling while keeping existing usage compatible.

@@ -5,7 +5,7 @@
 ## 项目定位
 
 - 包名：`stock-sdk`
-- 当前版本：`1.8.2`
+- 当前版本：`1.9.0`
 - 定位：面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成
 - 核心卖点：零依赖 | Browser + Node.js | 轻量发布包 | 完整 TypeScript 类型
 
@@ -13,8 +13,8 @@
 
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
-| `dist/index.js` | 70.87 KB | 20.46 KB |
-| `dist/index.cjs` | 71.68 KB | 20.86 KB |
+| `dist/index.js` | 95.04 KB | 26.69 KB |
+| `dist/index.cjs` | 95.85 KB | 27.08 KB |
 
 ## 请求治理能力
 
@@ -109,6 +109,44 @@
 - `getAllUSShareQuotes`
 - `getAllQuotesByCodes`
 - `batchRaw`
+
+### 资金流向（深度）
+
+- `getIndividualFundFlow`
+- `getMarketFundFlow`
+- `getFundFlowRank`
+- `getSectorFundFlowRank`
+- `getSectorFundFlowHistory`
+
+### 沪深港通 / 北向资金
+
+- `getNorthboundMinute`
+- `getNorthboundFlowSummary`
+- `getNorthboundHoldingRank`
+- `getNorthboundHistory`
+- `getNorthboundIndividual`
+
+### 涨停板 / 盘口异动
+
+- `getZTPool`
+- `getStockChanges`
+- `getBoardChanges`
+
+### 龙虎榜
+
+- `getDragonTigerDetail`
+- `getDragonTigerStockStats`
+- `getDragonTigerInstitution`
+- `getDragonTigerBranchRank`
+- `getDragonTigerStockSeatDetail`
+
+### 大宗交易 / 融资融券
+
+- `getBlockTradeMarketStat`
+- `getBlockTradeDetail`
+- `getBlockTradeDailyStat`
+- `getMarginAccountInfo`
+- `getMarginTargetList`
 
 ## 相关页面
 

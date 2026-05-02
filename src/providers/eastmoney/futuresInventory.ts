@@ -3,20 +3,14 @@
  * 数据来源：https://data.eastmoney.com/ifdata/kcsj.html
  *         https://data.eastmoney.com/pmetal/comex/by.html
  */
-import { RequestClient, EM_DATACENTER_URL } from '../../core';
+import { type RequestClient } from '../../core';
 import { toNumberSafe } from '../../core/parser';
 import type {
   FuturesInventorySymbol,
   FuturesInventory,
   ComexInventory,
 } from '../../types';
-
-interface DatacenterResponse {
-  result?: {
-    pages?: number;
-    data?: Record<string, unknown>[];
-  };
-}
+import { fetchDatacenterList } from './datacenter';
 
 export interface FuturesInventoryOptions {
   /** 开始日期 YYYY-MM-DD（默认 2020-10-28） */
@@ -36,41 +30,6 @@ const COMEX_SYMBOL_MAP: Record<string, string> = {
 };
 
 /**
- * 获取期货库存品种列表
- * @param client - 请求客户端
- * @returns 品种列表
- */
-export async function getFuturesInventorySymbols(
-  client: RequestClient
-): Promise<FuturesInventorySymbol[]> {
-  const params = new URLSearchParams({
-    reportName: 'RPT_FUTU_POSITIONCODE',
-    columns: 'TRADE_MARKET_CODE,TRADE_CODE,TRADE_TYPE',
-    filter: '(IS_MAINCODE="1")',
-    pageNumber: '1',
-    pageSize: '500',
-    source: 'WEB',
-    client: 'WEB',
-  });
-
-  const url = `${EM_DATACENTER_URL}?${params.toString()}`;
-  const json = await client.get<DatacenterResponse>(url, {
-    responseType: 'json',
-  });
-
-  const data = json?.result?.data;
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  return data.map((item) => ({
-    code: String(item.TRADE_CODE ?? ''),
-    name: String(item.TRADE_TYPE ?? ''),
-    marketCode: String(item.TRADE_MARKET_CODE ?? ''),
-  }));
-}
-
-/**
  * 解析日期字符串为 YYYY-MM-DD
  */
 function parseDate(dateStr: unknown): string {
@@ -81,7 +40,31 @@ function parseDate(dateStr: unknown): string {
 }
 
 /**
+ * 获取期货库存品种列表
+ */
+export async function getFuturesInventorySymbols(
+  client: RequestClient
+): Promise<FuturesInventorySymbol[]> {
+  return fetchDatacenterList(
+    client,
+    {
+      reportName: 'RPT_FUTU_POSITIONCODE',
+      columns: 'TRADE_MARKET_CODE,TRADE_CODE,TRADE_TYPE',
+      filter: '(IS_MAINCODE="1")',
+      pageSize: 500,
+      fetchAllPages: false,
+    },
+    (item) => ({
+      code: String(item.TRADE_CODE ?? ''),
+      name: String(item.TRADE_TYPE ?? ''),
+      marketCode: String(item.TRADE_MARKET_CODE ?? ''),
+    })
+  );
+}
+
+/**
  * 获取期货库存数据
+ *
  * @param client - 请求客户端
  * @param symbol - 品种代码（来自 getFuturesInventorySymbols 返回的 code）
  * @param options - 配置选项
@@ -95,52 +78,28 @@ export async function getFuturesInventory(
   const { startDate = '2020-10-28', pageSize = 500 } = options;
   const upperSymbol = symbol.toUpperCase();
 
-  const allData: FuturesInventory[] = [];
-  let page = 1;
-  let totalPages = 1;
-
-  do {
-    const params = new URLSearchParams({
+  return fetchDatacenterList(
+    client,
+    {
       reportName: 'RPT_FUTU_STOCKDATA',
       columns: 'SECURITY_CODE,TRADE_DATE,ON_WARRANT_NUM,ADDCHANGE',
       filter: `(SECURITY_CODE="${upperSymbol}")(TRADE_DATE>='${startDate}')`,
-      pageNumber: String(page),
-      pageSize: String(pageSize),
-      sortTypes: '-1',
+      pageSize,
       sortColumns: 'TRADE_DATE',
-      source: 'WEB',
-      client: 'WEB',
-    });
-
-    const url = `${EM_DATACENTER_URL}?${params.toString()}`;
-    const json = await client.get<DatacenterResponse>(url, {
-      responseType: 'json',
-    });
-
-    const result = json?.result;
-    if (!result || !Array.isArray(result.data)) {
-      break;
-    }
-
-    if (page === 1) {
-      totalPages = result.pages ?? 1;
-    }
-
-    const items = result.data.map((item) => ({
+      sortTypes: '-1',
+    },
+    (item) => ({
       code: String(item.SECURITY_CODE ?? symbol),
       date: parseDate(item.TRADE_DATE),
       inventory: toNumberSafe(item.ON_WARRANT_NUM),
       change: toNumberSafe(item.ADDCHANGE),
-    }));
-    allData.push(...items);
-    page++;
-  } while (page <= totalPages);
-
-  return allData;
+    })
+  );
 }
 
 /**
  * 获取 COMEX 黄金/白银库存数据
+ *
  * @param client - 请求客户端
  * @param symbol - 'gold' 或 'silver'
  * @param options - 配置选项
@@ -159,40 +118,18 @@ export async function getComexInventory(
   }
 
   const { pageSize = 500 } = options;
-  const allData: ComexInventory[] = [];
-  let page = 1;
-  let totalPages = 1;
   const nameMap: Record<string, string> = { gold: '黄金', silver: '白银' };
 
-  do {
-    const params = new URLSearchParams({
+  return fetchDatacenterList(
+    client,
+    {
+      reportName: 'RPT_FUTUOPT_GOLDSIL',
       sortColumns: 'REPORT_DATE',
       sortTypes: '-1',
-      pageSize: String(pageSize),
-      pageNumber: String(page),
-      reportName: 'RPT_FUTUOPT_GOLDSIL',
-      columns: 'ALL',
-      quoteColumns: '',
-      source: 'WEB',
-      client: 'WEB',
+      pageSize,
       filter: `(INDICATOR_ID1="${indicatorId}")(@STORAGE_TON<>"NULL")`,
-    });
-
-    const url = `${EM_DATACENTER_URL}?${params.toString()}`;
-    const json = await client.get<DatacenterResponse>(url, {
-      responseType: 'json',
-    });
-
-    const result = json?.result;
-    if (!result || !Array.isArray(result.data)) {
-      break;
-    }
-
-    if (page === 1) {
-      totalPages = result.pages ?? 1;
-    }
-
-    const items = result.data.map((item) => ({
+    },
+    (item) => ({
       date: parseDate(item.REPORT_DATE),
       name: nameMap[symbol] ?? symbol,
       storageTon: toNumberSafe(item.STORAGE_TON),
@@ -200,10 +137,6 @@ export async function getComexInventory(
       inventory: toNumberSafe(item.STORAGE_TON),
       change: null,
       market: symbol,
-    }));
-    allData.push(...items);
-    page++;
-  } while (page <= totalPages);
-
-  return allData;
+    })
+  );
 }

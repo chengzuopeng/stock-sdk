@@ -58,7 +58,10 @@
 - ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR、BIAS、CCI、ATR、OBV、ROC、DMI、SAR、KC
 - ✅ **期货行情**：国内期货 K 线、全球期货实时行情与 K 线、期货库存数据
 - ✅ **期权数据**：中金所股指期权、上交所 ETF 期权、商品期权的报价 / K 线 / 分钟行情
-- ✅ **资金流向**、**盘口大单**等扩展数据
+- ✅ **资金流向**（个股/大盘/排名/板块）、**盘口大单**、**涨停板池**、**盘口异动** 等扩展数据
+- ✅ **沪深港通 / 北向资金**（分时、汇总、持股排行、历史、个股持仓）
+- ✅ **龙虎榜**（详情、个股统计、机构买卖、营业部排行、席位明细）
+- ✅ **大宗交易** + **融资融券** 全套数据
 - ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
 - ✅ 支持 **provider 级重试 / 限流 / 熔断策略覆盖**，兼容旧的全局请求配置
 - ✅ **AI / MCP 就绪** — 配套 [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server，一行命令接入 Cursor / Claude / Gemini 等 AI 工具
@@ -272,9 +275,58 @@ Stock SDK 配套 MCP Server（[stock-sdk-mcp](https://www.npmjs.com/package/stoc
 
 | 方法 | 说明 |
 |------|------|
-| `getFundFlow` | 资金流向 |
+| `getFundFlow` | 资金流向（按代码批量查询） |
 | `getPanelLargeOrder` | 盘口大单占比 |
 | `getTradingCalendar` | A 股交易日历 |
+| `getDividendDetail` | 股票分红派送详情 |
+
+### 资金流向（深度）
+
+| 方法 | 说明 |
+|------|------|
+| `getIndividualFundFlow` | 个股资金流历史（日/周/月） |
+| `getMarketFundFlow` | 大盘（上证 + 深证）资金流历史 |
+| `getFundFlowRank` | 个股资金流排名（今日 / 3 日 / 5 日 / 10 日） |
+| `getSectorFundFlowRank` | 板块资金流排名（行业 / 概念 / 地域） |
+| `getSectorFundFlowHistory` | 单个板块的历史资金流 |
+
+### 沪深港通 / 北向资金
+
+| 方法 | 说明 |
+|------|------|
+| `getNorthboundMinute` | 北向 / 南向资金分时数据 |
+| `getNorthboundFlowSummary` | 沪深港通市场资金流向汇总 |
+| `getNorthboundHoldingRank` | 北向 / 沪股通 / 深股通持股个股排行 |
+| `getNorthboundHistory` | 北向 / 南向资金历史 |
+| `getNorthboundIndividual` | 个股北向持仓历史 |
+
+### 涨停板 / 盘口异动
+
+| 方法 | 说明 |
+|------|------|
+| `getZTPool` | 涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停 6 大股池 |
+| `getStockChanges` | 22 种盘口异动（火箭发射 / 大笔买入 / 封涨停 等） |
+| `getBoardChanges` | 当日板块异动详情 |
+
+### 龙虎榜
+
+| 方法 | 说明 |
+|------|------|
+| `getDragonTigerDetail` | 龙虎榜详情（按日期范围） |
+| `getDragonTigerStockStats` | 个股上榜统计（近 1/3/6 月、1 年） |
+| `getDragonTigerInstitution` | 机构买卖统计 |
+| `getDragonTigerBranchRank` | 营业部排行 |
+| `getDragonTigerStockSeatDetail` | 个股某日上榜席位明细（买入榜 + 卖出榜） |
+
+### 大宗交易 / 融资融券
+
+| 方法 | 说明 |
+|------|------|
+| `getBlockTradeMarketStat` | 大宗交易市场每日总览 |
+| `getBlockTradeDetail` | 大宗交易明细 |
+| `getBlockTradeDailyStat` | 大宗交易每日统计（按股票汇总） |
+| `getMarginAccountInfo` | 融资融券账户统计 |
+| `getMarginTargetList` | 融资融券标的明细 |
 
 ### 批量查询
 

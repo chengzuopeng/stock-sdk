@@ -41,6 +41,30 @@ export const EM_CONCEPT_TRENDS_URL = 'https://push2his.eastmoney.com/api/qt/stoc
 // 东方财富数据中心 API
 export const EM_DATACENTER_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get';
 
+// 东方财富资金流 API（push2his 日线资金流）
+export const EM_FFLOW_URL = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get';
+
+// 东方财富个股/板块资金流排名 API（push2 通用 clist）
+export const EM_CLIST_URL = 'https://push2.eastmoney.com/api/qt/clist/get';
+
+// 东方财富北向资金分时 API
+export const EM_NORTHBOUND_MINUTE_URL = 'https://push2.eastmoney.com/api/qt/kamtbs.rtmin/get';
+
+// 东方财富涨停板 / 盘口异动 API 基地址（push2ex 提供 ZT pool 等专题接口）
+export const EM_TOPIC_BASE_URL = 'https://push2ex.eastmoney.com';
+
+/**
+ * 东方财富 push2 / push2his 通用 ut token。
+ * 用于 K 线、行情、涨停板、盘口异动等接口。
+ */
+export const EM_PUSH_TOKEN = '7eea3edcaed734bea9cbfc24409ed989';
+
+/**
+ * 东方财富数据中心 ut token。
+ * 用于资金流、北向资金、期权龙虎榜等接口。
+ */
+export const EM_DATA_TOKEN = 'b2884a393a59ad64002292a3e90d46a5';
+
 // 东方财富期货 API
 export const EM_FUTURES_KLINE_URL = 'https://push2his.eastmoney.com/api/qt/stock/kline/get';
 export const EM_FUTURES_GLOBAL_SPOT_URL =
@@ -117,6 +141,7 @@ export const SINA_SSE_OPTION_5DAY_URL =
 // 东方财富期权 API
 export const EM_OPTION_CFFEX_URL = 'https://futsseapi.eastmoney.com/list/option/221';
 export const EM_OPTION_LHB_URL = 'https://datacenter-web.eastmoney.com/api/data/get';
+/** @deprecated 使用 {@link EM_DATA_TOKEN} 代替（值相同） */
 export const EM_OPTION_LHB_TOKEN = 'b2884a393a59ad64002292a3e90d46a5';
 
 /**

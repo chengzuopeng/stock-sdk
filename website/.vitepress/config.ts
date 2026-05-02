@@ -138,6 +138,26 @@ const zhSidebar = {
       ],
     },
     {
+      text: '资金流向（深度）',
+      items: [
+        { text: '个股 / 大盘 / 排名 / 板块', link: '/api/fund-flow-deep' },
+        { text: '沪深港通 / 北向资金', link: '/api/northbound' },
+      ],
+    },
+    {
+      text: '盘口与龙虎榜',
+      items: [
+        { text: '涨停板 / 盘口异动', link: '/api/market-event' },
+        { text: '龙虎榜', link: '/api/dragon-tiger' },
+      ],
+    },
+    {
+      text: '其他数据',
+      items: [
+        { text: '大宗交易 / 融资融券', link: '/api/block-trade-margin' },
+      ],
+    },
+    {
       text: '更多',
       items: [{ text: '更新日志', link: '/changelog' }],
     },
@@ -245,6 +265,26 @@ const enSidebar = {
         { text: 'Batch Query', link: '/en/api/batch' },
         { text: 'Fund Flow', link: '/en/api/fund-flow' },
         { text: 'Dividend', link: '/en/api/dividend' },
+      ],
+    },
+    {
+      text: 'Fund Flow (Deep)',
+      items: [
+        { text: 'Individual / Market / Rank / Sector', link: '/en/api/fund-flow-deep' },
+        { text: 'Northbound / Stock Connect', link: '/en/api/northbound' },
+      ],
+    },
+    {
+      text: 'Limit-Up & Dragon-Tiger',
+      items: [
+        { text: 'Limit-Up Pool / Stock Changes', link: '/en/api/market-event' },
+        { text: 'Dragon-Tiger List', link: '/en/api/dragon-tiger' },
+      ],
+    },
+    {
+      text: 'Other Data',
+      items: [
+        { text: 'Block Trade / Margin Trading', link: '/en/api/block-trade-margin' },
       ],
     },
     {

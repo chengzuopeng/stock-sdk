@@ -706,6 +706,409 @@ console.log(dividends[0].exDividendDate);   // 除权除息日
 console.log(dividends[0].payDate);          // 派息日
 console.log(dividends[0].assignProgress);   // 方案进度: 实施分配`
   },
+  // ============================================================
+  // 资金流向（深度）
+  // ============================================================
+  getIndividualFundFlow: {
+    name: 'getIndividualFundFlow',
+    desc: '获取个股资金流历史（日/周/月）',
+    category: 'extended',
+    params: [
+      { key: 'symbol', label: '股票代码', type: 'text', default: 'sh600519', required: true, placeholder: '如 sh600519 或 600519' },
+      { key: 'period', label: '周期', type: 'select', default: 'daily', required: false, options: [
+        { value: 'daily', label: '日线' },
+        { value: 'weekly', label: '周线' },
+        { value: 'monthly', label: '月线' },
+      ] }
+    ],
+    code: `const flow = await sdk.getIndividualFundFlow('sh600519', { period: 'daily' });
+console.log(flow.length);                  // 数据条数
+console.log(flow.at(-1)?.date);            // 最新日期
+console.log(flow.at(-1)?.mainNetInflow);   // 最新主力净流入(元)`
+  },
+  getMarketFundFlow: {
+    name: 'getMarketFundFlow',
+    desc: '大盘资金流（上证 + 深证）',
+    category: 'extended',
+    params: [],
+    code: `const market = await sdk.getMarketFundFlow();
+console.log(market.length);              // 历史天数
+console.log(market.at(-1)?.shClose);     // 最新上证收盘
+console.log(market.at(-1)?.szClose);     // 最新深证收盘
+console.log(market.at(-1)?.mainNetInflow); // 最新主力净流入(元)`
+  },
+  getFundFlowRank: {
+    name: 'getFundFlowRank',
+    desc: '个股资金流排名（沪深北 A 股全市场）',
+    category: 'extended',
+    params: [
+      { key: 'indicator', label: '排名周期', type: 'select', default: 'today', required: false, options: [
+        { value: 'today', label: '今日' },
+        { value: '3day', label: '3 日' },
+        { value: '5day', label: '5 日' },
+        { value: '10day', label: '10 日' },
+      ] }
+    ],
+    code: `const rank = await sdk.getFundFlowRank({ indicator: 'today' });
+console.log(rank.length);             // 总股票数
+console.log(rank[0]?.name);           // 主力净流入第一名
+console.log(rank[0]?.mainNetInflow);  // 主力净流入(元)`
+  },
+  getSectorFundFlowRank: {
+    name: 'getSectorFundFlowRank',
+    desc: '板块资金流排名（行业 / 概念 / 地域）',
+    category: 'extended',
+    params: [
+      { key: 'indicator', label: '排名周期', type: 'select', default: 'today', required: false, options: [
+        { value: 'today', label: '今日' },
+        { value: '3day', label: '3 日' },
+        { value: '5day', label: '5 日' },
+        { value: '10day', label: '10 日' },
+      ] },
+      { key: 'sectorType', label: '板块类型', type: 'select', default: 'industry', required: false, options: [
+        { value: 'industry', label: '行业' },
+        { value: 'concept', label: '概念' },
+        { value: 'region', label: '地域' },
+      ] }
+    ],
+    code: `const sectors = await sdk.getSectorFundFlowRank({
+  indicator: 'today',
+  sectorType: 'industry',
+});
+console.log(sectors.length);             // 板块数量
+console.log(sectors[0]?.name);           // 主力净流入第一的板块
+console.log(sectors[0]?.topStockName);   // 该板块的领涨股`
+  },
+  getSectorFundFlowHistory: {
+    name: 'getSectorFundFlowHistory',
+    desc: '单个板块的历史资金流',
+    category: 'extended',
+    params: [
+      { key: 'symbol', label: '板块代码', type: 'text', default: 'BK0475', required: true, placeholder: '如 BK0475 (银行) 或 90.BK0475' },
+      { key: 'period', label: '周期', type: 'select', default: 'daily', required: false, options: [
+        { value: 'daily', label: '日线' },
+        { value: 'weekly', label: '周线' },
+        { value: 'monthly', label: '月线' },
+      ] }
+    ],
+    code: `const banking = await sdk.getSectorFundFlowHistory('BK0475');
+console.log(banking.length);                // 历史条数
+console.log(banking.at(-1)?.mainNetInflow); // 最新主力净流入(元)`
+  },
+  // ============================================================
+  // 沪深港通 / 北向资金
+  // ============================================================
+  getNorthboundMinute: {
+    name: 'getNorthboundMinute',
+    desc: '北向 / 南向资金分时数据',
+    category: 'extended',
+    params: [
+      { key: 'direction', label: '方向', type: 'select', default: 'north', required: false, options: [
+        { value: 'north', label: '北向' },
+        { value: 'south', label: '南向' },
+      ] }
+    ],
+    code: `const points = await sdk.getNorthboundMinute('north');
+console.log(points.length);                // 当日分时点数
+console.log(points.at(-1)?.totalNetInflow); // 最新合计净流入(万元)`
+  },
+  getNorthboundFlowSummary: {
+    name: 'getNorthboundFlowSummary',
+    desc: '沪深港通市场资金流向汇总',
+    category: 'extended',
+    params: [],
+    code: `const summary = await sdk.getNorthboundFlowSummary();
+console.log(summary.length);                // 通常返回 4 行（北向沪/深 + 南向沪/深）
+summary.forEach(s => {
+  console.log(\`\${s.boardName}: 净买额 \${s.netBuyAmount} 元\`);
+});`
+  },
+  getNorthboundHoldingRank: {
+    name: 'getNorthboundHoldingRank',
+    desc: '北向 / 沪股通 / 深股通持股个股排行',
+    category: 'extended',
+    params: [
+      { key: 'market', label: '市场', type: 'select', default: 'all', required: false, options: [
+        { value: 'all', label: '全部（北向）' },
+        { value: 'shanghai', label: '沪股通' },
+        { value: 'shenzhen', label: '深股通' },
+      ] },
+      { key: 'period', label: '周期', type: 'select', default: '5day', required: false, options: [
+        { value: 'today', label: '今日' },
+        { value: '3day', label: '3 日' },
+        { value: '5day', label: '5 日' },
+        { value: '10day', label: '10 日' },
+        { value: 'month', label: '月排行' },
+        { value: 'quarter', label: '季排行' },
+        { value: 'year', label: '年排行' },
+      ] }
+    ],
+    code: `const rank = await sdk.getNorthboundHoldingRank({
+  market: 'all',
+  period: '5day',
+});
+console.log(rank.length);                       // 上榜股票数
+console.log(rank[0]?.name);                     // 第一名股票
+console.log(rank[0]?.holdMarketValue);          // 持股市值(元)`
+  },
+  getNorthboundHistory: {
+    name: 'getNorthboundHistory',
+    desc: '北向 / 南向资金按日历史',
+    category: 'extended',
+    params: [
+      { key: 'direction', label: '方向', type: 'select', default: 'north', required: false, options: [
+        { value: 'north', label: '北向' },
+        { value: 'south', label: '南向' },
+      ] },
+      { key: 'startDate', label: '开始日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' }
+    ],
+    code: `const history = await sdk.getNorthboundHistory('north', {
+  startDate: '2024-01-01',
+  endDate: '2024-12-31',
+});
+console.log(history.length);             // 交易日数
+console.log(history[0]?.netBuyAmount);   // 最新成交净买额(元)`
+  },
+  getNorthboundIndividual: {
+    name: 'getNorthboundIndividual',
+    desc: '个股的北向持仓历史',
+    category: 'extended',
+    params: [
+      { key: 'symbol', label: '股票代码', type: 'text', default: '600519', required: true, placeholder: '如 600519 或 sh600519' },
+      { key: 'startDate', label: '开始日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' }
+    ],
+    code: `const moutai = await sdk.getNorthboundIndividual('600519', {
+  startDate: '2024-01-01',
+});
+console.log(moutai.length);              // 数据条数
+console.log(moutai[0]?.holdShares);      // 最新持股数
+console.log(moutai[0]?.holdMarketValue); // 最新持股市值(元)`
+  },
+  // ============================================================
+  // 涨停板 / 盘口异动
+  // ============================================================
+  getZTPool: {
+    name: 'getZTPool',
+    desc: '获取涨停 / 跌停 / 强势 等股池',
+    category: 'extended',
+    params: [
+      { key: 'type', label: '池子类型', type: 'select', default: 'zt', required: false, options: [
+        { value: 'zt', label: '涨停股池' },
+        { value: 'yesterday', label: '昨日涨停' },
+        { value: 'strong', label: '强势股池' },
+        { value: 'sub_new', label: '次新股池' },
+        { value: 'broken', label: '炸板股池' },
+        { value: 'dt', label: '跌停股池' },
+      ] },
+      { key: 'date', label: '交易日', type: 'text', default: '', placeholder: 'YYYYMMDD 或 YYYY-MM-DD（默认今天）' }
+    ],
+    code: `const pool = await sdk.getZTPool('zt');
+console.log(pool.length);                       // 涨停股票数量
+console.log(pool[0]?.name);                     // 第一只涨停股名称
+console.log(pool[0]?.continuousBoardCount);     // 连板数`
+  },
+  getStockChanges: {
+    name: 'getStockChanges',
+    desc: '盘口异动（共 22 种类型）',
+    category: 'extended',
+    params: [
+      { key: 'type', label: '异动类型', type: 'select', default: 'large_buy', required: false, options: [
+        { value: 'rocket_launch', label: '火箭发射' },
+        { value: 'quick_rebound', label: '快速反弹' },
+        { value: 'large_buy', label: '大笔买入' },
+        { value: 'limit_up_seal', label: '封涨停板' },
+        { value: 'limit_down_open', label: '打开跌停板' },
+        { value: 'big_buy_order', label: '有大买盘' },
+        { value: 'auction_up', label: '竞价上涨' },
+        { value: 'high_open_5d', label: '高开5日线' },
+        { value: 'gap_up', label: '向上缺口' },
+        { value: 'high_60d', label: '60日新高' },
+        { value: 'surge_60d', label: '60日大幅上涨' },
+        { value: 'accelerate_down', label: '加速下跌' },
+        { value: 'high_dive', label: '高台跳水' },
+        { value: 'large_sell', label: '大笔卖出' },
+        { value: 'limit_down_seal', label: '封跌停板' },
+        { value: 'limit_up_open', label: '打开涨停板' },
+        { value: 'big_sell_order', label: '有大卖盘' },
+        { value: 'auction_down', label: '竞价下跌' },
+        { value: 'low_open_5d', label: '低开5日线' },
+        { value: 'gap_down', label: '向下缺口' },
+        { value: 'low_60d', label: '60日新低' },
+        { value: 'drop_60d', label: '60日大幅下跌' },
+      ] }
+    ],
+    code: `const changes = await sdk.getStockChanges('large_buy');
+console.log(changes.length);              // 当日异动次数
+console.log(changes[0]?.time);            // 09:30:55
+console.log(changes[0]?.name);            // 股票名称
+console.log(changes[0]?.changeTypeLabel); // 中文异动类型`
+  },
+  getBoardChanges: {
+    name: 'getBoardChanges',
+    desc: '当日板块异动详情',
+    category: 'extended',
+    params: [],
+    code: `const boards = await sdk.getBoardChanges();
+console.log(boards.length);              // 异动板块数
+console.log(boards[0]?.name);            // 异动最频繁板块
+console.log(boards[0]?.totalChangeCount); // 异动次数
+console.log(boards[0]?.topStockName);    // 异动最频繁个股`
+  },
+  // ============================================================
+  // 龙虎榜
+  // ============================================================
+  getDragonTigerDetail: {
+    name: 'getDragonTigerDetail',
+    desc: '龙虎榜详情（按日期范围）',
+    category: 'extended',
+    params: [
+      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', required: true, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', required: true, placeholder: 'YYYYMMDD' }
+    ],
+    code: `const list = await sdk.getDragonTigerDetail({
+  startDate: '20240101',
+  endDate: '20240131',
+});
+console.log(list.length);             // 上榜次数
+console.log(list[0]?.name);           // 股票名称
+console.log(list[0]?.netBuyAmount);   // 净买额(元)
+console.log(list[0]?.reason);         // 上榜原因`
+  },
+  getDragonTigerStockStats: {
+    name: 'getDragonTigerStockStats',
+    desc: '龙虎榜个股上榜统计',
+    category: 'extended',
+    params: [
+      { key: 'period', label: '统计周期', type: 'select', default: '1month', required: false, options: [
+        { value: '1month', label: '近一月' },
+        { value: '3month', label: '近三月' },
+        { value: '6month', label: '近六月' },
+        { value: '1year', label: '近一年' },
+      ] }
+    ],
+    code: `const stats = await sdk.getDragonTigerStockStats('1month');
+console.log(stats.length);              // 上榜个股数量
+console.log(stats[0]?.name);            // 上榜次数最多的股票
+console.log(stats[0]?.count);           // 上榜次数`
+  },
+  getDragonTigerInstitution: {
+    name: 'getDragonTigerInstitution',
+    desc: '机构买卖统计（按日期范围）',
+    category: 'extended',
+    params: [
+      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', required: true, placeholder: 'YYYYMMDD' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', required: true, placeholder: 'YYYYMMDD' }
+    ],
+    code: `const list = await sdk.getDragonTigerInstitution({
+  startDate: '20240101',
+  endDate: '20240131',
+});
+console.log(list.length);              // 上榜次数
+console.log(list[0]?.orgBuyAmount);    // 机构买入额(元)
+console.log(list[0]?.orgNetAmount);    // 机构净额(元)`
+  },
+  getDragonTigerBranchRank: {
+    name: 'getDragonTigerBranchRank',
+    desc: '营业部排行',
+    category: 'extended',
+    params: [
+      { key: 'period', label: '统计周期', type: 'select', default: '1month', required: false, options: [
+        { value: '1month', label: '近一月' },
+        { value: '3month', label: '近三月' },
+        { value: '6month', label: '近六月' },
+        { value: '1year', label: '近一年' },
+      ] }
+    ],
+    code: `const branches = await sdk.getDragonTigerBranchRank('1month');
+console.log(branches.length);             // 营业部数量
+console.log(branches[0]?.name);           // 排名第一的营业部
+console.log(branches[0]?.totalBuyAmount); // 累计买入额(元)`
+  },
+  getDragonTigerStockSeatDetail: {
+    name: 'getDragonTigerStockSeatDetail',
+    desc: '个股某日上榜席位明细（买入榜+卖出榜）',
+    category: 'extended',
+    params: [
+      { key: 'symbol', label: '股票代码', type: 'text', default: '600519', required: true, placeholder: '如 600519' },
+      { key: 'date', label: '上榜日期', type: 'text', default: '2024-01-15', required: true, placeholder: 'YYYY-MM-DD 或 YYYYMMDD' }
+    ],
+    code: `const seats = await sdk.getDragonTigerStockSeatDetail('600519', '2024-01-15');
+const buyers = seats.filter(s => s.side === 'buy');
+const sellers = seats.filter(s => s.side === 'sell');
+console.log(\`买方席位: \${buyers.length}, 卖方席位: \${sellers.length}\`);
+console.log(buyers[0]?.branchName, buyers[0]?.buyAmount);`
+  },
+  // ============================================================
+  // 大宗交易 / 融资融券
+  // ============================================================
+  getBlockTradeMarketStat: {
+    name: 'getBlockTradeMarketStat',
+    desc: '大宗交易市场每日总览',
+    category: 'extended',
+    params: [],
+    code: `const stat = await sdk.getBlockTradeMarketStat();
+console.log(stat.length);                  // 历史天数
+console.log(stat[0]?.date);                // 最新日期
+console.log(stat[0]?.totalAmount);         // 大宗交易总额(元)
+console.log(stat[0]?.premiumRatio);        // 溢价占比`
+  },
+  getBlockTradeDetail: {
+    name: 'getBlockTradeDetail',
+    desc: '大宗交易明细（按日期范围）',
+    category: 'extended',
+    params: [
+      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', placeholder: 'YYYYMMDD（可选）' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', placeholder: 'YYYYMMDD（可选）' }
+    ],
+    code: `const detail = await sdk.getBlockTradeDetail({
+  startDate: '20240101',
+  endDate: '20240131',
+});
+console.log(detail.length);             // 大宗交易笔数
+console.log(detail[0]?.dealPrice);      // 成交价
+console.log(detail[0]?.premiumRate);    // 溢价率(%)
+console.log(detail[0]?.buyBranch);      // 买方营业部`
+  },
+  getBlockTradeDailyStat: {
+    name: 'getBlockTradeDailyStat',
+    desc: '大宗交易每日统计（按股票汇总）',
+    category: 'extended',
+    params: [
+      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', placeholder: 'YYYYMMDD（可选）' },
+      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', placeholder: 'YYYYMMDD（可选）' }
+    ],
+    code: `const stat = await sdk.getBlockTradeDailyStat({
+  startDate: '20240101',
+  endDate: '20240131',
+});
+console.log(stat.length);                 // 涉及股票数
+console.log(stat[0]?.dealCount);          // 成交笔数
+console.log(stat[0]?.dealTotalAmount);    // 成交总额(元)`
+  },
+  getMarginAccountInfo: {
+    name: 'getMarginAccountInfo',
+    desc: '融资融券账户统计',
+    category: 'extended',
+    params: [],
+    code: `const margin = await sdk.getMarginAccountInfo();
+console.log(margin.length);                  // 历史天数
+console.log(margin[0]?.finBalance);          // 融资余额(元)
+console.log(margin[0]?.avgGuaranteeRatio);   // 维保比例(%)`
+  },
+  getMarginTargetList: {
+    name: 'getMarginTargetList',
+    desc: '融资融券标的明细',
+    category: 'extended',
+    params: [
+      { key: 'date', label: '交易日', type: 'text', default: '', placeholder: 'YYYY-MM-DD（默认服务端最新交易日）' }
+    ],
+    code: `const targets = await sdk.getMarginTargetList();
+console.log(targets.length);             // 标的数量
+console.log(targets[0]?.code);           // 第一只
+console.log(targets[0]?.finBalance);     // 融资余额(元)`
+  },
 }
 
 // 按分类分组方法
@@ -857,6 +1260,146 @@ async function fetchData() {
       }
       case 'getDividendDetail': {
         data = await sdk.value.getDividendDetail(params.symbol)
+        break
+      }
+      // ============================================================
+      // Phase 1/2: 资金流向（深度）
+      // ============================================================
+      case 'getIndividualFundFlow': {
+        const period = (params.period || 'daily') as 'daily' | 'weekly' | 'monthly'
+        data = await sdk.value.getIndividualFundFlow(params.symbol, { period })
+        break
+      }
+      case 'getMarketFundFlow': {
+        data = await sdk.value.getMarketFundFlow()
+        break
+      }
+      case 'getFundFlowRank': {
+        const indicator = (params.indicator || 'today') as 'today' | '3day' | '5day' | '10day'
+        data = await sdk.value.getFundFlowRank({ indicator })
+        break
+      }
+      case 'getSectorFundFlowRank': {
+        const indicator = (params.indicator || 'today') as 'today' | '3day' | '5day' | '10day'
+        const sectorType = (params.sectorType || 'industry') as 'industry' | 'concept' | 'region'
+        data = await sdk.value.getSectorFundFlowRank({ indicator, sectorType })
+        break
+      }
+      case 'getSectorFundFlowHistory': {
+        const period = (params.period || 'daily') as 'daily' | 'weekly' | 'monthly'
+        data = await sdk.value.getSectorFundFlowHistory(params.symbol, { period })
+        break
+      }
+      // ============================================================
+      // Phase 1/2: 沪深港通 / 北向资金
+      // ============================================================
+      case 'getNorthboundMinute': {
+        const direction = (params.direction || 'north') as 'north' | 'south'
+        data = await sdk.value.getNorthboundMinute(direction)
+        break
+      }
+      case 'getNorthboundFlowSummary': {
+        data = await sdk.value.getNorthboundFlowSummary()
+        break
+      }
+      case 'getNorthboundHoldingRank': {
+        const market = (params.market || 'all') as 'all' | 'shanghai' | 'shenzhen'
+        const period = (params.period || '5day') as 'today' | '3day' | '5day' | '10day' | 'month' | 'quarter' | 'year'
+        data = await sdk.value.getNorthboundHoldingRank({ market, period })
+        break
+      }
+      case 'getNorthboundHistory': {
+        const direction = (params.direction || 'north') as 'north' | 'south'
+        const options: any = {}
+        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
+        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
+        data = await sdk.value.getNorthboundHistory(direction, options)
+        break
+      }
+      case 'getNorthboundIndividual': {
+        const options: any = {}
+        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
+        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
+        data = await sdk.value.getNorthboundIndividual(params.symbol, options)
+        break
+      }
+      // ============================================================
+      // Phase 1/2: 涨停板 / 盘口异动
+      // ============================================================
+      case 'getZTPool': {
+        const type = params.type || 'zt'
+        const date = params.date?.trim() || undefined
+        data = await sdk.value.getZTPool(type, date)
+        break
+      }
+      case 'getStockChanges': {
+        const type = params.type || 'large_buy'
+        data = await sdk.value.getStockChanges(type)
+        break
+      }
+      case 'getBoardChanges': {
+        data = await sdk.value.getBoardChanges()
+        break
+      }
+      // ============================================================
+      // Phase 1/2: 龙虎榜
+      // ============================================================
+      case 'getDragonTigerDetail': {
+        data = await sdk.value.getDragonTigerDetail({
+          startDate: params.startDate,
+          endDate: params.endDate,
+        })
+        break
+      }
+      case 'getDragonTigerStockStats': {
+        const period = (params.period || '1month') as '1month' | '3month' | '6month' | '1year'
+        data = await sdk.value.getDragonTigerStockStats(period)
+        break
+      }
+      case 'getDragonTigerInstitution': {
+        data = await sdk.value.getDragonTigerInstitution({
+          startDate: params.startDate,
+          endDate: params.endDate,
+        })
+        break
+      }
+      case 'getDragonTigerBranchRank': {
+        const period = (params.period || '1month') as '1month' | '3month' | '6month' | '1year'
+        data = await sdk.value.getDragonTigerBranchRank(period)
+        break
+      }
+      case 'getDragonTigerStockSeatDetail': {
+        data = await sdk.value.getDragonTigerStockSeatDetail(params.symbol, params.date)
+        break
+      }
+      // ============================================================
+      // Phase 1/2: 大宗交易 / 融资融券
+      // ============================================================
+      case 'getBlockTradeMarketStat': {
+        data = await sdk.value.getBlockTradeMarketStat()
+        break
+      }
+      case 'getBlockTradeDetail': {
+        const options: any = {}
+        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
+        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
+        data = await sdk.value.getBlockTradeDetail(options)
+        break
+      }
+      case 'getBlockTradeDailyStat': {
+        const options: any = {}
+        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
+        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
+        data = await sdk.value.getBlockTradeDailyStat(options)
+        break
+      }
+      case 'getMarginAccountInfo': {
+        data = await sdk.value.getMarginAccountInfo()
+        break
+      }
+      case 'getMarginTargetList': {
+        const date = params.date?.trim() || undefined
+        data = await sdk.value.getMarginTargetList(date)
         break
       }
       case 'getHKQuotes': {
