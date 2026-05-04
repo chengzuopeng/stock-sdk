@@ -1,1127 +1,163 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useData } from 'vitepress'
 import { Icon } from '@iconify/vue'
 import { codeToHtml } from 'shiki'
 
-// 获取 VitePress 的主题状态
+// === 拆分到 ./playground/* 的方法元数据与执行逻辑 ===
+import { categories } from './playground/categories'
+import { allMethods, methodsByName } from './playground/methods'
+import type { MethodSpec } from './playground/types'
+
+// VitePress 主题状态
 const { isDark } = useData()
 
-// 高亮后的代码 HTML
-const highlightedCode = ref('')
+// 模板中沿用 `methodsConfig[name]` 的写法，这里把新结构 alias 过去
+const methodsConfig = methodsByName
 
-// 异步高亮代码
+// === 大结果集渲染保护 ===
+// 经验阈值：JSON.stringify 一个 5000+ 元素的对象数组并扔进 <pre> 会卡几秒。
+// 超过此阈值时只渲染前 N 项，完整数据存于 window 供控制台查看。
+const MAX_RENDER_ITEMS = 200
+
+function formatResultForRender(data: unknown): string {
+  if (!Array.isArray(data) || data.length <= MAX_RENDER_ITEMS) {
+    return JSON.stringify(data, null, 2)
+  }
+  const head = data.slice(0, MAX_RENDER_ITEMS)
+  return (
+    JSON.stringify(head, null, 2) +
+    `\n\n/* ⚠️ 共 ${data.length} 条数据，仅渲染前 ${MAX_RENDER_ITEMS} 条以避免页面卡顿。\n` +
+    `   完整数据已挂载到 window.__playgroundLastResult，可在浏览器控制台访问。 */`
+  )
+}
+
+// === 代码示例高亮 ===
+const highlightedCode = ref('')
 async function updateHighlightedCode(code: string) {
   try {
-    // 始终使用深色主题，因为代码框背景是深色的
     highlightedCode.value = await codeToHtml(code, {
       lang: 'typescript',
       theme: 'github-dark',
     })
   } catch {
-    // 如果高亮失败，显示纯文本
     highlightedCode.value = `<pre><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
   }
 }
 
-// 方法配置
-interface ParamConfig {
-  key: string
-  label: string
-  type: 'text' | 'number' | 'select'
-  default: string
-  required: boolean
-  placeholder?: string
-  options?: { value: string; label: string }[]
+/** 解析 spec.code（字符串或基于参数的函数） */
+function resolveCode(spec: MethodSpec, params: Record<string, string>): string {
+  return typeof spec.code === 'function' ? spec.code(params) : spec.code
 }
 
-interface MethodConfig {
-  name: string
-  desc: string
-  category: string
-  params: ParamConfig[]
-  code: string
-}
+// === 侧边栏方法搜索 + 按分类分组 ===
+const searchQuery = ref('')
+const searchInputRef = ref<HTMLInputElement | null>(null)
 
-// 获取默认日期范围（近30天）
-function getDefaultDateRange() {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - 30)
-
-  const format = (d: Date) => {
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${year}${month}${day}`
-  }
-
-  return { startDate: format(start), endDate: format(end) }
-}
-
-const defaultDates = getDefaultDateRange()
-
-// 方法分类
-const categories = [
-  { key: 'quotes', label: '实时行情', icon: 'lucide:bar-chart-3', color: '#3b82f6' },
-  { key: 'kline', label: 'K线数据', icon: 'lucide:line-chart', color: '#22c55e' },
-  { key: 'board', label: '板块数据', icon: 'lucide:layout-grid', color: '#06b6d4' },
-  { key: 'indicator', label: '技术指标', icon: 'lucide:trending-up', color: '#f59e0b' },
-  { key: 'search', label: '搜索', icon: 'lucide:search', color: '#ec4899' },
-  { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
-  { key: 'futures', label: '期货行情', icon: 'lucide:flame', color: '#f97316' },
-  { key: 'options', label: '期权数据', icon: 'lucide:target', color: '#06b6d4' },
-  { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
-]
-
-const methodsConfig: Record<string, MethodConfig> = {
-  getFullQuotes: {
-    name: 'getFullQuotes',
-    desc: '获取 A 股/指数全量行情',
-    category: 'quotes',
-    params: [
-      { key: 'codes', label: '股票代码', type: 'text', default: 'sz000858,sh600519', required: true, placeholder: '多个用逗号分隔，如 sz000858,sh600519' }
-    ],
-    code: `const quotes = await sdk.getFullQuotes(['sz000858', 'sh600519']);
-// 返回: FullQuote[]
-console.log(quotes[0].name);   // 五 粮 液
-console.log(quotes[0].price);  // 111.70`
-  },
-  getSimpleQuotes: {
-    name: 'getSimpleQuotes',
-    desc: '获取简要行情',
-    category: 'quotes',
-    params: [
-      { key: 'codes', label: '股票代码', type: 'text', default: 'sz000858,sh000001', required: true, placeholder: '多个用逗号分隔' }
-    ],
-    code: `const quotes = await sdk.getSimpleQuotes(['sz000858', 'sh000001']);
-// 返回: SimpleQuote[]
-console.log(quotes[0].name);  // 五 粮 液`
-  },
-  getHKQuotes: {
-    name: 'getHKQuotes',
-    desc: '获取港股行情',
-    category: 'quotes',
-    params: [
-      { key: 'codes', label: '港股代码', type: 'text', default: '09988,00700', required: true, placeholder: '如 09988, 00700' }
-    ],
-    code: `const quotes = await sdk.getHKQuotes(['09988']);
-// 返回: HKQuote[]
-console.log(quotes[0].name);  // 阿里巴巴-W`
-  },
-  getUSQuotes: {
-    name: 'getUSQuotes',
-    desc: '获取美股行情',
-    category: 'quotes',
-    params: [
-      { key: 'codes', label: '美股代码', type: 'text', default: 'AAPL,MSFT,BABA', required: true, placeholder: '如 BABA, AAPL' }
-    ],
-    code: `const quotes = await sdk.getUSQuotes(['BABA']);
-// 返回: USQuote[]
-console.log(quotes[0].code);  // BABA.N`
-  },
-  getFundQuotes: {
-    name: 'getFundQuotes',
-    desc: '获取公募基金行情',
-    category: 'quotes',
-    params: [
-      { key: 'codes', label: '基金代码', type: 'text', default: '000001,110011', required: true, placeholder: '如 000001, 110011' }
-    ],
-    code: `const funds = await sdk.getFundQuotes(['000001']);
-// 返回: FundQuote[]
-console.log(funds[0].name);  // 华夏成长混合
-console.log(funds[0].nav);   // 最新净值`
-  },
-  getHistoryKline: {
-    name: 'getHistoryKline',
-    desc: '获取 A 股历史 K 线',
-    category: 'kline',
-    params: [
-      { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '如 sz000001' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
-    ],
-    code: `const klines = await sdk.getHistoryKline('sz000001', {
-  period: 'daily',
-  adjust: 'qfq',
-  startDate: '20240101',
-  endDate: '20241231'
-});
-console.log(klines[0].date);   // '2024-12-17'
-console.log(klines[0].close);  // 收盘价`
-  },
-  getHKHistoryKline: {
-    name: 'getHKHistoryKline',
-    desc: '获取港股历史 K 线',
-    category: 'kline',
-    params: [
-      { key: 'symbol', label: '港股代码', type: 'text', default: '00700', required: true, placeholder: '如 00700' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
-    ],
-    code: `const klines = await sdk.getHKHistoryKline('00700');
-console.log(klines[0].name);   // '腾讯控股'
-console.log(klines[0].close);  // 收盘价`
-  },
-  getUSHistoryKline: {
-    name: 'getUSHistoryKline',
-    desc: '获取美股历史 K 线',
-    category: 'kline',
-    params: [
-      { key: 'symbol', label: '美股代码', type: 'text', default: '105.MSFT', required: true, placeholder: '如 105.MSFT' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
-    ],
-    code: `// 市场代码: 105(纳斯达克), 106(纽交所)
-const klines = await sdk.getUSHistoryKline('105.MSFT');
-console.log(klines[0].name);   // '微软'
-console.log(klines[0].close);  // 收盘价`
-  },
-  getMinuteKline: {
-    name: 'getMinuteKline',
-    desc: '获取分钟 K 线/分时',
-    category: 'kline',
-    params: [
-      { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '如 sz000001' },
-      { key: 'period', label: 'K线周期', type: 'select', default: '5', required: false, options: [{ value: '1', label: '1分钟(分时)' }, { value: '5', label: '5分钟' }, { value: '15', label: '15分钟' }, { value: '30', label: '30分钟' }, { value: '60', label: '60分钟' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] }
-    ],
-    code: `// 获取 5 分钟 K 线
-const klines = await sdk.getMinuteKline('sz000001', {
-  period: '5',
-  adjust: 'qfq'
-});
-console.log(klines[0].time);  // '2024-12-17 09:35'`
-  },
-  getTodayTimeline: {
-    name: 'getTodayTimeline',
-    desc: '获取当日分时走势',
-    category: 'kline',
-    params: [
-      { key: 'code', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '如 sz000001' }
-    ],
-    code: `const timeline = await sdk.getTodayTimeline('sz000001');
-console.log(timeline.date);         // '20241217'
-console.log(timeline.data.length);  // 240
-console.log(timeline.data[0].price);     // 成交价
-console.log(timeline.data[0].avgPrice);  // 均价`
-  },
-  // 行业板块
-  getIndustryList: {
-    name: 'getIndustryList',
-    desc: '获取行业板块列表',
-    category: 'board',
-    params: [],
-    code: `const boards = await sdk.getIndustryList();
-// 返回: IndustryBoard[]
-console.log(boards[0].name);  // 板块名称
-console.log(boards[0].code);  // BK1027`
-  },
-  getIndustrySpot: {
-    name: 'getIndustrySpot',
-    desc: '获取行业板块实时行情',
-    category: 'board',
-    params: [
-      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' }
-    ],
-    code: `const spot = await sdk.getIndustrySpot('互联网服务');
-// 返回: IndustryBoardSpot[]
-console.log(spot[0].item);   // 指标名称
-console.log(spot[0].value);  // 指标值`
-  },
-  getIndustryConstituents: {
-    name: 'getIndustryConstituents',
-    desc: '获取行业板块成分股',
-    category: 'board',
-    params: [
-      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' }
-    ],
-    code: `const stocks = await sdk.getIndustryConstituents('互联网服务');
-// 返回: IndustryBoardConstituent[]
-console.log(stocks[0].name);  // 股票名称
-console.log(stocks[0].code);  // 股票代码`
-  },
-  getIndustryKline: {
-    name: 'getIndustryKline',
-    desc: '获取行业板块 K 线',
-    category: 'board',
-    params: [
-      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '互联网服务', required: true, placeholder: '如 互联网服务 或 BK0447' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
-    ],
-    code: `const klines = await sdk.getIndustryKline('互联网服务', {
-  period: 'daily',
-  startDate: '20240101'
-});
-console.log(klines[0].date);   // 日期
-console.log(klines[0].close);  // 收盘价`
-  },
-  // 概念板块
-  getConceptList: {
-    name: 'getConceptList',
-    desc: '获取概念板块列表',
-    category: 'board',
-    params: [],
-    code: `const boards = await sdk.getConceptList();
-// 返回: ConceptBoard[]
-console.log(boards[0].name);  // 板块名称
-console.log(boards[0].code);  // BK0800`
-  },
-  getConceptSpot: {
-    name: 'getConceptSpot',
-    desc: '获取概念板块实时行情',
-    category: 'board',
-    params: [
-      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' }
-    ],
-    code: `const spot = await sdk.getConceptSpot('人工智能');
-// 返回: ConceptBoardSpot[]
-console.log(spot[0].item);   // 指标名称
-console.log(spot[0].value);  // 指标值`
-  },
-  getConceptConstituents: {
-    name: 'getConceptConstituents',
-    desc: '获取概念板块成分股',
-    category: 'board',
-    params: [
-      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' }
-    ],
-    code: `const stocks = await sdk.getConceptConstituents('人工智能');
-// 返回: ConceptBoardConstituent[]
-console.log(stocks[0].name);  // 股票名称
-console.log(stocks[0].code);  // 股票代码`
-  },
-  getConceptKline: {
-    name: 'getConceptKline',
-    desc: '获取概念板块 K 线',
-    category: 'board',
-    params: [
-      { key: 'symbol', label: '板块名称/代码', type: 'text', default: '人工智能', required: true, placeholder: '如 人工智能 或 BK0800' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
-    ],
-    code: `const klines = await sdk.getConceptKline('人工智能', {
-  period: 'daily',
-  startDate: '20240101'
-});
-console.log(klines[0].date);   // 日期
-console.log(klines[0].close);  // 收盘价`
-  },
-  getKlineWithIndicators: {
-    name: 'getKlineWithIndicators',
-    desc: '获取带技术指标的 K 线',
-    category: 'indicator',
-    params: [
-      { key: 'symbol', label: '股票代码', type: 'text', default: 'sz000001', required: true, placeholder: '支持 A股/港股/美股' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', required: false, options: [{ value: '', label: '不复权' }, { value: 'qfq', label: '前复权' }, { value: 'hfq', label: '后复权' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'indicators', label: '技术指标', type: 'text', default: 'ma,macd,boll,kdj,rsi', required: false, placeholder: 'ma,macd,boll,kdj,rsi,wr,bias,cci,atr' }
-    ],
-    code: `// 获取带技术指标的 K 线数据
-const data = await sdk.getKlineWithIndicators('sz000001', {
-  period: 'daily',
-  adjust: 'qfq',
-  startDate: '20240101',
-  indicators: {
-    ma: { periods: [5, 10, 20, 60] },
-    macd: true,
-    boll: true,
-    kdj: true,
-    rsi: { periods: [6, 12, 24] },
-    wr: true,
-    bias: { periods: [6, 12, 24] },
-    cci: { period: 14 },
-    atr: { period: 14 }
-  }
-});
-
-// 访问指标数据
-console.log(data[0].date);          // 日期
-console.log(data[0].ma?.ma5);       // MA5
-console.log(data[0].macd?.dif);     // MACD DIF
-console.log(data[0].boll?.upper);   // 布林上轨
-console.log(data[0].kdj?.k);        // KDJ K值
-console.log(data[0].rsi?.rsi6);     // RSI6
-console.log(data[0].atr?.atr);      // ATR`
-  },
-  search: {
-    name: 'search',
-    desc: '搜索股票',
-    category: 'search',
-    params: [
-      { key: 'keyword', label: '关键词', type: 'text', default: 'maotai', required: true, placeholder: '代码 / 名称 / 拼音' }
-    ],
-    code: `const results = await sdk.search('maotai');
-// 返回: SearchResult[]
-console.log(results[0].name);    // 贵州茅台
-console.log(results[0].code);    // sh600519
-console.log(results[0].market);  // sh`
-  },
-  getAShareCodeList: {
-    name: 'getAShareCodeList',
-    desc: '获取全部 A 股代码',
-    category: 'batch',
-    params: [
-      { key: 'simple', label: '简化代码（不含前缀）', type: 'select', default: 'false', required: false, options: [{ value: 'false', label: '否' }, { value: 'true', label: '是' }] },
-      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'sh', label: '上交所 (6开头)' }, { value: 'sz', label: '深交所 (0/3开头)' }, { value: 'bj', label: '北交所 (92开头)' }, { value: 'kc', label: '科创板 (688开头)' }, { value: 'cy', label: '创业板 (30开头)' }] }
-    ],
-    code: `// 获取全部 A 股代码
-const codes = await sdk.getAShareCodeList();
-// ['sh600000', 'sz000001', 'bj920001', ...]
-
-// 获取科创板代码（不带前缀）
-const kcCodes = await sdk.getAShareCodeList({ simple: true, market: 'kc' });
-// ['688001', '688002', ...]`
-  },
-  getHKCodeList: {
-    name: 'getHKCodeList',
-    desc: '获取全部港股代码',
-    category: 'batch',
-    params: [],
-    code: `const codes = await sdk.getHKCodeList();
-console.log(codes[0]);  // '00700'`
-  },
-  getFundCodeList: {
-    name: 'getFundCodeList',
-    desc: '获取全部基金代码',
-    category: 'batch',
-    params: [],
-    code: `const codes = await sdk.getFundCodeList();
-console.log(codes.length);  // 26068
-console.log(codes.slice(0, 5));  // ['000001', '000002', ...]`
-  },
-  getUSCodeList: {
-    name: 'getUSCodeList',
-    desc: '获取全部美股代码',
-    category: 'batch',
-    params: [
-      { key: 'simple', label: '简化代码（不含前缀）', type: 'select', default: 'false', required: false, options: [{ value: 'false', label: '否' }, { value: 'true', label: '是' }] },
-      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'NASDAQ', label: '纳斯达克 (105)' }, { value: 'NYSE', label: '纽交所 (106)' }, { value: 'AMEX', label: '美交所 (107)' }] }
-    ],
-    code: `// 获取全部美股代码 (带前缀)
-const codes = await sdk.getUSCodeList();
-// ['105.MSFT', '106.BABA', ...]
-
-// 筛选纳斯达克
-const nasdaqCodes = await sdk.getUSCodeList({ market: 'NASDAQ' });
-
-// 纯代码 (不带前缀)
-const pureCodes = await sdk.getUSCodeList({ simple: true });`
-  },
-  getAllAShareQuotes: {
-    name: 'getAllAShareQuotes',
-    desc: '获取全市场 A 股行情',
-    category: 'batch',
-    params: [
-      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'sh', label: '上交所 (6开头)' }, { value: 'sz', label: '深交所 (0/3开头)' }, { value: 'bj', label: '北交所 (92开头)' }, { value: 'kc', label: '科创板 (688开头)' }, { value: 'cy', label: '创业板 (30开头)' }] },
-      { key: 'batchSize', label: '批量大小', type: 'number', default: '500', required: false, placeholder: '默认 500' },
-      { key: 'concurrency', label: '并发数', type: 'number', default: '7', required: false, placeholder: '默认 7' }
-    ],
-    code: `// 获取全部 A 股行情
-const allQuotes = await sdk.getAllAShareQuotes();
-
-// 获取科创板行情
-const kcQuotes = await sdk.getAllAShareQuotes({ market: 'kc' });
-
-// 带进度回调
-const quotes = await sdk.getAllAShareQuotes({
-  market: 'cy',
-  onProgress: (completed, total) => {
-    console.log(\`进度: \${completed}/\${total}\`);
-  }
-});`
-  },
-  getAllHKShareQuotes: {
-    name: 'getAllHKShareQuotes',
-    desc: '获取全市场港股行情',
-    category: 'batch',
-    params: [
-      { key: 'batchSize', label: '批量大小', type: 'number', default: '300', required: false, placeholder: '默认 500' },
-      { key: 'concurrency', label: '并发数', type: 'number', default: '5', required: false, placeholder: '默认 7' }
-    ],
-    code: `// 获取全部港股行情
-const allHKQuotes = await sdk.getAllHKShareQuotes({
-  batchSize: 300,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(\`进度: \${completed}/\${total}\`);
-  }
-});
-
-console.log(\`共获取 \${allHKQuotes.length} 只港股\`);
-console.log(allHKQuotes[0].name);      // 股票名称
-console.log(allHKQuotes[0].price);     // 当前价
-console.log(allHKQuotes[0].currency);  // 货币(HKD)`
-  },
-  getAllUSShareQuotes: {
-    name: 'getAllUSShareQuotes',
-    desc: '获取全市场美股行情',
-    category: 'batch',
-    params: [
-      { key: 'market', label: '市场筛选', type: 'select', default: '', required: false, options: [{ value: '', label: '全部' }, { value: 'NASDAQ', label: '纳斯达克 (105)' }, { value: 'NYSE', label: '纽交所 (106)' }, { value: 'AMEX', label: '美交所 (107)' }] },
-      { key: 'batchSize', label: '批量大小', type: 'number', default: '300', required: false, placeholder: '默认 500' },
-      { key: 'concurrency', label: '并发数', type: 'number', default: '5', required: false, placeholder: '默认 7' }
-    ],
-    code: `// 获取全部美股行情
-const allUSQuotes = await sdk.getAllUSShareQuotes();
-
-// 获取纳斯达克行情
-const nasdaqQuotes = await sdk.getAllUSShareQuotes({ market: 'NASDAQ' });
-
-// 获取纽交所行情（带进度回调）
-const nyseQuotes = await sdk.getAllUSShareQuotes({
-  market: 'NYSE',
-  batchSize: 300,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(\`进度: \${completed}/\${total}\`);
-  }
-});
-
-console.log(\`共获取 \${nyseQuotes.length} 只美股\`);
-console.log(nyseQuotes[0].name);           // 股票名称
-console.log(nyseQuotes[0].price);          // 当前价`
-  },
-  getFuturesKline: {
-    name: 'getFuturesKline',
-    desc: '获取国内期货历史 K 线',
-    category: 'futures',
-    params: [
-      { key: 'symbol', label: '合约代码', type: 'text', default: 'RBM', required: true, placeholder: '如 RBM(主连), rb2510(具体合约)' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
-    ],
-    code: `// 获取螺纹钢主连日 K
-const klines = await sdk.getFuturesKline('RBM');
-console.log(klines[0].date);          // '2026-02-27'
-console.log(klines[0].close);         // 收盘价
-console.log(klines[0].openInterest);  // 持仓量`
-  },
-  getGlobalFuturesSpot: {
-    name: 'getGlobalFuturesSpot',
-    desc: '获取全球期货实时行情',
-    category: 'futures',
-    params: [],
-    code: `const quotes = await sdk.getGlobalFuturesSpot();
-// 返回 600+ 个国际期货品种
-console.log(quotes[0].name);    // COMEX铜
-console.log(quotes[0].code);    // HG00Y
-console.log(quotes[0].price);   // 最新价
-console.log(quotes[0].changePercent);  // 涨跌幅%`
-  },
-  getGlobalFuturesKline: {
-    name: 'getGlobalFuturesKline',
-    desc: '获取全球期货历史 K 线',
-    category: 'futures',
-    params: [
-      { key: 'symbol', label: '合约代码', type: 'text', default: 'HG00Y', required: true, placeholder: '如 HG00Y(COMEX铜), CL00Y(原油)' },
-      { key: 'period', label: 'K线周期', type: 'select', default: 'daily', required: false, options: [{ value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' }, { value: 'monthly', label: '月线' }] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: defaultDates.startDate, required: false, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: defaultDates.endDate, required: false, placeholder: 'YYYYMMDD' }
-    ],
-    code: `// 获取 COMEX 铜连续日 K 线
-const klines = await sdk.getGlobalFuturesKline('HG00Y');
-console.log(klines[0].date);          // 日期
-console.log(klines[0].close);         // 收盘价
-console.log(klines[0].openInterest);  // 持仓量`
-  },
-  getFuturesInventorySymbols: {
-    name: 'getFuturesInventorySymbols',
-    desc: '获取期货库存品种列表',
-    category: 'futures',
-    params: [],
-    code: `const symbols = await sdk.getFuturesInventorySymbols();
-console.log(symbols[0].code);  // 品种代码
-console.log(symbols[0].name);  // 品种名称`
-  },
-  getFuturesInventory: {
-    name: 'getFuturesInventory',
-    desc: '获取期货库存数据',
-    category: 'futures',
-    params: [
-      { key: 'symbol', label: '品种代码', type: 'text', default: 'RB', required: true, placeholder: '大写，如 RB, AG, CU' },
-      { key: 'startDate', label: '开始日期', type: 'text', default: '2024-01-01', required: false, placeholder: 'YYYY-MM-DD' }
-    ],
-    code: `const inventory = await sdk.getFuturesInventory('RB');
-console.log(inventory[0].date);       // 日期
-console.log(inventory[0].inventory);  // 库存量
-console.log(inventory[0].change);     // 增减`
-  },
-  getComexInventory: {
-    name: 'getComexInventory',
-    desc: '获取 COMEX 黄金/白银库存',
-    category: 'futures',
-    params: [
-      { key: 'symbol', label: '品种', type: 'select', default: 'gold', required: true, options: [{ value: 'gold', label: '黄金' }, { value: 'silver', label: '白银' }] }
-    ],
-    code: `const inventory = await sdk.getComexInventory('gold');
-console.log(inventory[0].date);         // 日期
-console.log(inventory[0].storageTon);   // 库存量(吨)
-console.log(inventory[0].storageOunce); // 库存量(盎司)`
-  },
-  getIndexOptionKline: {
-    name: 'getIndexOptionKline',
-    desc: '获取股指期权合约日 K 线',
-    category: 'options',
-    params: [
-      { key: 'symbol', label: '合约代码', type: 'text', default: 'io2506C4000', required: true, placeholder: '如 io2506C4000' }
-    ],
-    code: `const klines = await sdk.getIndexOptionKline('io2506C4000');
-console.log(klines[0].date);   // 日期
-console.log(klines[0].close);  // 收盘价
-console.log(klines[0].volume); // 成交量`
-  },
-  getCFFEXOptionQuotes: {
-    name: 'getCFFEXOptionQuotes',
-    desc: '获取中金所全部期权实时行情',
-    category: 'options',
-    params: [],
-    code: `const quotes = await sdk.getCFFEXOptionQuotes();
-console.log(quotes[0].code);           // 合约代码
-console.log(quotes[0].price);          // 最新价
-console.log(quotes[0].strikePrice);    // 行权价
-console.log(quotes[0].remainDays);     // 剩余天数`
-  },
-  getETFOptionMonths: {
-    name: 'getETFOptionMonths',
-    desc: '获取 ETF 期权到期月份列表',
-    category: 'options',
-    params: [
-      { key: 'cate', label: '品种', type: 'select', default: '50ETF', required: true, options: [{ value: '50ETF', label: '50ETF' }, { value: '300ETF', label: '300ETF' }, { value: '500ETF', label: '500ETF' }, { value: '科创50', label: '科创50' }] }
-    ],
-    code: `const info = await sdk.getETFOptionMonths('50ETF');
-console.log(info.months);   // 到期月份
-console.log(info.stockId);  // 标的代码`
-  },
-  getETFOptionExpireDay: {
-    name: 'getETFOptionExpireDay',
-    desc: '获取 ETF 期权到期日信息',
-    category: 'options',
-    params: [
-      { key: 'cate', label: '品种', type: 'select', default: '50ETF', required: true, options: [{ value: '50ETF', label: '50ETF' }, { value: '300ETF', label: '300ETF' }] },
-      { key: 'month', label: '到期月份', type: 'text', default: '2026-06', required: true, placeholder: '格式 YYYY-MM' }
-    ],
-    code: `const info = await sdk.getETFOptionExpireDay('50ETF', '2026-06');
-console.log(info.expireDay);      // 到期日
-console.log(info.remainderDays);  // 剩余天数`
-  },
-  getETFOptionDailyKline: {
-    name: 'getETFOptionDailyKline',
-    desc: '获取 ETF 期权历史日 K 线',
-    category: 'options',
-    params: [
-      { key: 'code', label: '期权代码', type: 'text', default: '10009633', required: true, placeholder: '纯数字' }
-    ],
-    code: `const klines = await sdk.getETFOptionDailyKline('10009633');
-console.log(klines[0].date);   // 日期
-console.log(klines[0].close);  // 收盘价`
-  },
-  getCommodityOptionKline: {
-    name: 'getCommodityOptionKline',
-    desc: '获取商品期权合约日 K 线',
-    category: 'options',
-    params: [
-      { key: 'symbol', label: '合约代码', type: 'text', default: 'm2509C3200', required: true, placeholder: '如 m2509C3200' }
-    ],
-    code: `const klines = await sdk.getCommodityOptionKline('m2509C3200');
-console.log(klines[0].date);   // 日期
-console.log(klines[0].close);  // 收盘价`
-  },
-  getOptionLHB: {
-    name: 'getOptionLHB',
-    desc: '获取期权龙虎榜',
-    category: 'options',
-    params: [
-      { key: 'symbol', label: '标的代码', type: 'text', default: '510050', required: true, placeholder: '如 510050' },
-      { key: 'date', label: '交易日期', type: 'text', default: '2022-01-21', required: true, placeholder: 'YYYY-MM-DD' }
-    ],
-    code: `const lhb = await sdk.getOptionLHB('510050', '2022-01-21');
-console.log(lhb[0].memberName);  // 会员简称
-console.log(lhb[0].rank);        // 排名`
-  },
-  getFundFlow: {
-    name: 'getFundFlow',
-    desc: '获取资金流向',
-    category: 'extended',
-    params: [
-      { key: 'codes', label: '股票代码', type: 'text', default: 'sz000858', required: true, placeholder: '多个用逗号分隔' }
-    ],
-    code: `const flows = await sdk.getFundFlow(['sz000858']);
-console.log(flows[0].mainNet);       // 主力净流入
-console.log(flows[0].mainNetRatio);  // 主力净流入占比`
-  },
-  getPanelLargeOrder: {
-    name: 'getPanelLargeOrder',
-    desc: '获取盘口大单占比',
-    category: 'extended',
-    params: [
-      { key: 'codes', label: '股票代码', type: 'text', default: 'sz000858', required: true, placeholder: '多个用逗号分隔' }
-    ],
-    code: `const orders = await sdk.getPanelLargeOrder(['sz000858']);
-console.log(orders[0].buyLargeRatio);   // 买盘大单占比
-console.log(orders[0].sellLargeRatio);  // 卖盘大单占比`
-  },
-  getTradingCalendar: {
-    name: 'getTradingCalendar',
-    desc: '获取 A 股交易日历',
-    category: 'extended',
-    params: [],
-    code: `const calendar = await sdk.getTradingCalendar();
-console.log(calendar.length);        // 交易日总数
-console.log(calendar[0]);            // '1990-12-19' (第一个交易日)
-console.log(calendar.slice(-5));     // 最近 5 个交易日`
-  },
-  getDividendDetail: {
-    name: 'getDividendDetail',
-    desc: '获取股票分红派送详情',
-    category: 'extended',
-    params: [
-      { key: 'symbol', label: '股票代码', type: 'text', default: '000001', required: true, placeholder: '如 000001 或 sz000001' }
-    ],
-    code: `const dividends = await sdk.getDividendDetail('000001');
-console.log(dividends.length);              // 分红记录数
-console.log(dividends[0].name);             // 平安银行
-console.log(dividends[0].reportDate);       // 报告期
-console.log(dividends[0].dividendPretax);   // 每10股派息(税前)
-console.log(dividends[0].dividendDesc);     // 10派2.36元(含税,扣税后2.124元)
-console.log(dividends[0].dividendYield);    // 股息率: 0.0203...
-console.log(dividends[0].assignTransferRatio); // 送转总比例
-console.log(dividends[0].eps);              // 每股收益: 1.18
-console.log(dividends[0].bps);              // 每股净资产: 22.68
-console.log(dividends[0].netProfitYoy);     // 净利润同比: -3.89...
-console.log(dividends[0].totalShares);      // 总股本
-console.log(dividends[0].exDividendDate);   // 除权除息日
-console.log(dividends[0].payDate);          // 派息日
-console.log(dividends[0].assignProgress);   // 方案进度: 实施分配`
-  },
-  // ============================================================
-  // 资金流向（深度）
-  // ============================================================
-  getIndividualFundFlow: {
-    name: 'getIndividualFundFlow',
-    desc: '获取个股资金流历史（日/周/月）',
-    category: 'extended',
-    params: [
-      { key: 'symbol', label: '股票代码', type: 'text', default: 'sh600519', required: true, placeholder: '如 sh600519 或 600519' },
-      { key: 'period', label: '周期', type: 'select', default: 'daily', required: false, options: [
-        { value: 'daily', label: '日线' },
-        { value: 'weekly', label: '周线' },
-        { value: 'monthly', label: '月线' },
-      ] }
-    ],
-    code: `const flow = await sdk.getIndividualFundFlow('sh600519', { period: 'daily' });
-console.log(flow.length);                  // 数据条数
-console.log(flow.at(-1)?.date);            // 最新日期
-console.log(flow.at(-1)?.mainNetInflow);   // 最新主力净流入(元)`
-  },
-  getMarketFundFlow: {
-    name: 'getMarketFundFlow',
-    desc: '大盘资金流（上证 + 深证）',
-    category: 'extended',
-    params: [],
-    code: `const market = await sdk.getMarketFundFlow();
-console.log(market.length);              // 历史天数
-console.log(market.at(-1)?.shClose);     // 最新上证收盘
-console.log(market.at(-1)?.szClose);     // 最新深证收盘
-console.log(market.at(-1)?.mainNetInflow); // 最新主力净流入(元)`
-  },
-  getFundFlowRank: {
-    name: 'getFundFlowRank',
-    desc: '个股资金流排名（沪深北 A 股全市场）',
-    category: 'extended',
-    params: [
-      { key: 'indicator', label: '排名周期', type: 'select', default: 'today', required: false, options: [
-        { value: 'today', label: '今日' },
-        { value: '3day', label: '3 日' },
-        { value: '5day', label: '5 日' },
-        { value: '10day', label: '10 日' },
-      ] }
-    ],
-    code: `const rank = await sdk.getFundFlowRank({ indicator: 'today' });
-console.log(rank.length);             // 总股票数
-console.log(rank[0]?.name);           // 主力净流入第一名
-console.log(rank[0]?.mainNetInflow);  // 主力净流入(元)`
-  },
-  getSectorFundFlowRank: {
-    name: 'getSectorFundFlowRank',
-    desc: '板块资金流排名（行业 / 概念 / 地域）',
-    category: 'extended',
-    params: [
-      { key: 'indicator', label: '排名周期', type: 'select', default: 'today', required: false, options: [
-        { value: 'today', label: '今日' },
-        { value: '3day', label: '3 日' },
-        { value: '5day', label: '5 日' },
-        { value: '10day', label: '10 日' },
-      ] },
-      { key: 'sectorType', label: '板块类型', type: 'select', default: 'industry', required: false, options: [
-        { value: 'industry', label: '行业' },
-        { value: 'concept', label: '概念' },
-        { value: 'region', label: '地域' },
-      ] }
-    ],
-    code: `const sectors = await sdk.getSectorFundFlowRank({
-  indicator: 'today',
-  sectorType: 'industry',
-});
-console.log(sectors.length);             // 板块数量
-console.log(sectors[0]?.name);           // 主力净流入第一的板块
-console.log(sectors[0]?.topStockName);   // 该板块的领涨股`
-  },
-  getSectorFundFlowHistory: {
-    name: 'getSectorFundFlowHistory',
-    desc: '单个板块的历史资金流',
-    category: 'extended',
-    params: [
-      { key: 'symbol', label: '板块代码', type: 'text', default: 'BK0475', required: true, placeholder: '如 BK0475 (银行) 或 90.BK0475' },
-      { key: 'period', label: '周期', type: 'select', default: 'daily', required: false, options: [
-        { value: 'daily', label: '日线' },
-        { value: 'weekly', label: '周线' },
-        { value: 'monthly', label: '月线' },
-      ] }
-    ],
-    code: `const banking = await sdk.getSectorFundFlowHistory('BK0475');
-console.log(banking.length);                // 历史条数
-console.log(banking.at(-1)?.mainNetInflow); // 最新主力净流入(元)`
-  },
-  // ============================================================
-  // 沪深港通 / 北向资金
-  // ============================================================
-  getNorthboundMinute: {
-    name: 'getNorthboundMinute',
-    desc: '北向 / 南向资金分时数据',
-    category: 'extended',
-    params: [
-      { key: 'direction', label: '方向', type: 'select', default: 'north', required: false, options: [
-        { value: 'north', label: '北向' },
-        { value: 'south', label: '南向' },
-      ] }
-    ],
-    code: `const points = await sdk.getNorthboundMinute('north');
-console.log(points.length);                // 当日分时点数
-console.log(points.at(-1)?.totalNetInflow); // 最新合计净流入(万元)`
-  },
-  getNorthboundFlowSummary: {
-    name: 'getNorthboundFlowSummary',
-    desc: '沪深港通市场资金流向汇总',
-    category: 'extended',
-    params: [],
-    code: `const summary = await sdk.getNorthboundFlowSummary();
-console.log(summary.length);                // 通常返回 4 行（北向沪/深 + 南向沪/深）
-summary.forEach(s => {
-  console.log(\`\${s.boardName}: 净买额 \${s.netBuyAmount} 元\`);
-});`
-  },
-  getNorthboundHoldingRank: {
-    name: 'getNorthboundHoldingRank',
-    desc: '北向 / 沪股通 / 深股通持股个股排行',
-    category: 'extended',
-    params: [
-      { key: 'market', label: '市场', type: 'select', default: 'all', required: false, options: [
-        { value: 'all', label: '全部（北向）' },
-        { value: 'shanghai', label: '沪股通' },
-        { value: 'shenzhen', label: '深股通' },
-      ] },
-      { key: 'period', label: '周期', type: 'select', default: '5day', required: false, options: [
-        { value: 'today', label: '今日' },
-        { value: '3day', label: '3 日' },
-        { value: '5day', label: '5 日' },
-        { value: '10day', label: '10 日' },
-        { value: 'month', label: '月排行' },
-        { value: 'quarter', label: '季排行' },
-        { value: 'year', label: '年排行' },
-      ] }
-    ],
-    code: `const rank = await sdk.getNorthboundHoldingRank({
-  market: 'all',
-  period: '5day',
-});
-console.log(rank.length);                       // 上榜股票数
-console.log(rank[0]?.name);                     // 第一名股票
-console.log(rank[0]?.holdMarketValue);          // 持股市值(元)`
-  },
-  getNorthboundHistory: {
-    name: 'getNorthboundHistory',
-    desc: '北向 / 南向资金按日历史',
-    category: 'extended',
-    params: [
-      { key: 'direction', label: '方向', type: 'select', default: 'north', required: false, options: [
-        { value: 'north', label: '北向' },
-        { value: 'south', label: '南向' },
-      ] },
-      { key: 'startDate', label: '开始日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' }
-    ],
-    code: `const history = await sdk.getNorthboundHistory('north', {
-  startDate: '2024-01-01',
-  endDate: '2024-12-31',
-});
-console.log(history.length);             // 交易日数
-console.log(history[0]?.netBuyAmount);   // 最新成交净买额(元)`
-  },
-  getNorthboundIndividual: {
-    name: 'getNorthboundIndividual',
-    desc: '个股的北向持仓历史',
-    category: 'extended',
-    params: [
-      { key: 'symbol', label: '股票代码', type: 'text', default: '600519', required: true, placeholder: '如 600519 或 sh600519' },
-      { key: 'startDate', label: '开始日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: '', placeholder: 'YYYY-MM-DD（可选）' }
-    ],
-    code: `const moutai = await sdk.getNorthboundIndividual('600519', {
-  startDate: '2024-01-01',
-});
-console.log(moutai.length);              // 数据条数
-console.log(moutai[0]?.holdShares);      // 最新持股数
-console.log(moutai[0]?.holdMarketValue); // 最新持股市值(元)`
-  },
-  // ============================================================
-  // 涨停板 / 盘口异动
-  // ============================================================
-  getZTPool: {
-    name: 'getZTPool',
-    desc: '获取涨停 / 跌停 / 强势 等股池',
-    category: 'extended',
-    params: [
-      { key: 'type', label: '池子类型', type: 'select', default: 'zt', required: false, options: [
-        { value: 'zt', label: '涨停股池' },
-        { value: 'yesterday', label: '昨日涨停' },
-        { value: 'strong', label: '强势股池' },
-        { value: 'sub_new', label: '次新股池' },
-        { value: 'broken', label: '炸板股池' },
-        { value: 'dt', label: '跌停股池' },
-      ] },
-      { key: 'date', label: '交易日', type: 'text', default: '', placeholder: 'YYYYMMDD 或 YYYY-MM-DD（默认今天）' }
-    ],
-    code: `const pool = await sdk.getZTPool('zt');
-console.log(pool.length);                       // 涨停股票数量
-console.log(pool[0]?.name);                     // 第一只涨停股名称
-console.log(pool[0]?.continuousBoardCount);     // 连板数`
-  },
-  getStockChanges: {
-    name: 'getStockChanges',
-    desc: '盘口异动（共 22 种类型）',
-    category: 'extended',
-    params: [
-      { key: 'type', label: '异动类型', type: 'select', default: 'large_buy', required: false, options: [
-        { value: 'rocket_launch', label: '火箭发射' },
-        { value: 'quick_rebound', label: '快速反弹' },
-        { value: 'large_buy', label: '大笔买入' },
-        { value: 'limit_up_seal', label: '封涨停板' },
-        { value: 'limit_down_open', label: '打开跌停板' },
-        { value: 'big_buy_order', label: '有大买盘' },
-        { value: 'auction_up', label: '竞价上涨' },
-        { value: 'high_open_5d', label: '高开5日线' },
-        { value: 'gap_up', label: '向上缺口' },
-        { value: 'high_60d', label: '60日新高' },
-        { value: 'surge_60d', label: '60日大幅上涨' },
-        { value: 'accelerate_down', label: '加速下跌' },
-        { value: 'high_dive', label: '高台跳水' },
-        { value: 'large_sell', label: '大笔卖出' },
-        { value: 'limit_down_seal', label: '封跌停板' },
-        { value: 'limit_up_open', label: '打开涨停板' },
-        { value: 'big_sell_order', label: '有大卖盘' },
-        { value: 'auction_down', label: '竞价下跌' },
-        { value: 'low_open_5d', label: '低开5日线' },
-        { value: 'gap_down', label: '向下缺口' },
-        { value: 'low_60d', label: '60日新低' },
-        { value: 'drop_60d', label: '60日大幅下跌' },
-      ] }
-    ],
-    code: `const changes = await sdk.getStockChanges('large_buy');
-console.log(changes.length);              // 当日异动次数
-console.log(changes[0]?.time);            // 09:30:55
-console.log(changes[0]?.name);            // 股票名称
-console.log(changes[0]?.changeTypeLabel); // 中文异动类型`
-  },
-  getBoardChanges: {
-    name: 'getBoardChanges',
-    desc: '当日板块异动详情',
-    category: 'extended',
-    params: [],
-    code: `const boards = await sdk.getBoardChanges();
-console.log(boards.length);              // 异动板块数
-console.log(boards[0]?.name);            // 异动最频繁板块
-console.log(boards[0]?.totalChangeCount); // 异动次数
-console.log(boards[0]?.topStockName);    // 异动最频繁个股`
-  },
-  // ============================================================
-  // 龙虎榜
-  // ============================================================
-  getDragonTigerDetail: {
-    name: 'getDragonTigerDetail',
-    desc: '龙虎榜详情（按日期范围）',
-    category: 'extended',
-    params: [
-      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', required: true, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', required: true, placeholder: 'YYYYMMDD' }
-    ],
-    code: `const list = await sdk.getDragonTigerDetail({
-  startDate: '20240101',
-  endDate: '20240131',
-});
-console.log(list.length);             // 上榜次数
-console.log(list[0]?.name);           // 股票名称
-console.log(list[0]?.netBuyAmount);   // 净买额(元)
-console.log(list[0]?.reason);         // 上榜原因`
-  },
-  getDragonTigerStockStats: {
-    name: 'getDragonTigerStockStats',
-    desc: '龙虎榜个股上榜统计',
-    category: 'extended',
-    params: [
-      { key: 'period', label: '统计周期', type: 'select', default: '1month', required: false, options: [
-        { value: '1month', label: '近一月' },
-        { value: '3month', label: '近三月' },
-        { value: '6month', label: '近六月' },
-        { value: '1year', label: '近一年' },
-      ] }
-    ],
-    code: `const stats = await sdk.getDragonTigerStockStats('1month');
-console.log(stats.length);              // 上榜个股数量
-console.log(stats[0]?.name);            // 上榜次数最多的股票
-console.log(stats[0]?.count);           // 上榜次数`
-  },
-  getDragonTigerInstitution: {
-    name: 'getDragonTigerInstitution',
-    desc: '机构买卖统计（按日期范围）',
-    category: 'extended',
-    params: [
-      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', required: true, placeholder: 'YYYYMMDD' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', required: true, placeholder: 'YYYYMMDD' }
-    ],
-    code: `const list = await sdk.getDragonTigerInstitution({
-  startDate: '20240101',
-  endDate: '20240131',
-});
-console.log(list.length);              // 上榜次数
-console.log(list[0]?.orgBuyAmount);    // 机构买入额(元)
-console.log(list[0]?.orgNetAmount);    // 机构净额(元)`
-  },
-  getDragonTigerBranchRank: {
-    name: 'getDragonTigerBranchRank',
-    desc: '营业部排行',
-    category: 'extended',
-    params: [
-      { key: 'period', label: '统计周期', type: 'select', default: '1month', required: false, options: [
-        { value: '1month', label: '近一月' },
-        { value: '3month', label: '近三月' },
-        { value: '6month', label: '近六月' },
-        { value: '1year', label: '近一年' },
-      ] }
-    ],
-    code: `const branches = await sdk.getDragonTigerBranchRank('1month');
-console.log(branches.length);             // 营业部数量
-console.log(branches[0]?.name);           // 排名第一的营业部
-console.log(branches[0]?.totalBuyAmount); // 累计买入额(元)`
-  },
-  getDragonTigerStockSeatDetail: {
-    name: 'getDragonTigerStockSeatDetail',
-    desc: '个股某日上榜席位明细（买入榜+卖出榜）',
-    category: 'extended',
-    params: [
-      { key: 'symbol', label: '股票代码', type: 'text', default: '600519', required: true, placeholder: '如 600519' },
-      { key: 'date', label: '上榜日期', type: 'text', default: '2024-01-15', required: true, placeholder: 'YYYY-MM-DD 或 YYYYMMDD' }
-    ],
-    code: `const seats = await sdk.getDragonTigerStockSeatDetail('600519', '2024-01-15');
-const buyers = seats.filter(s => s.side === 'buy');
-const sellers = seats.filter(s => s.side === 'sell');
-console.log(\`买方席位: \${buyers.length}, 卖方席位: \${sellers.length}\`);
-console.log(buyers[0]?.branchName, buyers[0]?.buyAmount);`
-  },
-  // ============================================================
-  // 大宗交易 / 融资融券
-  // ============================================================
-  getBlockTradeMarketStat: {
-    name: 'getBlockTradeMarketStat',
-    desc: '大宗交易市场每日总览',
-    category: 'extended',
-    params: [],
-    code: `const stat = await sdk.getBlockTradeMarketStat();
-console.log(stat.length);                  // 历史天数
-console.log(stat[0]?.date);                // 最新日期
-console.log(stat[0]?.totalAmount);         // 大宗交易总额(元)
-console.log(stat[0]?.premiumRatio);        // 溢价占比`
-  },
-  getBlockTradeDetail: {
-    name: 'getBlockTradeDetail',
-    desc: '大宗交易明细（按日期范围）',
-    category: 'extended',
-    params: [
-      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', placeholder: 'YYYYMMDD（可选）' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', placeholder: 'YYYYMMDD（可选）' }
-    ],
-    code: `const detail = await sdk.getBlockTradeDetail({
-  startDate: '20240101',
-  endDate: '20240131',
-});
-console.log(detail.length);             // 大宗交易笔数
-console.log(detail[0]?.dealPrice);      // 成交价
-console.log(detail[0]?.premiumRate);    // 溢价率(%)
-console.log(detail[0]?.buyBranch);      // 买方营业部`
-  },
-  getBlockTradeDailyStat: {
-    name: 'getBlockTradeDailyStat',
-    desc: '大宗交易每日统计（按股票汇总）',
-    category: 'extended',
-    params: [
-      { key: 'startDate', label: '开始日期', type: 'text', default: '20240101', placeholder: 'YYYYMMDD（可选）' },
-      { key: 'endDate', label: '结束日期', type: 'text', default: '20240131', placeholder: 'YYYYMMDD（可选）' }
-    ],
-    code: `const stat = await sdk.getBlockTradeDailyStat({
-  startDate: '20240101',
-  endDate: '20240131',
-});
-console.log(stat.length);                 // 涉及股票数
-console.log(stat[0]?.dealCount);          // 成交笔数
-console.log(stat[0]?.dealTotalAmount);    // 成交总额(元)`
-  },
-  getMarginAccountInfo: {
-    name: 'getMarginAccountInfo',
-    desc: '融资融券账户统计',
-    category: 'extended',
-    params: [],
-    code: `const margin = await sdk.getMarginAccountInfo();
-console.log(margin.length);                  // 历史天数
-console.log(margin[0]?.finBalance);          // 融资余额(元)
-console.log(margin[0]?.avgGuaranteeRatio);   // 维保比例(%)`
-  },
-  getMarginTargetList: {
-    name: 'getMarginTargetList',
-    desc: '融资融券标的明细',
-    category: 'extended',
-    params: [
-      { key: 'date', label: '交易日', type: 'text', default: '', placeholder: 'YYYY-MM-DD（默认服务端最新交易日）' }
-    ],
-    code: `const targets = await sdk.getMarginTargetList();
-console.log(targets.length);             // 标的数量
-console.log(targets[0]?.code);           // 第一只
-console.log(targets[0]?.finBalance);     // 融资余额(元)`
-  },
-}
-
-// 按分类分组方法
+/** 不带过滤的全量分组（按分类聚合 method 名） */
 const methodsByCategory = computed(() => {
   const grouped: Record<string, string[]> = {}
   for (const [key, config] of Object.entries(methodsConfig)) {
-    if (!grouped[config.category]) {
-      grouped[config.category] = []
-    }
+    if (!grouped[config.category]) grouped[config.category] = []
     grouped[config.category].push(key)
   }
   return grouped
 })
+
+/** 带过滤的分组（搜索框为空时返回全量），用于侧边栏渲染 */
+const filteredByCategory = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return methodsByCategory.value
+
+  const result: Record<string, string[]> = {}
+  for (const [cat, names] of Object.entries(methodsByCategory.value)) {
+    const matches = names.filter((name) => {
+      const m = methodsConfig[name]
+      if (!m) return false
+      return (
+        m.name.toLowerCase().includes(q) ||
+        m.desc.toLowerCase().includes(q)
+      )
+    })
+    if (matches.length > 0) result[cat] = matches
+  }
+  return result
+})
+
+/** 当前侧边栏中可见的方法总数（搜索时实时反馈） */
+const visibleMethodCount = computed(() => {
+  return Object.values(filteredByCategory.value).reduce((sum, arr) => sum + arr.length, 0)
+})
+
+const totalMethodCount = allMethods.length
+
+// === SDK 运行时配置（抽屉编辑、localStorage 持久化） ===
+interface SDKConfig {
+  timeout: number
+  retry: { maxRetries: number; baseDelay: number }
+  rateLimit: { enabled: boolean; requestsPerSecond: number; maxBurst: number }
+  circuitBreaker: { enabled: boolean; failureThreshold: number; resetTimeout: number }
+}
+
+const DEFAULT_CONFIG: SDKConfig = {
+  timeout: 30000,
+  retry: { maxRetries: 3, baseDelay: 1000 },
+  rateLimit: { enabled: false, requestsPerSecond: 5, maxBurst: 5 },
+  circuitBreaker: { enabled: false, failureThreshold: 5, resetTimeout: 30000 },
+}
+
+const CONFIG_STORAGE_KEY = 'stock-sdk-playground-config-v1'
+
+function loadStoredConfig(): SDKConfig {
+  if (typeof localStorage === 'undefined') return structuredClone(DEFAULT_CONFIG)
+  try {
+    const raw = localStorage.getItem(CONFIG_STORAGE_KEY)
+    if (!raw) return structuredClone(DEFAULT_CONFIG)
+    const parsed = JSON.parse(raw) as Partial<SDKConfig>
+    // 与默认值深合并，防止旧版本字段缺失
+    return {
+      timeout: parsed.timeout ?? DEFAULT_CONFIG.timeout,
+      retry: { ...DEFAULT_CONFIG.retry, ...(parsed.retry ?? {}) },
+      rateLimit: { ...DEFAULT_CONFIG.rateLimit, ...(parsed.rateLimit ?? {}) },
+      circuitBreaker: { ...DEFAULT_CONFIG.circuitBreaker, ...(parsed.circuitBreaker ?? {}) },
+    }
+  } catch {
+    return structuredClone(DEFAULT_CONFIG)
+  }
+}
+
+const sdkConfig = ref<SDKConfig>(loadStoredConfig())
+
+/** 把 sdkConfig 转成 StockSDK 构造选项（按需省略未启用的部分） */
+function buildSDKOptions(cfg: SDKConfig): Record<string, unknown> {
+  const opts: Record<string, unknown> = {
+    timeout: cfg.timeout,
+    retry: { maxRetries: cfg.retry.maxRetries, baseDelay: cfg.retry.baseDelay },
+  }
+  if (cfg.rateLimit.enabled) {
+    opts.rateLimit = {
+      requestsPerSecond: cfg.rateLimit.requestsPerSecond,
+      maxBurst: cfg.rateLimit.maxBurst,
+    }
+  }
+  if (cfg.circuitBreaker.enabled) {
+    opts.circuitBreaker = {
+      failureThreshold: cfg.circuitBreaker.failureThreshold,
+      resetTimeout: cfg.circuitBreaker.resetTimeout,
+    }
+  }
+  return opts
+}
+
+/** 配置抽屉是否打开 */
+const configDrawerOpen = ref(false)
+/** 移动端侧边栏是否打开 */
+const sidebarOpen = ref(false)
+
+function closeAllDrawers() {
+  configDrawerOpen.value = false
+  sidebarOpen.value = false
+}
 
 // 状态
 const currentMethod = ref('getFullQuotes')
@@ -1140,6 +176,13 @@ const toastMessage = ref('')
 // 当前方法配置
 const currentConfig = computed(() => methodsConfig[currentMethod.value])
 
+// 当前参数实时渲染出的代码示例（resolveCode 处理静态 / 函数两种形式）
+const liveCode = computed(() => {
+  const spec = currentConfig.value
+  if (!spec) return ''
+  return resolveCode(spec, paramValues.value)
+})
+
 // 初始化参数
 function initParams() {
   const config = currentConfig.value
@@ -1157,9 +200,13 @@ function selectMethod(method: string) {
   resultStatus.value = 'idle'
   result.value = ''
   showCode.value = false
+  // 移动端：选中方法后自动关闭抽屉，回到主内容
+  sidebarOpen.value = false
 }
 
-// 发送请求
+// === 发送请求 ===
+// dispatcher 已下沉到每个 spec 的 run() 函数，这里只负责通用流程：
+// loading 开关、计时、错误处理、结果格式化（含大数据集截断）。
 async function fetchData() {
   if (!sdk.value) {
     result.value = '错误: SDK 未加载，请确保网络连接正常后刷新页面'
@@ -1167,428 +214,42 @@ async function fetchData() {
     return
   }
 
+  const spec: MethodSpec | undefined = methodsByName[currentMethod.value]
+  if (!spec) {
+    result.value = `错误: 未知方法 "${currentMethod.value}"`
+    resultStatus.value = 'error'
+    return
+  }
+
   isLoading.value = true
   resultStatus.value = 'idle'
   result.value = '加载中...'
-
   const startTime = performance.now()
 
   try {
-    let data: any
-    const params = paramValues.value
-
-    switch (currentMethod.value) {
-      case 'getFullQuotes': {
-        const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
-        data = await sdk.value.getFullQuotes(codes)
-        break
-      }
-      case 'getSimpleQuotes': {
-        const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
-        data = await sdk.value.getSimpleQuotes(codes)
-        break
-      }
-      case 'getAShareCodeList': {
-        const options: any = {}
-        if (params.simple === 'true') options.simple = true
-        if (params.market) options.market = params.market
-        data = await sdk.value.getAShareCodeList(Object.keys(options).length > 0 ? options : undefined)
-        break
-      }
-      case 'getUSCodeList': {
-        const options: any = {}
-        if (params.simple === 'true') options.simple = true
-        if (params.market) options.market = params.market
-        data = await sdk.value.getUSCodeList(Object.keys(options).length > 0 ? options : undefined)
-        break
-      }
-      case 'getHKCodeList': {
-        data = await sdk.value.getHKCodeList()
-        break
-      }
-      case 'getFundCodeList': {
-        data = await sdk.value.getFundCodeList()
-        break
-      }
-      case 'getAllAShareQuotes': {
-        const options: any = {
-          batchSize: parseInt(params.batchSize) || 500,
-          concurrency: parseInt(params.concurrency) || 7,
-          onProgress: (completed: number, total: number) => {
-            result.value = `加载中... ${completed}/${total} 批次`
-          }
-        }
-        if (params.market) options.market = params.market
-        data = await sdk.value.getAllAShareQuotes(options)
-        break
-      }
-      case 'getAllHKShareQuotes': {
-        data = await sdk.value.getAllHKShareQuotes({
-          batchSize: parseInt(params.batchSize) || 300,
-          concurrency: parseInt(params.concurrency) || 5,
-          onProgress: (completed: number, total: number) => {
-            result.value = `加载中... ${completed}/${total} 批次`
-          }
-        })
-        break
-      }
-      case 'getAllUSShareQuotes': {
-        const options: any = {
-          batchSize: parseInt(params.batchSize) || 300,
-          concurrency: parseInt(params.concurrency) || 5,
-          onProgress: (completed: number, total: number) => {
-            result.value = `加载中... ${completed}/${total} 批次`
-          }
-        }
-        if (params.market) options.market = params.market
-        data = await sdk.value.getAllUSShareQuotes(options)
-        break
-      }
-      case 'getFundFlow': {
-        const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
-        data = await sdk.value.getFundFlow(codes)
-        break
-      }
-      case 'getPanelLargeOrder': {
-        const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
-        data = await sdk.value.getPanelLargeOrder(codes)
-        break
-      }
-      case 'getTradingCalendar': {
-        data = await sdk.value.getTradingCalendar()
-        break
-      }
-      case 'getDividendDetail': {
-        data = await sdk.value.getDividendDetail(params.symbol)
-        break
-      }
-      // ============================================================
-      // Phase 1/2: 资金流向（深度）
-      // ============================================================
-      case 'getIndividualFundFlow': {
-        const period = (params.period || 'daily') as 'daily' | 'weekly' | 'monthly'
-        data = await sdk.value.getIndividualFundFlow(params.symbol, { period })
-        break
-      }
-      case 'getMarketFundFlow': {
-        data = await sdk.value.getMarketFundFlow()
-        break
-      }
-      case 'getFundFlowRank': {
-        const indicator = (params.indicator || 'today') as 'today' | '3day' | '5day' | '10day'
-        data = await sdk.value.getFundFlowRank({ indicator })
-        break
-      }
-      case 'getSectorFundFlowRank': {
-        const indicator = (params.indicator || 'today') as 'today' | '3day' | '5day' | '10day'
-        const sectorType = (params.sectorType || 'industry') as 'industry' | 'concept' | 'region'
-        data = await sdk.value.getSectorFundFlowRank({ indicator, sectorType })
-        break
-      }
-      case 'getSectorFundFlowHistory': {
-        const period = (params.period || 'daily') as 'daily' | 'weekly' | 'monthly'
-        data = await sdk.value.getSectorFundFlowHistory(params.symbol, { period })
-        break
-      }
-      // ============================================================
-      // Phase 1/2: 沪深港通 / 北向资金
-      // ============================================================
-      case 'getNorthboundMinute': {
-        const direction = (params.direction || 'north') as 'north' | 'south'
-        data = await sdk.value.getNorthboundMinute(direction)
-        break
-      }
-      case 'getNorthboundFlowSummary': {
-        data = await sdk.value.getNorthboundFlowSummary()
-        break
-      }
-      case 'getNorthboundHoldingRank': {
-        const market = (params.market || 'all') as 'all' | 'shanghai' | 'shenzhen'
-        const period = (params.period || '5day') as 'today' | '3day' | '5day' | '10day' | 'month' | 'quarter' | 'year'
-        data = await sdk.value.getNorthboundHoldingRank({ market, period })
-        break
-      }
-      case 'getNorthboundHistory': {
-        const direction = (params.direction || 'north') as 'north' | 'south'
-        const options: any = {}
-        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
-        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
-        data = await sdk.value.getNorthboundHistory(direction, options)
-        break
-      }
-      case 'getNorthboundIndividual': {
-        const options: any = {}
-        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
-        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
-        data = await sdk.value.getNorthboundIndividual(params.symbol, options)
-        break
-      }
-      // ============================================================
-      // Phase 1/2: 涨停板 / 盘口异动
-      // ============================================================
-      case 'getZTPool': {
-        const type = params.type || 'zt'
-        const date = params.date?.trim() || undefined
-        data = await sdk.value.getZTPool(type, date)
-        break
-      }
-      case 'getStockChanges': {
-        const type = params.type || 'large_buy'
-        data = await sdk.value.getStockChanges(type)
-        break
-      }
-      case 'getBoardChanges': {
-        data = await sdk.value.getBoardChanges()
-        break
-      }
-      // ============================================================
-      // Phase 1/2: 龙虎榜
-      // ============================================================
-      case 'getDragonTigerDetail': {
-        data = await sdk.value.getDragonTigerDetail({
-          startDate: params.startDate,
-          endDate: params.endDate,
-        })
-        break
-      }
-      case 'getDragonTigerStockStats': {
-        const period = (params.period || '1month') as '1month' | '3month' | '6month' | '1year'
-        data = await sdk.value.getDragonTigerStockStats(period)
-        break
-      }
-      case 'getDragonTigerInstitution': {
-        data = await sdk.value.getDragonTigerInstitution({
-          startDate: params.startDate,
-          endDate: params.endDate,
-        })
-        break
-      }
-      case 'getDragonTigerBranchRank': {
-        const period = (params.period || '1month') as '1month' | '3month' | '6month' | '1year'
-        data = await sdk.value.getDragonTigerBranchRank(period)
-        break
-      }
-      case 'getDragonTigerStockSeatDetail': {
-        data = await sdk.value.getDragonTigerStockSeatDetail(params.symbol, params.date)
-        break
-      }
-      // ============================================================
-      // Phase 1/2: 大宗交易 / 融资融券
-      // ============================================================
-      case 'getBlockTradeMarketStat': {
-        data = await sdk.value.getBlockTradeMarketStat()
-        break
-      }
-      case 'getBlockTradeDetail': {
-        const options: any = {}
-        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
-        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
-        data = await sdk.value.getBlockTradeDetail(options)
-        break
-      }
-      case 'getBlockTradeDailyStat': {
-        const options: any = {}
-        if (params.startDate?.trim()) options.startDate = params.startDate.trim()
-        if (params.endDate?.trim()) options.endDate = params.endDate.trim()
-        data = await sdk.value.getBlockTradeDailyStat(options)
-        break
-      }
-      case 'getMarginAccountInfo': {
-        data = await sdk.value.getMarginAccountInfo()
-        break
-      }
-      case 'getMarginTargetList': {
-        const date = params.date?.trim() || undefined
-        data = await sdk.value.getMarginTargetList(date)
-        break
-      }
-      case 'getHKQuotes': {
-        const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
-        data = await sdk.value.getHKQuotes(codes)
-        break
-      }
-      case 'getUSQuotes': {
-        const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
-        data = await sdk.value.getUSQuotes(codes)
-        break
-      }
-      case 'getFundQuotes': {
-        const codes = params.codes.split(',').map(c => c.trim()).filter(Boolean)
-        data = await sdk.value.getFundQuotes(codes)
-        break
-      }
-      case 'getHistoryKline': {
-        const options: any = { period: params.period, adjust: params.adjust }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        data = await sdk.value.getHistoryKline(params.symbol, options)
-        break
-      }
-      case 'getHKHistoryKline': {
-        const options: any = { period: params.period, adjust: params.adjust }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        data = await sdk.value.getHKHistoryKline(params.symbol, options)
-        break
-      }
-      case 'getUSHistoryKline': {
-        const options: any = { period: params.period, adjust: params.adjust }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        data = await sdk.value.getUSHistoryKline(params.symbol, options)
-        break
-      }
-      case 'getMinuteKline': {
-        data = await sdk.value.getMinuteKline(params.symbol, {
-          period: params.period,
-          adjust: params.adjust
-        })
-        break
-      }
-      case 'getTodayTimeline': {
-        data = await sdk.value.getTodayTimeline(params.code)
-        break
-      }
-      case 'getKlineWithIndicators': {
-        const options: any = { period: params.period, adjust: params.adjust }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        const indicatorList = params.indicators ? params.indicators.split(',').map(s => s.trim()).filter(Boolean) : []
-        options.indicators = {}
-        indicatorList.forEach(ind => {
-          if (ind === 'ma') options.indicators.ma = { periods: [5, 10, 20, 60] }
-          else if (ind === 'macd') options.indicators.macd = true
-          else if (ind === 'boll') options.indicators.boll = true
-          else if (ind === 'kdj') options.indicators.kdj = true
-          else if (ind === 'rsi') options.indicators.rsi = { periods: [6, 12, 24] }
-          else if (ind === 'wr') options.indicators.wr = true
-          else if (ind === 'bias') options.indicators.bias = { periods: [6, 12, 24] }
-          else if (ind === 'cci') options.indicators.cci = true
-          else if (ind === 'atr') options.indicators.atr = true
-        })
-        data = await sdk.value.getKlineWithIndicators(params.symbol, options)
-        break
-      }
-      // 期货
-      case 'getFuturesKline': {
-        const options: any = { period: params.period }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        data = await sdk.value.getFuturesKline(params.symbol, options)
-        break
-      }
-      case 'getGlobalFuturesSpot': {
-        data = await sdk.value.getGlobalFuturesSpot()
-        break
-      }
-      case 'getGlobalFuturesKline': {
-        const options: any = { period: params.period }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        data = await sdk.value.getGlobalFuturesKline(params.symbol, options)
-        break
-      }
-      case 'getFuturesInventorySymbols': {
-        data = await sdk.value.getFuturesInventorySymbols()
-        break
-      }
-      case 'getFuturesInventory': {
-        const options: any = {}
-        if (params.startDate) options.startDate = params.startDate
-        data = await sdk.value.getFuturesInventory(params.symbol, options)
-        break
-      }
-      case 'getComexInventory': {
-        data = await sdk.value.getComexInventory(params.symbol)
-        break
-      }
-      // 期权
-      case 'getIndexOptionKline': {
-        data = await sdk.value.getIndexOptionKline(params.symbol)
-        break
-      }
-      case 'getCFFEXOptionQuotes': {
-        data = await sdk.value.getCFFEXOptionQuotes()
-        break
-      }
-      case 'getETFOptionMonths': {
-        data = await sdk.value.getETFOptionMonths(params.cate)
-        break
-      }
-      case 'getETFOptionExpireDay': {
-        data = await sdk.value.getETFOptionExpireDay(params.cate, params.month)
-        break
-      }
-      case 'getETFOptionDailyKline': {
-        data = await sdk.value.getETFOptionDailyKline(params.code)
-        break
-      }
-      case 'getCommodityOptionKline': {
-        data = await sdk.value.getCommodityOptionKline(params.symbol)
-        break
-      }
-      case 'getOptionLHB': {
-        data = await sdk.value.getOptionLHB(params.symbol, params.date)
-        break
-      }
-      // 搜索
-      case 'search': {
-        data = await sdk.value.search(params.keyword)
-        break
-      }
-      // 行业板块
-      case 'getIndustryList': {
-        data = await sdk.value.getIndustryList()
-        break
-      }
-      case 'getIndustrySpot': {
-        data = await sdk.value.getIndustrySpot(params.symbol)
-        break
-      }
-      case 'getIndustryConstituents': {
-        data = await sdk.value.getIndustryConstituents(params.symbol)
-        break
-      }
-      case 'getIndustryKline': {
-        const options: any = { period: params.period }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        data = await sdk.value.getIndustryKline(params.symbol, options)
-        break
-      }
-      // 概念板块
-      case 'getConceptList': {
-        data = await sdk.value.getConceptList()
-        break
-      }
-      case 'getConceptSpot': {
-        data = await sdk.value.getConceptSpot(params.symbol)
-        break
-      }
-      case 'getConceptConstituents': {
-        data = await sdk.value.getConceptConstituents(params.symbol)
-        break
-      }
-      case 'getConceptKline': {
-        const options: any = { period: params.period }
-        if (params.startDate) options.startDate = params.startDate
-        if (params.endDate) options.endDate = params.endDate
-        data = await sdk.value.getConceptKline(params.symbol, options)
-        break
-      }
-      default:
-        throw new Error('未知方法')
-    }
+    const data = await spec.run(sdk.value, paramValues.value, {
+      onProgress: (msg) => {
+        result.value = msg
+      },
+    })
 
     const endTime = performance.now()
     duration.value = Math.round(endTime - startTime)
-    resultCount.value = Array.isArray(data) ? data.length : (data?.data?.length || 1)
-    result.value = JSON.stringify(data, null, 2)
+    resultCount.value = Array.isArray(data)
+      ? data.length
+      : ((data as any)?.data?.length || 1)
+
+    // 把完整数据挂到 window 供控制台调试，避免被截断后用户拿不到全量
+    if (typeof window !== 'undefined') {
+      ;(window as any).__playgroundLastResult = data
+    }
+
+    result.value = formatResultForRender(data)
     resultStatus.value = 'success'
   } catch (error: any) {
     const endTime = performance.now()
     duration.value = Math.round(endTime - startTime)
-    result.value = `错误: ${error.message}\n\n${error.stack || ''}`
+    result.value = `错误: ${error?.message ?? error}\n\n${error?.stack ?? ''}`
     resultStatus.value = 'error'
   } finally {
     isLoading.value = false
@@ -1601,33 +262,115 @@ function clearResult() {
   resultStatus.value = 'idle'
 }
 
-// 加载 SDK
-async function loadSDK() {
-  // 开发模式下使用本地源码，生产模式下使用 unpkg
+// === SDK 加载与重建 ===
+// SDKClass 缓存避免每次 apply 配置都重新 fetch unpkg。
+let cachedSDKClass: any = null
+
+async function loadSDKClass() {
+  if (cachedSDKClass) return cachedSDKClass
   const isDev = import.meta.env.DEV
-  
   if (isDev) {
     // 本地开发：直接引用 src 源码
-    const module = await import('stock-sdk-local') as any
-    const SDKClass = module.StockSDK || module.default
-    return new SDKClass()
+    const module = (await import('stock-sdk-local')) as any
+    cachedSDKClass = module.StockSDK || module.default
   } else {
     // 生产环境：从 unpkg 加载
-    const module = await import('https://unpkg.com/stock-sdk/dist/index.js') as any
-    return new module.StockSDK()
+    const module = (await import('https://unpkg.com/stock-sdk/dist/index.js')) as any
+    cachedSDKClass = module.StockSDK
+  }
+  return cachedSDKClass
+}
+
+/** 用当前配置实例化 SDK 并挂载到 window.sdk */
+async function loadSDK() {
+  const Cls = await loadSDKClass()
+  const instance = new Cls(buildSDKOptions(sdkConfig.value))
+  ;(window as any).sdk = instance
+  return instance
+}
+
+/** 应用 SDK 配置：保存到 localStorage + 重建 SDK 实例 */
+async function applyConfig() {
+  try {
+    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(sdkConfig.value))
+  } catch {
+    /* 隐私模式可能写不进去，无所谓，忽略 */
+  }
+  try {
+    sdk.value = await loadSDK()
+    toastMessage.value = '✅ SDK 配置已应用并重建实例'
+    showToast.value = true
+    setTimeout(() => (showToast.value = false), 2500)
+    configDrawerOpen.value = false
+  } catch (err: any) {
+    toastMessage.value = `⚠️ SDK 重建失败: ${err?.message ?? err}`
+    showToast.value = true
+    setTimeout(() => (showToast.value = false), 4000)
+  }
+}
+
+/** 重置配置为默认 */
+function resetConfig() {
+  sdkConfig.value = structuredClone(DEFAULT_CONFIG)
+}
+
+// === URL 深度链接 ===
+// 格式：#methodName?key1=val1&key2=val2
+// - 切换方法 / 改参数时用 history.replaceState 同步，不污染浏览器后退栈
+// - onMounted 时解析 hash，把方法名和参数恢复到对应控件
+// - 空值参数会被滤除，保持 URL 简洁
+let suppressHashWrite = false
+
+function parseHash(): { method: string; values: Record<string, string> } | null {
+  if (typeof window === 'undefined') return null
+  const hash = window.location.hash.replace(/^#/, '')
+  if (!hash) return null
+  const [method, query = ''] = hash.split('?')
+  if (!method || !methodsByName[method]) return null
+  const values: Record<string, string> = {}
+  new URLSearchParams(query).forEach((v, k) => {
+    values[k] = v
+  })
+  return { method, values }
+}
+
+function writeHash() {
+  if (typeof window === 'undefined' || suppressHashWrite) return
+  const params = new URLSearchParams()
+  for (const [k, v] of Object.entries(paramValues.value)) {
+    if (v !== '' && v !== undefined && v !== null) params.set(k, String(v))
+  }
+  const query = params.toString()
+  const next = query ? `#${currentMethod.value}?${query}` : `#${currentMethod.value}`
+  if (window.location.hash !== next) {
+    window.history.replaceState(null, '', next)
   }
 }
 
 onMounted(async () => {
-  initParams()
+  // 优先用 URL hash 恢复方法 / 参数；解析失败 fallback 到默认方法
+  const fromHash = parseHash()
+  if (fromHash) {
+    suppressHashWrite = true
+    currentMethod.value = fromHash.method
+    initParams()
+    // 用 hash 中的值覆盖默认参数
+    for (const [k, v] of Object.entries(fromHash.values)) {
+      if (k in paramValues.value) paramValues.value[k] = v
+    }
+    suppressHashWrite = false
+  } else {
+    initParams()
+  }
+
   try {
+    // loadSDK 内部已经 attach 到 window.sdk
     sdk.value = await loadSDK()
     sdkLoaded.value = true
     const isDev = import.meta.env.DEV
     console.log(`🚀 Stock SDK Playground 已加载 (${isDev ? '本地开发模式' : '生产模式'})`)
     console.log('💡 提示: 可以在控制台使用 window.sdk 直接调用 SDK 方法')
-    ;(window as any).sdk = sdk.value
-    
+
     // 显示 toast 提示
     toastMessage.value = '💡 已挂载 window.sdk，可在浏览器控制台直接调试 SDK'
     showToast.value = true
@@ -1641,16 +384,85 @@ onMounted(async () => {
   }
 })
 
-// 监听方法和代码显示状态的变化，更新代码高亮
-watch([currentMethod, showCode], async () => {
-  if (showCode.value && currentConfig.value) {
-    const fullCode = `const sdk = new StockSDK();\n// ${currentConfig.value.desc}\n${currentConfig.value.code}`;
-    await updateHighlightedCode(fullCode);
-  }
-}, { immediate: true })
+// 代码示例随方法切换、参数改动、显隐切换实时高亮
+watch(
+  [liveCode, showCode],
+  async ([code, visible]) => {
+    if (!visible || !currentConfig.value) return
+    const fullCode = `const sdk = new StockSDK();\n// ${currentConfig.value.desc}\n${code}`
+    await updateHighlightedCode(fullCode)
+  },
+  { immediate: true }
+)
 
-watch(currentMethod, () => {
-  initParams()
+// 注意：原本这里有一个 `watch(currentMethod, () => initParams())`，
+// 它与 selectMethod() 的 initParams 调用重复，且会异步覆盖 onMounted 时
+// 从 URL hash 恢复的参数（如 #getHistoryKline?symbol=sh600519）。
+// 故移除：所有方法切换都走 selectMethod，已经处理了参数初始化。
+
+// 任意方法切换 / 参数改动 → 同步到 URL hash
+watch(
+  [currentMethod, paramValues],
+  () => writeHash(),
+  { deep: true, flush: 'post' }
+)
+
+// === 复制结果到剪贴板 ===
+// 优先使用挂在 window 上的完整数据（避免大结果集被截断），fallback 到当前显示的文本
+async function copyResult() {
+  const fullData = (window as any).__playgroundLastResult
+  const text = fullData !== undefined ? JSON.stringify(fullData, null, 2) : result.value
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    toastMessage.value = '✅ 已复制到剪贴板'
+    showToast.value = true
+    setTimeout(() => (showToast.value = false), 2000)
+  } catch {
+    toastMessage.value = '⚠️ 复制失败，请手动选择复制'
+    showToast.value = true
+    setTimeout(() => (showToast.value = false), 3000)
+  }
+}
+
+// === 全局键盘快捷键 ===
+//   Cmd/Ctrl + K     → 聚焦侧边栏搜索框
+//   Cmd/Ctrl + Enter → 发送请求
+//   Escape           → 关闭已打开的抽屉（移动端 sidebar / SDK 配置）
+function onGlobalKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && (sidebarOpen.value || configDrawerOpen.value)) {
+    closeAllDrawers()
+    return
+  }
+
+  const mod = e.metaKey || e.ctrlKey
+  if (!mod) return
+
+  if (e.key === 'k' || e.key === 'K') {
+    e.preventDefault()
+    // 桌面端：searchInput 已在 DOM；移动端：先打开抽屉再聚焦
+    sidebarOpen.value = true
+    nextTick(() => {
+      searchInputRef.value?.focus()
+      searchInputRef.value?.select()
+    })
+    return
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    if (!isLoading.value && sdkLoaded.value) {
+      void fetchData()
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onGlobalKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalKeyDown)
 })
 </script>
 
@@ -1663,10 +475,24 @@ watch(currentMethod, () => {
       </div>
     </Transition>
     
+    <!-- 抽屉打开时的全屏遮罩（点击关闭） -->
+    <Transition name="fade">
+      <div
+        v-if="sidebarOpen || configDrawerOpen"
+        class="backdrop"
+        @click="closeAllDrawers"
+      ></div>
+    </Transition>
+
     <div class="playground-body">
-      <aside class="sidebar">
+      <aside class="sidebar" :class="{ 'is-open': sidebarOpen }">
         <div class="sidebar-header">
-          <span>API 方法</span>
+          <span>
+            API 方法
+            <span class="method-count">
+              {{ searchQuery ? `${visibleMethodCount}/${totalMethodCount}` : totalMethodCount }}
+            </span>
+          </span>
           <div class="sdk-status">
             <span v-if="sdkLoaded" class="status-badge success" title="SDK 已就绪">
               <span class="dot"></span>
@@ -1676,8 +502,31 @@ watch(currentMethod, () => {
             </span>
           </div>
         </div>
+        <div class="search-box">
+          <Icon icon="lucide:search" class="search-icon" />
+          <input
+            ref="searchInputRef"
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="搜索方法… (⌘K)"
+            spellcheck="false"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="search-clear"
+            title="清除"
+            @click="searchQuery = ''"
+          >×</button>
+        </div>
         <nav class="method-nav">
-          <div v-for="cat in categories" :key="cat.key" class="category">
+          <div
+            v-for="cat in categories"
+            v-show="(filteredByCategory[cat.key]?.length ?? 0) > 0"
+            :key="cat.key"
+            class="category"
+          >
             <div class="category-header">
               <span class="category-icon" :style="{ color: cat.color }">
                 <Icon :icon="cat.icon" />
@@ -1686,7 +535,7 @@ watch(currentMethod, () => {
             </div>
             <div class="category-methods">
               <button
-                v-for="method in methodsByCategory[cat.key]"
+                v-for="method in filteredByCategory[cat.key]"
                 :key="method"
                 class="method-item"
                 :class="{ active: currentMethod === method }"
@@ -1696,10 +545,34 @@ watch(currentMethod, () => {
               </button>
             </div>
           </div>
+          <div v-if="searchQuery && visibleMethodCount === 0" class="search-empty">
+            没有匹配 "{{ searchQuery }}" 的方法
+          </div>
         </nav>
       </aside>
 
       <main class="main-content">
+        <!-- 主内容顶部工具条：移动端汉堡 + SDK 配置 -->
+        <div class="main-toolbar">
+          <button
+            class="btn-icon mobile-only"
+            title="API 方法导航"
+            @click="sidebarOpen = true"
+          >
+            <Icon icon="lucide:menu" />
+            <span>方法</span>
+          </button>
+          <div class="main-toolbar-spacer"></div>
+          <button
+            class="btn-icon"
+            title="编辑 SDK 运行时配置"
+            @click="configDrawerOpen = true"
+          >
+            <Icon icon="lucide:settings" />
+            <span>SDK 配置</span>
+          </button>
+        </div>
+
         <div class="card params-card">
           <div class="card-header">
             <div class="method-info">
@@ -1743,11 +616,17 @@ watch(currentMethod, () => {
             </Transition>
 
             <div class="action-bar">
-              <button class="btn primary" :disabled="isLoading || !sdkLoaded" @click="fetchData">
+              <button
+                class="btn primary"
+                :disabled="isLoading || !sdkLoaded"
+                title="发送请求 (⌘Enter)"
+                @click="fetchData"
+              >
                 <span v-if="isLoading" class="btn-spinner"></span>
                 {{ isLoading ? '请求中...' : '🚀 发送请求' }}
               </button>
               <button class="btn secondary" @click="clearResult">清空</button>
+              <span class="action-hint">⌘K 搜索 · ⌘↵ 发送</span>
             </div>
           </div>
         </div>
@@ -1755,14 +634,24 @@ watch(currentMethod, () => {
         <div class="card result-card">
           <div class="card-header">
             <h3>返回结果</h3>
-            <div v-if="resultStatus !== 'idle'" class="result-meta">
-              <span :class="['status-tag', resultStatus]">
-                {{ resultStatus === 'success' ? '✓ 成功' : '✕ 失败' }}
-              </span>
-              <span class="meta-item">耗时: <strong>{{ duration }}ms</strong></span>
-              <span v-if="resultStatus === 'success'" class="meta-item">
-                数量: <strong>{{ resultCount }}</strong>
-              </span>
+            <div class="result-meta">
+              <template v-if="resultStatus !== 'idle'">
+                <span :class="['status-tag', resultStatus]">
+                  {{ resultStatus === 'success' ? '✓ 成功' : '✕ 失败' }}
+                </span>
+                <span class="meta-item">耗时: <strong>{{ duration }}ms</strong></span>
+                <span v-if="resultStatus === 'success'" class="meta-item">
+                  数量: <strong>{{ resultCount }}</strong>
+                </span>
+              </template>
+              <button
+                v-if="resultStatus === 'success' && result"
+                class="btn-copy"
+                title="复制完整结果到剪贴板"
+                @click="copyResult"
+              >
+                📋 复制
+              </button>
             </div>
           </div>
           <div class="card-body">
@@ -1773,6 +662,136 @@ watch(currentMethod, () => {
         </div>
       </main>
     </div>
+
+    <!-- SDK 配置抽屉（右侧滑入） -->
+    <Transition name="slide-right">
+      <aside v-if="configDrawerOpen" class="config-drawer" @click.stop>
+        <div class="drawer-header">
+          <h3>
+            <Icon icon="lucide:settings" />
+            SDK 运行时配置
+          </h3>
+          <button class="btn-icon-only" title="关闭" @click="configDrawerOpen = false">
+            <Icon icon="lucide:x" />
+          </button>
+        </div>
+
+        <div class="drawer-body">
+          <p class="drawer-hint">
+            修改后点击「应用」会用新配置重建 SDK 实例并保存到 localStorage。
+            适合演示重试 / 限流 / 熔断等高级特性。
+          </p>
+
+          <!-- 通用 -->
+          <fieldset class="cfg-section">
+            <legend>通用</legend>
+            <div class="cfg-row">
+              <label>请求超时 (ms)</label>
+              <input
+                type="number"
+                v-model.number="sdkConfig.timeout"
+                min="1000"
+                step="1000"
+                class="param-input"
+              />
+            </div>
+          </fieldset>
+
+          <!-- 重试 -->
+          <fieldset class="cfg-section">
+            <legend>重试 (retry)</legend>
+            <div class="cfg-row">
+              <label>最大重试次数</label>
+              <input
+                type="number"
+                v-model.number="sdkConfig.retry.maxRetries"
+                min="0"
+                max="10"
+                class="param-input"
+              />
+            </div>
+            <div class="cfg-row">
+              <label>初始退避 (ms)</label>
+              <input
+                type="number"
+                v-model.number="sdkConfig.retry.baseDelay"
+                min="100"
+                step="100"
+                class="param-input"
+              />
+            </div>
+          </fieldset>
+
+          <!-- 限流 -->
+          <fieldset class="cfg-section">
+            <legend>
+              <label class="cfg-toggle">
+                <input type="checkbox" v-model="sdkConfig.rateLimit.enabled" />
+                启用限流 (rateLimit)
+              </label>
+            </legend>
+            <div class="cfg-row" :class="{ disabled: !sdkConfig.rateLimit.enabled }">
+              <label>每秒请求数</label>
+              <input
+                type="number"
+                v-model.number="sdkConfig.rateLimit.requestsPerSecond"
+                min="1"
+                :disabled="!sdkConfig.rateLimit.enabled"
+                class="param-input"
+              />
+            </div>
+            <div class="cfg-row" :class="{ disabled: !sdkConfig.rateLimit.enabled }">
+              <label>令牌桶容量</label>
+              <input
+                type="number"
+                v-model.number="sdkConfig.rateLimit.maxBurst"
+                min="1"
+                :disabled="!sdkConfig.rateLimit.enabled"
+                class="param-input"
+              />
+            </div>
+          </fieldset>
+
+          <!-- 熔断器 -->
+          <fieldset class="cfg-section">
+            <legend>
+              <label class="cfg-toggle">
+                <input type="checkbox" v-model="sdkConfig.circuitBreaker.enabled" />
+                启用熔断器 (circuitBreaker)
+              </label>
+            </legend>
+            <div class="cfg-row" :class="{ disabled: !sdkConfig.circuitBreaker.enabled }">
+              <label>失败阈值</label>
+              <input
+                type="number"
+                v-model.number="sdkConfig.circuitBreaker.failureThreshold"
+                min="1"
+                :disabled="!sdkConfig.circuitBreaker.enabled"
+                class="param-input"
+              />
+            </div>
+            <div class="cfg-row" :class="{ disabled: !sdkConfig.circuitBreaker.enabled }">
+              <label>熔断恢复时间 (ms)</label>
+              <input
+                type="number"
+                v-model.number="sdkConfig.circuitBreaker.resetTimeout"
+                min="1000"
+                step="1000"
+                :disabled="!sdkConfig.circuitBreaker.enabled"
+                class="param-input"
+              />
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="drawer-footer">
+          <button class="btn secondary" @click="resetConfig">重置默认</button>
+          <div class="footer-spacer"></div>
+          <button class="btn secondary" @click="configDrawerOpen = false">取消</button>
+          <button class="btn primary" @click="applyConfig">应用</button>
+        </div>
+      </aside>
+    </Transition>
   </div>
 </template>
 
@@ -2124,8 +1143,128 @@ watch(currentMethod, () => {
 /* Action Bar */
 .action-bar {
   display: flex;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.action-hint {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--pg-text-muted);
+  user-select: none;
+}
+
+/* === 侧边栏：方法计数 + 搜索框 === */
+.method-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: var(--pg-surface-hover);
+  color: var(--pg-text-secondary);
+  border-radius: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.search-box {
+  position: relative;
+  flex-shrink: 0;
+  padding: 8px 12px 4px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.95rem;
+  color: var(--pg-text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 7px 28px 7px 30px;
+  font-size: 0.85rem;
+  background: var(--pg-bg);
+  color: var(--pg-text);
+  border: 1px solid var(--pg-border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.search-input:focus {
+  border-color: var(--pg-accent);
+  box-shadow: 0 0 0 3px var(--pg-accent-soft);
+}
+
+.search-input::placeholder {
+  color: var(--pg-text-muted);
+}
+
+.search-clear {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--pg-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.search-clear:hover {
+  background: var(--pg-surface-hover);
+  color: var(--pg-text);
+}
+
+.search-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--pg-text-muted);
+}
+
+/* === 复制按钮 === */
+.btn-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: var(--pg-surface-hover);
+  color: var(--pg-text-secondary);
+  border: 1px solid var(--pg-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-copy:hover {
+  background: var(--pg-accent-soft);
+  color: var(--pg-accent);
+  border-color: var(--pg-accent);
+}
+
+/* === 日期输入框：浅色 / 深色统一 === */
+.param-input[type='date'] {
+  /* 让原生 date input 与文本框视觉一致 */
+  font-family: inherit;
+  color-scheme: light;
+}
+.playground.dark .param-input[type='date'] {
+  color-scheme: dark;
 }
 
 .btn {
@@ -2335,6 +1474,266 @@ watch(currentMethod, () => {
   100% {
     opacity: 0;
     transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+}
+
+/* ============================================================
+ * 主内容工具条（含移动端汉堡 + SDK 配置入口）
+ * ============================================================ */
+.main-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.main-toolbar-spacer {
+  flex: 1;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  background: var(--pg-surface);
+  color: var(--pg-text-secondary);
+  border: 1px solid var(--pg-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-icon:hover {
+  background: var(--pg-accent-soft);
+  color: var(--pg-accent);
+  border-color: var(--pg-accent);
+}
+
+.btn-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 1.05rem;
+  background: transparent;
+  color: var(--pg-text-secondary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-icon-only:hover {
+  background: var(--pg-surface-hover);
+  color: var(--pg-text);
+}
+
+/* 移动端 only：默认隐藏 */
+.mobile-only {
+  display: none;
+}
+
+/* ============================================================
+ * 抽屉公用：背景遮罩
+ * ============================================================ */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 50;
+  cursor: pointer;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+/* ============================================================
+ * SDK 配置抽屉（右侧滑入）
+ * ============================================================ */
+.config-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 92vw;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--pg-surface);
+  border-left: 1px solid var(--pg-border);
+  box-shadow: var(--pg-shadow-lg);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--pg-border);
+  flex-shrink: 0;
+}
+.drawer-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--pg-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+}
+
+.drawer-hint {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--pg-text-secondary);
+  background: var(--pg-surface-hover);
+  border-radius: 8px;
+}
+
+.cfg-section {
+  border: 1px solid var(--pg-border);
+  border-radius: 10px;
+  padding: 8px 14px 14px;
+  margin: 0 0 12px;
+}
+.cfg-section legend {
+  padding: 0 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--pg-text-secondary);
+}
+
+.cfg-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.cfg-toggle input {
+  margin: 0;
+}
+
+.cfg-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+.cfg-row label {
+  flex: 0 0 130px;
+  color: var(--pg-text-secondary);
+}
+.cfg-row .param-input {
+  flex: 1;
+  min-width: 0;
+}
+.cfg-row.disabled {
+  opacity: 0.5;
+}
+
+.drawer-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--pg-border);
+  flex-shrink: 0;
+}
+.drawer-footer .footer-spacer {
+  flex: 1;
+}
+.drawer-footer .btn {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
+/* 抽屉滑入动画 */
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(100%);
+}
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+ * 移动端响应式（≤ 768px）
+ *  - sidebar 变为全屏覆盖抽屉
+ *  - main-content 全宽，padding 收紧
+ *  - 卡片头部允许换行
+ *  - 隐藏快捷键提示和动作 hint，避免拥挤
+ * ============================================================ */
+@media (max-width: 768px) {
+  .mobile-only {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 85vw;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--pg-shadow-lg);
+  }
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    padding: 16px;
+  }
+
+  .card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .params-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .action-bar .btn {
+    width: 100%;
+  }
+  .action-hint {
+    display: none;
+  }
+
+  .config-drawer {
+    width: 100vw;
+    max-width: 100vw;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-toolbar .btn-icon span {
+    /* 极窄屏只留图标 */
+    display: none;
   }
 }
 </style>
