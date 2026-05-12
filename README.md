@@ -346,6 +346,8 @@ Stock SDK 配套 MCP Server（[stock-sdk-mcp](https://www.npmjs.com/package/stoc
 |------|------|
 | `search` | 搜索股票代码/名称/拼音 |
 
+搜索结果可配合 `generateSearchExternalLinks(result)` 生成东方财富、雪球外链。
+
 ---
 
 ## 许可证

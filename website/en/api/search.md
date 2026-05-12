@@ -39,6 +39,17 @@ export interface SearchResult {
 function search(keyword: string): Promise<SearchResult[]>;
 ```
 
+To open a search result on external finance websites, use the pure helper:
+
+```ts
+interface ExternalLink {
+  name: string;
+  url: string;
+}
+
+function generateSearchExternalLinks(result: SearchResult): ExternalLink[];
+```
+
 ### Parameters
 
 | Parameter | Type | Description |
@@ -106,6 +117,23 @@ const hkResults = await sdk.search('00700');
 
 // Prefer `category` for category-based filtering
 const stocks = results.filter(r => r.category === 'stock');
+```
+
+### External Links
+
+`generateSearchExternalLinks` does not change the `search` result. It creates East Money and Xueqiu links from one search result. Unsupported direct markets fall back to site search pages.
+
+```ts
+import { generateSearchExternalLinks } from 'stock-sdk';
+
+const [maotai] = await sdk.search('maotai');
+const links = generateSearchExternalLinks(maotai);
+
+console.log(links);
+// [
+//   { name: '东方财富', url: 'https://quote.eastmoney.com/sh600519.html' },
+//   { name: '雪球', url: 'https://xueqiu.com/S/SH600519' }
+// ]
 ```
 
 ### Cross-Origin Note

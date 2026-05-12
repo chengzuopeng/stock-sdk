@@ -346,6 +346,8 @@ Stock SDK comes with a companion MCP Server ([stock-sdk-mcp](https://www.npmjs.c
 |--------|-------------|
 | `search` | Search stocks by code/name/pinyin |
 
+Use `generateSearchExternalLinks(result)` with one search result to create East Money and Xueqiu links.
+
 ---
 
 ## License

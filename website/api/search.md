@@ -39,6 +39,17 @@ export interface SearchResult {
 function search(keyword: string): Promise<SearchResult[]>;
 ```
 
+如需把搜索结果跳转到外部财经站点，可使用纯工具函数：
+
+```ts
+interface ExternalLink {
+  name: string;
+  url: string;
+}
+
+function generateSearchExternalLinks(result: SearchResult): ExternalLink[];
+```
+
 ### 参数
 
 | 参数名 | 类型 | 说明 |
@@ -105,6 +116,23 @@ const hkResults = await sdk.search('00700');
 
 // 推荐用 category 做分类判断
 const stocks = results.filter(r => r.category === 'stock');
+```
+
+### 外部链接
+
+`generateSearchExternalLinks` 不会修改 `search` 返回结果，只根据单条搜索结果生成东方财富和雪球链接；无法直达的市场会退回站内搜索页。
+
+```ts
+import { generateSearchExternalLinks } from 'stock-sdk';
+
+const [maotai] = await sdk.search('maotai');
+const links = generateSearchExternalLinks(maotai);
+
+console.log(links);
+// [
+//   { name: '东方财富', url: 'https://quote.eastmoney.com/sh600519.html' },
+//   { name: '雪球', url: 'https://xueqiu.com/S/SH600519' }
+// ]
 ```
 
 ### 跨域说明

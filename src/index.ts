@@ -14,6 +14,9 @@ export type {
 // 导出类型
 export * from './types';
 
+// 导出外部财经链接工具
+export { generateSearchExternalLinks } from './externalLinks';
+
 // 导出独立指标计算函数
 export {
   calcMA,

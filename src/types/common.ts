@@ -36,6 +36,16 @@ export interface SearchResult {
 }
 
 /**
+ * 外部财经站点链接
+ */
+export interface ExternalLink {
+  /** 站点名称 */
+  name: string;
+  /** 可直接打开的 URL */
+  url: string;
+}
+
+/**
  * 分红派送详情
  */
 export interface DividendDetail {
