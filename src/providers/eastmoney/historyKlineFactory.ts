@@ -8,17 +8,33 @@ import {
   assertKlinePeriod,
   getAdjustCode,
   getPeriodCode,
+  buildTimeMeta,
+  type MarketTz,
 } from '../../core';
-import type { HKUSHistoryKline } from '../../types';
-import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
+import type { HKHistoryKline, USHistoryKline } from '../../types';
+import {
+  fetchEmHistoryKline,
+  parseEmKlineCsv,
+  type EmKlineItem,
+} from './utils';
 
 /**
  * 通用历史 K 线请求选项
  */
 export interface HistoryKlineRequestOptions {
-  /** K 线周期 */
+  /** K 线周期 @default 'daily' */
   period?: 'daily' | 'weekly' | 'monthly';
-  /** 复权类型 */
+  /**
+   * 复权类型
+   *
+   * - `'qfq'` 前复权(默认)
+   * - `'hfq'` 后复权
+   * - `''` 不复权
+   *
+   * 详见 [复权说明](https://stock-sdk.linkdiary.cn/guide/dividend-adjustment.html)。
+   *
+   * @default 'qfq'
+   */
   adjust?: '' | 'qfq' | 'hfq';
   /** 开始日期 YYYYMMDD */
   startDate?: string;
@@ -35,29 +51,49 @@ interface NormalizedHistorySymbol {
 }
 
 /**
- * 历史 K 线 provider 工厂配置
+ * 单条 K 线在带上 timestamp+tz+code+name 之后的"中间产物"。
+ * 工厂会把它再交给 caller 的 `enrichItem` 来注入市场本地化字段。
  */
-interface HistoryKlineProviderFactoryOptions {
+interface BaseForeignKlineRow extends EmKlineItem {
+  timestamp: number;
+  tz: MarketTz;
+  code: string;
+  name: string;
+}
+
+/**
+ * 历史 K 线 provider 工厂配置
+ *
+ * @template T 该 provider 最终返回的具体类型 (HKHistoryKline / USHistoryKline)
+ */
+interface HistoryKlineProviderFactoryOptions<T> {
   url: string;
+  /** 该市场的时区,用于把 K 线日期转成 UTC 时间戳 */
+  tz: MarketTz;
   normalizeSymbol: (symbol: string) => NormalizedHistorySymbol;
   resolveResultMeta?: (
     symbol: string,
     normalizedSymbol: NormalizedHistorySymbol,
     response: { code?: string; name?: string }
   ) => { code: string; name: string };
+  /**
+   * 在通用字段之上注入市场本地化字段 (currency / lotSize / 等)。
+   * 必填,以保证返回类型 `T` 比 union 更具体。
+   */
+  enrichItem: (base: BaseForeignKlineRow) => T;
 }
 
 /**
  * 创建港股 / 美股历史 K 线 provider。
  */
-export function createHistoryKlineProvider(
-  config: HistoryKlineProviderFactoryOptions
-) {
+export function createHistoryKlineProvider<
+  T extends HKHistoryKline | USHistoryKline,
+>(config: HistoryKlineProviderFactoryOptions<T>) {
   return async function getHistoryKline(
     client: RequestClient,
     symbol: string,
     options: HistoryKlineRequestOptions = {}
-  ): Promise<HKUSHistoryKline[]> {
+  ): Promise<T[]> {
     const {
       period = 'daily',
       adjust = 'qfq',
@@ -99,11 +135,15 @@ export function createHistoryKlineProvider(
 
     return klines.map((line) => {
       const item = parseEmKlineCsv(line);
-      return {
+      const meta = buildTimeMeta(item.date, config.tz);
+      const base: BaseForeignKlineRow = {
         ...item,
+        timestamp: meta.timestamp,
+        tz: meta.tz,
         code: resolvedMeta.code,
         name: resolvedMeta.name,
       };
+      return config.enrichItem(base);
     });
   };
 }

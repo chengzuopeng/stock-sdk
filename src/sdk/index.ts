@@ -15,3 +15,10 @@ export { NorthboundService } from './northboundService';
 export { MarketEventService } from './marketEventService';
 export { DragonTigerService } from './dragonTigerService';
 export { DataService } from './dataService';
+
+// 交易日历 / 市场状态
+export {
+  TradingCalendarService,
+  type MarketStatus,
+  type SupportedMarket,
+} from './tradingCalendarService';

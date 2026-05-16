@@ -1,7 +1,13 @@
 /**
  * 腾讯财经 - 分时数据
  */
-import { RequestClient, TENCENT_MINUTE_URL } from '../../core';
+import {
+  RequestClient,
+  TENCENT_MINUTE_URL,
+  buildTimeMeta,
+  buildTimeMetaFromDateAndTime,
+  MARKET_TZ,
+} from '../../core';
 import type { TodayTimeline, TodayTimelineResponse } from '../../types';
 
 /**
@@ -34,9 +40,12 @@ export async function getTodayTimeline(
 
     const stockData = json.data?.[code];
     if (!stockData) {
+      const emptyMeta = buildTimeMeta('', MARKET_TZ.CN);
       return {
         code,
         date: '',
+        timestamp: emptyMeta.timestamp,
+        tz: emptyMeta.tz,
         preClose: 0,
         data: [],
       };
@@ -79,8 +88,12 @@ export async function getTodayTimeline(
       const volume = isVolumeInLots ? rawVolume * 100 : rawVolume;
       // 计算均价：累计成交额 / 累计成交量（股）
       const avgPrice = volume > 0 ? amount / volume : 0;
+      // 利用外层 `date` (YYYY-MM-DD) 与本行 `HH:mm` 拼接出 UTC 时间戳
+      const tickMeta = buildTimeMetaFromDateAndTime(date, time, MARKET_TZ.CN);
       return {
         time,
+        timestamp: tickMeta.timestamp,
+        tz: tickMeta.tz,
         price: parseFloat(parts[1]) || 0,
         volume,
         amount,
@@ -88,9 +101,12 @@ export async function getTodayTimeline(
       };
     });
 
+    const dayMeta = buildTimeMeta(date, MARKET_TZ.CN);
     return {
       code,
       date,
+      timestamp: dayMeta.timestamp,
+      tz: dayMeta.tz,
       preClose,
       data,
     };

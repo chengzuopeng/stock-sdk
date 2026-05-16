@@ -1,7 +1,7 @@
 /**
  * 腾讯财经数据解析器
  */
-import { safeNumber, safeNumberOrNull } from '../../core';
+import { safeNumber, safeNumberOrNull, buildTimeMeta, MARKET_TZ } from '../../core';
 import type {
   FullQuote,
   SimpleQuote,
@@ -30,6 +30,8 @@ export function parseFullQuote(f: string[]): FullQuote {
       volume: safeNumber(f[20 + i * 2]),
     });
   }
+  const time = f[30] ?? '';
+  const timeMeta = buildTimeMeta(time, MARKET_TZ.CN);
   return {
     marketId: f[0] ?? '',
     name: f[1] ?? '',
@@ -42,7 +44,9 @@ export function parseFullQuote(f: string[]): FullQuote {
     innerVolume: safeNumber(f[8]),
     bid,
     ask,
-    time: f[30] ?? '',
+    time,
+    timestamp: timeMeta.timestamp,
+    tz: timeMeta.tz,
     change: safeNumber(f[31]),
     changePercent: safeNumber(f[32]),
     high: safeNumber(f[33]),
@@ -92,6 +96,8 @@ export function parseSimpleQuote(f: string[]): SimpleQuote {
  * 解析资金流向
  */
 export function parseFundFlow(f: string[]): FundFlow {
+  const date = f[13] ?? '';
+  const timeMeta = buildTimeMeta(date, MARKET_TZ.CN);
   return {
     code: f[0] ?? '',
     mainInflow: safeNumber(f[1]),
@@ -104,7 +110,9 @@ export function parseFundFlow(f: string[]): FundFlow {
     retailNetRatio: safeNumber(f[8]),
     totalFlow: safeNumber(f[9]),
     name: f[12] ?? '',
-    date: f[13] ?? '',
+    date,
+    timestamp: timeMeta.timestamp,
+    tz: timeMeta.tz,
     raw: f,
   };
 }
@@ -126,6 +134,8 @@ export function parsePanelLargeOrder(f: string[]): PanelLargeOrder {
  * 解析港股行情
  */
 export function parseHKQuote(f: string[]): HKQuote {
+  const time = f[30] ?? '';
+  const timeMeta = buildTimeMeta(time, MARKET_TZ.HK);
   return {
     marketId: f[0] ?? '',
     name: f[1] ?? '',
@@ -134,7 +144,9 @@ export function parseHKQuote(f: string[]): HKQuote {
     prevClose: safeNumber(f[4]),
     open: safeNumber(f[5]),
     volume: safeNumber(f[6]),
-    time: f[30] ?? '',
+    time,
+    timestamp: timeMeta.timestamp,
+    tz: timeMeta.tz,
     change: safeNumber(f[31]),
     changePercent: safeNumber(f[32]),
     high: safeNumber(f[33]),
@@ -152,6 +164,8 @@ export function parseHKQuote(f: string[]): HKQuote {
  * 解析美股行情
  */
 export function parseUSQuote(f: string[]): USQuote {
+  const time = f[30] ?? '';
+  const timeMeta = buildTimeMeta(time, MARKET_TZ.US);
   return {
     marketId: f[0] ?? '',
     name: f[1] ?? '',
@@ -160,7 +174,9 @@ export function parseUSQuote(f: string[]): USQuote {
     prevClose: safeNumber(f[4]),
     open: safeNumber(f[5]),
     volume: safeNumber(f[6]),
-    time: f[30] ?? '',
+    time,
+    timestamp: timeMeta.timestamp,
+    tz: timeMeta.tz,
     change: safeNumber(f[31]),
     changePercent: safeNumber(f[32]),
     high: safeNumber(f[33]),
@@ -181,13 +197,17 @@ export function parseUSQuote(f: string[]): USQuote {
  * 解析基金行情
  */
 export function parseFundQuote(f: string[]): FundQuote {
+  const navDate = f[8] ?? '';
+  const timeMeta = buildTimeMeta(navDate, MARKET_TZ.CN);
   return {
     code: f[0] ?? '',
     name: f[1] ?? '',
     nav: safeNumber(f[5]),
     accNav: safeNumber(f[6]),
     change: safeNumber(f[7]),
-    navDate: f[8] ?? '',
+    navDate,
+    timestamp: timeMeta.timestamp,
+    tz: timeMeta.tz,
     raw: f,
   };
 }

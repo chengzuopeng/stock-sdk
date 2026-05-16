@@ -147,3 +147,13 @@ export {
   HostFallbackManager,
   type HostHealthStats,
 } from './fallback';
+
+// 时间元信息 (timestamp + tz)
+export {
+  MARKET_TZ,
+  type MarketTz,
+  type TimeMeta,
+  parseMarketTime,
+  buildTimeMeta,
+  buildTimeMetaFromDateAndTime,
+} from './time';

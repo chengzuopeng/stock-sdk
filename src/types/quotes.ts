@@ -1,3 +1,5 @@
+import type { MarketTz } from '../core/time';
+
 /**
  * A 股 / 指数 全量行情
  */
@@ -24,8 +26,12 @@ export interface FullQuote {
   bid: { price: number; volume: number }[];
   /** 卖一~卖五 { price, volume }[] */
   ask: { price: number; volume: number }[];
-  /** 时间戳 yyyyMMddHHmmss */
+  /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,市场时区) */
   time: string;
+  /** 行情时间对应的 UTC unix 毫秒时间戳;无法解析时为 `NaN` */
+  timestamp: number;
+  /** 行情时间所属市场时区 (`Asia/Shanghai`) */
+  tz: MarketTz;
   /** 涨跌额 */
   change: number;
   /** 涨跌幅% */
@@ -117,7 +123,12 @@ export interface FundFlow {
   /** 总资金流 */
   totalFlow: number;
   name: string;
+  /** 数据日期(原始字符串,A 股时区) */
   date: string;
+  /** 数据日期对应当日 00:00 (`Asia/Shanghai`) 的 UTC 毫秒时间戳;无法解析时为 `NaN` */
+  timestamp: number;
+  /** 数据日期所属时区 (`Asia/Shanghai`) */
+  tz: MarketTz;
   raw: string[];
 }
 
@@ -147,7 +158,12 @@ export interface HKQuote {
   prevClose: number;
   open: number;
   volume: number;
+  /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,港股时区) */
   time: string;
+  /** UTC unix 毫秒时间戳;无法解析时为 `NaN` */
+  timestamp: number;
+  /** 行情时间所属市场时区 (`Asia/Hong_Kong`) */
+  tz: MarketTz;
   change: number;
   changePercent: number;
   high: number;
@@ -178,8 +194,12 @@ export interface USQuote {
   open: number;
   /** 成交量 */
   volume: number;
-  /** 时间 */
+  /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,美东时区) */
   time: string;
+  /** UTC unix 毫秒时间戳(自动处理美东夏令时);无法解析时为 `NaN` */
+  timestamp: number;
+  /** 行情时间所属市场时区 (`America/New_York`) */
+  tz: MarketTz;
   /** 涨跌额 */
   change: number;
   /** 涨跌幅% */
@@ -220,7 +240,11 @@ export interface FundQuote {
   accNav: number;
   /** 当日涨跌额 */
   change: number;
-  /** 净值日期 */
+  /** 净值日期(原始字符串,如 `'2024-05-12'`,A 股时区) */
   navDate: string;
+  /** 净值日期对应当日 00:00 (`Asia/Shanghai`) 的 UTC 毫秒时间戳;无法解析时为 `NaN` */
+  timestamp: number;
+  /** 净值日期所属时区 (`Asia/Shanghai`) */
+  tz: MarketTz;
   raw: string[];
 }

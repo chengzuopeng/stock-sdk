@@ -60,6 +60,7 @@ const zhSidebar = {
         { text: '请求治理', link: '/guide/request-governance' },
         { text: '期货与期权', link: '/guide/futures-options' },
         { text: '分红与交易日历', link: '/guide/dividend-calendar' },
+        { text: '复权说明 (qfq/hfq)', link: '/guide/dividend-adjustment' },
       ],
     },
     {
@@ -190,6 +191,7 @@ const enSidebar = {
         { text: 'Request Governance', link: '/en/guide/request-governance' },
         { text: 'Futures & Options', link: '/en/guide/futures-options' },
         { text: 'Dividend & Calendar', link: '/en/guide/dividend-calendar' },
+        { text: 'Dividend Adjustment (qfq/hfq)', link: '/en/guide/dividend-adjustment' },
       ],
     },
     {

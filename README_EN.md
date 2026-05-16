@@ -66,6 +66,37 @@ If you're a frontend engineer, you may have encountered these problems:
 - ✅ Supports **provider-level retry / rate limit / circuit breaker overrides** while keeping legacy global config compatible
 - ✅ **AI / MCP Ready** — Companion [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server, one command to integrate with Cursor / Claude / Gemini and more
 
+## Market Coverage Matrix
+
+Coverage varies by market. The table below helps you check whether the SDK fits your use case.
+✅ supported, ⚠️ partial / see notes, ❌ not supported.
+
+| Capability | A-share | HK | US | Mutual Fund | Futures | Options |
+|------------|:-------:|:--:|:--:|:-----------:|:-------:|:-------:|
+| Real-time quotes | ✅ | ✅ | ✅ | ✅ | ✅ Global | ✅ ETF / CFFEX / Commodity |
+| History K-line (D/W/M) | ✅ | ✅ | ✅ | ❌ | ✅ Domestic + Global | ✅ |
+| Minute K-line (5/15/30/60) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Today's timeline (1-min) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ ETF options |
+| Fund flow | ✅ Stock / Market / Rank / Sector | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Sectors (Industry / Concept) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Dragon-Tiger list | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ Option LHB |
+| Stock Connect / Northbound | ✅ Northbound | ✅ Southbound | ❌ | ❌ | ❌ | ❌ |
+| Block trade | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Margin trading | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Limit-up pool / Tape changes | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Full market code list | ✅ 5000+ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Batch quotes | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Inventory data | ❌ | ❌ | ❌ | ❌ | ✅ Domestic + COMEX | ❌ |
+| Dividend events | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Trading calendar | ✅ + `isTradingDay()` helpers | ⚠️ Market status only (Mon-Fri) | ⚠️ Market status only (Mon-Fri) | — | — | — |
+
+> **Data delay**: Real-time quotes come from public endpoints (Tencent Finance / EastMoney) and are
+> **not exchange tick data**. Latency typically ranges from tens of seconds to several minutes.
+> The SDK is not intended for HFT decisions.
+>
+> **HK / US K-line types**: Since v1.9.1, split into dedicated `HKHistoryKline` / `USHistoryKline`,
+> each carrying `currency` and timezone metadata; the legacy `HKUSHistoryKline` alias still works.
+
 ## Installation
 
 ```bash

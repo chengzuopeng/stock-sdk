@@ -121,6 +121,10 @@
           "getPanelLargeOrder",
           "search",
           "getTradingCalendar",
+          "isTradingDay",
+          "nextTradingDay",
+          "prevTradingDay",
+          "getMarketStatus",
           "getDividendDetail"
         ]
       },

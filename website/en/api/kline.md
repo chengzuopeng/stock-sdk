@@ -2,6 +2,17 @@
 
 Get historical K-line (candlestick) data.
 
+::: warning Default adjustment
+All K-line methods on this page (`getHistoryKline` / `getHKHistoryKline` /
+`getUSHistoryKline` / `getMinuteKline`) **default `adjust` to `'qfq'`
+(forward-adjusted)**.
+
+Without an explicit `adjust`, the returned prices have already been
+forward-adjusted; for back-tests or dividend-reinvested return calculations
+pass `'hfq'` or `''` explicitly.
+See [Dividend Adjustment](/en/guide/dividend-adjustment) for details.
+:::
+
 ## getHistoryKline
 
 ```typescript
@@ -98,7 +109,7 @@ getHKHistoryKline(
     startDate?: string;
     endDate?: string;
   }
-): Promise<HKUSHistoryKline[]>
+): Promise<HKHistoryKline[]>
 ```
 
 ### Parameters
@@ -109,21 +120,31 @@ getHKHistoryKline(
 
 ### Return Type
 
+> **Since v1.9.1**: the return type is split from the legacy `HKUSHistoryKline`
+> into a more precise `HKHistoryKline`, carrying `currency: 'HKD'` and
+> timezone / timestamp metadata. The legacy `HKUSHistoryKline` alias remains
+> usable (now `HKHistoryKline | USHistoryKline`); existing code does not need
+> to migrate immediately.
+
 ```typescript
-interface HKUSHistoryKline {
-  date: string;               // Date YYYY-MM-DD
+interface HKHistoryKline {
+  date: string;               // Date YYYY-MM-DD (HK time)
+  timestamp: number;          // UTC milliseconds (NaN if unparseable)
+  tz: 'Asia/Hong_Kong';       // Timezone
+  currency: 'HKD';            // Pricing currency
+  lotSize: number | null;     // HK board lot size; not provided by the K-line endpoint, fixed null
   code: string;               // Stock code
   name: string;               // Stock name
-  open: number | null;        // Open price
-  close: number | null;       // Close price
-  high: number | null;        // High price
-  low: number | null;         // Low price
-  volume: number | null;      // Trading volume
-  amount: number | null;      // Trading amount
-  changePercent: number | null;  // Change %
-  change: number | null;         // Price change
-  amplitude: number | null;      // Amplitude %
-  turnoverRate: number | null;   // Turnover rate %
+  open: number | null;
+  close: number | null;
+  high: number | null;
+  low: number | null;
+  volume: number | null;
+  amount: number | null;
+  changePercent: number | null;
+  change: number | null;
+  amplitude: number | null;
+  turnoverRate: number | null;
 }
 ```
 
@@ -162,7 +183,30 @@ getUSHistoryKline(
     startDate?: string;
     endDate?: string;
   }
-): Promise<HKUSHistoryKline[]>
+): Promise<USHistoryKline[]>
+```
+
+### Return Type
+
+```typescript
+interface USHistoryKline {
+  date: string;               // Date YYYY-MM-DD (US Eastern time)
+  timestamp: number;          // UTC milliseconds (DST handled automatically)
+  tz: 'America/New_York';     // Timezone
+  currency: 'USD';            // Pricing currency
+  code: string;               // Stock code
+  name: string;               // Stock name
+  open: number | null;
+  close: number | null;
+  high: number | null;
+  low: number | null;
+  volume: number | null;
+  amount: number | null;
+  changePercent: number | null;
+  change: number | null;
+  amplitude: number | null;
+  turnoverRate: number | null;
+}
 ```
 
 ### Parameters

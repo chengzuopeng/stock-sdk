@@ -2,6 +2,54 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.9.2](https://www.npmjs.com/package/stock-sdk/v/1.9.2)** (2026-05-16)
+
+> 数据契约清理 + 业务工具补齐版本。**全部为非破坏性新增**，老代码无需迁移即可升级。
+
+### 新增功能
+
+**统一时间元信息（`timestamp` + `tz`）**
+- 所有含时间的返回类型新增 `timestamp: number`（UTC unix 毫秒）和 `tz: MarketTz`（IANA 时区名）字段。
+- 覆盖类型：`FullQuote` / `HKQuote` / `USQuote` / `FundQuote` / `FundFlow` /
+  `HistoryKline` / `MinuteTimeline` / `MinuteKline` / `TodayTimeline` / `TodayTimelineResponse` /
+  `HKHistoryKline` / `USHistoryKline`。
+- 美股自动处理夏令时切换（EST UTC-5 ↔ EDT UTC-4），无需引入 dayjs / moment。
+- 原始 `time` / `date` 字符串字段保留不动。
+- 新导出工具：`MARKET_TZ`、`MarketTz`、`TimeMeta`、`parseMarketTime`、`buildTimeMeta`、
+  `buildTimeMetaFromDateAndTime`（位于 `src/core/time`）。
+
+**港股 / 美股 K 线类型拆分**
+- 新增 `HKHistoryKline`：带 `currency: 'HKD'`、`lotSize: number | null`、`tz: 'Asia/Hong_Kong'`。
+- 新增 `USHistoryKline`：带 `currency: 'USD'`、`tz: 'America/New_York'`。
+- `getHKHistoryKline` 现在返回 `Promise<HKHistoryKline[]>`，`getUSHistoryKline` 返回 `Promise<USHistoryKline[]>`。
+- 旧的 `HKUSHistoryKline` 改为 `HKHistoryKline | USHistoryKline` 的 union 别名并标记 `@deprecated`，
+  老代码继续可用，无需立即迁移。
+
+**A 股交易日历工具方法**
+- `isTradingDay(date?)`：判断指定日期是否 A 股交易日，复用现有日历缓存（12 小时 TTL）。
+- `nextTradingDay(date?)` / `prevTradingDay(date?)`：返回相对某日期的下/上一个交易日。
+- `getMarketStatus(market='A')`：同步返回当前市场状态
+  `'pre_market' | 'open' | 'lunch_break' | 'after_hours' | 'closed'`，支持 A 股 / 港股 / 美股，
+  美股自动处理夏令时。港股 / 美股没有官方日历数据源，按"周一-周五 + 已知交易时段"近似判断。
+- 入参支持 `'YYYY-MM-DD'` / `'YYYYMMDD'` / `Date` 对象；不传则按 `Asia/Shanghai` 当日。
+- 新增导出：`TradingCalendarService`、`MarketStatus`、`SupportedMarket`。
+
+### 文档改进
+
+- 新增 [复权说明](/guide/dividend-adjustment) 指南，明确所有 K 线方法 `adjust` 默认 `'qfq'` 的行为，
+  以及前复权 / 后复权 / 不复权的典型场景与常见误区。
+- `getHistoryKline` / `getMinuteKline` / `getHKHistoryKline` / `getUSHistoryKline` 的 JSDoc
+  显式标注 `adjust` 默认值与回测注意事项。
+- README 新增"市场支持矩阵"章节，明确各市场（A 股/港股/美股/基金/期货/期权）覆盖度，
+  并补充行情延迟与 v1.9.2 类型拆分说明。
+
+### 兼容性
+
+- **完全向后兼容**：所有变更都是新增字段或方法，不修改现有字段名或返回结构。
+  - `HKUSHistoryKline` 仍然导出，老 `Promise<HKUSHistoryKline[]>` 类型仍兼容。
+  - 老代码不消费 `timestamp` / `tz` 字段时不受影响。
+
+
 ## **[1.9.1](https://www.npmjs.com/package/stock-sdk/v/1.9.1)** (2026-05-15)
 
 ### 新增功能
@@ -19,7 +67,6 @@
 
 - 纯字符串生成函数，不修改 `search` 返回值，也不发起任何网络请求
 - 不包含破坏性变更，1.9.0 用法保持兼容
-
 
 ## **[1.9.0](https://www.npmjs.com/package/stock-sdk/v/1.9.0)** (2026-05-02)
 

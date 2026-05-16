@@ -2,6 +2,14 @@
 
 Get minute-level K-line data.
 
+::: warning Default adjustment
+`getMinuteKline` defaults `adjust` to `'qfq'` (forward-adjusted) for
+`period='5'/'15'/'30'/'60'`; `period='1'` (1-minute timeline) does not
+support price adjustment. For back-tests or dividend-reinvested return
+calculations pass `'hfq'` or `''` explicitly. See
+[Dividend Adjustment](/en/guide/dividend-adjustment) for details.
+:::
+
 ## getMinuteKline
 
 ```typescript

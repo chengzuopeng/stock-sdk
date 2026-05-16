@@ -2,6 +2,63 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.9.2](https://www.npmjs.com/package/stock-sdk/v/1.9.2)** (2026-05-16)
+
+> Data-contract cleanup + business helper additions. **All changes are non-breaking**;
+> existing code can upgrade without migration.
+
+### New Features
+
+**Unified time metadata (`timestamp` + `tz`)**
+- All time-bearing return types gain new `timestamp: number` (UTC unix ms) and
+  `tz: MarketTz` (IANA timezone name) fields.
+- Affected types: `FullQuote` / `HKQuote` / `USQuote` / `FundQuote` / `FundFlow` /
+  `HistoryKline` / `MinuteTimeline` / `MinuteKline` / `TodayTimeline` / `TodayTimelineResponse` /
+  `HKHistoryKline` / `USHistoryKline`.
+- US daylight-saving transitions (EST UTC-5 ↔ EDT UTC-4) are handled automatically,
+  no `dayjs` / `moment` dependency.
+- The original `time` / `date` string fields are kept untouched.
+- New exports: `MARKET_TZ`, `MarketTz`, `TimeMeta`, `parseMarketTime`, `buildTimeMeta`,
+  `buildTimeMetaFromDateAndTime` (under `src/core/time`).
+
+**HK / US K-line type split**
+- New `HKHistoryKline`: includes `currency: 'HKD'`, `lotSize: number | null`, `tz: 'Asia/Hong_Kong'`.
+- New `USHistoryKline`: includes `currency: 'USD'`, `tz: 'America/New_York'`.
+- `getHKHistoryKline` now returns `Promise<HKHistoryKline[]>`,
+  `getUSHistoryKline` returns `Promise<USHistoryKline[]>`.
+- The legacy `HKUSHistoryKline` is now a `HKHistoryKline | USHistoryKline` union alias and
+  marked `@deprecated`. Existing code keeps working without immediate migration.
+
+**A-share trading calendar helpers**
+- `isTradingDay(date?)`: check whether a date is an A-share trading day,
+  reusing the existing 12-hour calendar cache.
+- `nextTradingDay(date?)` / `prevTradingDay(date?)`: jump to the next / previous trading day.
+- `getMarketStatus(market='A')`: synchronous current market status —
+  `'pre_market' | 'open' | 'lunch_break' | 'after_hours' | 'closed'` —
+  for A-share / HK / US (US handles DST automatically). HK and US have no official
+  calendar data source, so the helper falls back to "Mon–Fri + known trading sessions"
+  and does **not** detect public holidays.
+- Inputs accept `'YYYY-MM-DD'` / `'YYYYMMDD'` / `Date`; omit to use today in `Asia/Shanghai`.
+- New exports: `TradingCalendarService`, `MarketStatus`, `SupportedMarket`.
+
+### Documentation
+
+- New [Dividend Adjustment](/en/guide/dividend-adjustment) guide spelling out that
+  every K-line method's `adjust` parameter defaults to `'qfq'`, with concrete scenarios
+  and pitfalls for forward / backward / no adjustment.
+- `getHistoryKline` / `getMinuteKline` / `getHKHistoryKline` / `getUSHistoryKline` JSDoc
+  explicitly notes the `adjust` default and back-test caveats.
+- README now includes a market coverage matrix making each market's support level
+  explicit, plus notes on real-time data delay and the v1.9.2 type split.
+
+### Compatibility
+
+- **Fully backward compatible**: all changes are additive (new fields / new methods);
+  no existing field names or return shapes change.
+  - `HKUSHistoryKline` remains exported; legacy `Promise<HKUSHistoryKline[]>` annotations still type-check.
+  - Code that does not consume the new `timestamp` / `tz` fields is unaffected.
+
+
 ## **[1.9.1](https://www.npmjs.com/package/stock-sdk/v/1.9.1)** (2026-05-15)
 
 ### New Features
@@ -19,7 +76,6 @@ This page records the version update history of Stock SDK.
 
 - Pure string-generation function; does not mutate `search` results or issue any network request
 - No breaking changes; usage from 1.9.0 remains compatible
-
 
 ## **[1.9.0](https://www.npmjs.com/package/stock-sdk/v/1.9.0)** (2026-05-02)
 

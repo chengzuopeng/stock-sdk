@@ -1,5 +1,11 @@
 # 分钟 K 线
 
+::: warning 复权默认值
+`getMinuteKline` 在 `period='5'/'15'/'30'/'60'` 时 `adjust` 参数**默认 `'qfq'`(前复权)**，
+`period='1'` 分时数据不支持复权。回测/收益计算请显式传 `'hfq'` 或 `''`，
+详见 [复权说明](/guide/dividend-adjustment)。
+:::
+
 ## getMinuteKline
 
 获取 A 股分钟 K 线或分时数据，数据来源：东方财富。

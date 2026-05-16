@@ -15,6 +15,8 @@ import type {
   MinuteTimeline,
   MinuteKline,
   TodayTimelineResponse,
+  HKHistoryKline,
+  USHistoryKline,
   HKUSHistoryKline,
   IndustryBoard,
   IndustryBoardSpot,
@@ -86,7 +88,10 @@ import {
   MarketEventService,
   DragonTigerService,
   DataService,
+  TradingCalendarService,
   type KlineWithIndicatorsOptions,
+  type MarketStatus,
+  type SupportedMarket,
 } from './sdk/index';
 
 // 重新导出配置类型
@@ -112,6 +117,7 @@ export class StockSDK {
   private readonly marketEventService: MarketEventService;
   private readonly dragonTigerService: DragonTigerService;
   private readonly dataService: DataService;
+  private readonly tradingCalendarService: TradingCalendarService;
 
   /**
    * 创建 Stock SDK 实例。
@@ -134,6 +140,7 @@ export class StockSDK {
     this.marketEventService = new MarketEventService(this.client);
     this.dragonTigerService = new DragonTigerService(this.client);
     this.dataService = new DataService(this.client);
+    this.tradingCalendarService = new TradingCalendarService(this.quoteService);
   }
 
   /**
@@ -295,7 +302,17 @@ export class StockSDK {
   }
 
   /**
-   * 获取 A 股历史 K 线（日/周/月，含复权）
+   * 获取 A 股历史 K 线(日/周/月,含复权)。
+   *
+   * **复权默认值:`adjust='qfq'`(前复权)。**
+   * - 前复权适合看走势/做技术分析
+   * - 后复权 `'hfq'` 适合算长期收益率/复利
+   * - 不复权 `''` 是交易所原始价
+   *
+   * 不显式传 `adjust` 时返回的是已经被前复权调整过的价格,
+   * 做回测/收益计算时务必显式传值,详见
+   * [复权说明](https://stock-sdk.linkdiary.cn/guide/dividend-adjustment.html)。
+   *
    * @param symbol 股票代码
    * @param options K 线参数
    */
@@ -307,9 +324,12 @@ export class StockSDK {
   }
 
   /**
-   * 获取 A 股分时/分钟 K 线
+   * 获取 A 股分时/分钟 K 线。
+   *
+   * **复权默认值:`adjust='qfq'`(前复权,仅 5/15/30/60 分钟有效)。** 1 分钟分时不支持复权。
+   *
    * @param symbol 股票代码
-   * @param options 周期参数（不传周期则返回当日分时）
+   * @param options 周期参数(不传周期则返回当日分时)
    */
   getMinuteKline(
     symbol: string,
@@ -319,26 +339,34 @@ export class StockSDK {
   }
 
   /**
-   * 获取港股历史 K 线
+   * 获取港股历史 K 线。
+   *
+   * **复权默认值:`adjust='qfq'`(前复权)。** 详见
+   * [复权说明](https://stock-sdk.linkdiary.cn/guide/dividend-adjustment.html)。
+   *
    * @param symbol 港股代码
    * @param options K 线参数
    */
   getHKHistoryKline(
     symbol: string,
     options?: import('./providers/eastmoney').HKKlineOptions
-  ): Promise<HKUSHistoryKline[]> {
+  ): Promise<HKHistoryKline[]> {
     return this.klineService.getHKHistoryKline(symbol, options);
   }
 
   /**
-   * 获取美股历史 K 线
+   * 获取美股历史 K 线。
+   *
+   * **复权默认值:`adjust='qfq'`(前复权)。** 详见
+   * [复权说明](https://stock-sdk.linkdiary.cn/guide/dividend-adjustment.html)。
+   *
    * @param symbol 美股代码
    * @param options K 线参数
    */
   getUSHistoryKline(
     symbol: string,
     options?: import('./providers/eastmoney').USKlineOptions
-  ): Promise<HKUSHistoryKline[]> {
+  ): Promise<USHistoryKline[]> {
     return this.klineService.getUSHistoryKline(symbol, options);
   }
 
@@ -439,6 +467,65 @@ export class StockSDK {
    */
   getTradingCalendar(): Promise<string[]> {
     return this.quoteService.getTradingCalendar();
+  }
+
+  /**
+   * 判断给定日期是否为 A 股交易日。
+   *
+   * 数据源:`getTradingCalendar()` (腾讯接口,带 12 小时缓存)。
+   * 第一次调用会拉取全量交易日列表,后续命中缓存。
+   *
+   * @param date 不传则取"现在 `Asia/Shanghai` 的当日"。
+   *             支持 `'YYYY-MM-DD'` / `'YYYYMMDD'` / `Date` 对象。
+   * @example
+   * ```ts
+   * await sdk.isTradingDay();              // 今天是否交易日
+   * await sdk.isTradingDay('2024-10-01');  // false (国庆)
+   * ```
+   */
+  isTradingDay(date?: string | Date): Promise<boolean> {
+    return this.tradingCalendarService.isTradingDay(date);
+  }
+
+  /**
+   * 返回 A 股下一个交易日 (`'YYYY-MM-DD'`)。
+   *
+   * 如果 `date` 本身是交易日,返回它**之后**的下一个;否则返回大于它的第一个交易日。
+   *
+   * @param date 不传则取"现在 `Asia/Shanghai` 的当日"
+   * @throws RangeError 当 `date` 已超过日历范围时
+   */
+  nextTradingDay(date?: string | Date): Promise<string> {
+    return this.tradingCalendarService.nextTradingDay(date);
+  }
+
+  /**
+   * 返回 A 股上一个交易日 (`'YYYY-MM-DD'`)。
+   *
+   * 如果 `date` 本身是交易日,返回它**之前**的上一个;否则返回小于它的最后一个交易日。
+   *
+   * @param date 不传则取"现在 `Asia/Shanghai` 的当日"
+   * @throws RangeError 当 `date` 早于日历最早日期时
+   */
+  prevTradingDay(date?: string | Date): Promise<string> {
+    return this.tradingCalendarService.prevTradingDay(date);
+  }
+
+  /**
+   * 返回当前市场实时状态 (同步,不发请求)。
+   *
+   * 状态包括:`'pre_market'`(盘前)/ `'open'`(交易中)/ `'lunch_break'`(午休) /
+   * `'after_hours'`(盘后)/ `'closed'`(休市/周末)。
+   *
+   * **注意:此方法仅按交易时段判断,不识别法定假日**。如需精确判断"今天是否交易日",
+   * 请用 `await isTradingDay()` (会发请求)。
+   *
+   * 港股 / 美股没有官方日历,只按 "周一-周五 + 已知交易时段" 判断,假日不会被识别。
+   *
+   * @param market `'A'`(默认) / `'HK'` / `'US'`
+   */
+  getMarketStatus(market: SupportedMarket = 'A'): MarketStatus {
+    return this.tradingCalendarService.getMarketStatus(market);
   }
 
   /**
