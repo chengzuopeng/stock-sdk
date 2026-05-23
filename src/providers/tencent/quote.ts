@@ -18,8 +18,17 @@ export async function getFullQuotes(
     return [];
   }
   const data = await client.getTencentQuote(codes.join(','));
+  // 腾讯无匹配时会返回 v_pv_none_match="1"（fields=['1']），靠 fields[0]
+  // 过滤拦不住；这里改成只接受我们请求过的 key，彻底避免"空壳行情"。
+  const wanted = new Set(codes);
   return data
-    .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+    .filter(
+      (d) =>
+        wanted.has(d.key) &&
+        d.fields &&
+        d.fields.length > 5 &&
+        d.fields[0] !== ''
+    )
     .map((d) => parseFullQuote(d.fields));
 }
 
@@ -37,8 +46,15 @@ export async function getSimpleQuotes(
   }
   const prefixedCodes = codes.map((code) => `s_${code}`);
   const data = await client.getTencentQuote(prefixedCodes.join(','));
+  const wanted = new Set(prefixedCodes);
   return data
-    .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+    .filter(
+      (d) =>
+        wanted.has(d.key) &&
+        d.fields &&
+        d.fields.length > 5 &&
+        d.fields[0] !== ''
+    )
     .map((d) => parseSimpleQuote(d.fields));
 }
 

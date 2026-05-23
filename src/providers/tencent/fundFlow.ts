@@ -19,8 +19,17 @@ export async function getFundFlow(
   }
   const prefixedCodes = codes.map((code) => `ff_${code}`);
   const data = await client.getTencentQuote(prefixedCodes.join(','));
+  // 腾讯无匹配时会返回 v_pv_none_match="1"，按 key 精确过滤；
+  // parseFundFlow 最高访问 f[13]，要求至少 14 个字段。
+  const wanted = new Set(prefixedCodes);
   return data
-    .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+    .filter(
+      (d) =>
+        wanted.has(d.key) &&
+        d.fields &&
+        d.fields.length >= 14 &&
+        d.fields[0] !== ''
+    )
     .map((d) => parseFundFlow(d.fields));
 }
 
@@ -38,8 +47,18 @@ export async function getPanelLargeOrder(
   }
   const prefixedCodes = codes.map((code) => `s_pk${code}`);
   const data = await client.getTencentQuote(prefixedCodes.join(','));
+  // 腾讯无匹配时会返回 v_pv_none_match="1"（fields=['1']），仅靠 fields[0]
+  // 无法识别——它会被解析成 buyLargeRatio: 1 的伪结果。
+  // parsePanelLargeOrder 最高访问 f[3]，要求至少 4 个字段。
+  const wanted = new Set(prefixedCodes);
   return data
-    .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+    .filter(
+      (d) =>
+        wanted.has(d.key) &&
+        d.fields &&
+        d.fields.length >= 4 &&
+        d.fields[0] !== ''
+    )
     .map((d) => parsePanelLargeOrder(d.fields));
 }
 

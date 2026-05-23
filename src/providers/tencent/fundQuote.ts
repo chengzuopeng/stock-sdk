@@ -19,8 +19,17 @@ export async function getFundQuotes(
   }
   const prefixedCodes = codes.map((code) => `jj${code}`);
   const data = await client.getTencentQuote(prefixedCodes.join(','));
+  // 腾讯无匹配时会返回 v_pv_none_match="1"（fields=['1']），按 key 精确过滤；
+  // 同时校验字段长度满足 parseFundQuote 所需（最高访问 f[8]）。
+  const wanted = new Set(prefixedCodes);
   return data
-    .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+    .filter(
+      (d) =>
+        wanted.has(d.key) &&
+        d.fields &&
+        d.fields.length >= 9 &&
+        d.fields[0] !== ''
+    )
     .map((d) => parseFundQuote(d.fields));
 }
 

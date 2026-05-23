@@ -161,7 +161,7 @@ export class StockSDK {
 
   /**
    * 获取港股行情
-   * @param codes 港股代码数组（如 `['hk00700']`）
+   * @param codes 港股代码数组（5 位数字，无需 `hk` 前缀，如 `['00700', '09988']`）
    */
   getHKQuotes(codes: string[]): Promise<HKQuote[]> {
     return this.quoteService.getHKQuotes(codes);
@@ -169,7 +169,7 @@ export class StockSDK {
 
   /**
    * 获取美股行情
-   * @param codes 美股代码数组（如 `['usAAPL']`）
+   * @param codes 美股代码数组（无需 `us` 前缀，如 `['AAPL', 'BABA']`）
    */
   getUSQuotes(codes: string[]): Promise<USQuote[]> {
     return this.quoteService.getUSQuotes(codes);

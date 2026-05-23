@@ -19,8 +19,16 @@ export async function getUSQuotes(
   }
   const prefixedCodes = codes.map((code) => `us${code}`);
   const data = await client.getTencentQuote(prefixedCodes.join(','));
+  // 腾讯无匹配时会回 v_pv_none_match="1"，按 key 精确过滤
+  const wanted = new Set(prefixedCodes);
   return data
-    .filter((d) => d.fields && d.fields.length > 0 && d.fields[0] !== '')
+    .filter(
+      (d) =>
+        wanted.has(d.key) &&
+        d.fields &&
+        d.fields.length > 5 &&
+        d.fields[0] !== ''
+    )
     .map((d) => parseUSQuote(d.fields));
 }
 
