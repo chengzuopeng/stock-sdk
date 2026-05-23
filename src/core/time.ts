@@ -159,15 +159,22 @@ function wallTimeToUTC(wall: ParsedWallClock, tz: string): number {
 }
 
 /**
- * 把 `'HH:mm'` 或 `'HH:mm:ss'` 配合一个基础日期 (YYYY-MM-DD) 组合成完整本地壁钟时间。
+ * 把 `'HH:mm'` 或 `'HH:mm:ss'` 配合一个基础日期组合成完整本地壁钟时间。
  *
  * 用于"当日分时"等场景:接口返回的时间只有 `HH:mm`,日期需要从外层 `date` 字段拿。
+ *
+ * 支持的 baseDate 格式：
+ *  - `YYYY-MM-DD`（带横线）
+ *  - `YYYYMMDD`  （腾讯分时接口的原始格式）
  */
 function combineDateAndTime(
   baseDate: string,
   hhmm: string
 ): ParsedWallClock | null {
-  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec((baseDate || '').trim());
+  const trimmedDate = (baseDate || '').trim();
+  const dateMatch =
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmedDate) ??
+    /^(\d{4})(\d{2})(\d{2})$/.exec(trimmedDate);
   if (!dateMatch) return null;
   const timeMatch = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec((hhmm || '').trim());
   if (!timeMatch) return null;

@@ -58,11 +58,13 @@ export class IndicatorService {
     tradingDays: number,
     ratio: number = 1.5
   ): string {
+    // 兼容 'YYYY-MM-DD' 与 'YYYYMMDD' 两种入参：先归一成紧凑格式再 slice
+    const compact = this.toCompactDate(startDate);
     const naturalDays = Math.ceil(tradingDays * ratio);
     const date = new Date(
-      parseInt(startDate.slice(0, 4)),
-      parseInt(startDate.slice(4, 6)) - 1,
-      parseInt(startDate.slice(6, 8))
+      parseInt(compact.slice(0, 4)),
+      parseInt(compact.slice(4, 6)) - 1,
+      parseInt(compact.slice(6, 8))
     );
     date.setDate(date.getDate() - naturalDays);
 
@@ -149,7 +151,9 @@ export class IndicatorService {
       period: options.period,
       adjust: options.adjust,
       startDate: actualStartDate,
-      endDate: options.endDate,
+      // provider 透传到东方财富的 beg/end 仅接受 YYYYMMDD，
+      // 这里统一归一化，避免 'YYYY-MM-DD' 入参导致 HK/US 返回 0 条
+      endDate: options.endDate ? this.toCompactDate(options.endDate) : undefined,
     };
 
     let allKlines: (HistoryKline | HKUSHistoryKline)[];
