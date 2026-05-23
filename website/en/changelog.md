@@ -2,6 +2,63 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.9.3](https://www.npmjs.com/package/stock-sdk/v/1.9.3)** (2026-05-22)
+
+> Bug fix release. Resolves 7 issues discovered after v1.9.0 / v1.9.2. **No breaking changes.**
+
+### Bug Fixes
+
+**Tencent "phantom quote" for invalid codes**
+- All Tencent quote endpoints previously filtered only on `fields[0] !== ''`. For unmatched codes,
+  Tencent returns `v_pv_none_match="1"` (`fields = ['1']`) which passed the filter and was parsed
+  into a placeholder result with `code: ''`, `price: 0`.
+- Fixed across 7 entry points: `getFullQuotes` / `getSimpleQuotes` / `getHKQuotes` / `getUSQuotes` /
+  `getFundQuotes` / `getFundFlow` / `getPanelLargeOrder`.
+- New behavior: filter by exact response `key` membership against the requested code set, plus a
+  field-length threshold tuned to each parser's highest accessed index.
+
+**Timestamp parsing**
+- `getTodayTimeline` per-tick `timestamp: NaN` — Tencent returns `date=YYYYMMDD`, but the
+  internal `combineDateAndTime` only accepted `YYYY-MM-DD`. Fixed `core/time.ts` to accept both.
+- `getKlineWithIndicators` returning 0 bars on HK / US when start/end dates were in `YYYY-MM-DD`
+  format — `calcActualStartDate` sliced unmodified input (producing garbage dates) and `endDate`
+  was passed through unchanged. Both sites now normalize to `YYYYMMDD` before reaching the
+  provider.
+
+**Request governance consistency**
+- `getTodayTimeline` previously used raw `fetch`, bypassing retry / rateLimit / circuitBreaker /
+  providerPolicies / host fallback. Now routed through `RequestClient.get` so its governance
+  matches every other endpoint in the same SDK instance.
+
+**Misleading JSDoc**
+- `getHKQuotes` / `getUSQuotes` examples showed already-prefixed codes
+  (`'hk00700'` / `'usAAPL'`), which the provider then re-prefixed, breaking the query.
+  Examples now use the correct un-prefixed form (`'00700'` / `'AAPL'`).
+
+### Restored exports (fulfilling earlier changelog promises)
+
+`src/index.ts` now actually re-exports the symbols previously listed in the changelog:
+- **Time helpers**: `MARKET_TZ` / `MarketTz` / `TimeMeta` / `parseMarketTime` /
+  `buildTimeMeta` / `buildTimeMetaFromDateAndTime`
+- **Service & types**: `TradingCalendarService` / `MarketStatus` / `SupportedMarket`
+- **US-market types**: `USMarket` / `GetUSCodeListOptions` / `GetAllUSQuotesOptions`
+
+TypeScript users can now import these directly from `stock-sdk`.
+
+### Internal
+
+- `providers/tencent/timeline.ts` no longer uses `any`. Three local interfaces
+  (`TencentTimelineResponse` / `TencentStockTimeline` / `TencentStockTimelineInner`)
+  describe the Tencent response shape, in line with the project's no-`any` policy.
+
+### Compatibility
+
+- No breaking changes.
+- The only behavioral difference: invalid codes no longer return placeholder quotes.
+  If your code relied on receiving a `code: ''`, `price: 0` row, you'll now get an empty array
+  and need to handle that explicitly.
+
+
 ## **[1.9.2](https://www.npmjs.com/package/stock-sdk/v/1.9.2)** (2026-05-16)
 
 > Data-contract cleanup + business helper additions. **All changes are non-breaking**;

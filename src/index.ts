@@ -9,7 +9,19 @@ export type {
   GetAllAShareQuotesOptions,
   AShareMarket,
   GetAShareCodeListOptions,
+  // 美股市场筛选与批量选项类型（之前只在 sdk.ts 内部 re-export，未透到顶层）
+  USMarket,
+  GetUSCodeListOptions,
+  GetAllUSQuotesOptions,
 } from './sdk';
+
+// 交易日历 / 市场状态相关 service 与类型（changelog 已承诺，但之前未透出）
+// 注意：`./sdk` 文件优先于 `./sdk/` 目录，必须显式写 `./sdk/index`
+export {
+  TradingCalendarService,
+  type MarketStatus,
+  type SupportedMarket,
+} from './sdk/index';
 
 // 导出类型
 export * from './types';
@@ -82,6 +94,17 @@ export {
   HttpError,
   SdkError,
   getSdkErrorCode,
+} from './core';
+
+// 时间工具（changelog 已承诺：MARKET_TZ / MarketTz / TimeMeta /
+// parseMarketTime / buildTimeMeta / buildTimeMetaFromDateAndTime）
+export {
+  MARKET_TZ,
+  type MarketTz,
+  type TimeMeta,
+  parseMarketTime,
+  buildTimeMeta,
+  buildTimeMetaFromDateAndTime,
 } from './core';
 
 // 导出配置类型

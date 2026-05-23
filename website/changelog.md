@@ -2,6 +2,57 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.9.3](https://www.npmjs.com/package/stock-sdk/v/1.9.3)** (2026-05-22)
+
+> Bug fix 版本。集中修复 v1.9.0 / v1.9.2 后发现的 7 个真实问题，无破坏性变更。
+
+### 修复
+
+**腾讯无效代码"空壳行情"**
+- 之前所有腾讯行情接口只过滤 `fields[0] !== ''`，但腾讯对无匹配代码会返回
+  `v_pv_none_match="1"`（`fields = ['1']`）通过过滤后被解析成 `code: ''`、`price: 0` 的伪数据。
+- 修复 7 个入口：`getFullQuotes` / `getSimpleQuotes` / `getHKQuotes` / `getUSQuotes` /
+  `getFundQuotes` / `getFundFlow` / `getPanelLargeOrder`。
+- 改为按响应 `key` 精确匹配请求过的代码集合，并按各 parser 实际使用的最大字段下标收紧长度校验。
+
+**时间戳解析**
+- `getTodayTimeline` 每个分时点 `timestamp: NaN` — 腾讯返回 `date=YYYYMMDD`，
+  但内部 `combineDateAndTime` 仅接受 `YYYY-MM-DD`。修复 `core/time.ts` 同时兼容两种格式。
+- `getKlineWithIndicators` 用 `YYYY-MM-DD` 起止日期时 HK/US 返回 0 条 —
+  `calcActualStartDate` 切片前未归一化导致非法日期、`endDate` 又原样透传给 provider。
+  两处都统一转 `YYYYMMDD` 再交给 provider。
+
+**请求治理一致性**
+- `getTodayTimeline` 之前用裸 `fetch` 绕过了 retry / rateLimit / circuitBreaker / providerPolicies /
+  host fallback，与同一 SDK 实例的其它接口治理行为不一致。改为统一走 `RequestClient.get`。
+
+**JSDoc 误导**
+- `getHKQuotes` / `getUSQuotes` 示例代码写成已经带前缀的 `'hk00700'` / `'usAAPL'`，
+  会被 provider 再加一次前缀变成无效查询。改为无前缀的 `'00700'` / `'AAPL'`。
+
+### 补齐导出（履行历史 changelog 承诺）
+
+`src/index.ts` 之前列在 changelog 但实际未对外 re-export 的符号现已补齐：
+- **时间工具**：`MARKET_TZ` / `MarketTz` / `TimeMeta` / `parseMarketTime` /
+  `buildTimeMeta` / `buildTimeMetaFromDateAndTime`
+- **服务类与类型**：`TradingCalendarService` / `MarketStatus` / `SupportedMarket`
+- **美股相关**：`USMarket` / `GetUSCodeListOptions` / `GetAllUSQuotesOptions`
+
+TypeScript 用户现在可以从 `stock-sdk` 顶层直接 import。
+
+### 内部优化
+
+- `providers/tencent/timeline.ts` 去 `any` 化：新增 3 个本地 interface
+  （`TencentTimelineResponse` / `TencentStockTimeline` / `TencentStockTimelineInner`）
+  明确响应结构，符合项目零 `any` 规范。
+
+### 兼容性
+
+- 本版本不包含破坏性变更。
+- 唯一行为差异是"无效代码不再返回伪数据"——以前会拿到 `code: ''`、`price: 0` 的占位行情，
+  现在直接被过滤掉。如果有调用方依赖这种占位返回，需要补一下空数组处理。
+
+
 ## **[1.9.2](https://www.npmjs.com/package/stock-sdk/v/1.9.2)** (2026-05-16)
 
 > 数据契约清理 + 业务工具补齐版本。**全部为非破坏性新增**，老代码无需迁移即可升级。
