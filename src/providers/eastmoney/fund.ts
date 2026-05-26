@@ -8,6 +8,8 @@
  */
 import { fetchJsVars } from '../../core/jsVars';
 import { extractJsonFromJsonp } from '../../core/jsonp';
+import { withScriptMutex } from '../../core/scriptMutex';
+import type { RequestClient } from '../../core/request';
 import type {
   FundDividend,
   FundDividendListOptions,
@@ -27,8 +29,13 @@ const FUND_PINGZHONGDATA_URL = 'https://fund.eastmoney.com/pingzhongdata';
 /** 天天基金实时估值接口（JSONP，callback 名固定为 `jsonpgz`） */
 const FUND_GZ_URL = 'https://fundgz.1234567.com.cn/js';
 
-const isBrowser =
-  typeof document !== 'undefined' && typeof window !== 'undefined';
+/**
+ * 运行时检查是否在浏览器环境。
+ * 写成函数（而非 module-level const）是为了让单测能通过 `vi.stubGlobal` 动态切换环境。
+ */
+function isBrowserEnv(): boolean {
+  return typeof document !== 'undefined' && typeof window !== 'undefined';
+}
 
 const DEFAULT_FUNDGZ_TIMEOUT_MS = 10000;
 
@@ -84,14 +91,16 @@ function mapRow(row: string[]): FundDividend {
 
 /** 拉取单页（不做客户端过滤、不做翻页聚合） */
 async function fetchOnePage(
+  client: RequestClient,
   opts: FundDividendListOptions,
   page: number
 ): Promise<FundDividendListResult> {
   const url = buildUrl(opts, page);
-  const vars = await fetchJsVars<FundDividendRaw>(url, [
-    'pageinfo',
-    'jjfh_data',
-  ]);
+  const vars = await fetchJsVars<FundDividendRaw>(
+    url,
+    ['pageinfo', 'jjfh_data'],
+    { client }
+  );
   const info = vars.pageinfo ?? [0, 0, page];
   const [totalPages = 0, pageSize = 0, currentPage = page] = info;
   const rawRows = vars.jjfh_data ?? [];
@@ -119,13 +128,14 @@ async function fetchOnePage(
  * await sdk.getFundDividendList({ year: 2024, page: 'all', code: '110011' });
  */
 export async function getFundDividendList(
+  client: RequestClient,
   options: FundDividendListOptions = {}
 ): Promise<FundDividendListResult> {
   if (options.page === 'all') {
-    const first = await fetchOnePage(options, 1);
+    const first = await fetchOnePage(client, options, 1);
     let items = first.items;
     for (let p = 2; p <= first.totalPages; p++) {
-      const next = await fetchOnePage(options, p);
+      const next = await fetchOnePage(client, options, p);
       items = items.concat(next.items);
     }
     if (options.code) {
@@ -140,7 +150,7 @@ export async function getFundDividendList(
   }
 
   const page = options.page ?? 1;
-  const result = await fetchOnePage(options, page);
+  const result = await fetchOnePage(client, options, page);
   if (options.code) {
     return {
       ...result,
@@ -194,14 +204,16 @@ function timestampToDate(ts: number): string {
  * const h = await sdk.getFundNavHistory('110011');
  * console.log(h.name, h.items.length, h.items[h.items.length - 1]);
  */
-export async function getFundNavHistory(code: string): Promise<FundNavHistory> {
+export async function getFundNavHistory(
+  client: RequestClient,
+  code: string
+): Promise<FundNavHistory> {
   const url = `${FUND_PINGZHONGDATA_URL}/${encodeURIComponent(code)}.js`;
-  const vars = await fetchJsVars<FundNavRaw>(url, [
-    'fS_code',
-    'fS_name',
-    'Data_netWorthTrend',
-    'Data_ACWorthTrend',
-  ]);
+  const vars = await fetchJsVars<FundNavRaw>(
+    url,
+    ['fS_code', 'fS_name', 'Data_netWorthTrend', 'Data_ACWorthTrend'],
+    { client }
+  );
 
   const trend = vars.Data_netWorthTrend ?? [];
   // 把累计净值按 timestamp 建索引，O(1) 对齐
@@ -251,14 +263,20 @@ interface FundGzPayload {
  * Node 端：直接 fetch 文本 + `extractJsonFromJsonp` 剥离包装。
  */
 function fetchFundGz(
+  client: RequestClient,
   code: string,
   timeout = DEFAULT_FUNDGZ_TIMEOUT_MS
 ): Promise<FundGzPayload> {
   const url = `${FUND_GZ_URL}/${encodeURIComponent(code)}.js?rt=${Date.now()}`;
-  if (isBrowser) {
-    return browserFetchFundGz(url, timeout);
+  if (isBrowserEnv()) {
+    // 浏览器：必须串行（fundgz 强制返回 `jsonpgz(...)`，callback 名无法动态化，
+    // 同时刻多请求会互相覆盖 window.jsonpgz）。
+    return withScriptMutex('fundgz:jsonpgz', () =>
+      browserFetchFundGz(url, timeout)
+    );
   }
-  return nodeFetchFundGz(url, timeout);
+  // Node：超时 / 重试 / 限流交给 client 治理，不再透传本地 timeout
+  return nodeFetchFundGz(client, url);
 }
 
 function browserFetchFundGz(
@@ -316,32 +334,22 @@ function browserFetchFundGz(
 }
 
 async function nodeFetchFundGz(
-  url: string,
-  timeout: number
+  client: RequestClient,
+  url: string
 ): Promise<FundGzPayload> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
+  // 走 SDK RequestClient：享受 retry / rateLimit / circuitBreaker / fallback host
+  // fundgz.1234567.com.cn 不在 inferProviderFromUrl 名单，需显式归为 eastmoney
+  // 以应用 providerPolicies.eastmoney 的策略
+  const text = await client.get<string>(url, {
+    responseType: 'text',
+    provider: 'eastmoney',
+  });
+  const trimmed = text.trim();
+  if (!trimmed) return {};
   try {
-    const resp = await fetch(url, { signal: controller.signal });
-    if (!resp.ok) {
-      throw new Error(`fundgz fetch failed with status ${resp.status}: ${url}`);
-    }
-    const text = await resp.text();
-    const trimmed = text.trim();
-    // 空响应 / 未运营 / 代码无效时 fundgz 返回空体或纯换行
-    if (!trimmed) return {};
-    try {
-      return extractJsonFromJsonp(trimmed) as FundGzPayload;
-    } catch {
-      return {};
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error(`fundgz JSONP timed out after ${timeout}ms: ${url}`);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timer);
+    return extractJsonFromJsonp(trimmed) as FundGzPayload;
+  } catch {
+    return {};
   }
 }
 
@@ -362,8 +370,11 @@ function toNullableNumber(s: string | undefined): number | null {
  *
  * @param code 基金代码（纯数字，如 `'005827'`）
  */
-export async function getFundEstimate(code: string): Promise<FundEstimate> {
-  const raw = await fetchFundGz(code);
+export async function getFundEstimate(
+  client: RequestClient,
+  code: string
+): Promise<FundEstimate> {
+  const raw = await fetchFundGz(client, code);
   return {
     code: raw.fundcode ?? code,
     name: raw.name ?? null,
@@ -408,15 +419,20 @@ function toNullableInt(v: number | string | undefined): number | null {
  * @param code 基金代码
  */
 export async function getFundRankHistory(
+  client: RequestClient,
   code: string
 ): Promise<FundRankHistory> {
   const url = `${FUND_PINGZHONGDATA_URL}/${encodeURIComponent(code)}.js`;
-  const vars = await fetchJsVars<FundRankRaw>(url, [
-    'fS_code',
-    'fS_name',
-    'Data_rateInSimilarType',
-    'Data_rateInSimilarPersent',
-  ]);
+  const vars = await fetchJsVars<FundRankRaw>(
+    url,
+    [
+      'fS_code',
+      'fS_name',
+      'Data_rateInSimilarType',
+      'Data_rateInSimilarPersent',
+    ],
+    { client }
+  );
 
   const series = vars.Data_rateInSimilarType ?? [];
   const percentMap = new Map<number, number>();

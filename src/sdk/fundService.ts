@@ -24,21 +24,21 @@ export class FundService extends BaseService {
   getFundDividendList(
     options?: FundDividendListOptions
   ): Promise<FundDividendListResult> {
-    return eastmoney.getFundDividendList(options);
+    return eastmoney.getFundDividendList(this.client, options);
   }
 
   /** 获取基金历史净值（单位 + 累计，全历史一次返回） */
   getFundNavHistory(code: string): Promise<FundNavHistory> {
-    return eastmoney.getFundNavHistory(code);
+    return eastmoney.getFundNavHistory(this.client, code);
   }
 
   /** 获取基金当日实时估值（含 T-1 单位净值 + 盘中估算） */
   getFundEstimate(code: string): Promise<FundEstimate> {
-    return eastmoney.getFundEstimate(code);
+    return eastmoney.getFundEstimate(this.client, code);
   }
 
   /** 获取基金同类排名走势（每日近三月排名 + 百分位） */
   getFundRankHistory(code: string): Promise<FundRankHistory> {
-    return eastmoney.getFundRankHistory(code);
+    return eastmoney.getFundRankHistory(this.client, code);
   }
 }

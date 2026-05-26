@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RequestClient } from '../../../../src/core';
 import {
   getFundDividendList,
   getFundEstimate,
   getFundNavHistory,
   getFundRankHistory,
 } from '../../../../src/providers/eastmoney/fund';
+
+// 关掉重试避免 500 / 网络错误测试触发 backoff，拖慢测试套件
+const client = new RequestClient({ retry: { maxRetries: 0 } });
 
 /**
  * 用 stubGlobal('fetch') 做端到端测试：
@@ -69,7 +73,7 @@ describe('getFundDividendList', () => {
         return new Response(PAGE1, { status: 200 });
       })
     );
-    const r = await getFundDividendList({ year: 2024 });
+    const r = await getFundDividendList(client,{ year: 2024 });
     // 默认参数：dt=8 / rank=FSRQ / sort=desc / page=1 / gs= / ftype=
     expect(lastUrl).toContain(
       'fund.eastmoney.com/Data/funddataIndex_Interface.aspx'
@@ -104,7 +108,7 @@ describe('getFundDividendList', () => {
         return new Response(PAGE2, { status: 200 });
       })
     );
-    await getFundDividendList({
+    await getFundDividendList(client,{
       year: 2024,
       page: 2,
       rank: 'FHFCZ',
@@ -119,7 +123,7 @@ describe('getFundDividendList', () => {
 
   it("aggregates all pages when page is 'all'", async () => {
     vi.stubGlobal('fetch', mockFetchByQueue([PAGE1, PAGE2, PAGE3]));
-    const r = await getFundDividendList({ year: 2024, page: 'all' });
+    const r = await getFundDividendList(client,{ year: 2024, page: 'all' });
     expect(r.items).toHaveLength(5); // 2 + 2 + 1
     expect(r.currentPage).toBe(-1);
     expect(r.totalPages).toBe(3);
@@ -130,14 +134,14 @@ describe('getFundDividendList', () => {
       'fetch',
       vi.fn(async () => new Response(PAGE1, { status: 200 }))
     );
-    const r = await getFundDividendList({ year: 2024, code: '110011' });
+    const r = await getFundDividendList(client,{ year: 2024, code: '110011' });
     expect(r.items).toHaveLength(1);
     expect(r.items[0].code).toBe('110011');
   });
 
   it("filters by code across all pages when page='all'", async () => {
     vi.stubGlobal('fetch', mockFetchByQueue([PAGE1, PAGE2, PAGE3]));
-    const r = await getFundDividendList({
+    const r = await getFundDividendList(client,{
       year: 2024,
       page: 'all',
       code: '110011',
@@ -152,7 +156,7 @@ describe('getFundDividendList', () => {
       'fetch',
       vi.fn(async () => new Response(EMPTY_PAGE, { status: 200 }))
     );
-    const r = await getFundDividendList({ year: 2099 });
+    const r = await getFundDividendList(client,{ year: 2099 });
     expect(r.items).toEqual([]);
     expect(r.totalPages).toBe(0);
     expect(r.pageSize).toBe(0);
@@ -166,7 +170,7 @@ describe('getFundDividendList', () => {
       'fetch',
       vi.fn(async () => new Response(payload, { status: 200 }))
     );
-    const r = await getFundDividendList({ year: 2024 });
+    const r = await getFundDividendList(client,{ year: 2024 });
     expect(r.items[0]).toMatchObject({
       code: '999999',
       name: '测试基金',
@@ -216,7 +220,7 @@ describe('getFundNavHistory', () => {
       `var Data_ACWorthTrend = [[${T1},1.5000],[${T2},1.5050],[${T3},1.5030]];`;
     stubPingzhongdata(body);
 
-    const h = await getFundNavHistory('110011');
+    const h = await getFundNavHistory(client,'110011');
     expect(lastUrl).toBe('https://fund.eastmoney.com/pingzhongdata/110011.js');
     expect(h.code).toBe('110011');
     expect(h.name).toBe('易方达优质精选混合(QDII)');
@@ -242,7 +246,7 @@ describe('getFundNavHistory', () => {
       `]; ` +
       `var Data_ACWorthTrend = [[${T1},1.50]];`; // T2 缺失
     stubPingzhongdata(body);
-    const h = await getFundNavHistory('110011');
+    const h = await getFundNavHistory(client,'110011');
     expect(h.items[0].accNav).toBe(1.5);
     expect(h.items[1].accNav).toBeNull();
   });
@@ -251,7 +255,7 @@ describe('getFundNavHistory', () => {
     const body =
       `var Data_netWorthTrend = [{"x":${T1},"y":1.0,"equityReturn":0,"unitMoney":""}];`;
     stubPingzhongdata(body);
-    const h = await getFundNavHistory('110011');
+    const h = await getFundNavHistory(client,'110011');
     expect(h.items).toHaveLength(1);
     expect(h.items[0].accNav).toBeNull();
   });
@@ -259,7 +263,7 @@ describe('getFundNavHistory', () => {
   it('returns empty items when Data_netWorthTrend is missing', async () => {
     const body = 'var fS_name = "X";';
     stubPingzhongdata(body);
-    const h = await getFundNavHistory('110011');
+    const h = await getFundNavHistory(client,'110011');
     expect(h.items).toEqual([]);
     expect(h.name).toBe('X');
     expect(h.code).toBe('110011'); // 回填入参
@@ -273,7 +277,7 @@ describe('getFundNavHistory', () => {
       `{"x":${T3},"y":1.02,"equityReturn":"","unitMoney":""}` +
       `];`;
     stubPingzhongdata(body);
-    const h = await getFundNavHistory('110011');
+    const h = await getFundNavHistory(client,'110011');
     expect(h.items[0].dailyReturn).toBe(0.5);
     expect(h.items[1].dailyReturn).toBe(1.25);
     expect(h.items[2].dailyReturn).toBeNull();
@@ -283,13 +287,13 @@ describe('getFundNavHistory', () => {
     const body =
       `var Data_netWorthTrend = [{"x":${T1},"y":1.0,"equityReturn":0,"unitMoney":"0.5432"}];`;
     stubPingzhongdata(body);
-    const h = await getFundNavHistory('000001');
+    const h = await getFundNavHistory(client,'000001');
     expect(h.items[0].unitMoney).toBe('0.5432');
   });
 
   it('url-encodes special characters in fund code', async () => {
     stubPingzhongdata('var Data_netWorthTrend = [];');
-    await getFundNavHistory('110/011');
+    await getFundNavHistory(client,'110/011');
     expect(lastUrl).toContain('/pingzhongdata/110%2F011.js');
   });
 });
@@ -319,7 +323,7 @@ describe('getFundEstimate', () => {
     stubFundGz(
       'jsonpgz({"fundcode":"005827","name":"易方达蓝筹精选混合","jzrq":"2026-05-25","dwjz":"1.6210","gsz":"1.6114","gszzl":"-0.59","gztime":"2026-05-26 15:00"});'
     );
-    const r = await getFundEstimate('005827');
+    const r = await getFundEstimate(client,'005827');
     expect(lastUrl).toContain('https://fundgz.1234567.com.cn/js/005827.js?rt=');
     expect(r).toEqual({
       code: '005827',
@@ -336,7 +340,7 @@ describe('getFundEstimate', () => {
     stubFundGz(
       'jsonpgz({"fundcode":"005827","name":"X","jzrq":"2026-05-25","dwjz":"1.0000","gsz":"--","gszzl":"","gztime":""});'
     );
-    const r = await getFundEstimate('005827');
+    const r = await getFundEstimate(client,'005827');
     expect(r.nav).toBe(1);
     expect(r.estimatedNav).toBeNull();
     expect(r.estimatedChangePercent).toBeNull();
@@ -345,7 +349,7 @@ describe('getFundEstimate', () => {
 
   it('returns all-null payload when response body is empty', async () => {
     stubFundGz('');
-    const r = await getFundEstimate('999999');
+    const r = await getFundEstimate(client,'999999');
     expect(r).toEqual({
       code: '999999',
       name: null,
@@ -362,14 +366,13 @@ describe('getFundEstimate', () => {
       'fetch',
       vi.fn(async () => new Response('', { status: 500 }))
     );
-    await expect(getFundEstimate('005827')).rejects.toThrow(
-      /fundgz fetch failed.*500/
-    );
+    // 走 RequestClient 后错误由 SDK 统一 normalize 成 HttpError，message 含 status
+    await expect(getFundEstimate(client, '005827')).rejects.toThrow(/500/);
   });
 
   it('encodes special characters in fund code', async () => {
     stubFundGz('jsonpgz({});');
-    await getFundEstimate('00/01');
+    await getFundEstimate(client,'00/01');
     expect(lastUrl).toContain('/js/00%2F01.js?');
   });
 });
@@ -408,7 +411,7 @@ describe('getFundRankHistory', () => {
       `var Data_rateInSimilarPersent = [[${T1},54.24],[${T2},64.41],[${T3},71.19]];`;
     stubPingzhongdata(body);
 
-    const r = await getFundRankHistory('110011');
+    const r = await getFundRankHistory(client,'110011');
     expect(lastUrl).toBe('https://fund.eastmoney.com/pingzhongdata/110011.js');
     expect(r.code).toBe('110011');
     expect(r.name).toBe('易方达');
@@ -428,14 +431,14 @@ describe('getFundRankHistory', () => {
       `var Data_rateInSimilarType = [{"x":${T1},"y":10,"sc":"100"},{"x":${T2},"y":11,"sc":"100"}]; ` +
       `var Data_rateInSimilarPersent = [[${T1},10.0]];`;
     stubPingzhongdata(body);
-    const r = await getFundRankHistory('110011');
+    const r = await getFundRankHistory(client,'110011');
     expect(r.items[0].percentile).toBe(10);
     expect(r.items[1].percentile).toBeNull();
   });
 
   it('returns empty items when Data_rateInSimilarType is missing', async () => {
     stubPingzhongdata('var fS_name = "X";');
-    const r = await getFundRankHistory('110011');
+    const r = await getFundRankHistory(client,'110011');
     expect(r.items).toEqual([]);
     expect(r.name).toBe('X');
     expect(r.code).toBe('110011');

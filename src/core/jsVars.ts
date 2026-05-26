@@ -6,27 +6,61 @@
  * CORS 头，浏览器侧无法用 fetch 直接拿到。本工具双端实现：
  *
  * - 浏览器端：动态 `<script>` 注入，从 `window` 读全局变量，读完立即删除
- * - Node.js 端：fetch 文本 + 括号配对扫描 + `JSON.parse`
+ * - Node.js 端：fetch 文本 + 括号配对扫描 + `JSON.parse`；若传入 `client`，走
+ *   `RequestClient` 享受 SDK 重试 / 限流 / 熔断 / fallback host 治理
  *
  * 仅支持值是合法 JSON 字面量的变量（数组 / 对象 / 数字 / 字符串 / 布尔 / null）。
  *
- * ⚠️ 浏览器端注意：
- * - 注入期间会污染 `window`。并发请求同一变量名可能互相覆盖，调用方需自行做请求级
- *   mutex 或避免并发。
+ * 浏览器端并发安全：内部用 `withScriptMutex` 做全局串行化（key 为
+ * `BROWSER_JSVARS_MUTEX_KEY`），任意两个浏览器 fetchJsVars 调用都按提交顺序
+ * 串行执行，避免不同接口的全局变量名集合交集（如 pingzhongdata 系列共享
+ * `fS_code` / `fS_name`）导致的相互覆盖。
+ *
+ * ⚠️ 浏览器端限制：
+ * - 通过 `<script>` 注入加载，`options.client` / `options.headers` 都不会生效；
+ *   SDK 治理（retry / rateLimit / circuitBreaker / providerPolicies）仅 Node 端生效
  * - 数据源若把字面量改成 JS 表达式（如带函数引用、未引号 key），解析失败的字段将
- *   返回 `undefined`，但不会抛错。
+ *   返回 `undefined`，但不会抛错
  */
+import type { RequestClient } from './request';
+import { withScriptMutex } from './scriptMutex';
 
-const isBrowser =
-  typeof document !== 'undefined' && typeof window !== 'undefined';
+/**
+ * 运行时检查是否在浏览器环境。
+ * 写成函数（而非 module-level const）是为了让单测能通过 `vi.stubGlobal` 动态切换环境。
+ */
+function isBrowserEnv(): boolean {
+  return typeof document !== 'undefined' && typeof window !== 'undefined';
+}
 
 const DEFAULT_TIMEOUT_MS = 15000;
 
+/**
+ * 浏览器端所有 fetchJsVars 调用共享的 mutex 键。
+ *
+ * 用全局键（而非按变量名集合算 key）的原因：不同接口的变量名集合常有交集
+ * （如 pingzhongdata 的 `fS_code` / `fS_name` 同时被多个接口写入）。按集合
+ * 分组的 key 会让"集合不同但有交集"的并发请求互相覆盖全局变量。
+ *
+ * 代价：浏览器端任意两个 fetchJsVars 调用都串行；收益：彻底消除变量交集漏洞。
+ *
+ * Node 端不走 mutex，不受影响。
+ */
+export const BROWSER_JSVARS_MUTEX_KEY = 'jsVars';
+
 export interface FetchJsVarsOptions {
-  /** 超时毫秒数，默认 15000 */
+  /** 超时毫秒数，默认 15000（仅在裸 fetch 路径生效；走 client 时由 client 治理） */
   timeout?: number;
-  /** 额外的 fetch headers（仅 Node 端生效；浏览器 `<script>` 注入无法自定义 header） */
+  /** 额外的 fetch headers（仅 Node 端裸 fetch 路径生效；client 路径请通过 client 配置） */
   headers?: Record<string, string>;
+  /**
+   * 可选的 SDK 请求客户端。
+   * - 传入：Node 端走 `client.get<string>(url, { responseType: 'text' })`，享受 SDK 重试 /
+   *   限流 / 熔断 / fallback host / providerPolicies 全套治理
+   * - 不传：Node 端用裸 `fetch`（兼容直接用工具的高级用户）
+   * - 浏览器端始终走 `<script>` 注入，此参数不生效
+   */
+  client?: RequestClient;
 }
 
 /**
@@ -43,10 +77,22 @@ export async function fetchJsVars<T extends object>(
   options: FetchJsVarsOptions = {}
 ): Promise<Partial<T>> {
   const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
-  if (isBrowser) {
-    return browserFetchJsVars<T>(url, varNames, timeout);
+  if (isBrowserEnv()) {
+    // 用全局 mutex key：浏览器端所有 fetchJsVars 串行。
+    // 详见 BROWSER_JSVARS_MUTEX_KEY 注释——不同接口的变量集合常有交集
+    // （如 pingzhongdata 系列共享 fS_code / fS_name），按集合分组的 key
+    // 会出现"集合不同但有交集"的并发漏洞。
+    return withScriptMutex(BROWSER_JSVARS_MUTEX_KEY, () =>
+      browserFetchJsVars<T>(url, varNames, timeout)
+    );
   }
-  return nodeFetchJsVars<T>(url, varNames, timeout, options.headers);
+  return nodeFetchJsVars<T>(
+    url,
+    varNames,
+    timeout,
+    options.headers,
+    options.client
+  );
 }
 
 /**
@@ -125,8 +171,16 @@ async function nodeFetchJsVars<T extends object>(
   url: string,
   varNames: (keyof T & string)[],
   timeout: number,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
+  client?: RequestClient
 ): Promise<Partial<T>> {
+  // 优先走 SDK RequestClient（享受 retry / rateLimit / circuitBreaker / fallback host）
+  if (client) {
+    const text = await client.get<string>(url, { responseType: 'text' });
+    return parseJsVars<T>(text, varNames);
+  }
+
+  // 兼容路径：未传 client 时用裸 fetch（方便高级用户直接用本工具）
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {

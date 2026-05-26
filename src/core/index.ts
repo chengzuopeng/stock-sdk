@@ -137,6 +137,9 @@ export { jsonpRequest, extractJsonFromJsonp, type JsonpOptions } from './jsonp';
 // JS 变量声明文件解析（用于 pingzhongdata / funddataIndex_Interface 等非 JSONP 接口）
 export { fetchJsVars, parseJsVars, type FetchJsVarsOptions } from './jsVars';
 
+// 浏览器全局名级互斥锁（用于 <script> 注入的并发安全）
+export { withScriptMutex } from './scriptMutex';
+
 // 熔断器
 export {
   CircuitBreaker,

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parseJsVars, fetchJsVars } from '../../../src/core';
+import { BROWSER_JSVARS_MUTEX_KEY } from '../../../src/core/jsVars';
+import { __resetScriptMutex } from '../../../src/core/scriptMutex';
 
 describe('parseJsVars (synchronous text extraction)', () => {
   it('extracts an array literal', () => {
@@ -152,5 +154,129 @@ describe('fetchJsVars (Node fetch path)', () => {
     await expect(
       fetchJsVars('https://example.com/x.js', ['a'], { timeout: 50 })
     ).rejects.toThrow(/timed out after 50ms/);
+  });
+});
+
+describe('fetchJsVars (browser concurrency safety with mutex)', () => {
+  // 模拟浏览器环境：vi.stubGlobal 注入最小 document / window，让 fetchJsVars
+  // 走 browserFetchJsVars 路径。这样可以验证 mutex 是否真的把"变量名集合不同
+  // 但有交集"的并发请求串行化了（即 P1 修复点）。
+
+  interface FakeScript {
+    src: string;
+    onload: (() => void) | null;
+    onerror: (() => void) | null;
+    parentNode: { removeChild: (el: FakeScript) => void } | null;
+  }
+
+  let scripts: FakeScript[];
+  let fakeWindow: Record<string, unknown>;
+
+  // 等待 mutex 内部 promise 链多轮 microtask 全部推进
+  async function flushMicrotasks() {
+    for (let i = 0; i < 5; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
+  beforeEach(() => {
+    scripts = [];
+    fakeWindow = {};
+    __resetScriptMutex();
+
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => {
+        if (tag !== 'script') {
+          throw new Error(`unexpected createElement: ${tag}`);
+        }
+        const el: FakeScript = {
+          src: '',
+          onload: null,
+          onerror: null,
+          parentNode: null,
+        };
+        scripts.push(el);
+        return el;
+      },
+      head: {
+        appendChild: (el: FakeScript) => {
+          el.parentNode = { removeChild: () => {} };
+        },
+      },
+    });
+    vi.stubGlobal('window', fakeWindow);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetScriptMutex();
+  });
+
+  it('exposes a single global mutex key for the browser path', () => {
+    expect(BROWSER_JSVARS_MUTEX_KEY).toBe('jsVars');
+  });
+
+  it('serializes two concurrent calls whose varName sets DIFFER but OVERLAP (regression for P1 cross-set leak)', async () => {
+    // 关键场景：模拟 getFundNavHistory 与 getFundRankHistory 的真实交集：
+    //   nav  → ['fS_code', 'fS_name', 'Data_netWorthTrend', 'Data_ACWorthTrend']
+    //   rank → ['fS_code', 'fS_name', 'Data_rateInSimilarType', 'Data_rateInSimilarPersent']
+    // 集合不同，但都写 fS_code / fS_name。旧实现按集合分组 mutex key，两者并发
+    // 会进入不同队列 → 同时刻 onload → fS_code / fS_name 互相覆盖。
+    // 修复后全部 fetchJsVars 共享单一 mutex key，必须严格串行。
+
+    const p1 = fetchJsVars<{ fS_code: string; payload_nav: number }>(
+      'http://x/nav.js',
+      ['fS_code', 'payload_nav']
+    );
+    const p2 = fetchJsVars<{ fS_code: string; payload_rank: number }>(
+      'http://x/rank.js',
+      ['fS_code', 'payload_rank']
+    );
+
+    await flushMicrotasks();
+    // 互斥生效：第 2 个 script 还未创建
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0].src).toBe('http://x/nav.js');
+
+    // p1 模拟"基金 A"的脚本加载完成
+    fakeWindow.fS_code = 'A';
+    fakeWindow.payload_nav = 111;
+    scripts[0].onload!();
+    const r1 = await p1;
+
+    await flushMicrotasks();
+    // 现在 p2 才进入执行；如果不串行，两个 script 早就在第一次 flush 时都被创建了
+    expect(scripts).toHaveLength(2);
+    expect(scripts[1].src).toBe('http://x/rank.js');
+
+    // p2 模拟"基金 B"的脚本加载完成
+    fakeWindow.fS_code = 'B';
+    fakeWindow.payload_rank = 222;
+    scripts[1].onload!();
+    const r2 = await p2;
+
+    // 关键断言：fS_code 没被串
+    expect(r1.fS_code).toBe('A');
+    expect(r1.payload_nav).toBe(111);
+    expect(r2.fS_code).toBe('B');
+    expect(r2.payload_rank).toBe(222);
+  });
+
+  it('cleans up window keys after each call so subsequent reads do not leak', async () => {
+    const p1 = fetchJsVars<{ x: number }>('http://x/1.js', ['x']);
+    await flushMicrotasks();
+    fakeWindow.x = 42;
+    scripts[0].onload!();
+    await p1;
+
+    // 第 1 次读完应该已 delete window.x，避免污染下一次
+    expect('x' in fakeWindow).toBe(false);
+
+    // 第 2 次：什么都不设，应拿不到值（key 不出现在结果里）
+    const p2 = fetchJsVars<{ x: number }>('http://x/2.js', ['x']);
+    await flushMicrotasks();
+    scripts[1].onload!();
+    const r2 = await p2;
+    expect('x' in r2).toBe(false);
   });
 });
