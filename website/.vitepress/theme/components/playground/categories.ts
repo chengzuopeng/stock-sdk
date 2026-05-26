@@ -14,4 +14,5 @@ export const categories: CategorySpec[] = [
   { key: 'futures', label: '期货行情', icon: 'lucide:flame', color: '#f97316' },
   { key: 'options', label: '期权数据', icon: 'lucide:target', color: '#06b6d4' },
   { key: 'extended', label: '扩展功能', icon: 'lucide:zap', color: '#ef4444' },
+  { key: 'fund', label: '基金扩展', icon: 'lucide:landmark', color: '#0ea5e9' },
 ];

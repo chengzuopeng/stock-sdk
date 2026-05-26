@@ -17,6 +17,7 @@ import { northboundMethods } from './northbound';
 import { marketEventMethods } from './marketEvent';
 import { dragonTigerMethods } from './dragonTiger';
 import { blockTradeMarginMethods } from './blockTradeMargin';
+import { fundMethods } from './fund';
 
 export const allMethods: MethodSpec[] = [
   ...quotesMethods,
@@ -33,6 +34,7 @@ export const allMethods: MethodSpec[] = [
   ...marketEventMethods,
   ...dragonTigerMethods,
   ...blockTradeMarginMethods,
+  ...fundMethods,
 ];
 
 /** 按 method.name 索引的 Map，用于 O(1) 查找。 */

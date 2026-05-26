@@ -2,6 +2,60 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-26)
+
+> 公募基金扩展能力版本。新增 4 个基金深度数据方法（分红 / 历史净值 / 实时估值 / 同类排名），覆盖 issue #16 主要诉求；顺手修复上交所 5xx ETF / 9xx B 股 secid 归类错误，让 `getHistoryKline('510050')` 等场内 ETF / B 股查询从「拿不到数据」变为可用。无破坏性变更。
+
+### 新增功能
+
+**公募基金扩展（FundService）**
+- `getFundDividendList` 基金分红明细 — 来自天天基金分红送配频道，支持 `year` / `fundType` / `rank` / `sort` / `page` / `code` 客户端过滤；`page: 'all'` 自动翻页聚合
+- `getFundNavHistory` 基金历史净值 — 单位净值 + 累计净值按 timestamp 对齐合并，一次返回全历史（数千条），覆盖开放式 / ETF / LOF / 货币 / QDII
+- `getFundEstimate` 基金当日实时估值 — 同时返回 T-1 单位净值（`nav` / `navDate`）和盘中估算（`estimatedNav` / `estimatedChangePercent` / `estimateTime`）
+- `getFundRankHistory` 基金同类排名走势 — 每日近三月排名 + 同类总数 + 百分位
+- 新增 `FundService`（顶层 export）作为这组方法的承载
+
+**通用工具**
+- `fetchJsVars` / `parseJsVars` — 双端解析 `var X = ...; var Y = ...;` 形式的 JS 变量声明文件（用于 pingzhongdata、funddataIndex_Interface 等非 JSONP 接口）。浏览器走 `<script>` 注入，Node 走 fetch + 括号配对扫描；可选传 `client` 接入 SDK 治理
+- `withScriptMutex` / `BROWSER_JSVARS_MUTEX_KEY` — 浏览器全局名级互斥锁，杜绝 `<script>` 注入路径的并发覆盖
+
+### 修复
+
+**ETF / 上交所 B 股 secid 归类错误**
+- `getMarketCode` 之前对 5 开头（场内 ETF / LOF / 封基，如 510050 / 512170 / 518880 / 588000）和 9 开头（上交所 B 股，如 900901）错误归到深圳，导致这些代码走 `getHistoryKline` 等接口实际拿不到数据
+- 修复后正确归到上海（secid=1）；深交所 ETF（159xxx）/ LOF（16xxxx）维持原行为，必要时仍可带 `sz` 前缀显式指定
+
+### 浏览器并发安全
+
+新基金接口在浏览器端通过 `<script>` 注入加载（fund.eastmoney.com / fundgz.1234567.com.cn 均无 CORS 头），容易触发全局变量并发覆盖：
+
+- pingzhongdata 系列接口共享 `fS_code` / `fS_name` 等变量名，`Promise.all` 并发不同基金时会互相串数据
+- fundgz 系列共享 `jsonpgz` 固定 callback 名，且接口不支持动态 callback
+
+v1.10.0 通过 `withScriptMutex` 全局互斥兜底：
+- 浏览器端所有 `fetchJsVars` 调用串行化（key 固定为 `'jsVars'`，杜绝"变量集合不同但有交集"漏洞）
+- fundgz 独立串行化（key 为 `'fundgz:jsonpgz'`）
+- Node 端不受此限制，真并发不受影响
+
+### 请求治理
+
+`FundService` 4 个方法已接入 `RequestClient`：`new StockSDK({ retry, rateLimit, circuitBreaker, providerPolicies.eastmoney, headers, ... })` 配置对新基金方法在 Node 端生效。
+
+`fundgz.1234567.com.cn` 不在自动 provider 推断名单，已在 provider 内部显式归入 `eastmoney`，因此 `providerPolicies.eastmoney` 配置会真正生效。
+
+⚠️ 浏览器 `<script>` 注入路径无法接 `RequestClient`，`headers` / `circuitBreaker` / `rateLimit` 等仅 Node 端生效，详见 `fetchJsVars` 顶部 JSDoc。
+
+### 文档与示例
+
+- README 功能矩阵的"公募基金"列新增 4 个能力（历史净值 / 实时估值 / 同类排名 / 基金分红）
+- 新增 [`/api/fund-extended`](/api/fund-extended) API 文档页
+- Playground 新增 4 个基金扩展演示，独立"基金扩展"分类
+
+### 兼容性
+
+无破坏性变更。`StockSDK` 类公开方法与签名、现有数据结构、`providerPolicies` 配置语义均保持不变。仅一项需注意：`getMarketCode` 对 5/9 开头无前缀代码的返回值由 `'0'` 变为 `'1'`（修正先前的 silent bug）；该函数不在 SDK 顶层 export，仅是内部工具，常规用户无影响。
+
+
 ## **[1.9.3](https://www.npmjs.com/package/stock-sdk/v/1.9.3)** (2026-05-22)
 
 > Bug fix 版本。集中修复 v1.9.0 / v1.9.2 后发现的 7 个真实问题，无破坏性变更。

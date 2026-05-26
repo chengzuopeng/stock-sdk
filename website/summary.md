@@ -5,7 +5,7 @@
 ## 项目定位
 
 - 包名：`stock-sdk`
-- 当前版本：`1.9.3`
+- 当前版本：`1.10.0`
 - 定位：面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成
 - 核心卖点：零依赖 | Browser + Node.js | 轻量发布包 | 完整 TypeScript 类型
 
@@ -13,8 +13,8 @@
 
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
-| `dist/index.js` | 108.28 KB | 30.84 KB |
-| `dist/index.cjs` | 109.22 KB | 31.31 KB |
+| `dist/index.js` | 108.39 KB | 30.90 KB |
+| `dist/index.cjs` | 109.40 KB | 31.41 KB |
 
 ## 请求治理能力
 

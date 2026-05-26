@@ -2,6 +2,60 @@
 
 This page records the version update history of Stock SDK.
 
+## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-26)
+
+> Mutual fund extended data release. Adds 4 deep-data methods (dividends / NAV history / intraday estimate / similar-type rank), covering the primary asks in issue #16; also fixes a Shanghai 5xx ETF / 9xx B-share secid classification bug — `getHistoryKline('510050')` and similar on-exchange ETF / B-share queries now actually return data. **No breaking changes.**
+
+### New Features
+
+**Mutual fund extended (FundService)**
+- `getFundDividendList` — Fund / ETF dividend events from Tian Tian Fund. Supports `year` / `fundType` / `rank` / `sort` / `page` / client-side `code` filter; `page: 'all'` auto-paginates and aggregates
+- `getFundNavHistory` — Full NAV history (unit + accumulated NAV aligned by timestamp, thousands of points in one call). Works for open-end, ETF, LOF, money-market, QDII funds
+- `getFundEstimate` — Intraday NAV estimate (T-1 settled NAV + intraday estimated NAV / change % / time)
+- `getFundRankHistory` — Daily similar-type rank + total + percentile
+- New `FundService` (top-level export) hosts these methods
+
+**Generic utilities**
+- `fetchJsVars` / `parseJsVars` — Dual-environment parser for `var X = ...; var Y = ...;` style JS variable declarations (used by pingzhongdata, funddataIndex_Interface, etc., which are not JSONP). Browsers use `<script>` injection; Node uses fetch + bracket-aware scan. Optional `client` parameter integrates with the SDK request stack
+- `withScriptMutex` / `BROWSER_JSVARS_MUTEX_KEY` — Browser global-name mutex to prevent `<script>`-injection concurrent overwriting
+
+### Bug Fixes
+
+**ETF / Shanghai B-share secid classification**
+- `getMarketCode` previously misclassified codes starting with `5` (on-exchange ETF / LOF, e.g. 510050 / 512170 / 518880 / 588000) and `9` (Shanghai B-shares, e.g. 900901) to Shenzhen, so these codes via `getHistoryKline` / similar endpoints returned no data
+- Fixed: now correctly mapped to Shanghai (secid=1). Shenzhen ETFs (159xxx) / LOFs (16xxxx) keep original behavior; use explicit `sz` prefix if needed
+
+### Browser concurrency safety
+
+The new fund endpoints load via `<script>` injection on browsers (fund.eastmoney.com / fundgz.1234567.com.cn have no CORS headers), which exposes them to global-variable overwriting:
+
+- pingzhongdata family shares `fS_code` / `fS_name` etc. — concurrent calls to different funds via `Promise.all` would cross-contaminate
+- fundgz family shares the fixed `jsonpgz` callback name (the endpoint does not support dynamic callbacks)
+
+v1.10.0 guards this with `withScriptMutex`:
+- All browser `fetchJsVars` calls serialized under a single global key (`'jsVars'`, closes the "different variable sets but overlapping names" loophole)
+- fundgz serialized separately (key `'fundgz:jsonpgz'`)
+- Node.js is unaffected — real concurrency works
+
+### Request governance
+
+The four `FundService` methods integrate with `RequestClient` on Node — `new StockSDK({ retry, rateLimit, circuitBreaker, providerPolicies.eastmoney, headers, ... })` now applies to them.
+
+`fundgz.1234567.com.cn` is not in `inferProviderFromUrl`'s auto list, so the provider explicitly classifies it as `eastmoney` to honor `providerPolicies.eastmoney`.
+
+⚠️ Browser `<script>` injection cannot integrate with `RequestClient`; `headers` / `circuitBreaker` / `rateLimit` only take effect on Node (see `fetchJsVars` JSDoc).
+
+### Documentation & examples
+
+- README capability matrix gains 4 fund rows (NAV history / intraday estimate / similar-type rank / fund dividends)
+- New [`/api/fund-extended`](/en/api/fund-extended) page
+- Playground gains 4 fund-extended demos in a new "Fund Extended" category
+
+### Compatibility
+
+No breaking changes. `StockSDK` public methods, signatures, data structures, and `providerPolicies` semantics are unchanged. One note: `getMarketCode` for unprefixed codes starting with 5/9 now returns `'1'` instead of `'0'` (silent bug fix); this function is not in the SDK top-level export and is an internal utility.
+
+
 ## **[1.9.3](https://www.npmjs.com/package/stock-sdk/v/1.9.3)** (2026-05-22)
 
 > Bug fix release. Resolves 7 issues discovered after v1.9.0 / v1.9.2. **No breaking changes.**

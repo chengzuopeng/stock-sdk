@@ -14,7 +14,8 @@ export type CategoryKey =
   | 'batch'
   | 'futures'
   | 'options'
-  | 'extended';
+  | 'extended'
+  | 'fund';
 
 export interface ParamSelectOption {
   value: string;

@@ -158,6 +158,7 @@ const sdk = new StockSDK({
 - [HK Stock Quotes](/en/api/hk-quotes)
 - [US Stock Quotes](/en/api/us-quotes)
 - [Fund Quotes](/en/api/fund-quotes)
+- [Fund Extended (v1.10.0+)](/en/api/fund-extended)
 
 ## K-Line Data
 

@@ -80,6 +80,7 @@ const zhSidebar = {
         { text: '港股行情', link: '/api/hk-quotes' },
         { text: '美股行情', link: '/api/us-quotes' },
         { text: '基金行情', link: '/api/fund-quotes' },
+        { text: '基金扩展（v1.10.0+）', link: '/api/fund-extended' },
       ],
     },
     {
@@ -211,6 +212,7 @@ const enSidebar = {
         { text: 'HK Stock Quotes', link: '/en/api/hk-quotes' },
         { text: 'US Stock Quotes', link: '/en/api/us-quotes' },
         { text: 'Fund Quotes', link: '/en/api/fund-quotes' },
+        { text: 'Fund Extended (v1.10.0+)', link: '/en/api/fund-extended' },
       ],
     },
     {
