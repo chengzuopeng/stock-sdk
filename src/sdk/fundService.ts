@@ -8,7 +8,9 @@ import { eastmoney } from '../providers';
 import type {
   FundDividendListOptions,
   FundDividendListResult,
+  FundEstimate,
   FundNavHistory,
+  FundRankHistory,
 } from '../types';
 import type { RequestClient } from '../core';
 import { BaseService } from './baseService';
@@ -28,5 +30,15 @@ export class FundService extends BaseService {
   /** 获取基金历史净值（单位 + 累计，全历史一次返回） */
   getFundNavHistory(code: string): Promise<FundNavHistory> {
     return eastmoney.getFundNavHistory(code);
+  }
+
+  /** 获取基金当日实时估值（含 T-1 单位净值 + 盘中估算） */
+  getFundEstimate(code: string): Promise<FundEstimate> {
+    return eastmoney.getFundEstimate(code);
+  }
+
+  /** 获取基金同类排名走势（每日近三月排名 + 百分位） */
+  getFundRankHistory(code: string): Promise<FundRankHistory> {
+    return eastmoney.getFundRankHistory(code);
   }
 }

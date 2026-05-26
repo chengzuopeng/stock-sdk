@@ -101,3 +101,54 @@ export interface FundNavHistory {
   /** 历史净值序列；按日期升序（与数据源一致） */
   items: FundNavPoint[];
 }
+
+/**
+ * 基金当日实时估值（来自天天基金 fundgz 接口）。
+ *
+ * 含两类净值：
+ * - `nav` / `navDate`：最新已结算的单位净值（T-1 或当日盘后）
+ * - `estimatedNav` / `estimatedChangePercent` / `estimateTime`：盘中实时估值
+ */
+export interface FundEstimate {
+  /** 基金代码 */
+  code: string;
+  /** 基金简称 */
+  name: string | null;
+  /** 最新已结算单位净值的日期 `YYYY-MM-DD`，无则 `null` */
+  navDate: string | null;
+  /** 最新已结算单位净值，无则 `null` */
+  nav: number | null;
+  /** 当日实时估值（盘中刷新），无则 `null`（如非交易日、QDII 等） */
+  estimatedNav: number | null;
+  /** 估算涨跌幅 `%`，无则 `null` */
+  estimatedChangePercent: number | null;
+  /** 估算时间原始字符串（如 `"2026-05-26 15:00"`，A 股时区），无则 `null` */
+  estimateTime: string | null;
+}
+
+/** 单条同类排名点（与 `Data_rateInSimilarType` 一一对应） */
+export interface FundRankPoint {
+  /** 报告日期 `YYYY-MM-DD` */
+  date: string;
+  /** 报告日期对应的毫秒时间戳（数据源原值） */
+  timestamp: number;
+  /** 同类近三月排名（数字越小越靠前），无值时为 `null` */
+  rank: number | null;
+  /** 同类基金总数，无值时为 `null` */
+  total: number | null;
+  /**
+   * 同类近三月排名百分位（%，越小越好），按 timestamp 与 rank 对齐；
+   * 无对应数据时为 `null`
+   */
+  percentile: number | null;
+}
+
+/** 基金同类排名走势查询结果 */
+export interface FundRankHistory {
+  /** 基金代码（来自 pingzhongdata 的 `fS_code`，若缺失则回填入参） */
+  code: string;
+  /** 基金简称（来自 pingzhongdata 的 `fS_name`，无则 `null`） */
+  name: string | null;
+  /** 排名走势序列；按日期升序 */
+  items: FundRankPoint[];
+}

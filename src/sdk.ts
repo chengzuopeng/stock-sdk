@@ -78,6 +78,8 @@ import type {
   FundDividendListOptions,
   FundDividendListResult,
   FundNavHistory,
+  FundEstimate,
+  FundRankHistory,
 } from './types';
 import { type KlineWithIndicators } from './indicators';
 import {
@@ -978,6 +980,33 @@ export class StockSDK {
    */
   getFundNavHistory(code: string): Promise<FundNavHistory> {
     return this.fundService.getFundNavHistory(code);
+  }
+
+  /**
+   * 获取基金当日实时估值（来自天天基金 fundgz 接口）。
+   *
+   * 同时返回最新已结算的单位净值（`nav` / `navDate`）和盘中估算
+   * （`estimatedNav` / `estimatedChangePercent` / `estimateTime`），
+   * 方便前端做"当日实时表现 vs 上一收盘"对比。
+   *
+   * QDII / 非交易日 / 部分小众基金的盘中估算字段可能为空，将返回 `null`。
+   *
+   * @param code 基金代码（纯数字，如 `'005827'`）
+   */
+  getFundEstimate(code: string): Promise<FundEstimate> {
+    return this.fundService.getFundEstimate(code);
+  }
+
+  /**
+   * 获取基金同类排名走势（每日近三月排名 + 百分位）。
+   *
+   * 数据源与 `getFundNavHistory` 相同（`pingzhongdata/{code}.js`），
+   * 适合做"该基金在同类基金里的相对表现"折线图。
+   *
+   * @param code 基金代码
+   */
+  getFundRankHistory(code: string): Promise<FundRankHistory> {
+    return this.fundService.getFundRankHistory(code);
   }
 }
 

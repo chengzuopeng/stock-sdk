@@ -7,18 +7,30 @@
  * 通过 fetchJsVars 双端解析。
  */
 import { fetchJsVars } from '../../core/jsVars';
+import { extractJsonFromJsonp } from '../../core/jsonp';
 import type {
   FundDividend,
   FundDividendListOptions,
   FundDividendListResult,
+  FundEstimate,
   FundNavHistory,
   FundNavPoint,
+  FundRankHistory,
+  FundRankPoint,
 } from '../../types';
 
 const FUND_DATA_INDEX_URL =
   'https://fund.eastmoney.com/Data/funddataIndex_Interface.aspx';
 
 const FUND_PINGZHONGDATA_URL = 'https://fund.eastmoney.com/pingzhongdata';
+
+/** 天天基金实时估值接口（JSONP，callback 名固定为 `jsonpgz`） */
+const FUND_GZ_URL = 'https://fundgz.1234567.com.cn/js';
+
+const isBrowser =
+  typeof document !== 'undefined' && typeof window !== 'undefined';
+
+const DEFAULT_FUNDGZ_TIMEOUT_MS = 10000;
 
 interface FundDividendRaw {
   /** `[总页数, 每页条数, 当前页]` */
@@ -207,6 +219,219 @@ export async function getFundNavHistory(code: string): Promise<FundNavHistory> {
     accNav: accMap.has(p.x) ? (accMap.get(p.x) as number) : null,
     dailyReturn: toDailyReturn(p.equityReturn),
     unitMoney: p.unitMoney ?? '',
+  }));
+
+  return {
+    code: vars.fS_code ?? code,
+    name: vars.fS_name ?? null,
+    items,
+  };
+}
+
+// ============================================================
+// 实时估值（fundgz.1234567.com.cn）
+// ============================================================
+
+interface FundGzPayload {
+  fundcode?: string;
+  name?: string;
+  jzrq?: string; // 净值日期
+  dwjz?: string; // 单位净值
+  gsz?: string; // 估算净值
+  gszzl?: string; // 估算涨跌幅 %
+  gztime?: string; // 估算时间
+}
+
+/**
+ * 双端拉取并解析 fundgz JSONP（固定 callback 名 `jsonpgz`）。
+ *
+ * 浏览器端：因 fundgz.1234567.com.cn 无 CORS 头，必须走 `<script>` 注入；
+ * 利用其固定 callback 名 `jsonpgz`，临时挂在 window 上读返回。
+ *
+ * Node 端：直接 fetch 文本 + `extractJsonFromJsonp` 剥离包装。
+ */
+function fetchFundGz(
+  code: string,
+  timeout = DEFAULT_FUNDGZ_TIMEOUT_MS
+): Promise<FundGzPayload> {
+  const url = `${FUND_GZ_URL}/${encodeURIComponent(code)}.js?rt=${Date.now()}`;
+  if (isBrowser) {
+    return browserFetchFundGz(url, timeout);
+  }
+  return nodeFetchFundGz(url, timeout);
+}
+
+function browserFetchFundGz(
+  url: string,
+  timeout: number
+): Promise<FundGzPayload> {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const win = window as unknown as Record<string, unknown>;
+    const prevCb = win.jsonpgz;
+    let settled = false;
+
+    const cleanup = () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      // 恢复 jsonpgz 原值，避免污染用户的全局空间
+      if (prevCb === undefined) {
+        try {
+          delete win.jsonpgz;
+        } catch {
+          /* ignore */
+        }
+      } else {
+        win.jsonpgz = prevCb;
+      }
+    };
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(`fundgz JSONP timed out after ${timeout}ms: ${url}`));
+    }, timeout);
+
+    win.jsonpgz = (data: FundGzPayload) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      resolve(data ?? {});
+    };
+
+    script.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error(`fundgz JSONP script load failed: ${url}`));
+    };
+
+    script.src = url;
+    document.head.appendChild(script);
+  });
+}
+
+async function nodeFetchFundGz(
+  url: string,
+  timeout: number
+): Promise<FundGzPayload> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    if (!resp.ok) {
+      throw new Error(`fundgz fetch failed with status ${resp.status}: ${url}`);
+    }
+    const text = await resp.text();
+    const trimmed = text.trim();
+    // 空响应 / 未运营 / 代码无效时 fundgz 返回空体或纯换行
+    if (!trimmed) return {};
+    try {
+      return extractJsonFromJsonp(trimmed) as FundGzPayload;
+    } catch {
+      return {};
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`fundgz JSONP timed out after ${timeout}ms: ${url}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function toNullableNumber(s: string | undefined): number | null {
+  if (s === undefined || s === '' || s === '--') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * 获取基金当日实时估值（来自天天基金 fundgz 接口）。
+ *
+ * 同时返回最新已结算的单位净值（`nav` + `navDate`）和盘中估算
+ * （`estimatedNav` + `estimatedChangePercent` + `estimateTime`），
+ * 方便对比当日表现。
+ *
+ * QDII / 非交易日 / 部分小众基金的盘中估算字段可能为空，将返回 `null`。
+ *
+ * @param code 基金代码（纯数字，如 `'005827'`）
+ */
+export async function getFundEstimate(code: string): Promise<FundEstimate> {
+  const raw = await fetchFundGz(code);
+  return {
+    code: raw.fundcode ?? code,
+    name: raw.name ?? null,
+    navDate: raw.jzrq?.trim() ? raw.jzrq.trim() : null,
+    nav: toNullableNumber(raw.dwjz),
+    estimatedNav: toNullableNumber(raw.gsz),
+    estimatedChangePercent: toNullableNumber(raw.gszzl),
+    estimateTime: raw.gztime?.trim() ? raw.gztime.trim() : null,
+  };
+}
+
+// ============================================================
+// 同类排名走势（pingzhongdata.js 的 rank 字段）
+// ============================================================
+
+interface FundRankRaw {
+  fS_code?: string;
+  fS_name?: string;
+  /** `[{x: ms, y: 排名, sc: 同类总数}, ...]` */
+  Data_rateInSimilarType?: Array<{
+    x: number;
+    y: number | string;
+    sc: number | string;
+  }>;
+  /** `[[ms, 百分位], ...]` */
+  Data_rateInSimilarPersent?: Array<[number, number]>;
+}
+
+function toNullableInt(v: number | string | undefined): number | null {
+  if (v === undefined || v === '' || v === null) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * 获取基金同类排名走势（每日近三月排名 + 百分位）。
+ *
+ * 数据源：与 `getFundNavHistory` 相同的 `pingzhongdata/{code}.js`，
+ * 取 `Data_rateInSimilarType`（排名 + 同类总数）和
+ * `Data_rateInSimilarPersent`（百分位），按 timestamp 对齐合并。
+ *
+ * @param code 基金代码
+ */
+export async function getFundRankHistory(
+  code: string
+): Promise<FundRankHistory> {
+  const url = `${FUND_PINGZHONGDATA_URL}/${encodeURIComponent(code)}.js`;
+  const vars = await fetchJsVars<FundRankRaw>(url, [
+    'fS_code',
+    'fS_name',
+    'Data_rateInSimilarType',
+    'Data_rateInSimilarPersent',
+  ]);
+
+  const series = vars.Data_rateInSimilarType ?? [];
+  const percentMap = new Map<number, number>();
+  for (const row of vars.Data_rateInSimilarPersent ?? []) {
+    if (Array.isArray(row) && row.length >= 2) {
+      percentMap.set(row[0], row[1]);
+    }
+  }
+
+  const items: FundRankPoint[] = series.map((p) => ({
+    date: timestampToDate(p.x),
+    timestamp: p.x,
+    rank: toNullableInt(p.y),
+    total: toNullableInt(p.sc),
+    percentile: percentMap.has(p.x) ? (percentMap.get(p.x) as number) : null,
   }));
 
   return {
