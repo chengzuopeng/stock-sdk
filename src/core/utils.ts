@@ -96,8 +96,12 @@ export function getMarketCode(symbol: string): string {
   // 如果有前缀，直接根据前缀判断
   if (symbol.startsWith('sh')) return '1';
   if (symbol.startsWith('sz') || symbol.startsWith('bj')) return '0';
-  // 纯代码：6 开头为上海(1)，其他为深圳/北交所(0)
-  return symbol.startsWith('6') ? '1' : '0';
+  // 纯代码（按首位字符判断）：
+  //   上海(1): 6 开头（主板/科创板）、5 开头（场内 ETF/LOF/封基）、9 开头（B 股）
+  //   深圳/北交所(0): 0/3 开头（深圳主板/创业板）、4/8 开头（北交所）
+  //   1 开头（深圳 ETF 159xxx / LOF 16xxxx 等）建议带 sz 前缀以避免歧义
+  const first = symbol[0];
+  return first === '6' || first === '5' || first === '9' ? '1' : '0';
 }
 
 /**
