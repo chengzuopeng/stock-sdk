@@ -8,6 +8,7 @@ import { eastmoney } from '../providers';
 import type {
   FundDividendListOptions,
   FundDividendListResult,
+  FundNavHistory,
 } from '../types';
 import type { RequestClient } from '../core';
 import { BaseService } from './baseService';
@@ -22,5 +23,10 @@ export class FundService extends BaseService {
     options?: FundDividendListOptions
   ): Promise<FundDividendListResult> {
     return eastmoney.getFundDividendList(options);
+  }
+
+  /** 获取基金历史净值（单位 + 累计，全历史一次返回） */
+  getFundNavHistory(code: string): Promise<FundNavHistory> {
+    return eastmoney.getFundNavHistory(code);
   }
 }

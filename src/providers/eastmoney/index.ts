@@ -42,7 +42,7 @@ export {
 export { getDividendDetail } from './dividend';
 
 // 公募基金扩展数据（分红 / 历史净值 / 估值 / 排名 等，后续逐步补齐）
-export { getFundDividendList } from './fund';
+export { getFundDividendList, getFundNavHistory } from './fund';
 
 // 国内期货 K 线
 export {

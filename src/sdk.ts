@@ -77,6 +77,7 @@ import type {
   // 公募基金扩展（v1.10.0+）
   FundDividendListOptions,
   FundDividendListResult,
+  FundNavHistory,
 } from './types';
 import { type KlineWithIndicators } from './indicators';
 import {
@@ -962,6 +963,21 @@ export class StockSDK {
     options?: FundDividendListOptions
   ): Promise<FundDividendListResult> {
     return this.fundService.getFundDividendList(options);
+  }
+
+  /**
+   * 获取基金历史净值（单位净值 + 累计净值，全历史一次返回）。
+   *
+   * 数据源：`fund.eastmoney.com/pingzhongdata/{code}.js`
+   * 一次请求即可拿到该基金从成立日到最新交易日的全部净值（数千条）。
+   * 开放式 / ETF / LOF / 货币 / QDII 均通用。
+   *
+   * 注意：响应体较大（约 600KB / gzip 后约 120KB），建议在应用层做缓存。
+   *
+   * @param code 基金代码，如 `'110011'`
+   */
+  getFundNavHistory(code: string): Promise<FundNavHistory> {
+    return this.fundService.getFundNavHistory(code);
   }
 }
 

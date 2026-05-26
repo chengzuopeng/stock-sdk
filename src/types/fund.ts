@@ -75,3 +75,29 @@ export interface FundDividendListResult {
   /** 当前页码；`page: 'all'` 模式下为 `-1` 表示已聚合 */
   currentPage: number;
 }
+
+/** 单条历史净值点 */
+export interface FundNavPoint {
+  /** 净值日期 `YYYY-MM-DD`（与时间戳的 UTC 日期一致，对应 A 股交易日） */
+  date: string;
+  /** 净值日期对应的毫秒时间戳（数据源原值，UTC 当日 00:00） */
+  timestamp: number;
+  /** 单位净值 */
+  nav: number;
+  /** 累计净值；与单位净值数组按 timestamp 对齐，无法对齐时为 `null` */
+  accNav: number | null;
+  /** 日增长率（%）；无值时为 `null` */
+  dailyReturn: number | null;
+  /** 每万份收益（货币 / 短债基金有意义，其余通常为空串） */
+  unitMoney: string;
+}
+
+/** 基金历史净值查询结果 */
+export interface FundNavHistory {
+  /** 基金代码（来自 pingzhongdata 的 `fS_code`，若缺失则回填入参） */
+  code: string;
+  /** 基金简称（来自 pingzhongdata 的 `fS_name`，无则 `null`） */
+  name: string | null;
+  /** 历史净值序列；按日期升序（与数据源一致） */
+  items: FundNavPoint[];
+}

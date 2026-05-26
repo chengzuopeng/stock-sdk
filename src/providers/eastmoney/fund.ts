@@ -11,10 +11,14 @@ import type {
   FundDividend,
   FundDividendListOptions,
   FundDividendListResult,
+  FundNavHistory,
+  FundNavPoint,
 } from '../../types';
 
 const FUND_DATA_INDEX_URL =
   'https://fund.eastmoney.com/Data/funddataIndex_Interface.aspx';
+
+const FUND_PINGZHONGDATA_URL = 'https://fund.eastmoney.com/pingzhongdata';
 
 interface FundDividendRaw {
   /** `[总页数, 每页条数, 当前页]` */
@@ -132,4 +136,82 @@ export async function getFundDividendList(
     };
   }
   return result;
+}
+
+// ============================================================
+// 历史净值（pingzhongdata.js）
+// ============================================================
+
+interface FundNavRaw {
+  fS_code?: string;
+  fS_name?: string;
+  /** `[{x, y, equityReturn, unitMoney}, ...]` —— 单位净值走势 */
+  Data_netWorthTrend?: Array<{
+    x: number;
+    y: number;
+    equityReturn: number | string;
+    unitMoney: string;
+  }>;
+  /** `[[x, accNav], ...]` —— 累计净值走势 */
+  Data_ACWorthTrend?: Array<[number, number]>;
+}
+
+function toDailyReturn(v: number | string | undefined): number | null {
+  if (v === undefined || v === '' || v === null) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function timestampToDate(ts: number): string {
+  // pingzhongdata 的 x 是 UTC 当日 00:00 的毫秒数（每条对应 A 股一个交易日）
+  // 直接用 ISO 字符串切前 10 位即可得到 YYYY-MM-DD
+  return new Date(ts).toISOString().slice(0, 10);
+}
+
+/**
+ * 获取基金历史净值（单位净值 + 累计净值，按 timestamp 对齐合并）。
+ *
+ * 数据源：`https://fund.eastmoney.com/pingzhongdata/{code}.js`
+ *
+ * 一次请求拿到该基金从成立日到最新交易日的全部净值（数千条），
+ * 无需翻页。开放式基金、ETF、LOF、货币、QDII 均通用。
+ *
+ * @param code 基金代码（纯数字，如 `'110011'`）
+ *
+ * @example
+ * const h = await sdk.getFundNavHistory('110011');
+ * console.log(h.name, h.items.length, h.items[h.items.length - 1]);
+ */
+export async function getFundNavHistory(code: string): Promise<FundNavHistory> {
+  const url = `${FUND_PINGZHONGDATA_URL}/${encodeURIComponent(code)}.js`;
+  const vars = await fetchJsVars<FundNavRaw>(url, [
+    'fS_code',
+    'fS_name',
+    'Data_netWorthTrend',
+    'Data_ACWorthTrend',
+  ]);
+
+  const trend = vars.Data_netWorthTrend ?? [];
+  // 把累计净值按 timestamp 建索引，O(1) 对齐
+  const accMap = new Map<number, number>();
+  for (const row of vars.Data_ACWorthTrend ?? []) {
+    if (Array.isArray(row) && row.length >= 2) {
+      accMap.set(row[0], row[1]);
+    }
+  }
+
+  const items: FundNavPoint[] = trend.map((p) => ({
+    date: timestampToDate(p.x),
+    timestamp: p.x,
+    nav: p.y,
+    accNav: accMap.has(p.x) ? (accMap.get(p.x) as number) : null,
+    dailyReturn: toDailyReturn(p.equityReturn),
+    unitMoney: p.unitMoney ?? '',
+  }));
+
+  return {
+    code: vars.fS_code ?? code,
+    name: vars.fS_name ?? null,
+    items,
+  };
 }

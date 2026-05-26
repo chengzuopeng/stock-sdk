@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getFundDividendList } from '../../../../src/providers/eastmoney/fund';
+import {
+  getFundDividendList,
+  getFundNavHistory,
+} from '../../../../src/providers/eastmoney/fund';
 
 /**
  * 用 stubGlobal('fetch') 做端到端测试：
@@ -170,5 +173,121 @@ describe('getFundDividendList', () => {
       dividendPerShare: null,
       payDate: null,
     });
+  });
+});
+
+describe('getFundNavHistory', () => {
+  // 三个交易日的 UTC midnight 时间戳
+  const T1 = Date.UTC(2024, 0, 2); // 2024-01-02
+  const T2 = Date.UTC(2024, 0, 3); // 2024-01-03
+  const T3 = Date.UTC(2024, 0, 4); // 2024-01-04
+
+  let lastUrl: string | undefined;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    lastUrl = undefined;
+  });
+
+  function stubPingzhongdata(body: string): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        lastUrl = String(input);
+        return new Response(body, {
+          status: 200,
+          headers: { 'content-type': 'application/javascript' },
+        });
+      })
+    );
+  }
+
+  it('builds pingzhongdata URL and parses nav + accNav aligned by timestamp', async () => {
+    const body =
+      'var fS_code = "110011"; ' +
+      'var fS_name = "易方达优质精选混合(QDII)"; ' +
+      `var Data_netWorthTrend = [` +
+      `{"x":${T1},"y":1.0,"equityReturn":0.0,"unitMoney":""},` +
+      `{"x":${T2},"y":1.0050,"equityReturn":0.50,"unitMoney":""},` +
+      `{"x":${T3},"y":1.0030,"equityReturn":-0.20,"unitMoney":""}` +
+      `]; ` +
+      `var Data_ACWorthTrend = [[${T1},1.5000],[${T2},1.5050],[${T3},1.5030]];`;
+    stubPingzhongdata(body);
+
+    const h = await getFundNavHistory('110011');
+    expect(lastUrl).toBe('https://fund.eastmoney.com/pingzhongdata/110011.js');
+    expect(h.code).toBe('110011');
+    expect(h.name).toBe('易方达优质精选混合(QDII)');
+    expect(h.items).toHaveLength(3);
+    expect(h.items[0]).toEqual({
+      date: '2024-01-02',
+      timestamp: T1,
+      nav: 1.0,
+      accNav: 1.5,
+      dailyReturn: 0,
+      unitMoney: '',
+    });
+    expect(h.items[1].dailyReturn).toBe(0.5);
+    expect(h.items[2].nav).toBeCloseTo(1.003);
+    expect(h.items[2].accNav).toBeCloseTo(1.503);
+  });
+
+  it('sets accNav to null when timestamp not in Data_ACWorthTrend', async () => {
+    const body =
+      `var Data_netWorthTrend = [` +
+      `{"x":${T1},"y":1.0,"equityReturn":0,"unitMoney":""},` +
+      `{"x":${T2},"y":1.01,"equityReturn":1,"unitMoney":""}` +
+      `]; ` +
+      `var Data_ACWorthTrend = [[${T1},1.50]];`; // T2 缺失
+    stubPingzhongdata(body);
+    const h = await getFundNavHistory('110011');
+    expect(h.items[0].accNav).toBe(1.5);
+    expect(h.items[1].accNav).toBeNull();
+  });
+
+  it('sets all accNav to null when Data_ACWorthTrend is missing', async () => {
+    const body =
+      `var Data_netWorthTrend = [{"x":${T1},"y":1.0,"equityReturn":0,"unitMoney":""}];`;
+    stubPingzhongdata(body);
+    const h = await getFundNavHistory('110011');
+    expect(h.items).toHaveLength(1);
+    expect(h.items[0].accNav).toBeNull();
+  });
+
+  it('returns empty items when Data_netWorthTrend is missing', async () => {
+    const body = 'var fS_name = "X";';
+    stubPingzhongdata(body);
+    const h = await getFundNavHistory('110011');
+    expect(h.items).toEqual([]);
+    expect(h.name).toBe('X');
+    expect(h.code).toBe('110011'); // 回填入参
+  });
+
+  it('parses equityReturn as both number and string forms', async () => {
+    const body =
+      `var Data_netWorthTrend = [` +
+      `{"x":${T1},"y":1.0,"equityReturn":"0.50","unitMoney":""},` +
+      `{"x":${T2},"y":1.01,"equityReturn":1.25,"unitMoney":""},` +
+      `{"x":${T3},"y":1.02,"equityReturn":"","unitMoney":""}` +
+      `];`;
+    stubPingzhongdata(body);
+    const h = await getFundNavHistory('110011');
+    expect(h.items[0].dailyReturn).toBe(0.5);
+    expect(h.items[1].dailyReturn).toBe(1.25);
+    expect(h.items[2].dailyReturn).toBeNull();
+  });
+
+  it('preserves unitMoney for money-market funds', async () => {
+    const body =
+      `var Data_netWorthTrend = [{"x":${T1},"y":1.0,"equityReturn":0,"unitMoney":"0.5432"}];`;
+    stubPingzhongdata(body);
+    const h = await getFundNavHistory('000001');
+    expect(h.items[0].unitMoney).toBe('0.5432');
+  });
+
+  it('url-encodes special characters in fund code', async () => {
+    stubPingzhongdata('var Data_netWorthTrend = [];');
+    await getFundNavHistory('110/011');
+    expect(lastUrl).toContain('/pingzhongdata/110%2F011.js');
   });
 });
