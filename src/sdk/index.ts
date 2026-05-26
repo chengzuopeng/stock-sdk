@@ -22,3 +22,6 @@ export {
   type MarketStatus,
   type SupportedMarket,
 } from './tradingCalendarService';
+
+// 公募基金扩展（分红 / 历史净值 / 估值 / 排名等）
+export { FundService } from './fundService';

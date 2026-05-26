@@ -74,6 +74,9 @@ import type {
   BlockTradeDailyStatItem,
   MarginAccountItem,
   MarginTargetItem,
+  // 公募基金扩展（v1.10.0+）
+  FundDividendListOptions,
+  FundDividendListResult,
 } from './types';
 import { type KlineWithIndicators } from './indicators';
 import {
@@ -89,6 +92,7 @@ import {
   DragonTigerService,
   DataService,
   TradingCalendarService,
+  FundService,
   type KlineWithIndicatorsOptions,
   type MarketStatus,
   type SupportedMarket,
@@ -118,6 +122,7 @@ export class StockSDK {
   private readonly dragonTigerService: DragonTigerService;
   private readonly dataService: DataService;
   private readonly tradingCalendarService: TradingCalendarService;
+  private readonly fundService: FundService;
 
   /**
    * 创建 Stock SDK 实例。
@@ -141,6 +146,7 @@ export class StockSDK {
     this.dragonTigerService = new DragonTigerService(this.client);
     this.dataService = new DataService(this.client);
     this.tradingCalendarService = new TradingCalendarService(this.quoteService);
+    this.fundService = new FundService(this.client);
   }
 
   /**
@@ -938,6 +944,24 @@ export class StockSDK {
    */
   getMarginTargetList(date?: string): Promise<MarginTargetItem[]> {
     return this.dataService.getMarginTargetList(date);
+  }
+
+  // ============================================================
+  // 公募基金扩展（v1.10.0+）：分红 / 历史净值 / 估值 / 排名 等
+  // ============================================================
+
+  /**
+   * 获取基金分红明细列表（来自东方财富 / 天天基金分红送配频道）。
+   *
+   * 接口本身只支持「年份 + 全市场 + 翻页」查询，不支持服务端按代码精确查；
+   * 要拿单只基金完整分红记录，请同时设置 `page: 'all'` 与 `code`。
+   *
+   * @param options 查询选项；默认拉当前年第 1 页、按除息日倒序
+   */
+  getFundDividendList(
+    options?: FundDividendListOptions
+  ): Promise<FundDividendListResult> {
+    return this.fundService.getFundDividendList(options);
   }
 }
 

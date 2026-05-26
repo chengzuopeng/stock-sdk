@@ -10,3 +10,4 @@ export * from './marketEvent';
 export * from './dragonTiger';
 export * from './blockTrade';
 export * from './margin';
+export * from './fund';

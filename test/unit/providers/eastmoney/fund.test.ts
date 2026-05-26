@@ -1,0 +1,174 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getFundDividendList } from '../../../../src/providers/eastmoney/fund';
+
+/**
+ * 用 stubGlobal('fetch') 做端到端测试：
+ * - 验证 URL 拼接
+ * - 验证 fetchJsVars → mapRow 整条链路
+ * - 验证客户端 code 过滤与 page='all' 翻页聚合
+ */
+
+interface FetchMock {
+  (input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+}
+
+const PAGE1 =
+  'var pageinfo = [3, 2, 1]; ' +
+  'var jjfh_data = [' +
+  '["110011","易方达优质精选混合","2024-12-31","2024-12-31","0.05","2025-01-03","1"],' +
+  '["508019","中金湖北科投光谷REIT","2024-12-31","2024-12-31","0.03033","2025-01-03","6"]' +
+  ']; ' +
+  'var jjfh_ftype = []; var jjfh_jjgs = []; var jjfh_year = [];';
+
+const PAGE2 =
+  'var pageinfo = [3, 2, 2]; ' +
+  'var jjfh_data = [' +
+  '["004517","南方安康混合A","2024-12-30","2024-12-30","0.0309","2025-01-02","1"],' +
+  '["110011","易方达优质精选混合","2024-06-30","2024-06-30","0.03","2024-07-03","1"]' +
+  '];';
+
+const PAGE3 =
+  'var pageinfo = [3, 2, 3]; ' +
+  'var jjfh_data = [' +
+  '["021247","兴证全球红利混合A","2024-03-31","2024-03-31","0.02788","2024-04-03","1"]' +
+  '];';
+
+const EMPTY_PAGE =
+  'var pageinfo = [0, 0, 1]; var jjfh_data = [];';
+
+function mockFetchByQueue(pages: string[]): FetchMock {
+  let i = 0;
+  return vi.fn(async () => {
+    const body = pages[Math.min(i, pages.length - 1)];
+    i++;
+    return new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'application/javascript' },
+    });
+  });
+}
+
+describe('getFundDividendList', () => {
+  let lastUrl: string | undefined;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    lastUrl = undefined;
+  });
+
+  it('builds URL with default params and parses single page', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        lastUrl = String(input);
+        return new Response(PAGE1, { status: 200 });
+      })
+    );
+    const r = await getFundDividendList({ year: 2024 });
+    // 默认参数：dt=8 / rank=FSRQ / sort=desc / page=1 / gs= / ftype=
+    expect(lastUrl).toContain(
+      'fund.eastmoney.com/Data/funddataIndex_Interface.aspx'
+    );
+    expect(lastUrl).toContain('dt=8');
+    expect(lastUrl).toContain('page=1');
+    expect(lastUrl).toContain('rank=FSRQ');
+    expect(lastUrl).toContain('sort=desc');
+    expect(lastUrl).toContain('year=2024');
+
+    expect(r.totalPages).toBe(3);
+    expect(r.pageSize).toBe(2);
+    expect(r.currentPage).toBe(1);
+    expect(r.items).toHaveLength(2);
+    expect(r.items[0]).toMatchObject({
+      code: '110011',
+      name: '易方达优质精选混合',
+      equityRecordDate: '2024-12-31',
+      exDividendDate: '2024-12-31',
+      dividendPerShare: 0.05,
+      payDate: '2025-01-03',
+    });
+    expect(r.items[0].raw).toHaveLength(7);
+    expect(r.items[0].raw[6]).toBe('1'); // 类型代码原样保留
+  });
+
+  it('honors custom rank / sort / fundType / page params', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        lastUrl = String(input);
+        return new Response(PAGE2, { status: 200 });
+      })
+    );
+    await getFundDividendList({
+      year: 2024,
+      page: 2,
+      rank: 'FHFCZ',
+      sort: 'asc',
+      fundType: '股票型',
+    });
+    expect(lastUrl).toContain('page=2');
+    expect(lastUrl).toContain('rank=FHFCZ');
+    expect(lastUrl).toContain('sort=asc');
+    expect(lastUrl).toContain('ftype=%E8%82%A1%E7%A5%A8%E5%9E%8B'); // urlencoded '股票型'
+  });
+
+  it("aggregates all pages when page is 'all'", async () => {
+    vi.stubGlobal('fetch', mockFetchByQueue([PAGE1, PAGE2, PAGE3]));
+    const r = await getFundDividendList({ year: 2024, page: 'all' });
+    expect(r.items).toHaveLength(5); // 2 + 2 + 1
+    expect(r.currentPage).toBe(-1);
+    expect(r.totalPages).toBe(3);
+  });
+
+  it('filters by code on single page', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(PAGE1, { status: 200 }))
+    );
+    const r = await getFundDividendList({ year: 2024, code: '110011' });
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0].code).toBe('110011');
+  });
+
+  it("filters by code across all pages when page='all'", async () => {
+    vi.stubGlobal('fetch', mockFetchByQueue([PAGE1, PAGE2, PAGE3]));
+    const r = await getFundDividendList({
+      year: 2024,
+      page: 'all',
+      code: '110011',
+    });
+    // 110011 在 PAGE1 和 PAGE2 各出现一次
+    expect(r.items).toHaveLength(2);
+    expect(r.items.every((it) => it.code === '110011')).toBe(true);
+  });
+
+  it('handles empty page gracefully', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(EMPTY_PAGE, { status: 200 }))
+    );
+    const r = await getFundDividendList({ year: 2099 });
+    expect(r.items).toEqual([]);
+    expect(r.totalPages).toBe(0);
+    expect(r.pageSize).toBe(0);
+  });
+
+  it('coerces missing / empty numeric and date fields to null', async () => {
+    const payload =
+      'var pageinfo = [1, 1, 1]; ' +
+      'var jjfh_data = [["999999","测试基金","","","","",""]];';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(payload, { status: 200 }))
+    );
+    const r = await getFundDividendList({ year: 2024 });
+    expect(r.items[0]).toMatchObject({
+      code: '999999',
+      name: '测试基金',
+      equityRecordDate: null,
+      exDividendDate: null,
+      dividendPerShare: null,
+      payDate: null,
+    });
+  });
+});

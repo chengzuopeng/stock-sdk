@@ -134,6 +134,9 @@ export {
 // JSONP
 export { jsonpRequest, extractJsonFromJsonp, type JsonpOptions } from './jsonp';
 
+// JS 变量声明文件解析（用于 pingzhongdata / funddataIndex_Interface 等非 JSONP 接口）
+export { fetchJsVars, parseJsVars, type FetchJsVarsOptions } from './jsVars';
+
 // 熔断器
 export {
   CircuitBreaker,
