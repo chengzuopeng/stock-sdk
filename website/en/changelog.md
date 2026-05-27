@@ -2,58 +2,50 @@
 
 This page records the version update history of Stock SDK.
 
-## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-26)
+## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-27)
 
-> Mutual fund extended data release. Adds 4 deep-data methods (dividends / NAV history / intraday estimate / similar-type rank), covering the primary asks in issue #16; also fixes a Shanghai 5xx ETF / 9xx B-share secid classification bug — `getHistoryKline('510050')` and similar on-exchange ETF / B-share queries now actually return data. **No breaking changes.**
+> Dual-theme release: (1) **Mutual fund extensions** — 4 deep-data methods covering [issue #16](https://github.com/chengzuopeng/stock-sdk/issues/16); (2) **HK / US minute K-line + intraday timeline** — 4 cells in the README matrix flip ❌ → ✅. Also fixes a 5xx ETF / 9xx B-share secid classification bug. **No breaking changes.**
 
 ### New Features
 
-**Mutual fund extended (FundService)**
-- `getFundDividendList` — Fund / ETF dividend events from Tian Tian Fund. Supports `year` / `fundType` / `rank` / `sort` / `page` / client-side `code` filter; `page: 'all'` auto-paginates and aggregates
-- `getFundNavHistory` — Full NAV history (unit + accumulated NAV aligned by timestamp, thousands of points in one call). Works for open-end, ETF, LOF, money-market, QDII funds
-- `getFundEstimate` — Intraday NAV estimate (T-1 settled NAV + intraday estimated NAV / change % / time)
-- `getFundRankHistory` — Daily similar-type rank + total + percentile
-- New `FundService` (top-level export) hosts these methods
+**Mutual fund extensions (`FundService`, top-level export)**
+- `getFundDividendList` — Fund dividend events (year-paginated; client-side `code` filter; `page: 'all'` auto-aggregates)
+- `getFundNavHistory` — Full NAV history (unit + accumulated, one call, open-end / ETF / LOF / money-market / QDII)
+- `getFundEstimate` — Intraday NAV estimate (T-1 settled NAV + live estimate)
+- `getFundRankHistory` — Similar-type rank history (daily 3-month rank + percentile)
 
-**Generic utilities**
-- `fetchJsVars` / `parseJsVars` — Dual-environment parser for `var X = ...; var Y = ...;` style JS variable declarations (used by pingzhongdata, funddataIndex_Interface, etc., which are not JSONP). Browsers use `<script>` injection; Node uses fetch + bracket-aware scan. Optional `client` parameter integrates with the SDK request stack
-- `withScriptMutex` / `BROWSER_JSVARS_MUTEX_KEY` — Browser global-name mutex to prevent `<script>`-injection concurrent overwriting
+**HK / US minute K-line + intraday timeline**
+- `getHKMinuteKline(symbol, options?)` — 5/15/30/60-minute K-line, or intraday timeline (`period: '1'`)
+- `getUSMinuteKline(symbol, options?)` — Same as above (US regular session only)
+- New types `HKMinuteKline` / `HKMinuteTimeline` / `USMinuteKline` / `USMinuteTimeline` (structurally aligned with A-share `MinuteKline`, plus `currency` / `code`)
+- Reuses the existing `push2his.eastmoney.com` (33 / 63 subdomains) stack — zero new data source dependencies
+
+**Generic utilities** (top-level export)
+- `fetchJsVars` / `parseJsVars` — Dual-environment parser for `var X = ...; var Y = ...;` style JS variable declarations (pingzhongdata / funddataIndex_Interface, etc.); browsers `<script>`-inject, Node uses fetch + bracket scan; optional `client` integrates with the SDK request stack
+- `withScriptMutex` / `BROWSER_JSVARS_MUTEX_KEY` — Browser global-name mutex to prevent `<script>`-injection concurrent contamination
+- `formatInTz(epoch, tz)` — UTC ms → `YYYY-MM-DD HH:mm` string in any time zone, the inverse of `parseMarketTime`, handles DST
 
 ### Bug Fixes
 
-**ETF / Shanghai B-share secid classification**
-- `getMarketCode` previously misclassified codes starting with `5` (on-exchange ETF / LOF, e.g. 510050 / 512170 / 518880 / 588000) and `9` (Shanghai B-shares, e.g. 900901) to Shenzhen, so these codes via `getHistoryKline` / similar endpoints returned no data
-- Fixed: now correctly mapped to Shanghai (secid=1). Shenzhen ETFs (159xxx) / LOFs (16xxxx) keep original behavior; use explicit `sz` prefix if needed
+- **`getMarketCode` 5xx / 9xx classification**: codes starting with `5` (on-exchange ETF / LOF, e.g. 510050 / 518880 / 588000) and `9` (Shanghai B-shares) were misclassified to Shenzhen, so `getHistoryKline` etc. returned no data; now correctly mapped to Shanghai (secid=1)
+- **US minute K / timeline time zone**: EastMoney trends2 / kline return `time` strings in **Beijing time**; early implementation parsed with `MARKET_TZ.US` directly, leaving `timestamp` off by 12–13 hours. Fixed: parse as `Asia/Shanghai` for the correct epoch, then `formatInTz` to NYC
+- **HK/US `period='1'` default `ndays` changed from 5 to 1**: aligns with the README "today's timeline" promise; multi-day windows now go through `options.ndays`
 
-### Browser concurrency safety
+### Browser concurrency & request governance
 
-The new fund endpoints load via `<script>` injection on browsers (fund.eastmoney.com / fundgz.1234567.com.cn have no CORS headers), which exposes them to global-variable overwriting:
+Fund endpoints load via `<script>` injection (fund.eastmoney.com / fundgz.1234567.com.cn have no CORS). pingzhongdata shares `fS_code` / `fS_name`; fundgz shares the fixed `jsonpgz` callback — both prone to concurrent contamination, guarded by `withScriptMutex` global serialization. Node.js real concurrency is unaffected.
 
-- pingzhongdata family shares `fS_code` / `fS_name` etc. — concurrent calls to different funds via `Promise.all` would cross-contaminate
-- fundgz family shares the fixed `jsonpgz` callback name (the endpoint does not support dynamic callbacks)
+The 4 `FundService` methods integrate with `RequestClient` on Node — `providerPolicies.eastmoney` etc. all apply (`fundgz.1234567.com.cn` is explicitly classified as `eastmoney`). HK / US minute K-line endpoints have fully open CORS and reuse the push2his fallback pool.
 
-v1.10.0 guards this with `withScriptMutex`:
-- All browser `fetchJsVars` calls serialized under a single global key (`'jsVars'`, closes the "different variable sets but overlapping names" loophole)
-- fundgz serialized separately (key `'fundgz:jsonpgz'`)
-- Node.js is unaffected — real concurrency works
+### Docs & examples
 
-### Request governance
-
-The four `FundService` methods integrate with `RequestClient` on Node — `new StockSDK({ retry, rateLimit, circuitBreaker, providerPolicies.eastmoney, headers, ... })` now applies to them.
-
-`fundgz.1234567.com.cn` is not in `inferProviderFromUrl`'s auto list, so the provider explicitly classifies it as `eastmoney` to honor `providerPolicies.eastmoney`.
-
-⚠️ Browser `<script>` injection cannot integrate with `RequestClient`; `headers` / `circuitBreaker` / `rateLimit` only take effect on Node (see `fetchJsVars` JSDoc).
-
-### Documentation & examples
-
-- README capability matrix gains 4 fund rows (NAV history / intraday estimate / similar-type rank / fund dividends)
-- New [`/api/fund-extended`](/en/api/fund-extended) page
-- Playground gains 4 fund-extended demos in a new "Fund Extended" category
+- README matrix: "Mutual Fund" column +4 capability rows; HK / US "Minute K-line" & "Today's timeline" 4 cells ❌ → ✅
+- New [`/api/fund-extended`](/en/api/fund-extended); `/api/minute-kline` adds HK / US sections (with `ndays` parameter + US time zone warning)
+- Playground: new "Fund Extended" category (4 demos) + HK / US minute K-line demos under "K-Line"
 
 ### Compatibility
 
-No breaking changes. `StockSDK` public methods, signatures, data structures, and `providerPolicies` semantics are unchanged. One note: `getMarketCode` for unprefixed codes starting with 5/9 now returns `'1'` instead of `'0'` (silent bug fix); this function is not in the SDK top-level export and is an internal utility.
+No breaking changes. Only `getMarketCode` returns `'1'` instead of `'0'` for unprefixed codes starting with 5/9 (silent bug fix); this function is not a top-level export and is internal-only — regular users are unaffected.
 
 
 ## **[1.9.3](https://www.npmjs.com/package/stock-sdk/v/1.9.3)** (2026-05-22)

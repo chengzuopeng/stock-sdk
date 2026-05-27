@@ -2,58 +2,50 @@
 
 本页面记录 Stock SDK 的版本更新历史。
 
-## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-26)
+## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-27)
 
-> 公募基金扩展能力版本。新增 4 个基金深度数据方法（分红 / 历史净值 / 实时估值 / 同类排名），覆盖 issue #16 主要诉求；顺手修复上交所 5xx ETF / 9xx B 股 secid 归类错误，让 `getHistoryKline('510050')` 等场内 ETF / B 股查询从「拿不到数据」变为可用。无破坏性变更。
+> 双主题版本：(1) **公募基金扩展** 4 个深度数据方法，覆盖 [issue #16](https://github.com/chengzuopeng/stock-sdk/issues/16)；(2) **港股 / 美股分钟 K 线 + 当日分时**，README 矩阵 4 个 ❌ 翻成 ✅。顺手修复 5xx ETF / 9xx B 股 secid 归类错误。**无破坏性变更**。
 
 ### 新增功能
 
-**公募基金扩展（FundService）**
-- `getFundDividendList` 基金分红明细 — 来自天天基金分红送配频道，支持 `year` / `fundType` / `rank` / `sort` / `page` / `code` 客户端过滤；`page: 'all'` 自动翻页聚合
-- `getFundNavHistory` 基金历史净值 — 单位净值 + 累计净值按 timestamp 对齐合并，一次返回全历史（数千条），覆盖开放式 / ETF / LOF / 货币 / QDII
-- `getFundEstimate` 基金当日实时估值 — 同时返回 T-1 单位净值（`nav` / `navDate`）和盘中估算（`estimatedNav` / `estimatedChangePercent` / `estimateTime`）
-- `getFundRankHistory` 基金同类排名走势 — 每日近三月排名 + 同类总数 + 百分位
-- 新增 `FundService`（顶层 export）作为这组方法的承载
+**公募基金扩展（`FundService`，顶层 export）**
+- `getFundDividendList` — 基金分红明细（按年份分页，可客户端按代码过滤；`page: 'all'` 自动翻页聚合）
+- `getFundNavHistory` — 历史净值（单位 + 累计净值全历史，开放式 / ETF / LOF / 货币 / QDII 通用）
+- `getFundEstimate` — 当日实时估值（T-1 净值 + 盘中估算）
+- `getFundRankHistory` — 同类排名走势（每日近三月排名 + 百分位）
 
-**通用工具**
-- `fetchJsVars` / `parseJsVars` — 双端解析 `var X = ...; var Y = ...;` 形式的 JS 变量声明文件（用于 pingzhongdata、funddataIndex_Interface 等非 JSONP 接口）。浏览器走 `<script>` 注入，Node 走 fetch + 括号配对扫描；可选传 `client` 接入 SDK 治理
-- `withScriptMutex` / `BROWSER_JSVARS_MUTEX_KEY` — 浏览器全局名级互斥锁，杜绝 `<script>` 注入路径的并发覆盖
+**港股 / 美股分钟 K 线 + 分时**
+- `getHKMinuteKline(symbol, options?)` — 5/15/30/60 分钟 K 线 / 当日分时（`period: '1'`）
+- `getUSMinuteKline(symbol, options?)` — 同上（美股仅常规交易时段）
+- 新增类型 `HKMinuteKline` / `HKMinuteTimeline` / `USMinuteKline` / `USMinuteTimeline`（结构与 A 股 `MinuteKline` 对齐，加 `currency` / `code` 字段）
+- 复用 `push2his.eastmoney.com` 现有体系（33 / 63 子域），零新数据源依赖
+
+**通用工具**（顶层 export）
+- `fetchJsVars` / `parseJsVars` — 双端解析 `var X = ...; var Y = ...;` 形式的 JS 变量声明文件（pingzhongdata / funddataIndex_Interface 等非 JSONP 接口）；浏览器走 `<script>` 注入，Node 走 fetch + 括号扫描；可选 `client` 接入 SDK 治理
+- `withScriptMutex` / `BROWSER_JSVARS_MUTEX_KEY` — 浏览器全局名级互斥锁，杜绝 `<script>` 注入路径的并发污染
+- `formatInTz(epoch, tz)` — UTC ms → 指定时区 `YYYY-MM-DD HH:mm` 字符串，`parseMarketTime` 的反向，处理夏令时
 
 ### 修复
 
-**ETF / 上交所 B 股 secid 归类错误**
-- `getMarketCode` 之前对 5 开头（场内 ETF / LOF / 封基，如 510050 / 512170 / 518880 / 588000）和 9 开头（上交所 B 股，如 900901）错误归到深圳，导致这些代码走 `getHistoryKline` 等接口实际拿不到数据
-- 修复后正确归到上海（secid=1）；深交所 ETF（159xxx）/ LOF（16xxxx）维持原行为，必要时仍可带 `sz` 前缀显式指定
+- **`getMarketCode` 修正 5xx / 9xx 归类**：5 开头（510050 / 518880 / 588000 等场内 ETF / LOF）和 9 开头（上交所 B 股）此前被错误归到深圳，`getHistoryKline` 等接口拿不到数据；改为归到上海（secid=1）
+- **美股分钟 K / 分时时区**：东财 trends2 / kline 返回的 `time` 字段以**北京时间**表示，早期直接按 `MARKET_TZ.US` 解析导致 `timestamp` 偏 12–13 小时；改为先按 `Asia/Shanghai` 解 epoch、再 `formatInTz` 转 NYC 字符串
+- **HK/US `period='1'` 默认 `ndays` 由 5 改 1**：与 README "当日分时" 承诺对齐；多日改通过 `options.ndays` 显式指定
 
-### 浏览器并发安全
+### 浏览器并发安全 / 请求治理
 
-新基金接口在浏览器端通过 `<script>` 注入加载（fund.eastmoney.com / fundgz.1234567.com.cn 均无 CORS 头），容易触发全局变量并发覆盖：
+基金接口走 `<script>` 注入加载（fund.eastmoney.com / fundgz.1234567.com.cn 均无 CORS）。pingzhongdata 共享 `fS_code` / `fS_name`、fundgz 共享固定 callback `jsonpgz` — 都易触发并发污染，已用 `withScriptMutex` 全局串行化兜底。Node 端真并发不受影响。
 
-- pingzhongdata 系列接口共享 `fS_code` / `fS_name` 等变量名，`Promise.all` 并发不同基金时会互相串数据
-- fundgz 系列共享 `jsonpgz` 固定 callback 名，且接口不支持动态 callback
-
-v1.10.0 通过 `withScriptMutex` 全局互斥兜底：
-- 浏览器端所有 `fetchJsVars` 调用串行化（key 固定为 `'jsVars'`，杜绝"变量集合不同但有交集"漏洞）
-- fundgz 独立串行化（key 为 `'fundgz:jsonpgz'`）
-- Node 端不受此限制，真并发不受影响
-
-### 请求治理
-
-`FundService` 4 个方法已接入 `RequestClient`：`new StockSDK({ retry, rateLimit, circuitBreaker, providerPolicies.eastmoney, headers, ... })` 配置对新基金方法在 Node 端生效。
-
-`fundgz.1234567.com.cn` 不在自动 provider 推断名单，已在 provider 内部显式归入 `eastmoney`，因此 `providerPolicies.eastmoney` 配置会真正生效。
-
-⚠️ 浏览器 `<script>` 注入路径无法接 `RequestClient`，`headers` / `circuitBreaker` / `rateLimit` 等仅 Node 端生效，详见 `fetchJsVars` 顶部 JSDoc。
+`FundService` 4 个方法 Node 端已接入 `RequestClient`，`providerPolicies.eastmoney` 等配置全部生效（`fundgz.1234567.com.cn` 显式归入 `eastmoney`）。HK/US 分钟 K 线接口 CORS 完全开放、复用 push2his 现有 fallback 池。
 
 ### 文档与示例
 
-- README 功能矩阵的"公募基金"列新增 4 个能力（历史净值 / 实时估值 / 同类排名 / 基金分红）
-- 新增 [`/api/fund-extended`](/api/fund-extended) API 文档页
-- Playground 新增 4 个基金扩展演示，独立"基金扩展"分类
+- README 矩阵：公募基金列 +4 行能力；港股 / 美股的"分钟 K 线"与"当日分时" 4 格 ❌ → ✅
+- 新增 [`/api/fund-extended`](/api/fund-extended)；`/api/minute-kline` 追加 HK/US 段落（含 `ndays` 参数 + 美股时区警告框）
+- Playground 新增"基金扩展"分类（4 个演示）+ K 线分类下 HK/US 分钟 K 线交互演示
 
 ### 兼容性
 
-无破坏性变更。`StockSDK` 类公开方法与签名、现有数据结构、`providerPolicies` 配置语义均保持不变。仅一项需注意：`getMarketCode` 对 5/9 开头无前缀代码的返回值由 `'0'` 变为 `'1'`（修正先前的 silent bug）；该函数不在 SDK 顶层 export，仅是内部工具，常规用户无影响。
+无破坏性变更。仅 `getMarketCode` 对 5/9 开头无前缀代码的返回值由 `'0'` 改为 `'1'`（silent bug fix）；该函数非顶层 export，常规用户无影响。
 
 
 ## **[1.9.3](https://www.npmjs.com/package/stock-sdk/v/1.9.3)** (2026-05-22)

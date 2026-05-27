@@ -4,6 +4,7 @@ import {
   parseMarketTime,
   buildTimeMeta,
   buildTimeMetaFromDateAndTime,
+  formatInTz as formatInTzMinuteOnly,
 } from '../../../src/core/time';
 
 /**
@@ -134,6 +135,48 @@ describe('core/time', () => {
       expect(
         buildTimeMetaFromDateAndTime('2024-05-12', 'bad', MARKET_TZ.CN).timestamp
       ).toBeNaN();
+    });
+  });
+
+  describe('formatInTz', () => {
+    // 注意：本文件顶部已有同名 local helper `formatInTz`（输出带秒），
+    // 这里用 alias `formatInTzMinuteOnly` 引用 src 的 export 版本（仅到分钟）。
+    it('formats epoch in Asia/Shanghai (round-trip)', () => {
+      const epoch = parseMarketTime('2024-05-12 09:30', MARKET_TZ.CN);
+      expect(formatInTzMinuteOnly(epoch, MARKET_TZ.CN)).toBe('2024-05-12 09:30');
+    });
+
+    it('round-trips through HK (HKT == CST, no offset)', () => {
+      const epoch = parseMarketTime('2024-05-12 09:30', MARKET_TZ.HK);
+      expect(formatInTzMinuteOnly(epoch, MARKET_TZ.HK)).toBe('2024-05-12 09:30');
+    });
+
+    it('converts Beijing-time epoch to NYC during DST (UTC-4)', () => {
+      // 2026-05-26 21:30 CST  ==  2026-05-26 09:30 EDT
+      const epoch = parseMarketTime('2026-05-26 21:30', MARKET_TZ.CN);
+      expect(formatInTzMinuteOnly(epoch, MARKET_TZ.US)).toBe('2026-05-26 09:30');
+    });
+
+    it('converts Beijing-time epoch to NYC during standard time (UTC-5)', () => {
+      // 2026-01-15 22:30 CST  ==  2026-01-15 09:30 EST
+      const epoch = parseMarketTime('2026-01-15 22:30', MARKET_TZ.CN);
+      expect(formatInTzMinuteOnly(epoch, MARKET_TZ.US)).toBe('2026-01-15 09:30');
+    });
+
+    it('handles cross-day boundaries (NYC ahead-of-UTC, behind-of-CST)', () => {
+      // 2026-05-27 04:00 CST  ==  2026-05-26 16:00 EDT  (跨日)
+      const epoch = parseMarketTime('2026-05-27 04:00', MARKET_TZ.CN);
+      expect(formatInTzMinuteOnly(epoch, MARKET_TZ.US)).toBe('2026-05-26 16:00');
+    });
+
+    it('returns empty string for NaN epoch', () => {
+      expect(formatInTzMinuteOnly(NaN, MARKET_TZ.US)).toBe('');
+    });
+
+    it('zero-pads single-digit month/day/hour/minute', () => {
+      // 2024-01-05 03:07 in Shanghai
+      const epoch = parseMarketTime('2024-01-05 03:07', MARKET_TZ.CN);
+      expect(formatInTzMinuteOnly(epoch, MARKET_TZ.CN)).toBe('2024-01-05 03:07');
     });
   });
 });

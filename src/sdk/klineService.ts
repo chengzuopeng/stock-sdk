@@ -4,7 +4,11 @@ import type {
   MinuteTimeline,
   MinuteKline,
   HKHistoryKline,
+  HKMinuteKline,
+  HKMinuteTimeline,
   USHistoryKline,
+  USMinuteKline,
+  USMinuteTimeline,
 } from '../types';
 import type { RequestClient } from '../core';
 import { BaseService } from './baseService';
@@ -35,10 +39,24 @@ export class KlineService extends BaseService {
     return eastmoney.getHKHistoryKline(this.client, symbol, options);
   }
 
+  getHKMinuteKline(
+    symbol: string,
+    options?: eastmoney.HKMinuteKlineOptions
+  ): Promise<HKMinuteTimeline[] | HKMinuteKline[]> {
+    return eastmoney.getHKMinuteKline(this.client, symbol, options);
+  }
+
   getUSHistoryKline(
     symbol: string,
     options?: eastmoney.USKlineOptions
   ): Promise<USHistoryKline[]> {
     return eastmoney.getUSHistoryKline(this.client, symbol, options);
+  }
+
+  getUSMinuteKline(
+    symbol: string,
+    options?: eastmoney.USMinuteKlineOptions
+  ): Promise<USMinuteTimeline[] | USMinuteKline[]> {
+    return eastmoney.getUSMinuteKline(this.client, symbol, options);
   }
 }

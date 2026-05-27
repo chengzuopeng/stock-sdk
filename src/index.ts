@@ -101,6 +101,7 @@ export {
 
 // 时间工具（changelog 已承诺：MARKET_TZ / MarketTz / TimeMeta /
 // parseMarketTime / buildTimeMeta / buildTimeMetaFromDateAndTime）
+// v1.10.0+ 新增 formatInTz：epoch → 指定时区 'YYYY-MM-DD HH:mm' 字符串
 export {
   MARKET_TZ,
   type MarketTz,
@@ -108,6 +109,7 @@ export {
   parseMarketTime,
   buildTimeMeta,
   buildTimeMetaFromDateAndTime,
+  formatInTz,
 } from './core';
 
 // 导出配置类型
@@ -121,6 +123,13 @@ export type {
 
 // 导出选项类型
 export type {
+  // A 股 / 港股 / 美股 K 线选项（API 文档已公开使用这些类型名，必须在根入口暴露）
+  HistoryKlineOptions,
+  MinuteKlineOptions,
+  HKKlineOptions,
+  HKMinuteKlineOptions,
+  USKlineOptions,
+  USMinuteKlineOptions,
   IndustryBoardKlineOptions,
   IndustryBoardMinuteKlineOptions,
   ConceptBoardKlineOptions,

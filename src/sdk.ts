@@ -16,7 +16,11 @@ import type {
   MinuteKline,
   TodayTimelineResponse,
   HKHistoryKline,
+  HKMinuteKline,
+  HKMinuteTimeline,
   USHistoryKline,
+  USMinuteKline,
+  USMinuteTimeline,
   HKUSHistoryKline,
   IndustryBoard,
   IndustryBoardSpot,
@@ -364,6 +368,23 @@ export class StockSDK {
   }
 
   /**
+   * 获取港股分钟 K 线（5/15/30/60 分钟）或当日分时（1 分钟）。
+   *
+   * `options.period='1'` 时走 `trends2/get`，返回 `HKMinuteTimeline[]`；
+   * `options.period='5'|'15'|'30'|'60'` 时走 `kline/get`，返回 `HKMinuteKline[]`。
+   *
+   * @param symbol 港股代码，纯数字或带 `hk` 前缀均可（如 `'00700'`、`'hk00700'`）
+   * @param options 周期 / 复权 / 起止时间
+   * @since v1.10.0
+   */
+  getHKMinuteKline(
+    symbol: string,
+    options?: import('./providers/eastmoney').HKMinuteKlineOptions
+  ): Promise<HKMinuteTimeline[] | HKMinuteKline[]> {
+    return this.klineService.getHKMinuteKline(symbol, options);
+  }
+
+  /**
    * 获取美股历史 K 线。
    *
    * **复权默认值:`adjust='qfq'`(前复权)。** 详见
@@ -377,6 +398,22 @@ export class StockSDK {
     options?: import('./providers/eastmoney').USKlineOptions
   ): Promise<USHistoryKline[]> {
     return this.klineService.getUSHistoryKline(symbol, options);
+  }
+
+  /**
+   * 获取美股分钟 K 线（5/15/30/60 分钟）或当日分时（1 分钟）。
+   *
+   * 不含盘前 / 盘后数据，仅常规交易时段。
+   *
+   * @param symbol 美股代码，格式 `{market}.{ticker}`（如 `'105.AAPL'`、`'106.BABA'`）
+   * @param options 周期 / 复权 / 起止时间
+   * @since v1.10.0
+   */
+  getUSMinuteKline(
+    symbol: string,
+    options?: import('./providers/eastmoney').USMinuteKlineOptions
+  ): Promise<USMinuteTimeline[] | USMinuteKline[]> {
+    return this.klineService.getUSMinuteKline(symbol, options);
   }
 
   /**

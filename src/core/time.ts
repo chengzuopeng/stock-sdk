@@ -235,3 +235,37 @@ export function buildTimeMetaFromDateAndTime(
   if (!wall) return { timestamp: NaN, tz };
   return { timestamp: wallTimeToUTC(wall, tz), tz };
 }
+
+/**
+ * 把 UTC 毫秒时间戳格式化为指定时区的 `YYYY-MM-DD HH:mm` 本地壁钟字符串。
+ *
+ * 与 {@link parseMarketTime} 互逆：`formatInTz(parseMarketTime(s, tz), tz) === s`
+ * （只要 `s` 是 `YYYY-MM-DD HH:mm` 格式）。
+ *
+ * 用途：当上游接口返回的时间字符串使用 A 处时区表示，但业务需要在 B 处时区显示时
+ * （典型：东方财富的美股分时返回北京时间字符串，但用户需要美东时间），先用
+ * `parseMarketTime(s, MARKET_TZ.CN)` 拿到正确 epoch，再用本函数转成目标时区字符串。
+ *
+ * 使用 `Intl.DateTimeFormat` 处理夏令时；epoch 为 `NaN` 时返回空串。
+ */
+export function formatInTz(epoch: number, tz: MarketTz): string {
+  if (!Number.isFinite(epoch)) return '';
+  // 用 sv-SE locale 直接 format —— sv-SE 天然以 `YYYY-MM-DD HH:mm:ss` 形式输出，
+  // 比 formatToParts + 手动拼接更稳健（避免某些 Node ICU 实现里 minute 字段
+  // 携带额外冒号后缀的怪异行为）。
+  const formatted = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: tz,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(epoch));
+  // sv-SE 输出可能是 "2024-05-12 09:30" 或 "2024-05-12 09:30:00"，截到分钟即可。
+  // 同时把可能出现的 "24:" 归一化为 "00:"
+  const match = formatted.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+  if (!match) return formatted;
+  const hour = match[2] === '24' ? '00' : match[2];
+  return `${match[1]} ${hour}:${match[3]}`;
+}

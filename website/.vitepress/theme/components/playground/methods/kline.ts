@@ -128,4 +128,66 @@ console.log(timeline.data[0].price);     // 成交价
 console.log(timeline.data[0].avgPrice);  // 均价`,
     run: (sdk, params) => sdk.getTodayTimeline(params.code),
   },
+  {
+    name: 'getHKMinuteKline',
+    desc: '获取港股分钟 K 线或当日分时（v1.10.0+）',
+    category: 'kline',
+    params: [
+      { key: 'symbol', label: '港股代码', type: 'text', default: '00700', required: true, placeholder: '如 00700 或 hk00700' },
+      {
+        key: 'period',
+        label: 'K线周期',
+        type: 'select',
+        default: '5',
+        options: [
+          { value: '1', label: '1分钟(分时)' },
+          { value: '5', label: '5分钟' },
+          { value: '15', label: '15分钟' },
+          { value: '30', label: '30分钟' },
+          { value: '60', label: '60分钟' },
+        ],
+      },
+      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', options: ADJUST_OPTIONS },
+    ],
+    code: (p) => `const klines = await sdk.getHKMinuteKline(${jsStr(p.symbol)}, ${jsObject({
+      period: p.period,
+      adjust: p.adjust,
+    })});
+console.log(klines[0].time);      // '2024-12-30 09:30'
+console.log(klines[0].currency);  // 'HKD'
+console.log(klines[0].tz);        // 'Asia/Hong_Kong'`,
+    run: (sdk, params) =>
+      sdk.getHKMinuteKline(params.symbol, { period: params.period, adjust: params.adjust }),
+  },
+  {
+    name: 'getUSMinuteKline',
+    desc: '获取美股分钟 K 线或当日分时（v1.10.0+，仅常规交易时段）',
+    category: 'kline',
+    params: [
+      { key: 'symbol', label: '美股代码', type: 'text', default: '105.AAPL', required: true, placeholder: '格式 {market}.{ticker}，如 105.AAPL' },
+      {
+        key: 'period',
+        label: 'K线周期',
+        type: 'select',
+        default: '5',
+        options: [
+          { value: '1', label: '1分钟(分时)' },
+          { value: '5', label: '5分钟' },
+          { value: '15', label: '15分钟' },
+          { value: '30', label: '30分钟' },
+          { value: '60', label: '60分钟' },
+        ],
+      },
+      { key: 'adjust', label: '复权类型', type: 'select', default: 'qfq', options: ADJUST_OPTIONS },
+    ],
+    code: (p) => `const klines = await sdk.getUSMinuteKline(${jsStr(p.symbol)}, ${jsObject({
+      period: p.period,
+      adjust: p.adjust,
+    })});
+console.log(klines[0].time);      // '2024-12-30 09:30'
+console.log(klines[0].currency);  // 'USD'
+console.log(klines[0].tz);        // 'America/New_York'`,
+    run: (sdk, params) =>
+      sdk.getUSMinuteKline(params.symbol, { period: params.period, adjust: params.adjust }),
+  },
 ];

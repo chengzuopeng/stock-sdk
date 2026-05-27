@@ -23,6 +23,9 @@ export const EM_KLINE_URL = 'https://push2his.eastmoney.com/api/qt/stock/kline/g
 export const EM_TRENDS_URL = 'https://push2his.eastmoney.com/api/qt/stock/trends2/get';
 export const EM_HK_KLINE_URL = 'https://33.push2his.eastmoney.com/api/qt/stock/kline/get';
 export const EM_US_KLINE_URL = 'https://63.push2his.eastmoney.com/api/qt/stock/kline/get';
+// 港股 / 美股分时（与 A 股 EM_TRENDS_URL 同接口，使用对应子域享受 fallback）
+export const EM_HK_TRENDS_URL = 'https://33.push2his.eastmoney.com/api/qt/stock/trends2/get';
+export const EM_US_TRENDS_URL = 'https://63.push2his.eastmoney.com/api/qt/stock/trends2/get';
 
 // 东方财富行业板块 API
 export const EM_BOARD_LIST_URL = 'https://17.push2.eastmoney.com/api/qt/clist/get';

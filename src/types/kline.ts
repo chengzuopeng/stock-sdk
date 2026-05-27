@@ -211,3 +211,49 @@ export interface USHistoryKline extends ForeignHistoryKlineBase {
  * 老代码无需立即迁移;新代码请直接用具体类型以获得更好的类型推断。
  */
 export type HKUSHistoryKline = HKHistoryKline | USHistoryKline;
+
+/**
+ * 港股分钟 K 线（5/15/30/60；v1.10.0+）
+ *
+ * 字段与 A 股 {@link MinuteKline} 同结构，额外携带 `currency` / `code`。
+ * `tz` 固定为 `'Asia/Hong_Kong'`。
+ */
+export interface HKMinuteKline extends Omit<MinuteKline, 'tz'> {
+  tz: MarketTz;
+  currency: 'HKD';
+  code: string;
+}
+
+/**
+ * 港股当日分时（1 分钟；v1.10.0+）
+ *
+ * `tz` 固定为 `'Asia/Hong_Kong'`。
+ */
+export interface HKMinuteTimeline extends Omit<MinuteTimeline, 'tz'> {
+  tz: MarketTz;
+  currency: 'HKD';
+  code: string;
+}
+
+/**
+ * 美股分钟 K 线（5/15/30/60；v1.10.0+）
+ *
+ * `tz` 固定为 `'America/New_York'`（含夏令时切换）。
+ * 不含盘前 / 盘后数据，仅常规交易时段。
+ */
+export interface USMinuteKline extends Omit<MinuteKline, 'tz'> {
+  tz: MarketTz;
+  currency: 'USD';
+  code: string;
+}
+
+/**
+ * 美股当日分时（1 分钟；v1.10.0+）
+ *
+ * `tz` 固定为 `'America/New_York'`。
+ */
+export interface USMinuteTimeline extends Omit<MinuteTimeline, 'tz'> {
+  tz: MarketTz;
+  currency: 'USD';
+  code: string;
+}

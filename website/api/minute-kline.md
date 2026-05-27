@@ -116,6 +116,90 @@ const kline60m = await sdk.getMinuteKline('sz000858', { period: '60' });
 
 ---
 
+## getHKMinuteKline（v1.10.0+）
+
+获取港股分钟 K 线或当日分时数据。数据来源：东方财富（`33.push2his.eastmoney.com`），与 `getHKHistoryKline` 共用同一域名体系。
+
+### 签名
+
+```typescript
+getHKMinuteKline(
+  symbol: string,
+  options?: HKMinuteKlineOptions
+): Promise<HKMinuteTimeline[] | HKMinuteKline[]>
+```
+
+### 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `symbol` | `string` | ✅ | 港股代码，纯数字或带 `hk` 前缀均可（如 `'00700'` / `'hk00700'`）；自动 padStart 到 5 位 |
+| `options.period` | `'1' \| '5' \| '15' \| '30' \| '60'` | — | 默认 `'1'`（分时）；其他值返回对应分钟 K |
+| `options.adjust` | `'' \| 'qfq' \| 'hfq'` | — | 默认 `'qfq'`（仅 5/15/30/60 分钟生效；1 分钟分时不复权） |
+| `options.ndays` | `number` | — | 仅 `period='1'` 生效；返回最近 N 个交易日，默认 `1`（当日分时）。设为 `5` 可拿近 5 日分时 |
+| `options.startDate` / `options.endDate` | `string` | — | `YYYY-MM-DD HH:mm`（**港股本地时区** `Asia/Hong_Kong`），客户端过滤 |
+
+### 返回类型
+
+`period='1'` 时返回 `HKMinuteTimeline[]`（含 `time` / `timestamp` / `tz: 'Asia/Hong_Kong'` / `open` / `close` / `high` / `low` / `volume` / `amount` / `avgPrice` / `currency: 'HKD'` / `code`）；其他周期返回 `HKMinuteKline[]`（结构同 A 股 `MinuteKline` 加 `currency` / `code`）。
+
+### 示例
+
+```typescript
+// 港股腾讯 5 分钟 K 线
+const k5 = await sdk.getHKMinuteKline('00700', { period: '5' });
+
+// 港股腾讯今日分时
+const timeline = await sdk.getHKMinuteKline('00700');
+console.log(timeline[0].avgPrice, timeline[0].currency);  // 100.05 'HKD'
+```
+
+---
+
+## getUSMinuteKline（v1.10.0+）
+
+获取美股分钟 K 线或当日分时数据。**不含盘前 / 盘后数据**，仅常规交易时段。数据来源：东方财富（`63.push2his.eastmoney.com`）。
+
+### 签名
+
+```typescript
+getUSMinuteKline(
+  symbol: string,
+  options?: USMinuteKlineOptions
+): Promise<USMinuteTimeline[] | USMinuteKline[]>
+```
+
+### 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `symbol` | `string` | ✅ | 美股代码，格式 `{market}.{ticker}`（如 `'105.AAPL'` NASDAQ / `'106.BABA'` NYSE） |
+| `options.period` | `'1' \| '5' \| '15' \| '30' \| '60'` | — | 默认 `'1'` |
+| `options.adjust` | `'' \| 'qfq' \| 'hfq'` | — | 默认 `'qfq'` |
+| `options.ndays` | `number` | — | 仅 `period='1'` 生效；返回最近 N 个交易日，默认 `1`（当日分时） |
+| `options.startDate` / `options.endDate` | `string` | — | `YYYY-MM-DD HH:mm`（**美东时区** `America/New_York`，自动 DST），客户端过滤 |
+
+### 返回类型
+
+`period='1'` 返回 `USMinuteTimeline[]`，其他返回 `USMinuteKline[]`。两者 `tz` 固定 `'America/New_York'`（含夏令时切换）、`currency: 'USD'`、`code` 取自 `secid.split('.')[1]`。
+
+::: warning 时区说明
+上游东方财富 trends2 / kline 接口返回的 `time` 字符串以**北京时间**表示（如夏令时下美股开盘的北京 21:30 对应 NYC 09:30）。SDK 内部已经做转换：返回的 `time` 字段是**美东本地时间**，`timestamp` 是 UTC 毫秒，`tz` 标 `'America/New_York'`。用户传 `startDate`/`endDate` 时也应使用美东时间字符串。
+:::
+
+### 示例
+
+```typescript
+// 苹果 60 分钟 K 线
+const k60 = await sdk.getUSMinuteKline('105.AAPL', { period: '60' });
+
+// 阿里今日分时
+const timeline = await sdk.getUSMinuteKline('106.BABA');
+console.log(timeline[0].time, timeline[0].avgPrice);
+```
+
+---
+
 ## 交易时间
 
 A 股交易时间：

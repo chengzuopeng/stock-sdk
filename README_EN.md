@@ -70,28 +70,29 @@ If you're a frontend engineer, you may have encountered these problems:
 ## Market Coverage Matrix
 
 Coverage varies by market. The table below helps you check whether the SDK fits your use case.
-✅ supported, ⚠️ partial / see notes, ❌ not supported.
+
+- ✅ supported
+- ⚠️ partial / see notes
+- ❌ not yet implemented (the market has this capability or a data source exists; SDK may add later)
+- — N/A (the capability does not apply to this market / product — e.g. funds have no daily price limit, futures contracts don't pay dividends)
 
 | Capability | A-share | HK | US | Mutual Fund | Futures | Options |
 |------------|:-------:|:--:|:--:|:-----------:|:-------:|:-------:|
 | Real-time quotes | ✅ | ✅ | ✅ | ✅ | ✅ Global | ✅ ETF / CFFEX / Commodity |
 | History K-line (D/W/M) | ✅ | ✅ | ✅ | ⚠️ On-exchange ETF/LOF (via `getHistoryKline`) | ✅ Domestic + Global | ✅ |
-| Minute K-line (5/15/30/60) | ✅ | ❌ | ❌ | ⚠️ On-exchange ETF/LOF (via `getMinuteKline`) | ❌ | ❌ |
-| Today's timeline (1-min) | ✅ | ❌ | ❌ | ⚠️ On-exchange ETF/LOF | ❌ | ✅ ETF options |
-| **NAV history (unit / accumulated)** | — | — | — | ✅ Full history (`getFundNavHistory`) | — | — |
-| **Real-time NAV estimate (intraday)** | — | — | — | ✅ `getFundEstimate` | — | — |
-| **Similar-type rank history** | — | — | — | ✅ `getFundRankHistory` | — | — |
-| Dividend events | ✅ | ❌ | ❌ | ✅ Funds + ETFs (`getFundDividendList`) | ❌ | ❌ |
-| Fund flow | ✅ Stock / Market / Rank / Sector | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Sectors (Industry / Concept) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Dragon-Tiger list | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ Option LHB |
-| Stock Connect / Northbound | ✅ Northbound | ✅ Southbound | ❌ | ❌ | ❌ | ❌ |
-| Block trade | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Margin trading | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Limit-up pool / Tape changes | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Minute K-line (5/15/30/60) | ✅ | ✅ `getHKMinuteKline` | ✅ `getUSMinuteKline` | ⚠️ On-exchange ETF/LOF (via `getMinuteKline`) | ❌ | ❌ |
+| Today's timeline (1-min) | ✅ | ✅ `getHKMinuteKline` (period='1') | ✅ `getUSMinuteKline` (period='1') | ⚠️ On-exchange ETF/LOF | ❌ | ✅ ETF options |
+| Dividend events | ✅ | ❌ | ❌ | ✅ Funds + ETFs (`getFundDividendList`) | — | — |
+| Fund flow | ✅ Stock / Market / Rank / Sector | ❌ | ❌ | — | — | — |
+| Sectors (Industry / Concept) | ✅ | ❌ | ❌ | ❌ | — | — |
+| Dragon-Tiger list | ✅ | — | — | — | — | ✅ Option LHB |
+| Stock Connect / Northbound | ✅ Northbound | ✅ Southbound | — | — | — | — |
+| Block trade | ✅ | ❌ | ❌ | — | — | — |
+| Margin trading | ✅ | — | — | — | — | — |
+| Limit-up pool / Tape changes | ✅ | — | — | — | — | — |
 | Full market code list | ✅ 5000+ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Batch quotes | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Inventory data | ❌ | ❌ | ❌ | ❌ | ✅ Domestic + COMEX | ❌ |
+| Inventory data | — | — | — | — | ✅ Domestic + COMEX | — |
 | Trading calendar | ✅ + `isTradingDay()` helpers | ⚠️ Market status only (Mon-Fri) | ⚠️ Market status only (Mon-Fri) | — | — | — |
 
 > **Data delay**: Real-time quotes come from public endpoints (Tencent Finance / EastMoney) and are
@@ -237,6 +238,8 @@ Stock SDK comes with a companion MCP Server ([stock-sdk-mcp](https://www.npmjs.c
 | `getHKHistoryKline` | HK stock historical K-line (daily/weekly/monthly) |
 | `getUSHistoryKline` | US stock historical K-line (daily/weekly/monthly) |
 | `getMinuteKline` | A-share minute K-line (1/5/15/30/60 minutes) |
+| `getHKMinuteKline` | HK minute K-line (5/15/30/60) or intraday timeline (period='1'), v1.10.0+ |
+| `getUSMinuteKline` | US minute K-line (5/15/30/60) or intraday timeline (period='1'), v1.10.0+ |
 | `getTodayTimeline` | A-share today's timeline |
 
 ### Technical Indicators

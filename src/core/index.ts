@@ -66,6 +66,8 @@ export {
   EM_TRENDS_URL,
   EM_HK_KLINE_URL,
   EM_US_KLINE_URL,
+  EM_HK_TRENDS_URL,
+  EM_US_TRENDS_URL,
   EM_BOARD_LIST_URL,
   EM_BOARD_SPOT_URL,
   EM_BOARD_CONS_URL,
@@ -162,4 +164,5 @@ export {
   parseMarketTime,
   buildTimeMeta,
   buildTimeMetaFromDateAndTime,
+  formatInTz,
 } from './time';
