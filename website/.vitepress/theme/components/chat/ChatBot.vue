@@ -3,7 +3,7 @@
  * ChatBot —— 文档站全局悬浮问答助手(可拖拽 / 可缩放 / 可最大化)。
  *
  * 入口:右下角悬浮按钮,点击展开聊天浮窗。挂在 Layout 的 #layout-bottom,
- * 每个页面都有。后端对接 api-worker 的 /api/llm/chat(WebSocket)。
+ * 每个页面都有。后端对接 api-worker 的 /api/llm/chat(SSE over POST)。
  *
  * 交互对标 ChatGPT / Claude / Intercom:
  * - 拖拽标题栏移动窗口
@@ -13,11 +13,11 @@
  * - 代码块深色高对比 + 复制按钮
  * - 移动端自动全屏
  *
- * 约束:SSR 安全(window 相关只在 onMounted 后用);WebSocket 仅首次发送时建立。
+ * 约束:SSR 安全(window 相关只在 onMounted 后用);每次提问发起一个 POST 流式请求。
  */
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, reactive } from 'vue'
 import { useData } from 'vitepress'
-import { useChatSocket } from './useChatSocket'
+import { useChatStream } from './useChatStream'
 import { renderMarkdown } from './miniMarkdown'
 
 const { lang } = useData()
@@ -28,16 +28,17 @@ const maximized = ref(false)
 const draft = ref('')
 const listEl = ref<HTMLElement | null>(null)
 const panelEl = ref<HTMLElement | null>(null)
+const inputEl = ref<HTMLTextAreaElement | null>(null)
 
-const { turns, busy, send, cancel, reset, dispose } = useChatSocket()
+const { turns, busy, send, cancel, reset, dispose } = useChatStream()
 
 /* ── 尺寸 / 位置状态(可拖拽、可缩放、可记忆) ── */
 const MIN_W = 360
 const MIN_H = 420
-const DEFAULT_W = 460
+const DEFAULT_W = 560
 const DEFAULT_H = 680
 const MARGIN = 20
-const STORE_KEY = 'stock-sdk-chat-rect'
+const STORE_KEY = 'stock-sdk-chat-rect-v2'
 
 // rect 用「右下角锚定」:right/bottom 距视口的距离,w/h 尺寸。
 // 这样窗口默认贴右下,移动/缩放时数值直观。
@@ -48,7 +49,7 @@ const t = computed(() =>
     ? {
         title: 'stock-sdk Assistant',
         subtitle: 'Ask anything about stock-sdk usage',
-        placeholder: 'Ask about stock-sdk… (Enter to send, Shift+Enter for newline)',
+        placeholder: 'Ask about stock-sdk usage…',
         send: 'Send',
         stop: 'Stop',
         clear: 'New chat',
@@ -69,7 +70,7 @@ const t = computed(() =>
     : {
         title: 'stock-sdk 助手',
         subtitle: '关于 stock-sdk 用法,问我',
-        placeholder: '问点 stock-sdk 的用法…(Enter 发送,Shift+Enter 换行)',
+        placeholder: '问点 stock-sdk 的用法…',
         send: '发送',
         stop: '停止',
         clear: '新对话',
@@ -220,11 +221,24 @@ function scrollToBottom() {
   })
 }
 
+/* ── 输入框高度自适应:单行起,随内容长高,封顶后内部滚动 ── */
+function autoGrow() {
+  const el = inputEl.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, 140)}px`
+}
+function resetInputHeight() {
+  const el = inputEl.value
+  if (el) el.style.height = ''
+}
+
 function submit() {
   const text = draft.value.trim()
   if (!text || busy.value) return
   send(text)
   draft.value = ''
+  resetInputHeight()
   scrollToBottom()
 }
 
@@ -354,10 +368,12 @@ onUnmounted(() => {
         <footer class="csb-foot">
           <div class="csb-input-row">
             <textarea
+              ref="inputEl"
               v-model="draft"
               class="csb-input"
               rows="1"
               :placeholder="t.placeholder"
+              @input="autoGrow"
               @keydown="onKeydown"
             ></textarea>
             <button v-if="busy" class="csb-send csb-stop" :title="t.stop" @click="cancel">
@@ -815,9 +831,10 @@ onUnmounted(() => {
 }
 .csb-input {
   flex: 1;
+  box-sizing: border-box;
   resize: none;
   max-height: 140px;
-  min-height: 42px;
+  min-height: 44px;
   padding: 11px 13px;
   border: 1px solid var(--vp-c-divider);
   border-radius: 12px;

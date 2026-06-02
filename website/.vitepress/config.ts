@@ -486,12 +486,11 @@ export default defineConfig({
       //    (如 /api/kline、/api/quotes),用 /api 会把文档页也代理走导致 404。
       // 默认指向 localhost:8788(EdgeOne `edgeone pages dev` 默认端口);
       // 端口不同可用环境变量覆盖:API_WORKER_ORIGIN=http://localhost:8790 yarn dev
-      // ws: true 让 WebSocket(/api/llm/chat)也能被代理。
+      // 注:agent 已改为 SSE(普通 HTTP 流式响应),无需 ws: true。
       proxy: {
         '/api/llm': {
           target: process.env.API_WORKER_ORIGIN || 'http://localhost:8788',
           changeOrigin: true,
-          ws: true,
         },
       },
     },
