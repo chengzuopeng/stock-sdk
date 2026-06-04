@@ -54,8 +54,13 @@ function renderInline(text: string): string {
       // 粗体 **x**
       h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
       // 链接 [text](url) —— url 仅允许 http(s)/相对路径
-      h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]*)\)/g,
-        '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+      // 安全:escapeHtml 已把 " 转成 &quot;,但浏览器解析 HTML 属性值时会把 &quot; 解码回 ",
+      // 导致 url 形如 https://x.com&quot;onclick=&quot;alert(1 时能逃逸出 href 属性、注入事件处理器
+      // (典型 XSS via 引号转义不充分)。这里把 url 里的 &quot; 进一步编码成 %22,彻底封死。
+      h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]*)\)/g, (_, text, url) => {
+        const safeUrl = url.replace(/&quot;/g, '%22');
+        return `<a href="${safeUrl}" target="_blank" rel="noreferrer">${text}</a>`;
+      });
       parts.push(h);
     }
   }

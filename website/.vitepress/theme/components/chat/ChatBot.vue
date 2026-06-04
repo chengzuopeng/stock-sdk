@@ -262,7 +262,9 @@ function onListClick(e: MouseEvent) {
   const codeEl = wrap?.querySelector('code')
   if (!codeEl) return
   const text = codeEl.textContent ?? ''
-  navigator.clipboard?.writeText(text).then(() => {
+  // 链上整条都用可选链:非安全上下文(HTTP / 旧浏览器)下 clipboard 可能是 undefined,
+  // 写成 `?.writeText().then` 会因 undefined.then 而 TypeError 崩。
+  navigator.clipboard?.writeText(text)?.then(() => {
     btn.classList.add('csb-copied')
     window.setTimeout(() => btn.classList.remove('csb-copied'), 1400)
   })
@@ -279,7 +281,15 @@ onMounted(() => {
 })
 onUnmounted(() => {
   dispose()
-  if (typeof window !== 'undefined') window.removeEventListener('resize', clampRect)
+  if (typeof window === 'undefined') return
+  window.removeEventListener('resize', clampRect)
+  // 兜底:若组件在拖拽 / 缩放进行中被卸载(如 VitePress 切页),pointermove / pointerup
+  // 还挂在 window 上,会造成全局监听器泄漏 + 之后误触发。同名 listener removeEventListener
+  // 即便没注册过也是 no-op。
+  window.removeEventListener('pointermove', onDragMove)
+  window.removeEventListener('pointerup', onDragEnd)
+  window.removeEventListener('pointermove', onResizeMove)
+  window.removeEventListener('pointerup', onResizeEnd)
 })
 </script>
 
