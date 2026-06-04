@@ -1,6 +1,6 @@
 {
   "name": "stock-sdk",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -80,7 +80,8 @@
     "vue": "^3.5.26"
   },
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
   },
   "packageManager": "yarn@1.22.22"
 }

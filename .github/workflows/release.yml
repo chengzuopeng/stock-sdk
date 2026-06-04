@@ -1,0 +1,57 @@
+name: Publish
+
+# 通过 GitHub Actions + npm Trusted Publishing（OIDC）发布到 npm，
+# 无需 NPM_TOKEN，鉴权与 provenance（来源证明绿勾）都由 OIDC 完成。
+#
+# 一次性准备（只需做一次，在 npmjs.com 上）：
+#   stock-sdk 包 → Settings → Trusted Publisher → 添加 GitHub Actions：
+#     - Organization or user: chengzuopeng
+#     - Repository:           stock-sdk
+#     - Workflow filename:    release.yml
+#     - Environment:          （留空）
+#
+# 发布流程：bump 版本并打 tag，例如
+#   git tag v1.10.1 && git push origin v1.10.1
+# 即触发本流水线自动发布。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # Trusted Publishing 鉴权 + provenance 签名的关键权限
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted Publishing 需要 npm >= 11.5.0；Node 20 自带的是 npm 10.x，需升级
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Typecheck, test & build
+        run: |
+          yarn typecheck
+          yarn test
+          yarn build
+
+      # provenance 由 package.json 的 publishConfig.provenance: true 自动开启；
+      # 用 npm publish（yarn 1.x 的 publish 不支持 provenance）
+      - name: Publish to npm
+        run: npm publish --access public
