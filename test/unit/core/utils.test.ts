@@ -139,6 +139,9 @@ describe('core utils', () => {
       expect(getMarketCode('bj430047')).toBe('0');
       expect(getMarketCode('430047')).toBe('0');
       expect(getMarketCode('830799')).toBe('0'); // 8 开头北交所
+      expect(getMarketCode('920819')).toBe('0'); // 920 新代码段（北交所），修复前被误判为上海
+      expect(getMarketCode('920000')).toBe('0');
+      expect(getMarketCode('bj920819')).toBe('0');
     });
 
     // 上交所场内 ETF / LOF / 封基（5xx）— 修复前会被错误归到深圳

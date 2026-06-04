@@ -149,7 +149,9 @@ export class HostFallbackManager {
   shouldFallback(error: RequestError): boolean {
     const code = getSdkErrorCode(error);
 
-    if (code === 'NETWORK_ERROR' || code === 'TIMEOUT') {
+    // PARSE_ERROR：同一 host 返回了不可解析的响应（如反爬 HTML），不重试本 host，
+    // 但换一个备用 host 仍可能拿到正常 JSON，所以值得 fallback。
+    if (code === 'NETWORK_ERROR' || code === 'TIMEOUT' || code === 'PARSE_ERROR') {
       return true;
     }
 

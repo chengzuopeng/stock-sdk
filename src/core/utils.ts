@@ -97,9 +97,11 @@ export function getMarketCode(symbol: string): string {
   if (symbol.startsWith('sh')) return '1';
   if (symbol.startsWith('sz') || symbol.startsWith('bj')) return '0';
   // 纯代码（按首位字符判断）：
-  //   上海(1): 6 开头（主板/科创板）、5 开头（场内 ETF/LOF/封基）、9 开头（B 股）
-  //   深圳/北交所(0): 0/3 开头（深圳主板/创业板）、4/8 开头（北交所）
+  //   上海(1): 6 开头（主板/科创板）、5 开头（场内 ETF/LOF/封基）、900xxx（B 股）
+  //   深圳/北交所(0): 0/3 开头（深圳主板/创业板）、4/8 开头及 920xxx 新代码段（北交所）
   //   1 开头（深圳 ETF 159xxx / LOF 16xxxx 等）建议带 sz 前缀以避免歧义
+  // 920xxx 为北交所新代码段，须在"9 开头→上海 B 股"之前拦截，否则会被误判为上海
+  if (symbol.startsWith('92')) return '0';
   const first = symbol[0];
   return first === '6' || first === '5' || first === '9' ? '1' : '0';
 }

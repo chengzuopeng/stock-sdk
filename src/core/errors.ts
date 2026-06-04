@@ -10,6 +10,7 @@ export type SdkErrorCode =
   | 'RATE_LIMITED'
   | 'CIRCUIT_OPEN'
   | 'UPSTREAM_EMPTY'
+  | 'PARSE_ERROR'
   | 'INVALID_SYMBOL'
   | 'INVALID_ARGUMENT'
   | 'NOT_FOUND';

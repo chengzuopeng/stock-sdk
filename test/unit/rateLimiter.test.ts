@@ -102,4 +102,21 @@ describe('RateLimiter', () => {
     expect(elapsed).toBeGreaterThanOrEqual(50);
     expect(elapsed).toBeLessThan(200);
   });
+
+  it('serializes concurrent acquire() instead of releasing them in one burst', async () => {
+    vi.useRealTimers();
+
+    // 1 个令牌、每 50ms 补 1 个
+    const limiter = new RateLimiter({ requestsPerSecond: 20, maxBurst: 1 });
+    await limiter.acquire(); // 耗掉初始令牌，桶置空
+
+    const start = Date.now();
+    // 并发发起 3 个 acquire
+    await Promise.all([limiter.acquire(), limiter.acquire(), limiter.acquire()]);
+    const elapsed = Date.now() - start;
+
+    // 串行化后三者依次间隔 ~50ms 放行 → 总耗时 ~150ms。
+    // 修复前它们会算出相同 waitTime、一起在 ~50ms 唤醒（burst）→ 总耗时仅 ~50ms。
+    expect(elapsed).toBeGreaterThanOrEqual(100);
+  });
 });

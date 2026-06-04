@@ -105,6 +105,28 @@ describe('RequestClient 重试机制', () => {
       expect(callCount).toBe(2);
     });
 
+    it('should NOT retry on JSON parse failure (200 + non-JSON body)', async () => {
+      let callCount = 0;
+      globalThis.fetch = vi.fn().mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          // 200 但响应体不是 JSON（如反爬 HTML 页）→ resp.json() 抛 SyntaxError
+          json: () => Promise.reject(new SyntaxError('Unexpected token < in JSON')),
+        });
+      });
+
+      const client = new RequestClient({
+        retry: { maxRetries: 3, baseDelay: 10 },
+      });
+
+      // 应归类为确定性的 PARSE_ERROR 而非 NETWORK_ERROR，且同一 host 不重试
+      await expect(
+        client.get('https://example.com/test', { responseType: 'json' })
+      ).rejects.toMatchObject({ code: 'PARSE_ERROR' });
+      expect(callCount).toBe(1);
+    });
+
     it('should NOT retry on HTTP 404 error', async () => {
       let callCount = 0;
       globalThis.fetch = vi.fn().mockImplementation(() => {

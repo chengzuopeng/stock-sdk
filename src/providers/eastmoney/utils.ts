@@ -51,6 +51,13 @@ export async function fetchPaginatedData<T>(
     );
     allData.push(...items);
 
+    // 空页保护：若服务端高报 total，越界页会返回空 diff（空数组而非 null），
+    // 此时 allData 不再增长而 allData.length < total 恒成立，会无限翻页。
+    // 一旦某页无数据即视为已到结尾，主动跳出。
+    if (items.length === 0) {
+      break;
+    }
+
     page++;
   } while (allData.length < total);
 

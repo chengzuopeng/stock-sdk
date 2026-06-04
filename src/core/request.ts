@@ -13,6 +13,7 @@ import {
 import { HostFallbackManager, type HostHealthStats } from './fallback';
 import {
   HttpError,
+  SdkError,
   getSdkErrorCode,
   normalizeRequestError,
   type RequestError,
@@ -269,7 +270,20 @@ export class RequestClient {
 
       switch (responseType) {
         case 'json':
-          return await resp.json();
+          // 200 但响应体不是合法 JSON（如反爬 HTML / 验证码页）会让 resp.json() 抛 SyntaxError。
+          // 这类是确定性的数据错误，若按 NETWORK_ERROR 处理会被同 host 反复重试，放大无谓负载。
+          // 显式归类为 PARSE_ERROR：shouldRetry 不重试，但 shouldFallback 仍允许切换备用 host。
+          try {
+            return await resp.json();
+          } catch (parseError) {
+            throw new SdkError({
+              code: 'PARSE_ERROR',
+              message: `Failed to parse JSON response from ${url}`,
+              provider,
+              url,
+              cause: parseError,
+            });
+          }
         case 'arraybuffer':
           return (await resp.arrayBuffer()) as T;
         default:
