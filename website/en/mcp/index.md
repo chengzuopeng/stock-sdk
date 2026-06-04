@@ -19,7 +19,7 @@ Stock SDK's companion MCP Server — [stock-sdk-mcp](https://www.npmjs.com/packa
 ┌─────────────────────────────────────────────────┐
 │              stock-sdk-mcp Server               │
 │                                                 │
-│  32 Tools + 7 Resources + 4 Skills              │
+│  69 Tools + 11 Resources + 6 Prompts + 5 Skills │
 │                                                 │
 │  ┌───────────────────────────────────────────┐  │
 │  │           stock-sdk (Core SDK)             │  │
@@ -30,25 +30,27 @@ Stock SDK's companion MCP Server — [stock-sdk-mcp](https://www.npmjs.com/packa
 
 ## Core Capabilities
 
-### 32 MCP Tools
+### 69 MCP Tools
 
 Covering all core features of stock-sdk:
 
 - **Real-time Quotes**: A-shares / HK / US stocks / Funds (smart name search)
 - **K-line Data**: Daily / weekly / monthly K-line, minute K-line, K-line with technical indicators
 - **Sector Data**: Industry / concept sector quotes, constituents, K-line
-- **Code Lists**: Full market A / HK / US / fund codes
-- **Extended Data**: Fund flow, large orders, trading calendar, dividends
+- **Capital**: Fund flow, northbound funds, Dragon-Tiger list, block trades, margin trading
+- **Futures / Options**: Domestic & global futures quotes/inventory, ETF / index / commodity options
+- **Compound Analysis**: Full stock analysis, comparison, screening, market overview, sector deep-dive
+- **Code Lists / Extended**: Full-market codes, trading calendar, dividends
 
 👉 [View full tool list](/en/mcp/tools)
 
-### 7 MCP Resources
+### 7 Resources + 4 Templates
 
-Static data resources that AI can proactively read, including trading calendars, market code lists, and sector lists.
+Static resources the AI can read directly (trading calendar, market code lists, sector lists) plus parameterized resource templates (single-stock quote / K-line, sector detail).
 
 👉 [View full resource list](/en/mcp/tools#resources)
 
-### 4 AI Skills
+### 5 AI Skills
 
 Skills are **scenario-based wrappers** around the underlying Tools, using predefined Chain-of-Thought (CoT) to guide AI through professional analysis tasks:
 
@@ -58,8 +60,13 @@ Skills are **scenario-based wrappers** around the underlying Tools, using predef
 | Smart Stock Screener | Filter 20,000+ stocks across markets by custom criteria |
 | Market Deep Overview | Panoramic scan of indices, sectors, concepts, and sentiment |
 | Portfolio Monitor | Real-time position tracking, anomaly detection, P&L calculation |
+| Smart Money Tracker | Northbound funds + Dragon-Tiger institutions + block trades + fund flow to track main-force capital |
 
 👉 [View Skills details](/en/mcp/skills)
+
+### 6 MCP Prompts
+
+Built-in preset prompts any MCP client can use directly: `stock-analyst` (technical analysis), `stock-screener` (screening), `market-overview`, `realtime-monitor` (watchlist), `smart-money-tracker`, `futures-overview`.
 
 ## Supported AI Tools
 
@@ -67,7 +74,7 @@ Skills are **scenario-based wrappers** around the underlying Tools, using predef
 |---------|------|--------|
 | [Cursor](https://cursor.sh) | IDE | ✅ Fully supported |
 | [Claude Desktop](https://claude.ai/download) | Desktop app | ✅ Fully supported |
-| [OpenClaw](https://github.com/anthropics/clawdbot) | MCP Gateway | ✅ Fully supported (recommended) |
+| [OpenClaw](https://github.com/openclaw/openclaw) | MCP Gateway / AI assistant | ✅ Fully supported |
 | [Antigravity](https://code.visualstudio.com/) | VS Code extension | ✅ Fully supported |
 | [Codex CLI](https://github.com/openai/codex) | Terminal tool | ✅ Fully supported |
 | [Gemini CLI](https://github.com/google/gemini-cli) | Terminal tool | ✅ Fully supported |

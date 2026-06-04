@@ -86,37 +86,33 @@ yarn build
 
 ---
 
-### OpenClaw（MCP 网关）
+### OpenClaw（MCP 网关 / AI 助手）
 
-[OpenClaw](https://github.com/anthropics/clawdbot) 是一个开源的 MCP 网关，支持将多个 MCP Server 聚合为统一服务，可通过 HTTP API 在任意应用中调用。
+[OpenClaw](https://github.com/openclaw/openclaw)（原 Clawdbot）是一个开源、支持 MCP 的 AI 助手，可加载外部 MCP Server。
 
-编辑 `~/.clawdbot/config.yaml`：
-
-```yaml
-servers:
-  stock-sdk:
-    command: npx
-    args:
-      - "-y"
-      - "stock-sdk-mcp"
-    description: "股票行情数据服务 - 支持 A 股 / 港股 / 美股实时行情和技术分析"
-    tags:
-      - finance
-      - stock
-      - market-data
-```
-
-启动网关后，可通过 HTTP API 调用：
+方式一：CLI 注册
 
 ```bash
-curl -X POST http://localhost:8080/v1/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "server": "stock-sdk",
-    "tool": "get_quotes_by_query",
-    "arguments": { "queries": ["茅台", "腾讯"] }
-  }'
+openclaw mcp add stock-sdk --command npx --arg -y --arg stock-sdk-mcp
+openclaw mcp doctor stock-sdk --probe   # 验证连通
 ```
+
+方式二：直接编辑配置文件 `~/.openclaw/openclaw.json` 的 `mcp.servers`：
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "stock-sdk": {
+        "command": "npx",
+        "args": ["-y", "stock-sdk-mcp"]
+      }
+    }
+  }
+}
+```
+
+> 具体命令与配置以 [OpenClaw 官方文档](https://docs.openclaw.ai/cli/mcp) 为准。
 
 ---
 

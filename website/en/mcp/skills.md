@@ -105,19 +105,30 @@ Technical analysis is for reference only. Not investment advice.
 3. Detect anomalies (significant swings / volume spikes / key price levels)
 4. Output position P&L table and alert information
 
+---
+
+### Smart Money Tracker
+
+**Use Cases:** Tracking main-force capital, northbound accumulation, institution & hot-money alignment
+
+**Trigger Phrases:**
+- "What is smart money buying today?"
+- "Are northbound funds and Dragon-Tiger institutions aligned?"
+- "Track the main-force capital flow"
+
+**Execution Flow:**
+
+1. Northbound: `get_northbound_realtime` + `get_northbound_holding_rank` for net inflow & accumulated stocks
+2. Dragon-Tiger institutions: `get_dragon_tiger_stats` (institution / stock frequency) for concentrated buying
+3. Block trade / margin: `get_block_trade` + `get_margin_data` for premium-discount & leverage sentiment
+4. Fund-flow validation: `get_fund_flow_rank` + `get_market_fund_flow` cross-check
+5. Synthesis: whether northbound / institutions / hot money converge; output consensus sectors and stocks
+
 ## Using Skills in AI Tools
 
-### OpenClaw (Recommended)
+### OpenClaw
 
-OpenClaw can perfectly parse Skill folders. Add to `~/.clawdbot/config.yaml`:
-
-```yaml
-skills:
-  directories:
-    - /path/to/stock-sdk-mcp/skills
-```
-
-OpenClaw will automatically convert `SKILL.md` YAML frontmatter into Agent Metadata and load them.
+[OpenClaw](https://github.com/openclaw/openclaw) (formerly Clawdbot, an open-source MCP-capable AI assistant) can load skill directories and parse `SKILL.md` YAML frontmatter. See the [OpenClaw docs](https://docs.openclaw.ai/) for the exact configuration.
 
 ### Cursor
 

@@ -827,7 +827,7 @@ onUnmounted(() => {
 .csb-input-row {
   display: flex;
   gap: 8px;
-  align-items: flex-end;
+  align-items: center;
 }
 .csb-input {
   flex: 1;

@@ -86,37 +86,33 @@ Configuration file path:
 
 ---
 
-### OpenClaw (MCP Gateway)
+### OpenClaw (MCP Gateway / AI Assistant)
 
-[OpenClaw](https://github.com/anthropics/clawdbot) is an open-source MCP gateway that aggregates multiple MCP servers into a unified service, accessible via HTTP API from any application.
+[OpenClaw](https://github.com/openclaw/openclaw) (formerly Clawdbot) is an open-source, MCP-capable AI assistant that can load external MCP servers.
 
-Edit `~/.clawdbot/config.yaml`:
-
-```yaml
-servers:
-  stock-sdk:
-    command: npx
-    args:
-      - "-y"
-      - "stock-sdk-mcp"
-    description: "Stock market data service - A/HK/US real-time quotes and technical analysis"
-    tags:
-      - finance
-      - stock
-      - market-data
-```
-
-After starting the gateway, call via HTTP API:
+Option 1: register via CLI
 
 ```bash
-curl -X POST http://localhost:8080/v1/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "server": "stock-sdk",
-    "tool": "get_quotes_by_query",
-    "arguments": { "queries": ["AAPL", "TSLA"] }
-  }'
+openclaw mcp add stock-sdk --command npx --arg -y --arg stock-sdk-mcp
+openclaw mcp doctor stock-sdk --probe   # verify connectivity
 ```
+
+Option 2: edit `~/.openclaw/openclaw.json` under `mcp.servers`:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "stock-sdk": {
+        "command": "npx",
+        "args": ["-y", "stock-sdk-mcp"]
+      }
+    }
+  }
+}
+```
+
+> Refer to the [OpenClaw docs](https://docs.openclaw.ai/cli/mcp) for the exact commands and configuration.
 
 ---
 
