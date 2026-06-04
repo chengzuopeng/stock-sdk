@@ -80,7 +80,7 @@ export class QuoteService extends BaseService {
   }
 
   async getAllHKShareQuotes(
-    options: tencent.GetAllAShareQuotesOptions = {}
+    options: tencent.GetAllHKQuotesOptions = {}
   ): Promise<HKQuote[]> {
     const codes = await this.getHKCodeList();
     return tencent.getAllHKQuotesByCodes(this.client, codes, options);

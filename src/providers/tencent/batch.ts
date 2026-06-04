@@ -71,7 +71,7 @@ export interface GetAllAShareQuotesOptions {
    * - 不传或 undefined: 返回全部 A 股
    * - 'sh': 上交所（6 开头，包含科创板）
    * - 'sz': 深交所（0 和 3 开头，包含创业板）
-   * - 'bj': 北交所（92 开头）
+   * - 'bj': 北交所（4/8 开头，新代码段 920 开头）
    * - 'kc': 科创板（688 开头）
    * - 'cy': 创业板（30 开头）
    */
@@ -112,7 +112,7 @@ export interface GetAShareCodeListOptions {
    * - 不传或 undefined: 返回全部 A 股
    * - 'sh': 上交所（6 开头，包含科创板）
    * - 'sz': 深交所（0 和 3 开头，包含创业板）
-   * - 'bj': 北交所（92 开头）
+   * - 'bj': 北交所（4/8 开头，新代码段 920 开头）
    * - 'kc': 科创板（688 开头）
    * - 'cy': 创业板（30 开头）
    */
@@ -136,8 +136,13 @@ function matchMarket(code: string, market: AShareMarket): boolean {
       // 深交所：0 开头或 3 开头（包含创业板）
       return pureCode.startsWith('0') || pureCode.startsWith('3');
     case 'bj':
-      // 北交所：92 开头
-      return pureCode.startsWith('92');
+      // 北交所：传统代码 4/8 开头（如 830799、870204、430047），新代码段 920 开头。
+      // 旧实现只判 startsWith('92')，会漏掉占绝大多数的 4/8 开头北交所股票。
+      return (
+        pureCode.startsWith('4') ||
+        pureCode.startsWith('8') ||
+        pureCode.startsWith('92')
+      );
     case 'kc':
       // 科创板：688 开头
       return pureCode.startsWith('688');
@@ -320,6 +325,13 @@ export async function getAllQuotesByCodes(
 }
 
 /**
+ * 港股批量行情选项。
+ * 港股只有一个交易所（无 sh/sz/bj 子市场之分），故不提供 A 股的 `market` 过滤字段，
+ * 避免误导调用方传入一个被静默忽略的过滤条件。
+ */
+export type GetAllHKQuotesOptions = Omit<GetAllAShareQuotesOptions, 'market'>;
+
+/**
  * 批量获取港股行情
  * @param client 请求客户端
  * @param codes 股票代码列表
@@ -328,7 +340,7 @@ export async function getAllQuotesByCodes(
 export async function getAllHKQuotesByCodes(
   client: RequestClient,
   codes: string[],
-  options: GetAllAShareQuotesOptions = {}
+  options: GetAllHKQuotesOptions = {}
 ): Promise<HKQuote[]> {
   const {
     batchSize: inputBatchSize = DEFAULT_BATCH_SIZE,

@@ -46,6 +46,13 @@ export function calcRSI(
       }
 
       if (i === period) {
+        // 把第 period 根的涨跌并入种子窗口（changes[1..period]），与 Wilder 定义一致。
+        // 原实现只累加了 changes[1..period-1] 就除以 period，导致首个 RSI 用错窗口
+        // （例如 closes=[10,12,11,13],period=2 时首值应为 66.67，旧逻辑算成 100）。
+        if (changes[i] !== null) {
+          if (changes[i]! > 0) avgGain += changes[i]!;
+          else avgLoss += Math.abs(changes[i]!);
+        }
         avgGain = avgGain / period;
         avgLoss = avgLoss / period;
       } else {

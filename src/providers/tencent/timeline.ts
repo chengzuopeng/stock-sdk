@@ -84,17 +84,22 @@ export async function getTodayTimeline(
   // 需要通过首条数据的 成交额/成交量 与 价格 的比值来判断单位
   // 输出统一为"股"
   let isVolumeInLots = false; // 成交量是否以"手"为单位
-  if (rawData.length > 0) {
-    const firstParts = rawData[0].split(' ');
-    const firstPrice = parseFloat(firstParts[1]) || 0;
-    const firstVolume = parseInt(firstParts[2], 10) || 0;
-    const firstAmount = parseFloat(firstParts[3]) || 0;
-    if (firstVolume > 0 && firstPrice > 0) {
+  // 用首个"成交量>0 且价格>0"的有效 tick 判定单位。
+  // 原实现只看 rawData[0]，若首条是集合竞价/冷门股的 0 成交量 tick，会判不出单位，
+  // 导致整天主板成交量少 100 倍、均价虚高 100 倍。这里向后扫描到首个有效 tick 即判定，
+  // 对"首条即有效"的常见情况行为与原来完全一致。
+  for (const line of rawData) {
+    const parts = line.split(' ');
+    const tickPrice = parseFloat(parts[1]) || 0;
+    const tickVolume = parseInt(parts[2], 10) || 0;
+    const tickAmount = parseFloat(parts[3]) || 0;
+    if (tickVolume > 0 && tickPrice > 0) {
       // 计算 成交额/成交量，如果接近 价格×100，说明单位是"手"
-      const ratio = firstAmount / firstVolume;
-      if (ratio > firstPrice * 50) {
+      const ratio = tickAmount / tickVolume;
+      if (ratio > tickPrice * 50) {
         isVolumeInLots = true;
       }
+      break;
     }
   }
 

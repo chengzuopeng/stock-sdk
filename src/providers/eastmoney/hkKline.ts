@@ -137,7 +137,9 @@ export async function getHKMinuteKline(
       return [];
     }
     const start = startDate.replace('T', ' ').slice(0, 16);
-    const end = endDate.replace('T', ' ').slice(0, 16);
+    let end = endDate.replace('T', ' ').slice(0, 16);
+    // 仅日期（YYYY-MM-DD，10 位）时补到当天 23:59，避免把当天所有分钟行整天误过滤
+    if (end.length === 10) end += ' 23:59';
     return trends
       .map<HKMinuteTimeline>((line) => {
         const [rawTime, open, close, high, low, volume, amount, avgPrice] =
@@ -177,7 +179,9 @@ export async function getHKMinuteKline(
     return [];
   }
   const start = startDate.replace('T', ' ').slice(0, 16);
-  const end = endDate.replace('T', ' ').slice(0, 16);
+  let end = endDate.replace('T', ' ').slice(0, 16);
+  // 仅日期（YYYY-MM-DD，10 位）时补到当天 23:59，避免把当天所有分钟行整天误过滤
+  if (end.length === 10) end += ' 23:59';
   return klines
     .map<HKMinuteKline>((line) => {
       const item = parseEmKlineCsv(line);

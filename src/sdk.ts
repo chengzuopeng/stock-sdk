@@ -473,7 +473,7 @@ export class StockSDK {
    * @param options 批量请求参数
    */
   getAllHKShareQuotes(
-    options: import('./providers/tencent/batch').GetAllAShareQuotesOptions = {}
+    options: import('./providers/tencent/batch').GetAllHKQuotesOptions = {}
   ): Promise<HKQuote[]> {
     return this.quoteService.getAllHKShareQuotes(options);
   }

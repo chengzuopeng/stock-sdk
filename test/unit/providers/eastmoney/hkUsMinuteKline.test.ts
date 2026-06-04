@@ -113,6 +113,39 @@ describe('getHKMinuteKline', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].time).toBe('2024-12-30 10:30');
   });
+
+  it('includes the whole end day when endDate is date-only (trends/1-min)', async () => {
+    // 用户传 'YYYY-MM-DD'（无时间）不应把当天分钟行整天过滤掉
+    const lines = [
+      '2024-12-30 09:30,1,1,1,1,1,1,1',
+      '2024-12-30 14:30,3,3,3,3,3,3,3',
+    ];
+    stub({ data: { trends: lines } });
+    const rows = await getHKMinuteKline(client, '00700', {
+      startDate: '2024-12-30',
+      endDate: '2024-12-30',
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[1].time).toBe('2024-12-30 14:30');
+  });
+
+  it('includes the whole end day when endDate is date-only (5-min kline)', async () => {
+    stub({
+      data: {
+        klines: [
+          '2024-12-30 09:35,1,1,1,1,1,1,1,1,1,1',
+          '2024-12-30 14:30,3,3,3,3,3,3,3,3,3,3',
+        ],
+      },
+    });
+    const rows = await getHKMinuteKline(client, '00700', {
+      period: '5',
+      startDate: '2024-12-30',
+      endDate: '2024-12-30',
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[1].time).toBe('2024-12-30 14:30');
+  });
 });
 
 describe('getUSMinuteKline', () => {

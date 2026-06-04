@@ -159,7 +159,10 @@ export async function getMinuteKline(
 
     // 时间范围过滤
     const start = startDate.replace('T', ' ').slice(0, 16);
-    const end = endDate.replace('T', ' ').slice(0, 16);
+    let end = endDate.replace('T', ' ').slice(0, 16);
+    // 仅日期（YYYY-MM-DD，10 位）时补到当天 23:59，否则字符串比较下
+    // 'YYYY-MM-DD HH:mm' > 'YYYY-MM-DD' 会把当天所有分钟行整天误过滤
+    if (end.length === 10) end += ' 23:59';
 
     return trends
       .map((line) => {
@@ -202,7 +205,10 @@ export async function getMinuteKline(
 
     // 时间范围过滤
     const start = startDate.replace('T', ' ').slice(0, 16);
-    const end = endDate.replace('T', ' ').slice(0, 16);
+    let end = endDate.replace('T', ' ').slice(0, 16);
+    // 仅日期（YYYY-MM-DD，10 位）时补到当天 23:59，否则字符串比较下
+    // 'YYYY-MM-DD HH:mm' > 'YYYY-MM-DD' 会把当天所有分钟行整天误过滤
+    if (end.length === 10) end += ' 23:59';
 
     return klines
       .map((line) => {

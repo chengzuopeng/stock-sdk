@@ -134,10 +134,12 @@ export function calcDMI(data: OHLCV[], options: DMIOptions = {}): DMIResult[] {
     }
 
     if (i === period) {
-      // 初始化
-      smoothTR = smoothTR;
-      smoothPlusDM = smoothPlusDM;
-      smoothMinusDM = smoothMinusDM;
+      // 初始 Wilder 和应覆盖前 period 根（tr/dm[1..period]）。
+      // 原实现是空赋值（smoothTR = smoothTR），漏加了第 period 根，
+      // 使首个 +DI/-DI 只用了 period-1 根、且第 period 根的 TR/DM 被永久丢弃。
+      smoothTR += tr[i];
+      smoothPlusDM += plusDM[i];
+      smoothMinusDM += minusDM[i];
     } else {
       // Wilder 平滑
       smoothTR = smoothTR - smoothTR / period + tr[i];
@@ -158,25 +160,28 @@ export function calcDMI(data: OHLCV[], options: DMIOptions = {}): DMIResult[] {
   }
 
   // 计算 ADX (DX 的平滑移动平均)
+  // 注意：dx[j] 对应第 j+1 根 K 线（dx 在上面的循环里从 i=1 开始 push），
+  // 因此第 i 根的 DX 是 dx[i-1]。真实 DX 从 dx[period-1] 开始，dx[0..period-2] 是占位 0。
+  // 原实现用 dx[i-period+1]（比 dx[i-1] 早 period-2 位）做种子，会把一堆占位 0 平均进初始 ADX。
   let adxSum = 0;
   let adxCount = 0;
   let prevAdx = 0;
 
   for (let i = period; i < data.length; i++) {
     if (i < period * 2 - 1) {
-      adxSum += dx[i - period + 1] || 0;
+      adxSum += dx[i - 1] || 0;
       adxCount++;
       continue;
     }
 
     if (i === period * 2 - 1) {
       // 初始 ADX 使用简单平均
-      adxSum += dx[i - period + 1] || 0;
+      adxSum += dx[i - 1] || 0;
       prevAdx = adxSum / adxPeriod;
       results[i].adx = prevAdx;
     } else {
       // Wilder 平滑
-      const currentDx = dx[i - period + 1] || 0;
+      const currentDx = dx[i - 1] || 0;
       prevAdx = (prevAdx * (adxPeriod - 1) + currentDx) / adxPeriod;
       results[i].adx = prevAdx;
     }

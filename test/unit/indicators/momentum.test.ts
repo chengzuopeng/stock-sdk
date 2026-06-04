@@ -8,6 +8,7 @@ import {
   calcBIAS,
   calcCCI,
   calcATR,
+  calcDMI,
 } from '../../../src/indicators';
 
 describe('Indicators - Momentum and Volatility', () => {
@@ -92,6 +93,42 @@ describe('Indicators - Momentum and Volatility', () => {
       const downData = Array.from({ length: 20 }, (_, i) => 100 - i);
       const rsiDown = calcRSI(downData, { periods: [6] });
       expect(rsiDown[6].rsi6).toBe(0);
+    });
+
+    it('seeds the first RSI over changes[1..period] (Wilder)', () => {
+      // closes=[10,12,11,13], period=2 → changes=[+2,-1,+2]
+      // 首个 RSI（index 2）应基于前两根涨跌：avgGain=1, avgLoss=0.5, RS=2 → 66.67
+      // 修复前漏掉 changes[2]，avgLoss=0 被错误算成 100
+      const rsi = calcRSI([10, 12, 11, 13], { periods: [2] });
+      expect(rsi[0].rsi2).toBeNull();
+      expect(rsi[1].rsi2).toBeNull();
+      expect(rsi[2].rsi2!).toBeCloseTo(66.67, 2);
+      // index 3：avgGain=(1+2)/2=1.5, avgLoss=(0.5+0)/2=0.25, RS=6 → 85.71
+      expect(rsi[3].rsi2!).toBeCloseTo(85.71, 2);
+    });
+  });
+
+  describe('calcDMI', () => {
+    it('seeds ADX from real DX values, not the leading-zero region', () => {
+      // 稳定上涨：每根 high/low 同步抬升 1 → +DM=1, -DM=0 → 每根真实 DX=100
+      const data = Array.from({ length: 40 }, (_, i) => ({
+        open: 99.5 + i,
+        high: 100 + i,
+        low: 99 + i,
+        close: 99.5 + i,
+        volume: 1000,
+      }));
+      const dmi = calcDMI(data, { period: 14 });
+      expect(dmi.length).toBe(40);
+      // 首个 +DI 出现在第 period 根；上涨趋势 +DI > -DI 且 -DI≈0
+      expect(dmi[13].pdi).toBeNull();
+      expect(dmi[14].pdi).not.toBeNull();
+      expect(dmi[14].pdi!).toBeGreaterThan(dmi[14].mdi!);
+      expect(dmi[14].mdi!).toBeCloseTo(0, 6);
+      // 首个 ADX 出现在第 period*2-1=27 根；每根真实 DX=100 → ADX 应=100
+      // 修复前把 period-2 个占位 0 平均进种子，会算成 ~14.3
+      expect(dmi[26].adx).toBeNull();
+      expect(dmi[27].adx!).toBeCloseTo(100, 6);
     });
   });
 

@@ -30,6 +30,7 @@ export {
   getAllHKQuotesByCodes,
   getAllUSQuotesByCodes,
   type GetAllAShareQuotesOptions,
+  type GetAllHKQuotesOptions,
   type AShareMarket,
   type GetAShareCodeListOptions,
   type USMarket,
