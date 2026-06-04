@@ -6,6 +6,27 @@ pageClass: changelog-page
 
 This page records the version update history of Stock SDK.
 
+## **[1.10.1](https://www.npmjs.com/package/stock-sdk/v/1.10.1)** (2026-06-04)
+
+> Bug-fix release. Fixes 10 issues from a full code review: indicator seeding (RSI / DMI-ADX), Beijing Stock Exchange code classification, intraday volume units, minute K-line date filtering, plus rate-limiter concurrency, a pagination infinite loop, and JSON parse-error classification.
+
+### Bug Fixes
+
+- **RSI / DMI-ADX seeding**: RSI dropped the `period`-th change from its first value; DMI's +DI/-DI and ADX seeds each had an off-by-one / out-of-range index, leaving ADX ≈ 14 on a steady trend (should be ≈ 100). All corrected to the Wilder definition.
+- **Tencent Beijing-exchange filter** (`getAShareCodeList({ market: 'bj' })`): only matched `92`-prefixed codes, missing the 4 / 8 legacy BSE codes and returning almost nothing; now matches 4 / 8 and the new 920 segment.
+- **Tencent intraday volume unit** (`getTodayTimeline`): the unit was inferred from only the first tick, so a 0-volume first tick left the whole day 100× off; now scans to the first usable tick.
+- **Minute K-line date-only `endDate`** (A-share / HK / US): a `YYYY-MM-DD` end dropped the entire final day; it is now padded to `23:59`.
+- **`getMarketCode` Beijing 920xxx**: the new 920-prefixed BSE segment was misread as Shanghai; now mapped to the Shenzhen / Beijing group.
+- **Rate-limiter concurrency burst** (`RateLimiter.acquire`): concurrent callers woke together and drove tokens negative; now serialized via a promise chain (sequential timing unchanged).
+- **EastMoney pagination infinite loop** (`fetchPaginatedData`): an over-reported `total` with an empty out-of-range page looped forever; added an empty-page break.
+- **JSON parse-error classification**: a 200 with a non-JSON body was a retryable `NETWORK_ERROR`; now a non-retryable `PARSE_ERROR` (no same-host retry, fallback still allowed).
+- **HK batch options**: `getAllHKShareQuotes` drops the meaningless `market` field (new `GetAllHKQuotesOptions`); passing it is now a compile error instead of a silent no-op.
+
+### Compatibility
+
+After the fixes, RSI / DMI(ADX) warm-up values change (now correct) — update old snapshots; `getMarketCode` returns `'0'` instead of `'1'` only for 920xxx (not a top-level export); passing `market` to the HK method is now a compile error. All other runtime behavior is unchanged.
+
+
 ## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-27)
 
 > Dual-theme release: (1) **Mutual fund extensions** — 4 deep-data methods covering [issue #16](https://github.com/chengzuopeng/stock-sdk/issues/16); (2) **HK / US minute K-line + intraday timeline** — 4 cells in the README matrix flip ❌ → ✅. Also fixes a 5xx ETF / 9xx B-share secid classification bug. **No breaking changes.**

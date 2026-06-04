@@ -6,6 +6,27 @@ pageClass: changelog-page
 
 本页面记录 Stock SDK 的版本更新历史。
 
+## **[1.10.1](https://www.npmjs.com/package/stock-sdk/v/1.10.1)** (2026-06-04)
+
+> Bug fix 版本。修复整体 Review 发现的 10 个问题：技术指标种子（RSI / DMI-ADX）、北交所代码识别、分时成交量单位、分钟 K 线日期过滤，以及限流并发、分页死循环、JSON 解析错误分类。
+
+### 修复
+
+- **RSI / DMI-ADX 种子算法**：RSI 首值漏算第 `period` 根涨跌；DMI 的 +DI/-DI 与 ADX 种子各有 off-by-one / 取值越界，稳定趋势下 ADX 被算成 ≈14（应≈100）。均按 Wilder 定义校正。
+- **腾讯北交所筛选**（`getAShareCodeList({ market: 'bj' })`）：原只匹配 `92` 开头，漏掉 4 / 8 开头的传统北交所代码而几乎返回空；现匹配 4 / 8 及新段 920。
+- **腾讯分时成交量单位**（`getTodayTimeline`）：单位判定只看首条 tick，遇 0 成交量首条时整天成交量会差 100 倍；改为扫描首个有效 tick。
+- **分钟 K 线 date-only `endDate`**（A 股 / 港股 / 美股）：仅传 `YYYY-MM-DD` 会把当天整天过滤掉；现自动补到 `23:59`。
+- **`getMarketCode` 北交所 920xxx**：920 开头新代码段原被误判为上海，现归深圳 / 北交所组。
+- **限流器并发突发**（`RateLimiter.acquire`）：并发调用会一起唤醒、令牌扣成负数；改用 promise 链串行化（顺序调用时序不变）。
+- **东财分页死循环**（`fetchPaginatedData`）：`total` 高报且越界页返回空数组时会无限翻页；新增空页跳出。
+- **JSON 解析错误分类**：200 但响应体非 JSON 原被当作可重试的 `NETWORK_ERROR`；改为非重试的 `PARSE_ERROR`（不重试本 host，仍可切备用 host）。
+- **港股批量选项**：`getAllHKShareQuotes` 去掉对港股无意义的 `market`（新增 `GetAllHKQuotesOptions`），误传现编译报错而非静默忽略。
+
+### 兼容性
+
+指标修复后 RSI / DMI(ADX) 预热期数值会变化（更准确），旧快照需更新；`getMarketCode` 仅 920xxx 返回值由 `'1'` 改 `'0'`（非顶层 export）；向港股接口传 `market` 现为编译错误。其余运行时行为不变。
+
+
 ## **[1.10.0](https://www.npmjs.com/package/stock-sdk/v/1.10.0)** (2026-05-27)
 
 > 双主题版本：(1) **公募基金扩展** 4 个深度数据方法，覆盖 [issue #16](https://github.com/chengzuopeng/stock-sdk/issues/16)；(2) **港股 / 美股分钟 K 线 + 当日分时**，README 矩阵 4 个 ❌ 翻成 ✅。顺手修复 5xx ETF / 9xx B 股 secid 归类错误。**无破坏性变更**。
