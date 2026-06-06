@@ -1,7 +1,8 @@
 import { addIndicators, estimateIndicatorLookback, type IndicatorOptions, type KlineWithIndicators } from '../indicators';
-import type { HistoryKline, HKUSHistoryKline } from '../types';
+import type { AnyHistoryKline } from '../types';
 import type { KlineService } from './klineService';
 import type { QuoteService } from './quoteService';
+import { normalizeSymbol } from '../symbols';
 
 export type MarketType = 'A' | 'HK' | 'US';
 
@@ -44,13 +45,14 @@ export class IndicatorService {
   ) {}
 
   private detectMarket(symbol: string): MarketType {
-    if (/^\d{3}\.[A-Z]+$/i.test(symbol)) {
-      return 'US';
+    // 复用统一符号模型,避免与 normalizeSymbol 双轨漂移
+    // (如 '0700' 4 位港股、'hk700'、'116.00700'、'00700.HK' 都能正确归类到 HK)
+    try {
+      const ns = normalizeSymbol(symbol);
+      return ns.market === 'HK' ? 'HK' : ns.market === 'US' ? 'US' : 'A';
+    } catch {
+      return 'A';
     }
-    if (/^\d{5}$/.test(symbol)) {
-      return 'HK';
-    }
-    return 'A';
   }
 
   private calcActualStartDate(
@@ -117,7 +119,7 @@ export class IndicatorService {
   async getKlineWithIndicators(
     symbol: string,
     options: KlineWithIndicatorsOptions = {}
-  ): Promise<KlineWithIndicators<HistoryKline | HKUSHistoryKline>[]> {
+  ): Promise<KlineWithIndicators<AnyHistoryKline>[]> {
     const { startDate, endDate, indicators = {} } = options;
     const market = options.market ?? this.detectMarket(symbol);
     const { requiredBars } = estimateIndicatorLookback(indicators);
@@ -156,7 +158,7 @@ export class IndicatorService {
       endDate: options.endDate ? this.toCompactDate(options.endDate) : undefined,
     };
 
-    let allKlines: (HistoryKline | HKUSHistoryKline)[];
+    let allKlines: AnyHistoryKline[];
     switch (market) {
       case 'HK':
         allKlines = await this.klineService.getHKHistoryKline(symbol, klineOptions);

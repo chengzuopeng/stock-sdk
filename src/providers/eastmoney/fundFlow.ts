@@ -9,9 +9,9 @@ import {
   EM_FFLOW_URL,
   EM_CLIST_URL,
   EM_DATA_TOKEN,
-  getMarketCode,
   toNumber,
   toNumberSafe,
+  InvalidArgumentError,
 } from '../../core';
 import type {
   StockFundFlowDaily,
@@ -19,6 +19,7 @@ import type {
   SectorFundFlowItem,
   MarketFundFlow,
 } from '../../types';
+import { normalizeSymbol, toEastmoneySecid } from '../../symbols';
 
 /** 资金流周期 */
 export interface FundFlowOptions {
@@ -281,11 +282,10 @@ export async function getIndividualFundFlow(
   const { period = 'daily' } = options;
   const klt = PERIOD_KLT_MAP[period];
   if (!klt) {
-    throw new RangeError(`Invalid period: ${period}. Must be daily/weekly/monthly.`);
+    throw new InvalidArgumentError(`Invalid period: ${period}. Must be daily/weekly/monthly.`);
   }
 
-  const pureSymbol = symbol.replace(/^(sh|sz|bj)/i, '');
-  const secid = `${getMarketCode(symbol)}.${pureSymbol}`;
+  const secid = toEastmoneySecid(normalizeSymbol(symbol, { market: 'CN' }));
 
   const params = new URLSearchParams({
     lmt: '0',
@@ -347,7 +347,7 @@ export async function getFundFlowRank(
   const { indicator = 'today' } = options;
   const config = STOCK_RANK_CONFIG[indicator];
   if (!config) {
-    throw new RangeError(`Invalid indicator: ${indicator}.`);
+    throw new InvalidArgumentError(`Invalid indicator: ${indicator}.`);
   }
 
   const baseParams: Record<string, string> = {
@@ -395,11 +395,11 @@ export async function getSectorFundFlowRank(
   const { indicator = 'today', sectorType = 'industry' } = options;
   const config = STOCK_RANK_CONFIG[indicator];
   if (!config) {
-    throw new RangeError(`Invalid indicator: ${indicator}.`);
+    throw new InvalidArgumentError(`Invalid indicator: ${indicator}.`);
   }
   const fs = SECTOR_TYPE_MAP[sectorType];
   if (!fs) {
-    throw new RangeError(`Invalid sectorType: ${sectorType}.`);
+    throw new InvalidArgumentError(`Invalid sectorType: ${sectorType}.`);
   }
 
   // 板块场景需要返回主力净流入最大股，加上 f204(代码)/f205(名称)
@@ -448,7 +448,7 @@ export async function getSectorFundFlowHistory(
   const { period = 'daily' } = options;
   const klt = PERIOD_KLT_MAP[period];
   if (!klt) {
-    throw new RangeError(`Invalid period: ${period}. Must be daily/weekly/monthly.`);
+    throw new InvalidArgumentError(`Invalid period: ${period}. Must be daily/weekly/monthly.`);
   }
 
   // 板块 secid 的市场前缀固定为 90

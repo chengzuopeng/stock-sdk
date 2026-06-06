@@ -1,6 +1,7 @@
 /**
  * 工具函数
  */
+import { InvalidArgumentError } from './errors';
 
 const KLINE_PERIODS = new Set(['daily', 'weekly', 'monthly']);
 const MINUTE_PERIODS = new Set(['1', '5', '15', '30', '60']);
@@ -8,7 +9,10 @@ const ADJUST_TYPES = new Set(['', 'qfq', 'hfq']);
 
 export function assertPositiveInteger(value: number, name: string): void {
   if (!Number.isFinite(value) || !Number.isInteger(value) || value <= 0) {
-    throw new RangeError(`${name} must be a positive integer`);
+    throw new InvalidArgumentError(`${name} must be a positive integer`, {
+      argument: name,
+      value,
+    });
   }
 }
 
@@ -16,7 +20,10 @@ export function assertKlinePeriod(
   period: string
 ): asserts period is 'daily' | 'weekly' | 'monthly' {
   if (!KLINE_PERIODS.has(period)) {
-    throw new RangeError('period must be one of: daily, weekly, monthly');
+    throw new InvalidArgumentError(
+      'period must be one of: daily, weekly, monthly',
+      { argument: 'period', value: period }
+    );
   }
 }
 
@@ -24,7 +31,10 @@ export function assertMinutePeriod(
   period: string
 ): asserts period is '1' | '5' | '15' | '30' | '60' {
   if (!MINUTE_PERIODS.has(period)) {
-    throw new RangeError('period must be one of: 1, 5, 15, 30, 60');
+    throw new InvalidArgumentError('period must be one of: 1, 5, 15, 30, 60', {
+      argument: 'period',
+      value: period,
+    });
   }
 }
 
@@ -32,7 +42,10 @@ export function assertAdjustType(
   adjust: string
 ): asserts adjust is '' | 'qfq' | 'hfq' {
   if (!ADJUST_TYPES.has(adjust)) {
-    throw new RangeError("adjust must be one of: '', 'qfq', 'hfq'");
+    throw new InvalidArgumentError("adjust must be one of: '', 'qfq', 'hfq'", {
+      argument: 'adjust',
+      value: adjust,
+    });
   }
 }
 
@@ -86,24 +99,6 @@ export async function asyncPool<T>(
 
   await Promise.all(workers);
   return results;
-}
-
-/**
- * 根据股票代码获取东方财富市场代码
- * 支持带前缀(sh/sz/bj)或纯代码
- */
-export function getMarketCode(symbol: string): string {
-  // 如果有前缀，直接根据前缀判断
-  if (symbol.startsWith('sh')) return '1';
-  if (symbol.startsWith('sz') || symbol.startsWith('bj')) return '0';
-  // 纯代码（按首位字符判断）：
-  //   上海(1): 6 开头（主板/科创板）、5 开头（场内 ETF/LOF/封基）、900xxx（B 股）
-  //   深圳/北交所(0): 0/3 开头（深圳主板/创业板）、4/8 开头及 920xxx 新代码段（北交所）
-  //   1 开头（深圳 ETF 159xxx / LOF 16xxxx 等）建议带 sz 前缀以避免歧义
-  // 920xxx 为北交所新代码段，须在"9 开头→上海 B 股"之前拦截，否则会被误判为上海
-  if (symbol.startsWith('92')) return '0';
-  const first = symbol[0];
-  return first === '6' || first === '5' || first === '9' ? '1' : '0';
 }
 
 /**
