@@ -13,8 +13,8 @@
 
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
-| `dist/index.js` | 112.65 KB | 31.59 KB |
-| `dist/index.cjs` | 113.68 KB | 32.10 KB |
+| `dist/index.js` | 80.60 KB | 21.94 KB |
+| `dist/index.cjs` | 109.38 KB | 23.72 KB |
 
 ## 请求治理能力
 
@@ -29,6 +29,9 @@
 | `rotateUserAgent` | `boolean` | 仅 Node.js 生效，自动轮换常见 UA 以降低频控概率。 |
 | `circuitBreaker` | `CircuitBreakerOptions` | 全局熔断器配置，连续失败后短暂停止请求。 |
 | `providerPolicies` | `Partial<Record<ProviderName, ProviderRequestPolicy>>` | 按 provider 单独覆盖超时、重试、限流、熔断和请求头策略。 |
+| `fetchImpl` | `unknown` | 待补充说明。 |
+| `signal` | `unknown` | 待补充说明。 |
+| `hooks` | `unknown` | 待补充说明。 |
 
 ### Provider 策略覆盖
 

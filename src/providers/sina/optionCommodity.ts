@@ -6,6 +6,7 @@ import {
   SINA_OPTION_API_URL,
   SINA_OPTION_DAYLINE_URL,
   COMMODITY_OPTION_MAP,
+  InvalidArgumentError,
 } from '../../core';
 import { toNumberSafe } from '../../core/parser';
 import type { OptionTQuote, OptionTQuoteResult, OptionKline } from '../../types';
@@ -60,7 +61,7 @@ export async function getCommodityOptionSpot(
 ): Promise<OptionTQuoteResult> {
   const mapping = COMMODITY_OPTION_MAP[variety];
   if (!mapping) {
-    throw new RangeError(
+    throw new InvalidArgumentError(
       `Unknown commodity option variety: "${variety}". Available: ${Object.keys(COMMODITY_OPTION_MAP).join(', ')}`
     );
   }

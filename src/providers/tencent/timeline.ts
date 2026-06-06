@@ -7,6 +7,7 @@ import {
   buildTimeMeta,
   buildTimeMetaFromDateAndTime,
   MARKET_TZ,
+  UpstreamError,
 } from '../../core';
 import type { TodayTimeline, TodayTimelineResponse } from '../../types';
 
@@ -57,7 +58,7 @@ export async function getTodayTimeline(
   });
 
   if (json.code !== 0) {
-    throw new Error(json.msg || 'API error');
+    throw new UpstreamError(json.msg || 'API error', 'tencent', url);
   }
 
   const stockData = json.data?.[code];

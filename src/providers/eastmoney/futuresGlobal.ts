@@ -11,6 +11,7 @@ import {
   assertKlinePeriod,
   getPeriodCode,
   toNumber,
+  InvalidArgumentError,
 } from '../../core';
 import type { GlobalFuturesQuote, FuturesKline } from '../../types';
 import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
@@ -140,7 +141,7 @@ function parseGlobalFuturesKlineCsv(
 function extractGlobalVariety(symbol: string): string {
   const match = symbol.match(/^([A-Z]+)/);
   if (!match) {
-    throw new RangeError(
+    throw new InvalidArgumentError(
       `Invalid global futures symbol: "${symbol}". Expected format like HG00Y, CL2507`
     );
   }
@@ -172,7 +173,7 @@ export async function getGlobalFuturesKline(
     mktCode = GLOBAL_FUTURES_MARKET[variety];
     if (mktCode === undefined) {
       const supported = Object.keys(GLOBAL_FUTURES_MARKET).join(', ');
-      throw new RangeError(
+      throw new InvalidArgumentError(
         `Unknown global futures variety: "${variety}". Supported: ${supported}. ` +
           `Or specify marketCode manually via options.`
       );

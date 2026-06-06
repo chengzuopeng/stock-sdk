@@ -24,6 +24,7 @@
  */
 import type { RequestClient } from './request';
 import { withScriptMutex } from './scriptMutex';
+import { SdkError, HttpError } from './errors';
 
 /**
  * 运行时检查是否在浏览器环境。
@@ -131,7 +132,14 @@ function browserFetchJsVars<T extends object>(
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new Error(`fetchJsVars timed out after ${timeout}ms: ${url}`));
+      reject(
+        new SdkError({
+          code: 'TIMEOUT',
+          message: `fetchJsVars timed out after ${timeout}ms: ${url}`,
+          url,
+          details: { timeout },
+        })
+      );
     }, timeout);
 
     script.onload = () => {
@@ -159,7 +167,13 @@ function browserFetchJsVars<T extends object>(
       settled = true;
       clearTimeout(timer);
       cleanup();
-      reject(new Error(`fetchJsVars script load failed: ${url}`));
+      reject(
+        new SdkError({
+          code: 'NETWORK_ERROR',
+          message: `fetchJsVars script load failed: ${url}`,
+          url,
+        })
+      );
     };
 
     script.src = url;
@@ -189,15 +203,18 @@ async function nodeFetchJsVars<T extends object>(
       headers,
     });
     if (!resp.ok) {
-      throw new Error(
-        `fetchJsVars fetch failed with status ${resp.status}: ${url}`
-      );
+      throw new HttpError(resp.status, resp.statusText, url);
     }
     const text = await resp.text();
     return parseJsVars<T>(text, varNames);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error(`fetchJsVars timed out after ${timeout}ms: ${url}`);
+      throw new SdkError({
+        code: 'TIMEOUT',
+        message: `fetchJsVars timed out after ${timeout}ms: ${url}`,
+        url,
+        details: { timeout },
+      });
     }
     throw error;
   } finally {

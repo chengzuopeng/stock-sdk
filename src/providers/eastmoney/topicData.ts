@@ -7,6 +7,7 @@ import {
   EM_TOPIC_BASE_URL,
   EM_PUSH_TOKEN,
   toNumberSafe,
+  InvalidArgumentError,
 } from '../../core';
 import type {
   ZTPoolType,
@@ -227,7 +228,7 @@ export async function getZTPool(
 ): Promise<ZTPoolItem[]> {
   const config = ZT_POOL_ENDPOINTS[type];
   if (!config) {
-    throw new RangeError(`Invalid ZTPool type: ${type}.`);
+    throw new InvalidArgumentError(`Invalid ZTPool type: ${type}.`);
   }
 
   // push2ex 接口必须传 date 参数：
@@ -267,7 +268,7 @@ export async function getStockChanges(
 ): Promise<StockChangeItem[]> {
   const code = STOCK_CHANGE_TYPE_TO_CODE[type];
   if (!code) {
-    throw new RangeError(`Invalid StockChangeType: ${type}.`);
+    throw new InvalidArgumentError(`Invalid StockChangeType: ${type}.`);
   }
 
   // 反向构建 code → label，以便从原始 t 字段还原中文标签

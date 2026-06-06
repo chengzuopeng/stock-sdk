@@ -10,6 +10,7 @@ import {
   assertKlinePeriod,
   getPeriodCode,
   toNumber,
+  InvalidArgumentError,
 } from '../../core';
 import type { FuturesKline } from '../../types';
 import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
@@ -30,7 +31,7 @@ export interface FuturesKlineOptions {
 export function extractVariety(symbol: string): string {
   const match = symbol.match(/^([a-zA-Z]+)/);
   if (!match) {
-    throw new RangeError(
+    throw new InvalidArgumentError(
       `Invalid futures symbol: "${symbol}". Expected format: variety + contract (e.g., rb2605, RBM, IF2604)`
     );
   }
@@ -64,14 +65,14 @@ export function getFuturesMarketCode(variety: string): number {
 
   if (!exchange) {
     const supported = Object.keys(FUTURES_VARIETY_EXCHANGE).join(', ');
-    throw new RangeError(
+    throw new InvalidArgumentError(
       `Unknown futures variety: "${variety}". Supported varieties: ${supported}`
     );
   }
 
   const marketCode = FUTURES_EXCHANGE_MAP[exchange];
   if (marketCode === undefined) {
-    throw new RangeError(`No market code found for exchange: ${exchange}`);
+    throw new InvalidArgumentError(`No market code found for exchange: ${exchange}`);
   }
   return marketCode;
 }

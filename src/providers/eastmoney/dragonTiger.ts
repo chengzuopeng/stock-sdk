@@ -2,7 +2,7 @@
  * 东方财富 - 龙虎榜
  * 数据来源：datacenter-web RPT_DAILYBILLBOARD_* / RPT_BILLBOARD_*
  */
-import { type RequestClient, toNumberSafe } from '../../core';
+import { type RequestClient, toNumberSafe, InvalidArgumentError } from '../../core';
 import type {
   DragonTigerDateOptions,
   DragonTigerPeriod,
@@ -92,7 +92,7 @@ export async function getDragonTigerStockStats(
 ): Promise<DragonTigerStockStatItem[]> {
   const cycle = PERIOD_MAP[period];
   if (!cycle) {
-    throw new RangeError(`Invalid period: ${period}.`);
+    throw new InvalidArgumentError(`Invalid period: ${period}.`);
   }
 
   return fetchDatacenterList(
@@ -172,7 +172,7 @@ export async function getDragonTigerBranchRank(
 ): Promise<DragonTigerBranchItem[]> {
   const cycle = PERIOD_MAP[period];
   if (!cycle) {
-    throw new RangeError(`Invalid period: ${period}.`);
+    throw new InvalidArgumentError(`Invalid period: ${period}.`);
   }
 
   return fetchDatacenterList(

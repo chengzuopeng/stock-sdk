@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { TradingCalendarService } from '../../../src/sdk/tradingCalendarService';
 import type { QuoteService } from '../../../src/sdk/quoteService';
+import { InvalidArgumentError } from '../../../src/core';
 
 /**
  * 用一个最小 fake QuoteService 来驱动 TradingCalendarService 的测试,
@@ -75,9 +76,11 @@ describe('TradingCalendarService', () => {
       expect(await svc.nextTradingDay('2024-10-03')).toBe('2024-10-08');
     });
 
-    it('throws RangeError when target exceeds calendar range', async () => {
+    it('throws InvalidArgumentError when target exceeds calendar range', async () => {
       const svc = new TradingCalendarService(makeFakeQuote(calendar));
-      await expect(svc.nextTradingDay('2024-12-31')).rejects.toThrow(RangeError);
+      await expect(svc.nextTradingDay('2024-12-31')).rejects.toThrow(
+        InvalidArgumentError
+      );
     });
   });
 
@@ -92,9 +95,11 @@ describe('TradingCalendarService', () => {
       expect(await svc.prevTradingDay('2024-10-05')).toBe('2024-09-30');
     });
 
-    it('throws RangeError when target is earlier than calendar start', async () => {
+    it('throws InvalidArgumentError when target is earlier than calendar start', async () => {
       const svc = new TradingCalendarService(makeFakeQuote(calendar));
-      await expect(svc.prevTradingDay('2020-01-01')).rejects.toThrow(RangeError);
+      await expect(svc.prevTradingDay('2020-01-01')).rejects.toThrow(
+        InvalidArgumentError
+      );
     });
   });
 

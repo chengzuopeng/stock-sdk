@@ -10,6 +10,7 @@ import {
   EM_DATA_TOKEN,
   toNumber,
   toNumberSafe,
+  InvalidArgumentError,
 } from '../../core';
 import type {
   NorthboundDirection,
@@ -195,7 +196,7 @@ export async function getNorthboundHoldingRank(
   const { market = 'all', period = '5day', date } = options;
   const intervalType = RANK_PERIOD_MAP[period];
   if (!intervalType) {
-    throw new RangeError(`Invalid period: ${period}.`);
+    throw new InvalidArgumentError(`Invalid period: ${period}.`);
   }
 
   const filters: string[] = [`(INTERVAL_TYPE="${intervalType}")`];
