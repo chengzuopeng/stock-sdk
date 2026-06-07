@@ -14,6 +14,7 @@ import { HostFallbackManager, type HostHealthStats } from './fallback';
 import {
   HttpError,
   SdkError,
+  AbortedError,
   getSdkErrorCode,
   normalizeRequestError,
   type RequestError,
@@ -35,6 +36,120 @@ export type {
   ProviderRequestPolicy,
   RetryOptions,
 } from './providerPolicy';
+
+/** 可注入的 fetch 实现（默认走运行时全局 fetch） */
+export type FetchImpl = typeof fetch;
+
+/** 请求生命周期事件 */
+export type RequestTraceEvent =
+  | 'request'
+  | 'response'
+  | 'error'
+  | 'retry'
+  | 'fallback';
+
+/** 请求生命周期上下文 */
+export interface RequestLifecycleContext {
+  provider: ProviderName;
+  url: string;
+  timeout: number;
+  attempt: number;
+  responseType: GetOptions['responseType'];
+}
+
+/**
+ * 请求生命周期钩子（client 级）。
+ * 所有回调都在 try/catch 中调用，回调内抛错不会影响主请求流程。
+ */
+export interface RequestHooks {
+  onRequest?(ctx: RequestLifecycleContext): void;
+  onResponse?(
+    ctx: RequestLifecycleContext,
+    meta: { status: number; durationMs: number }
+  ): void;
+  onError?(ctx: RequestLifecycleContext, error: SdkError): void;
+  onRetry?(ctx: RequestLifecycleContext, error: SdkError, delay: number): void;
+  trace?(event: RequestTraceEvent, ctx: RequestLifecycleContext): void;
+}
+
+/** 内部 timeout abort 的标记 reason，用于区分「超时」与「外部取消」 */
+const TIMEOUT_ABORT_REASON = Symbol('stock-sdk:timeout');
+
+/**
+ * 判断 error 是否「形似 abort」：标准 AbortError(DOMException 或 Error)，
+ * 或 undici 连接被 abort 时抛的 TypeError，其真因(error.cause)是 AbortError。
+ * 用于在外部 signal 已取消时，仅把「确实由取消导致」的 error 归为 ABORTED，
+ * 不误伤 try 块里主动抛出的 HttpError / SdkError(PARSE_ERROR 等)业务错误。
+ */
+function isAbortShapedError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true;
+  }
+  if (error instanceof Error) {
+    if (error.name === 'AbortError') {
+      return true;
+    }
+    // undici：连接被 abort 时抛 TypeError: terminated，真正的中止原因挂在 cause 上
+    const cause = (error as { cause?: unknown }).cause;
+    if (
+      (cause instanceof Error || cause instanceof DOMException) &&
+      cause.name === 'AbortError'
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 合并多个 AbortSignal：任一触发即 abort。
+ * 优先用原生 `AbortSignal.any`（Node 18.17+/20.3+、现代浏览器）；
+ * 缺失时（Node 18.0–18.16）退回手写联动，并在结束后清理监听防泄漏。
+ */
+interface CombinedSignal {
+  signal: AbortSignal | undefined;
+  /** 请求结束后调用以移除 fallback 注册的监听，防止长生命周期 signal 泄漏 */
+  cleanup: () => void;
+}
+
+const NO_CLEANUP = () => {};
+
+function combineSignals(signals: (AbortSignal | undefined)[]): CombinedSignal {
+  const list = signals.filter((s): s is AbortSignal => Boolean(s));
+  if (list.length === 0) return { signal: undefined, cleanup: NO_CLEANUP };
+  if (list.length === 1) return { signal: list[0], cleanup: NO_CLEANUP };
+
+  const anyFn = (
+    AbortSignal as unknown as {
+      any?: (signals: AbortSignal[]) => AbortSignal;
+    }
+  ).any;
+  if (typeof anyFn === 'function') {
+    return { signal: anyFn(list), cleanup: NO_CLEANUP };
+  }
+
+  // fallback（Node 18.0–18.16）：手动联动，并记录监听以便请求结束后移除
+  const controller = new AbortController();
+  const abort = (reason: unknown) => {
+    if (!controller.signal.aborted) controller.abort(reason);
+  };
+  const registered: Array<{ s: AbortSignal; handler: () => void }> = [];
+  for (const s of list) {
+    if (s.aborted) {
+      abort(s.reason);
+      break;
+    }
+    const handler = () => abort(s.reason);
+    s.addEventListener('abort', handler, { once: true });
+    registered.push({ s, handler });
+  }
+  const cleanup = () => {
+    for (const { s, handler } of registered) {
+      s.removeEventListener('abort', handler);
+    }
+  };
+  return { signal: controller.signal, cleanup };
+}
 
 /**
  * 请求客户端配置选项
@@ -58,6 +173,12 @@ export interface RequestClientOptions {
    * 未配置的 provider 会回退到全局默认配置。
    */
   providerPolicies?: Partial<Record<ProviderName, ProviderRequestPolicy>>;
+  /** 可注入的自定义 fetch 实现（代理 / mock / 日志），默认运行时全局 fetch */
+  fetchImpl?: FetchImpl;
+  /** client 级外部取消信号；与每次请求的 timeout 合并，触发后归类为 ABORTED */
+  signal?: AbortSignal;
+  /** 请求生命周期钩子 */
+  hooks?: RequestHooks;
 }
 
 /**
@@ -72,9 +193,13 @@ interface ProviderRuntimeState {
 /**
  * GET 请求选项
  */
-interface GetOptions {
+export interface GetOptions {
   responseType?: 'text' | 'json' | 'arraybuffer';
   provider?: ProviderName;
+  /** 单次请求的自定义 fetch（优先级高于 client 级 fetchImpl） */
+  fetchImpl?: FetchImpl;
+  /** 单次请求的外部取消信号（触发后归类为 ABORTED） */
+  signal?: AbortSignal;
 }
 
 export class RequestClient {
@@ -83,6 +208,9 @@ export class RequestClient {
   private readonly providerPolicies: Partial<Record<ProviderName, ResolvedProviderPolicy>>;
   private readonly runtimeStates: Map<ProviderName, ProviderRuntimeState>;
   private readonly fallbackManager: HostFallbackManager;
+  private readonly fetchImpl?: FetchImpl;
+  private readonly clientSignal?: AbortSignal;
+  private readonly hooks?: RequestHooks;
 
   constructor(options: RequestClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? TENCENT_BASE_URL;
@@ -100,6 +228,9 @@ export class RequestClient {
     this.providerPolicies = {};
     this.runtimeStates = new Map();
     this.fallbackManager = new HostFallbackManager();
+    this.fetchImpl = options.fetchImpl;
+    this.clientSignal = options.signal;
+    this.hooks = options.hooks;
 
     for (const [provider, policy] of Object.entries(options.providerPolicies ?? {})) {
       const mergedPolicy = mergeProviderPolicy(basePolicy, policy);
@@ -143,6 +274,31 @@ export class RequestClient {
     return this.fallbackManager.getStats(provider);
   }
 
+  /** 安全调用钩子：回调抛错不影响主流程 */
+  private safe(fn: () => void): void {
+    try {
+      fn();
+    } catch {
+      /* 钩子回调抛错被吞掉，不影响请求主流程 */
+    }
+  }
+
+  /** 把归一化后的 RequestError 转成 SdkError，供钩子使用 */
+  private toSdkError(error: RequestError): SdkError {
+    if (error instanceof SdkError) {
+      return error;
+    }
+    return new SdkError({
+      code: getSdkErrorCode(error) ?? 'NETWORK_ERROR',
+      message: error.message,
+      provider: error.provider,
+      url: error.url,
+      status: error.status,
+      details: error.details,
+      cause: error,
+    });
+  }
+
   /**
    * 计算指数退避延迟时间
    */
@@ -180,6 +336,11 @@ export class RequestClient {
 
     const code = getSdkErrorCode(error);
 
+    // 外部主动取消不重试
+    if (code === 'ABORTED') {
+      return false;
+    }
+
     if (code === 'TIMEOUT') {
       return retryOptions.retryOnTimeout;
     }
@@ -200,19 +361,29 @@ export class RequestClient {
    * 单 host 带重试的请求执行器
    */
   private async executeWithRetry<T>(
-    requestFn: () => Promise<T>,
+    requestFn: (attempt: number) => Promise<T>,
     retryOptions: ResolvedRetryOptions,
     context: {
       provider: ProviderName;
       url: string;
       timeout: number;
+      responseType: GetOptions['responseType'];
     },
     attempt: number = 0
   ): Promise<T> {
     try {
-      return await requestFn();
+      return await requestFn(attempt);
     } catch (error) {
       const normalized = normalizeRequestError(error, context);
+      const ctx: RequestLifecycleContext = {
+        provider: context.provider,
+        url: context.url,
+        timeout: context.timeout,
+        attempt,
+        responseType: context.responseType,
+      };
+      this.safe(() => this.hooks?.onError?.(ctx, this.toSdkError(normalized)));
+      this.safe(() => this.hooks?.trace?.('error', ctx));
 
       if (this.shouldRetry(normalized, attempt, retryOptions)) {
         const delay = this.calculateDelay(attempt, retryOptions);
@@ -220,6 +391,10 @@ export class RequestClient {
         if (retryOptions.onRetry) {
           retryOptions.onRetry(attempt + 1, normalized, delay);
         }
+        this.safe(() =>
+          this.hooks?.onRetry?.(ctx, this.toSdkError(normalized), delay)
+        );
+        this.safe(() => this.hooks?.trace?.('retry', ctx));
 
         await this.sleep(delay);
         return this.executeWithRetry(requestFn, retryOptions, context, attempt + 1);
@@ -236,14 +411,27 @@ export class RequestClient {
     url: string,
     state: ProviderRuntimeState,
     provider: ProviderName,
-    responseType: GetOptions['responseType'] = 'text'
+    responseType: GetOptions['responseType'] = 'text',
+    perCall: { fetchImpl?: FetchImpl; signal?: AbortSignal } = {},
+    attempt = 0
   ): Promise<T> {
     if (state.rateLimiter) {
       await state.rateLimiter.acquire();
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), state.policy.timeout);
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(
+      () => timeoutController.abort(TIMEOUT_ABORT_REASON),
+      state.policy.timeout
+    );
+    // 三源合并：内部 timeout + per-call signal + client 级 signal 都能取消该请求
+    // （此前用 perCall.signal ?? clientSignal，会让 client 级取消对带 per-call signal 的请求失效）
+    const { signal, cleanup: cleanupSignals } = combineSignals([
+      timeoutController.signal,
+      perCall.signal,
+      this.clientSignal,
+    ]);
+    const doFetch = perCall.fetchImpl ?? this.fetchImpl ?? globalThis.fetch;
 
     const requestHeaders = { ...state.policy.headers };
     if (state.policy.rotateUserAgent) {
@@ -258,11 +446,30 @@ export class RequestClient {
       }
     }
 
+    const ctx: RequestLifecycleContext = {
+      provider,
+      url,
+      timeout: state.policy.timeout,
+      attempt,
+      responseType,
+    };
+    this.safe(() => this.hooks?.onRequest?.(ctx));
+    this.safe(() => this.hooks?.trace?.('request', ctx));
+    const startedAt = Date.now();
+
     try {
-      const resp = await fetch(url, {
-        signal: controller.signal,
+      const resp = await doFetch(url, {
+        signal,
         headers: requestHeaders,
       });
+
+      this.safe(() =>
+        this.hooks?.onResponse?.(ctx, {
+          status: resp.status,
+          durationMs: Date.now() - startedAt,
+        })
+      );
+      this.safe(() => this.hooks?.trace?.('response', ctx));
 
       if (!resp.ok) {
         throw new HttpError(resp.status, resp.statusText, url, provider);
@@ -289,8 +496,29 @@ export class RequestClient {
         default:
           return (await resp.text()) as T;
       }
+    } catch (error) {
+      // 外部 signal(per-call 或 client 级)主动取消 → ABORTED（区别于内部超时
+      // TIMEOUT，后者交给 normalizeRequestError 把 AbortError 归一化为 TIMEOUT）。
+      const externalAborted =
+        (perCall.signal?.aborted &&
+          perCall.signal.reason !== TIMEOUT_ABORT_REASON) ||
+        (this.clientSignal?.aborted &&
+          this.clientSignal.reason !== TIMEOUT_ABORT_REASON);
+      // 仅当「外部 signal 已取消」且「error 形似 abort」才归 ABORTED：
+      // clientSignal.aborted 是持久状态，只看它会把该 client 后续真实的 HttpError /
+      // PARSE_ERROR 误掩盖成 AbortedError(丢失 status/cause、误导 fallback 与熔断器)。
+      // isAbortShapedError 同时兼容标准 AbortError 与 undici 的 TypeError: terminated(cause)。
+      if (externalAborted && isAbortShapedError(error)) {
+        throw new AbortedError(
+          'Request aborted by external signal',
+          provider,
+          url
+        );
+      }
+      throw error;
     } finally {
       clearTimeout(timeoutId);
+      cleanupSignals();
     }
   }
 
@@ -308,6 +536,7 @@ export class RequestClient {
       throw new CircuitBreakerError('Circuit breaker is OPEN, request rejected');
     }
 
+    const perCall = { fetchImpl: options.fetchImpl, signal: options.signal };
     const candidateUrls = this.fallbackManager.getCandidateUrls(url, provider);
     let lastError: RequestError | undefined;
 
@@ -322,12 +551,21 @@ export class RequestClient {
 
       try {
         const result = await this.executeWithRetry(
-          () => this.performRequest<T>(candidateUrl, state, provider, options.responseType),
+          (attempt) =>
+            this.performRequest<T>(
+              candidateUrl,
+              state,
+              provider,
+              options.responseType,
+              perCall,
+              attempt
+            ),
           retryForHost,
           {
             provider,
             url: candidateUrl,
             timeout: state.policy.timeout,
+            responseType: options.responseType,
           }
         );
 
@@ -348,16 +586,27 @@ export class RequestClient {
           this.fallbackManager.shouldFallback(normalized);
 
         if (shouldTryNextHost) {
+          this.safe(() =>
+            this.hooks?.trace?.('fallback', {
+              provider,
+              url: candidateUrl,
+              timeout: state.policy.timeout,
+              attempt: 0,
+              responseType: options.responseType,
+            })
+          );
           continue;
         }
 
         state.circuitBreaker?.recordFailure();
-        throw normalized;
+        throw this.toSdkError(normalized);
       }
     }
 
     state.circuitBreaker?.recordFailure();
-    throw lastError ?? new CircuitBreakerError('Request failed without a concrete error');
+    throw lastError
+      ? this.toSdkError(lastError)
+      : new CircuitBreakerError('Request failed without a concrete error');
   }
 
   /**

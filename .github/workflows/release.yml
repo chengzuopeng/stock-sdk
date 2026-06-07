@@ -52,6 +52,18 @@ jobs:
           yarn build
 
       # provenance 由 package.json 的 publishConfig.provenance: true 自动开启；
-      # 用 npm publish（yarn 1.x 的 publish 不支持 provenance）
+      # 用 npm publish（yarn 1.x 的 publish 不支持 provenance）。
+      # dist-tag：prerelease 版本（含 -beta/-rc/-alpha）发到对应 tag，避免被标成 latest 顶掉
+      # 稳定版——用户用 `npm i stock-sdk@beta` 安装，`npm i stock-sdk` 仍取 latest 稳定版。
       - name: Publish to npm
-        run: npm publish --access public
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          case "$VERSION" in
+            *-beta*)  TAG=beta ;;
+            *-rc*)    TAG=rc ;;
+            *-alpha*) TAG=alpha ;;
+            *-*)      TAG=next ;;
+            *)        TAG=latest ;;
+          esac
+          echo "Publishing $VERSION with dist-tag: $TAG"
+          npm publish --access public --tag "$TAG"

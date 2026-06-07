@@ -72,7 +72,7 @@ describe('RequestClient provider policies', () => {
 
     await expect(
       client.get('https://push2his.eastmoney.com/test')
-    ).rejects.toThrow(TypeError);
+    ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
 
     await expect(
       client.get('https://91.push2.eastmoney.com/test')

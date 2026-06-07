@@ -3,7 +3,7 @@
  * 数据来源：https://data.eastmoney.com/ifdata/kcsj.html
  *         https://data.eastmoney.com/pmetal/comex/by.html
  */
-import { type RequestClient } from '../../core';
+import { type RequestClient, InvalidArgumentError } from '../../core';
 import { toNumberSafe } from '../../core/parser';
 import type {
   FuturesInventorySymbol,
@@ -112,7 +112,7 @@ export async function getComexInventory(
 ): Promise<ComexInventory[]> {
   const indicatorId = COMEX_SYMBOL_MAP[symbol];
   if (!indicatorId) {
-    throw new RangeError(
+    throw new InvalidArgumentError(
       `Invalid COMEX symbol: "${symbol}". Must be "gold" or "silver".`
     );
   }
@@ -134,9 +134,6 @@ export async function getComexInventory(
       name: nameMap[symbol] ?? symbol,
       storageTon: toNumberSafe(item.STORAGE_TON),
       storageOunce: toNumberSafe(item.STORAGE_OUNCE),
-      inventory: toNumberSafe(item.STORAGE_TON),
-      change: null,
-      market: symbol,
     })
   );
 }

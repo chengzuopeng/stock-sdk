@@ -6,7 +6,6 @@ import {
   EM_KLINE_URL,
   EM_TRENDS_URL,
   EM_PUSH_TOKEN,
-  getMarketCode,
   assertKlinePeriod,
   assertMinutePeriod,
   assertAdjustType,
@@ -17,6 +16,7 @@ import {
   MARKET_TZ,
 } from '../../core';
 import type { HistoryKline, MinuteTimeline, MinuteKline } from '../../types';
+import { normalizeSymbol, toEastmoneySecid } from '../../symbols';
 import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
 
 export interface HistoryKlineOptions {
@@ -79,10 +79,8 @@ export async function getHistoryKline(
   assertKlinePeriod(period);
   assertAdjustType(adjust);
 
-  // 移除可能的交易所前缀
-  const pureSymbol = symbol.replace(/^(sh|sz|bj)/, '');
-
-  const secid = `${getMarketCode(symbol)}.${pureSymbol}`;
+  const ns = normalizeSymbol(symbol, { market: 'CN' });
+  const secid = toEastmoneySecid(ns);
 
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6',
@@ -110,7 +108,7 @@ export async function getHistoryKline(
       ...item,
       timestamp: meta.timestamp,
       tz: meta.tz,
-      code: pureSymbol,
+      code: ns.code,
       // A 股历史 K 线接口返回的 CSV 中没有 name，需要自己补充或者忽略
       // HistoryKline 类型中也没有 name 字段，所以直接复用解析结果
     };
@@ -134,9 +132,7 @@ export async function getMinuteKline(
   assertMinutePeriod(period);
   assertAdjustType(adjust);
 
-  // 移除可能的交易所前缀
-  const pureSymbol = symbol.replace(/^(sh|sz|bj)/, '');
-  const secid = `${getMarketCode(symbol)}.${pureSymbol}`;
+  const secid = toEastmoneySecid(normalizeSymbol(symbol, { market: 'CN' }));
 
   if (period === '1') {
     // 1 分钟分时数据，使用 trends2/get 接口

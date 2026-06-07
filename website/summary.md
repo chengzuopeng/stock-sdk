@@ -5,7 +5,7 @@
 ## 项目定位
 
 - 包名：`stock-sdk`
-- 当前版本：`1.10.1`
+- 当前版本：`2.0.0-beta.0`
 - 定位：面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成
 - 核心卖点：零依赖 | Browser + Node.js | 轻量发布包 | 完整 TypeScript 类型
 
@@ -13,8 +13,8 @@
 
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
-| `dist/index.js` | 112.65 KB | 31.59 KB |
-| `dist/index.cjs` | 113.68 KB | 32.10 KB |
+| `dist/index.js` | 3.37 KB | 1.47 KB |
+| `dist/index.cjs` | 4.86 KB | 1.54 KB |
 
 ## 请求治理能力
 
@@ -29,6 +29,9 @@
 | `rotateUserAgent` | `boolean` | 仅 Node.js 生效，自动轮换常见 UA 以降低频控概率。 |
 | `circuitBreaker` | `CircuitBreakerOptions` | 全局熔断器配置，连续失败后短暂停止请求。 |
 | `providerPolicies` | `Partial<Record<ProviderName, ProviderRequestPolicy>>` | 按 provider 单独覆盖超时、重试、限流、熔断和请求头策略。 |
+| `fetchImpl` | `unknown` | 待补充说明。 |
+| `signal` | `unknown` | 待补充说明。 |
+| `hooks` | `unknown` | 待补充说明。 |
 
 ### Provider 策略覆盖
 

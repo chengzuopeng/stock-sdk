@@ -3,6 +3,7 @@
  * 支持浏览器（JSONP）和 Node.js（fetch）双端
  */
 import { RequestClient } from '../../core/request';
+import { SdkError } from '../../core/errors';
 import { SearchResult, type SearchResultType } from '../../types';
 
 /** Smartbox 搜索接口基础 URL */
@@ -112,7 +113,13 @@ function fetchByJsonp(keyword: string): Promise<string> {
 
     script.onerror = () => {
       document.body.removeChild(script);
-      reject(new Error('Network error calling Smartbox'));
+      reject(
+        new SdkError({
+          code: 'NETWORK_ERROR',
+          message: 'Network error calling Smartbox',
+          url,
+        })
+      );
     };
 
     document.body.appendChild(script);

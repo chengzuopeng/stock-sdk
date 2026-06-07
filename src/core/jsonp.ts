@@ -3,6 +3,7 @@
  * 浏览器端：动态创建 <script> 标签注入
  * Node.js 端：fetch + 正则剥离 JSONP 包裹
  */
+import { SdkError, HttpError } from './errors';
 
 const isBrowser =
   typeof document !== 'undefined' && typeof window !== 'undefined';
@@ -29,16 +30,30 @@ export function extractJsonFromJsonp(text: string): unknown {
 
   const parenStart = cleaned.indexOf('(');
   if (parenStart === -1) {
-    throw new Error('Invalid JSONP response: no opening parenthesis found');
+    throw new SdkError({
+      code: 'PARSE_ERROR',
+      message: 'Invalid JSONP response: no opening parenthesis found',
+    });
   }
 
   const parenEnd = cleaned.lastIndexOf(')');
   if (parenEnd === -1 || parenEnd <= parenStart) {
-    throw new Error('Invalid JSONP response: no closing parenthesis found');
+    throw new SdkError({
+      code: 'PARSE_ERROR',
+      message: 'Invalid JSONP response: no closing parenthesis found',
+    });
   }
 
   const jsonStr = cleaned.slice(parenStart + 1, parenEnd);
-  return JSON.parse(jsonStr);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (parseError) {
+    throw new SdkError({
+      code: 'PARSE_ERROR',
+      message: 'Invalid JSONP response: payload is not valid JSON',
+      cause: parseError,
+    });
+  }
 }
 
 export interface JsonpOptions {
@@ -92,7 +107,14 @@ function jsonpBrowser<T>(url: string, options: JsonpOptions): Promise<T> {
       if (!settled) {
         settled = true;
         cleanup();
-        reject(new Error(`JSONP request timed out after ${timeout}ms: ${url}`));
+        reject(
+          new SdkError({
+            code: 'TIMEOUT',
+            message: `JSONP request timed out after ${timeout}ms: ${url}`,
+            url,
+            details: { timeout },
+          })
+        );
       }
     }, timeout);
 
@@ -110,7 +132,13 @@ function jsonpBrowser<T>(url: string, options: JsonpOptions): Promise<T> {
         settled = true;
         clearTimeout(timer);
         cleanup();
-        reject(new Error(`JSONP script load failed: ${url}`));
+        reject(
+          new SdkError({
+            code: 'NETWORK_ERROR',
+            message: `JSONP script load failed: ${url}`,
+            url,
+          })
+        );
       }
     };
 
@@ -145,13 +173,18 @@ async function jsonpNode<T>(url: string, options: JsonpOptions): Promise<T> {
   try {
     const resp = await fetch(finalUrl, { signal: controller.signal });
     if (!resp.ok) {
-      throw new Error(`JSONP fetch failed with status ${resp.status}: ${url}`);
+      throw new HttpError(resp.status, resp.statusText, url);
     }
     const text = await resp.text();
     return extractJsonFromJsonp(text) as T;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error(`JSONP request timed out after ${timeout}ms: ${url}`);
+      throw new SdkError({
+        code: 'TIMEOUT',
+        message: `JSONP request timed out after ${timeout}ms: ${url}`,
+        url,
+        details: { timeout },
+      });
     }
     throw error;
   } finally {

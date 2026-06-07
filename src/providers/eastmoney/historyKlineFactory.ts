@@ -55,7 +55,7 @@ interface NormalizedHistorySymbol {
  * 工厂会把它再交给 caller 的 `enrichItem` 来注入市场本地化字段。
  */
 interface BaseForeignKlineRow extends EmKlineItem {
-  timestamp: number;
+  timestamp: number | null;
   tz: MarketTz;
   code: string;
   name: string;

@@ -1,4 +1,4 @@
-import { HistoryKline, HKUSHistoryKline } from '../types';
+import type { AnyHistoryKline } from '../types';
 import {
   IndicatorOptions,
   MAResult,
@@ -26,7 +26,7 @@ import {
 /**
  * 带技术指标的 K 线数据
  */
-export type KlineWithIndicators<T extends HistoryKline | HKUSHistoryKline> = T & {
+export type KlineWithIndicators<T extends AnyHistoryKline> = T & {
   ma?: MAResult;
   macd?: MACDResult;
   boll?: BOLLResult;
@@ -46,7 +46,7 @@ export type KlineWithIndicators<T extends HistoryKline | HKUSHistoryKline> = T &
 /**
  * 为 K 线数据添加技术指标
  */
-export function addIndicators<T extends HistoryKline | HKUSHistoryKline>(
+export function addIndicators<T extends AnyHistoryKline>(
   klines: T[],
   options: IndicatorOptions = {}
 ): KlineWithIndicators<T>[] {

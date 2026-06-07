@@ -72,13 +72,6 @@ describe('TencentStockSDK - Batch', () => {
       expect(codeList).toContain('sh600519');
     });
 
-    it('should return codes without exchange prefix using legacy API', async () => {
-      const codeList = await sdk.getAShareCodeList(false);
-      expect(Array.isArray(codeList)).toBe(true);
-      expect(codeList.length).toBeGreaterThan(5000);
-      expect(codeList[0]).toMatch(/^\d+$/);
-    });
-
     it('should return codes without exchange prefix using simple option', async () => {
       const codeList = await sdk.getAShareCodeList({ simple: true });
       expect(Array.isArray(codeList)).toBe(true);
@@ -143,13 +136,6 @@ describe('TencentStockSDK - Batch', () => {
       expect(Array.isArray(codeList)).toBe(true);
       expect(codeList.length).toBeGreaterThan(1000);
       expect(codeList[0]).toMatch(/^\d{3}\..+$/);
-    });
-
-    it('should return codes without market prefix using legacy API', async () => {
-      const codeList = await sdk.getUSCodeList(false);
-      expect(Array.isArray(codeList)).toBe(true);
-      expect(codeList.length).toBeGreaterThan(1000);
-      expect(codeList[0]).not.toMatch(/^\d{3}\./);
     });
 
     it('should return codes without market prefix using simple option', async () => {
@@ -226,7 +212,7 @@ describe('TencentStockSDK - Batch', () => {
 
   describe('getUSCodeList codes work with getUSQuotes', () => {
     it('should return codes that work with getUSQuotes', async () => {
-      const codeList = await sdk.getUSCodeList(false);
+      const codeList = await sdk.getUSCodeList({ simple: true });
       const testCodes = codeList.slice(0, 5);
       const quotes = await sdk.getUSQuotes(testCodes);
       expect(quotes.length).toBeGreaterThan(0);

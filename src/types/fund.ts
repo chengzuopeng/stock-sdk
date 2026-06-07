@@ -56,13 +56,7 @@ export interface FundDividend {
   /** 分红金额（元/份），无则 `null` */
   dividendPerShare: number | null;
   /** 分红发放日（`YYYY-MM-DD`），无则 `null` */
-  payDate: string | null;
-  /**
-   * 原始字段数组（含 7 项）：
-   * `[code, name, 权益登记日, 除息日, 分红元/份, 发放日, 类型代码]`
-   */
-  raw: string[];
-}
+  payDate: string | null;}
 
 /** 基金分红查询结果 */
 export interface FundDividendListResult {
@@ -81,7 +75,7 @@ export interface FundNavPoint {
   /** 净值日期 `YYYY-MM-DD`（与时间戳的 UTC 日期一致，对应 A 股交易日） */
   date: string;
   /** 净值日期对应的毫秒时间戳（数据源原值，UTC 当日 00:00） */
-  timestamp: number;
+  timestamp: number | null;
   /** 单位净值 */
   nav: number;
   /** 累计净值；与单位净值数组按 timestamp 对齐，无法对齐时为 `null` */
@@ -131,7 +125,7 @@ export interface FundRankPoint {
   /** 报告日期 `YYYY-MM-DD` */
   date: string;
   /** 报告日期对应的毫秒时间戳（数据源原值） */
-  timestamp: number;
+  timestamp: number | null;
   /** 同类近三月排名（数字越小越靠前），无值时为 `null` */
   rank: number | null;
   /** 同类基金总数，无值时为 `null` */

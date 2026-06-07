@@ -69,7 +69,9 @@ export function parseFullQuote(f: string[]): FullQuote {
     low52w: safeNumberOrNull(f[68]),
     circulatingShares: safeNumberOrNull(f[72]),
     totalShares: safeNumberOrNull(f[73]),
-    raw: f,
+    market: 'CN',
+    assetType: 'stock',
+    source: 'tencent',
   };
 }
 
@@ -88,7 +90,9 @@ export function parseSimpleQuote(f: string[]): SimpleQuote {
     amount: safeNumber(f[7]),
     marketCap: safeNumberOrNull(f[9]),
     marketType: f[10] ?? '',
-    raw: f,
+    market: 'CN',
+    assetType: 'stock',
+    source: 'tencent',
   };
 }
 
@@ -113,7 +117,6 @@ export function parseFundFlow(f: string[]): FundFlow {
     date,
     timestamp: timeMeta.timestamp,
     tz: timeMeta.tz,
-    raw: f,
   };
 }
 
@@ -126,7 +129,6 @@ export function parsePanelLargeOrder(f: string[]): PanelLargeOrder {
     buySmallRatio: safeNumber(f[1]),
     sellLargeRatio: safeNumber(f[2]),
     sellSmallRatio: safeNumber(f[3]),
-    raw: f,
   };
 }
 
@@ -156,7 +158,9 @@ export function parseHKQuote(f: string[]): HKQuote {
     circulatingMarketCap: safeNumberOrNull(f[44]),
     totalMarketCap: safeNumberOrNull(f[45]),
     currency: f[f.length - 3] ?? '',
-    raw: f,
+    market: 'HK',
+    assetType: 'stock',
+    source: 'tencent',
   };
 }
 
@@ -189,7 +193,9 @@ export function parseUSQuote(f: string[]): USQuote {
     pb: safeNumberOrNull(f[47]),
     high52w: safeNumberOrNull(f[48]),
     low52w: safeNumberOrNull(f[49]),
-    raw: f,
+    market: 'US',
+    assetType: 'stock',
+    source: 'tencent',
   };
 }
 
@@ -208,7 +214,9 @@ export function parseFundQuote(f: string[]): FundQuote {
     navDate,
     timestamp: timeMeta.timestamp,
     tz: timeMeta.tz,
-    raw: f,
+    market: 'CN',
+    assetType: 'fund',
+    source: 'tencent',
   };
 }
 

@@ -177,19 +177,10 @@ function matchMarket(code: string, market: AShareMarket): boolean {
  */
 export async function getAShareCodeList(
   client: RequestClient,
-  options?: GetAShareCodeListOptions | boolean
+  options?: GetAShareCodeListOptions
 ): Promise<string[]> {
-  // 向后兼容：处理布尔参数
-  let simple = false;
-  let market: AShareMarket | undefined;
-
-  if (typeof options === 'boolean') {
-    // 旧 API：includeExchange = true 表示包含前缀，对应 simple = false
-    simple = !options;
-  } else if (options) {
-    simple = options.simple ?? false;
-    market = options.market;
-  }
+  const simple = options?.simple ?? false;
+  const market = options?.market;
 
   const allCodes = await fetchJsonCodeList(client, 'a-share:full', A_SHARE_LIST_URL);
 
@@ -243,19 +234,10 @@ const US_MARKET_PREFIX: Record<USMarket, string> = {
  */
 export async function getUSCodeList(
   client: RequestClient,
-  options?: GetUSCodeListOptions | boolean
+  options?: GetUSCodeListOptions
 ): Promise<string[]> {
-  // 向后兼容：处理布尔参数
-  let simple = false;
-  let market: USMarket | undefined;
-
-  if (typeof options === 'boolean') {
-    // 旧 API：includeMarket = true 表示包含前缀，对应 simple = false
-    simple = !options;
-  } else if (options) {
-    simple = options.simple ?? false;
-    market = options.market;
-  }
+  const simple = options?.simple ?? false;
+  const market = options?.market;
 
   const allCodes = await fetchJsonCodeList(client, 'us:full', US_LIST_URL);
   let result = allCodes.slice();

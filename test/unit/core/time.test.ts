@@ -98,10 +98,10 @@ describe('core/time', () => {
       );
     });
 
-    it('keeps tz even when timestamp is NaN', () => {
+    it('keeps tz even when timestamp is null', () => {
       const meta = buildTimeMeta('', MARKET_TZ.HK);
       expect(meta.tz).toBe('Asia/Hong_Kong');
-      expect(meta.timestamp).toBeNaN();
+      expect(meta.timestamp).toBeNull();
     });
   });
 
@@ -128,13 +128,13 @@ describe('core/time', () => {
       );
     });
 
-    it('returns NaN when date or time invalid', () => {
+    it('returns null when date or time invalid', () => {
       expect(
         buildTimeMetaFromDateAndTime('', '09:30', MARKET_TZ.CN).timestamp
-      ).toBeNaN();
+      ).toBeNull();
       expect(
         buildTimeMetaFromDateAndTime('2024-05-12', 'bad', MARKET_TZ.CN).timestamp
-      ).toBeNaN();
+      ).toBeNull();
     });
   });
 

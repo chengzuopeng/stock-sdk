@@ -6,6 +6,11 @@
 export {
   RequestClient,
   type RequestClientOptions,
+  type GetOptions,
+  type FetchImpl,
+  type RequestHooks,
+  type RequestLifecycleContext,
+  type RequestTraceEvent,
 } from './request';
 export {
   HttpError,
@@ -14,6 +19,8 @@ export {
   NotFoundError,
   InvalidArgumentError,
   InvalidSymbolError,
+  UpstreamError,
+  AbortedError,
   attachErrorMetadata,
   normalizeRequestError,
   getSdkErrorCode,
@@ -48,7 +55,6 @@ export {
   assertKlinePeriod,
   assertMinutePeriod,
   assertAdjustType,
-  getMarketCode,
   getPeriodCode,
   getAdjustCode,
 } from './utils';

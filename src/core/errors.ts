@@ -6,10 +6,12 @@ import type { ProviderName } from './providerPolicy';
 export type SdkErrorCode =
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
+  | 'ABORTED'
   | 'HTTP_ERROR'
   | 'RATE_LIMITED'
   | 'CIRCUIT_OPEN'
   | 'UPSTREAM_EMPTY'
+  | 'UPSTREAM_ERROR'
   | 'PARSE_ERROR'
   | 'INVALID_SYMBOL'
   | 'INVALID_ARGUMENT'
@@ -122,6 +124,31 @@ export class InvalidSymbolError extends SdkError {
       details: { symbol },
     });
     this.name = 'InvalidSymbolError';
+  }
+}
+
+/**
+ * 上游返回结构化错误（如 code != 0 / 带 msg），区别于空数据 {@link UpstreamEmptyError}
+ */
+export class UpstreamError extends SdkError {
+  constructor(
+    message: string,
+    provider?: ProviderName,
+    url?: string,
+    details?: Record<string, unknown>
+  ) {
+    super({ code: 'UPSTREAM_ERROR', message, provider, url, details });
+    this.name = 'UpstreamError';
+  }
+}
+
+/**
+ * 请求被外部 signal 主动取消（区别于内部超时 {@link SdkError} code=TIMEOUT）
+ */
+export class AbortedError extends SdkError {
+  constructor(message = 'Request aborted', provider?: ProviderName, url?: string) {
+    super({ code: 'ABORTED', message, provider, url });
+    this.name = 'AbortedError';
   }
 }
 

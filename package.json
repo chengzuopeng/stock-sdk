@@ -1,10 +1,13 @@
 {
   "name": "stock-sdk",
-  "version": "1.10.1",
+  "version": "2.0.0-beta.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "stock-sdk": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
@@ -19,6 +22,10 @@
     "preview": "vitepress preview website",
     "build:docs": "yarn docs:meta && DOCS_BASE=/ vitepress build website",
     "build:pages": "yarn docs:meta && DOCS_BASE=/stock-sdk/ vitepress build website",
+    "dev:v2": "vitepress dev site-v2",
+    "preview:v2": "vitepress preview site-v2",
+    "build:v2": "DOCS_BASE=/ vitepress build site-v2",
+    "build:v2:pages": "DOCS_BASE=/stock-sdk/ vitepress build site-v2",
     "prepare": "node ./scripts/install-git-hooks.js"
   },
   "exports": {
@@ -31,7 +38,36 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
-    }
+    },
+    "./indicators": {
+      "import": { "types": "./dist/indicators.d.ts", "default": "./dist/indicators.js" },
+      "require": { "types": "./dist/indicators.d.cts", "default": "./dist/indicators.cjs" }
+    },
+    "./symbols": {
+      "import": { "types": "./dist/symbols.d.ts", "default": "./dist/symbols.js" },
+      "require": { "types": "./dist/symbols.d.cts", "default": "./dist/symbols.cjs" }
+    },
+    "./signals": {
+      "import": { "types": "./dist/signals.d.ts", "default": "./dist/signals.js" },
+      "require": { "types": "./dist/signals.d.cts", "default": "./dist/signals.cjs" }
+    },
+    "./screener": {
+      "import": { "types": "./dist/screener.d.ts", "default": "./dist/screener.js" },
+      "require": { "types": "./dist/screener.d.cts", "default": "./dist/screener.cjs" }
+    },
+    "./cache": {
+      "import": { "types": "./dist/cache.d.ts", "default": "./dist/cache.js" },
+      "require": { "types": "./dist/cache.d.cts", "default": "./dist/cache.cjs" }
+    },
+    "./errors": {
+      "import": { "types": "./dist/errors.d.ts", "default": "./dist/errors.js" },
+      "require": { "types": "./dist/errors.d.cts", "default": "./dist/errors.cjs" }
+    },
+    "./mcp": {
+      "import": { "types": "./dist/mcp.d.ts", "default": "./dist/mcp.js" },
+      "require": { "types": "./dist/mcp.d.cts", "default": "./dist/mcp.cjs" }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -42,6 +78,11 @@
     "TypeScript",
     "stock",
     "sdk",
+    "cli",
+    "mcp",
+    "ai",
+    "kline",
+    "indicators",
     "browser",
     "node",
     "akshare",
@@ -52,7 +93,7 @@
   ],
   "author": "chengzuopeng",
   "license": "ISC",
-  "description": "Tencent qt.gtimg.cn stock quote SDK - supports both browser and Node.js",
+  "description": "零依赖股票行情 SDK：A股/港股/美股/基金/期货/期权，浏览器 + Node.js 双端，内置 CLI 与 MCP server。Zero-dependency stock market data SDK (CLI + MCP) for browser & Node.js.",
   "homepage": "https://stock-sdk.linkdiary.cn",
   "repository": {
     "type": "git",
