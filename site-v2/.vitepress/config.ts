@@ -219,6 +219,16 @@ export default defineConfig({
   ignoreDeadLinks: true,
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
+    // 字体：Archivo(宽体工业 display) + Public Sans(body) + IBM Plex Mono(数据/代码/标签)
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    [
+      'link',
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap',
+      },
+    ],
     // v2 主色：teal 青绿（区别于 v1 的红色 #f87171）
     ['meta', { name: 'theme-color', content: '#0d9488' }],
     ['meta', { property: 'og:type', content: 'website' }],
