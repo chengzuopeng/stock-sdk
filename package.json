@@ -56,6 +56,10 @@
       "import": { "types": "./dist/errors.d.ts", "default": "./dist/errors.js" },
       "require": { "types": "./dist/errors.d.cts", "default": "./dist/errors.cjs" }
     },
+    "./mcp": {
+      "import": { "types": "./dist/mcp.d.ts", "default": "./dist/mcp.js" },
+      "require": { "types": "./dist/mcp.d.cts", "default": "./dist/mcp.cjs" }
+    },
     "./package.json": "./package.json"
   },
   "files": [

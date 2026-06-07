@@ -9,6 +9,7 @@ export default defineConfig({
     screener: 'src/screener/index.ts',
     cache: 'src/cache/index.ts',
     errors: 'src/errors/index.ts',
+    mcp: 'src/mcp/server.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,
