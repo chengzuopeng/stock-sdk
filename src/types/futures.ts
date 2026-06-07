@@ -69,16 +69,4 @@ export interface ComexInventory {
   name: string;
   storageTon: number | null;
   storageOunce: number | null;
-  /**
-   * @deprecated 请改用 `storageTon`
-   */
-  inventory: number | null;
-  /**
-   * @deprecated COMEX 接口当前未提供稳定的变动字段，始终返回 `null`
-   */
-  change: number | null;
-  /**
-   * @deprecated 请改用 `name`
-   */
-  market: 'gold' | 'silver';
 }

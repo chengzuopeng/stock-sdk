@@ -1,4 +1,5 @@
 import type { MarketTz } from '../core/time';
+import type { ProviderName } from '../core';
 
 /**
  * A 股 / 指数 全量行情
@@ -29,7 +30,7 @@ export interface FullQuote {
   /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,市场时区) */
   time: string;
   /** 行情时间对应的 UTC unix 毫秒时间戳;无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 行情时间所属市场时区 (`Asia/Shanghai`) */
   tz: MarketTz;
   /** 涨跌额 */
@@ -76,12 +77,19 @@ export interface FullQuote {
   circulatingShares: number | null;
   /** 总股本(股) */
   totalShares: number | null;
-  /** 原始字段数组(供扩展使用) */
-  raw: string[];
+  /** 市场（判别字段） */
+  market: 'CN';
+  /**
+   * 资产类型（判别字段）。注:getFullQuotes 也能查指数(如 sh000001),但 parser 拿不到
+   * 交易所前缀、无法可靠判定指数,故本字段只承诺 'stock'(不在类型里承诺 index,见 TD)。
+   */
+  assetType: 'stock';
+  /** 数据源 */
+  source: ProviderName;
 }
 
 /**
- * 简要行情（股票 / 指数）
+ * 简要行情（股票；指数也走此结构，但 assetType 不区分，见 FullQuote 说明）
  */
 export interface SimpleQuote {
   marketId: string;
@@ -96,7 +104,9 @@ export interface SimpleQuote {
   marketCap: number | null;
   /** 市场类型标识 如 GP-A / ZS */
   marketType: string;
-  raw: string[];
+  market: 'CN';
+  assetType: 'stock';
+  source: ProviderName;
 }
 
 /**
@@ -126,11 +136,9 @@ export interface FundFlow {
   /** 数据日期(原始字符串,A 股时区) */
   date: string;
   /** 数据日期对应当日 00:00 (`Asia/Shanghai`) 的 UTC 毫秒时间戳;无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 数据日期所属时区 (`Asia/Shanghai`) */
-  tz: MarketTz;
-  raw: string[];
-}
+  tz: MarketTz;}
 
 /**
  * 盘口大单占比
@@ -143,9 +151,7 @@ export interface PanelLargeOrder {
   /** 卖盘大单占比 */
   sellLargeRatio: number;
   /** 卖盘小单占比 */
-  sellSmallRatio: number;
-  raw: string[];
-}
+  sellSmallRatio: number;}
 
 /**
  * 港股扩展行情
@@ -161,7 +167,7 @@ export interface HKQuote {
   /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,港股时区) */
   time: string;
   /** UTC unix 毫秒时间戳;无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 行情时间所属市场时区 (`Asia/Hong_Kong`) */
   tz: MarketTz;
   change: number;
@@ -173,7 +179,9 @@ export interface HKQuote {
   circulatingMarketCap: number | null;
   totalMarketCap: number | null;
   currency: string;
-  raw: string[];
+  market: 'HK';
+  assetType: 'stock';
+  source: ProviderName;
 }
 
 /**
@@ -197,7 +205,7 @@ export interface USQuote {
   /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,美东时区) */
   time: string;
   /** UTC unix 毫秒时间戳(自动处理美东夏令时);无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 行情时间所属市场时区 (`America/New_York`) */
   tz: MarketTz;
   /** 涨跌额 */
@@ -224,8 +232,9 @@ export interface USQuote {
   high52w: number | null;
   /** 52周最低价 */
   low52w: number | null;
-  /** 原始字段数组 */
-  raw: string[];
+  market: 'US';
+  assetType: 'stock';
+  source: ProviderName;
 }
 
 /**
@@ -243,8 +252,15 @@ export interface FundQuote {
   /** 净值日期(原始字符串,如 `'2024-05-12'`,A 股时区) */
   navDate: string;
   /** 净值日期对应当日 00:00 (`Asia/Shanghai`) 的 UTC 毫秒时间戳;无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 净值日期所属时区 (`Asia/Shanghai`) */
   tz: MarketTz;
-  raw: string[];
+  market: 'CN';
+  assetType: 'fund';
+  source: ProviderName;
 }
+
+/**
+ * 行情可辨识联合（按 `market` + `assetType` 判别）
+ */
+export type Quote = FullQuote | HKQuote | USQuote | FundQuote;

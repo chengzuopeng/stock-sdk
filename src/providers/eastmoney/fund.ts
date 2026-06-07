@@ -8,6 +8,7 @@
  */
 import { fetchJsVars } from '../../core/jsVars';
 import { extractJsonFromJsonp } from '../../core/jsonp';
+import { SdkError } from '../../core/errors';
 import { withScriptMutex } from '../../core/scriptMutex';
 import type { RequestClient } from '../../core/request';
 import type {
@@ -84,9 +85,7 @@ function mapRow(row: string[]): FundDividend {
     equityRecordDate: parseDate(row[2]),
     exDividendDate: parseDate(row[3]),
     dividendPerShare: parseNumber(row[4]),
-    payDate: parseDate(row[5]),
-    raw: row,
-  };
+    payDate: parseDate(row[5]),  };
 }
 
 /** 拉取单页（不做客户端过滤、不做翻页聚合） */
@@ -309,7 +308,14 @@ function browserFetchFundGz(
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new Error(`fundgz JSONP timed out after ${timeout}ms: ${url}`));
+      reject(
+        new SdkError({
+          code: 'TIMEOUT',
+          message: `fundgz JSONP timed out after ${timeout}ms: ${url}`,
+          url,
+          details: { timeout },
+        })
+      );
     }, timeout);
 
     win.jsonpgz = (data: FundGzPayload) => {
@@ -325,7 +331,13 @@ function browserFetchFundGz(
       settled = true;
       clearTimeout(timer);
       cleanup();
-      reject(new Error(`fundgz JSONP script load failed: ${url}`));
+      reject(
+        new SdkError({
+          code: 'NETWORK_ERROR',
+          message: `fundgz JSONP script load failed: ${url}`,
+          url,
+        })
+      );
     };
 
     script.src = url;

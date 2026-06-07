@@ -340,7 +340,6 @@ export async function fetchBoardMinuteKline(
         volume: toNumber(volume),
         amount: toNumber(amount),
         price: latestPrice,
-        avgPrice: latestPrice,
       } as IndustryBoardMinuteTimeline;
     });
   } else {

@@ -104,10 +104,6 @@ export interface IndustryBoardMinuteTimeline {
   amount: number | null;
   /** 最新价 */
   price: number | null;
-  /**
-   * @deprecated 旧类型字段，请改用 `price`
-   */
-  avgPrice: number | null;
 }
 
 /**

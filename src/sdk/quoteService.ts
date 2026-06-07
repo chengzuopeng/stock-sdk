@@ -55,11 +55,11 @@ export class QuoteService extends BaseService {
     return tencent.search(this.client, keyword);
   }
 
-  getAShareCodeList(options?: tencent.GetAShareCodeListOptions | boolean): Promise<string[]> {
+  getAShareCodeList(options?: tencent.GetAShareCodeListOptions): Promise<string[]> {
     return tencent.getAShareCodeList(this.client, options);
   }
 
-  getUSCodeList(options?: tencent.GetUSCodeListOptions | boolean): Promise<string[]> {
+  getUSCodeList(options?: tencent.GetUSCodeListOptions): Promise<string[]> {
     return tencent.getUSCodeList(this.client, options);
   }
 

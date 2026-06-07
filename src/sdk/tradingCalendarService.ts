@@ -10,7 +10,7 @@
  * "周一-周五 + 已知交易时段"判断。法定假日不会被识别。
  */
 import type { QuoteService } from './quoteService';
-import { MARKET_TZ, type MarketTz } from '../core';
+import { MARKET_TZ, type MarketTz, InvalidArgumentError } from '../core';
 
 /**
  * 市场实时状态。
@@ -94,7 +94,7 @@ function normalizeDate(input: string | Date | undefined, tz: MarketTz): string {
   if (!Number.isNaN(parsed.getTime())) {
     return formatDateInTz(parsed, tz);
   }
-  throw new RangeError(
+  throw new InvalidArgumentError(
     `Unsupported date input: ${JSON.stringify(input)}. Expected 'YYYY-MM-DD', 'YYYYMMDD', or Date.`
   );
 }
@@ -195,7 +195,7 @@ export class TradingCalendarService {
     // 如果命中了 target 本身,跳到下一个
     if (idx < calendar.length && calendar[idx] === target) idx += 1;
     if (idx >= calendar.length) {
-      throw new RangeError(
+      throw new InvalidArgumentError(
         `nextTradingDay: ${target} 之后没有可用交易日 (日历最大日期 ${calendar[calendar.length - 1] ?? 'N/A'})`
       );
     }
@@ -218,7 +218,7 @@ export class TradingCalendarService {
     // idx 指向第一个 >= target 的元素;前一个就是 < target 的最后一个
     const prevIdx = idx - 1;
     if (prevIdx < 0) {
-      throw new RangeError(
+      throw new InvalidArgumentError(
         `prevTradingDay: ${target} 之前没有可用交易日 (日历最小日期 ${calendar[0] ?? 'N/A'})`
       );
     }

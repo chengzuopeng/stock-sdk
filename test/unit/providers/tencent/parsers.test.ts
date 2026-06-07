@@ -30,13 +30,13 @@ describe('tencent parsers - timestamp & tz enrichment', () => {
       );
     });
 
-    it('keeps tz when time is empty (timestamp = NaN)', () => {
+    it('keeps tz when time is empty (timestamp = null)', () => {
       const f: string[] = new Array(80).fill('');
       f[2] = '600519';
       // f[30] 留空
       const quote = parseFullQuote(f);
       expect(quote.tz).toBe('Asia/Shanghai');
-      expect(quote.timestamp).toBeNaN();
+      expect(quote.timestamp).toBeNull();
     });
   });
 

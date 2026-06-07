@@ -96,8 +96,6 @@ describe('getFundDividendList', () => {
       dividendPerShare: 0.05,
       payDate: '2025-01-03',
     });
-    expect(r.items[0].raw).toHaveLength(7);
-    expect(r.items[0].raw[6]).toBe('1'); // 类型代码原样保留
   });
 
   it('honors custom rank / sort / fundType / page params', async () => {

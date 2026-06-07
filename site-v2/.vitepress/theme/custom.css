@@ -1,0 +1,337 @@
+/**
+ * Stock SDK v2 — "Quant Terminal" 主题
+ * ------------------------------------------------------------------
+ * 精密、冷静、有工程质感的量化数据终端美学。
+ * · 字体：Archivo(宽体工业 display) / Public Sans(body) / IBM Plex Mono(数据·代码·标签)
+ * · 色彩：teal 青绿为主色 + 琥珀 amber 锐利点缀(dominant + sharp accent)
+ * · 质感：细网格背景 + teal 光晕 + 极淡 grain 噪点
+ * · 动效：hero 入场 staggered reveal、特性卡 hover 发光抬起、nav 下划线
+ * 字体加载失败回退系统栈，不影响可用性；中文走系统黑体。
+ */
+
+/* ===== 0. 字体系统 ===== */
+:root {
+  --vp-font-family-base: 'Public Sans', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+  --vp-font-family-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo,
+    Consolas, 'Liberation Mono', monospace;
+  /* display：用于品牌 / 标题，区别于 body */
+  --font-display: 'Archivo', 'Public Sans', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* ===== 1. 配色：teal 主色 + amber 锐利点缀 ===== */
+:root {
+  --vp-c-brand-1: #0d9488;
+  --vp-c-brand-2: #0f766e;
+  --vp-c-brand-3: #14b8a6;
+  --vp-c-brand-soft: rgba(20, 184, 166, 0.12);
+  --vp-c-brand: var(--vp-c-brand-1);
+
+  /* 锐利点缀：琥珀 amber —— 只用在关键强调(hover 线、信号) */
+  --qt-accent: #f59e0b;
+  --qt-accent-soft: rgba(245, 158, 11, 0.14);
+
+  /* 终端质感：网格 / 光晕 */
+  --qt-grid: rgba(13, 148, 136, 0.07);
+  --qt-glow: rgba(20, 184, 166, 0.20);
+
+  /* Hero 渐变品牌名 + 光晕图 */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(96deg, #0f766e 0%, #0d9488 40%, #2dd4bf 100%);
+  --vp-home-hero-image-background-image: radial-gradient(closest-side, rgba(20, 184, 166, 0.55), transparent);
+  --vp-home-hero-image-filter: blur(68px);
+
+  /* 按钮 */
+  --vp-button-brand-bg: var(--vp-c-brand-1);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-3);
+  --vp-button-brand-active-bg: var(--vp-c-brand-2);
+  --vp-button-brand-border: transparent;
+
+  /* 背景：不用纯白，带一丝冷灰 */
+  --vp-c-bg: #fbfcfc;
+  --vp-c-bg-alt: #f3f6f6;
+  --vp-c-bg-soft: #f6f8f8;
+}
+
+.dark {
+  --vp-c-brand-1: #2dd4bf;
+  --vp-c-brand-2: #14b8a6;
+  --vp-c-brand-3: #5eead4;
+  --vp-c-brand-soft: rgba(45, 212, 191, 0.15);
+  --qt-accent: #fbbf24;
+  --qt-accent-soft: rgba(251, 191, 36, 0.16);
+  --qt-grid: rgba(45, 212, 191, 0.06);
+  --qt-glow: rgba(45, 212, 191, 0.16);
+  --vp-home-hero-name-background: linear-gradient(96deg, #2dd4bf 0%, #5eead4 100%);
+  /* 深色：发光终端底 */
+  --vp-c-bg: #0a0f16;
+  --vp-c-bg-alt: #0c1119;
+  --vp-c-bg-soft: #0e141d;
+}
+
+/* ===== 2. 全局质感：grain 噪点叠层 ===== */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.018;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark body::after { opacity: 0.03; }
+
+/* ===== 3. Typography ===== */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.VPHero .name,
+.VPHero .text {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+.vp-doc h1 { font-weight: 800; }
+.vp-doc h2 { font-weight: 700; padding-top: 22px; }
+.vp-doc h2::before {
+  /* 标题前的 mono 终端提示符,极淡 */
+  content: '›';
+  color: var(--vp-c-brand-1);
+  font-family: var(--vp-font-family-mono);
+  margin-right: 0.4em;
+  opacity: 0.55;
+}
+
+/* ===== 4. Hero ===== */
+.VPHome { position: relative; }
+/* hero 区:网格 + teal 光晕,顶部渐隐 */
+.VPHome::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 680px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 48% at 72% 8%, var(--qt-glow), transparent 70%),
+    linear-gradient(var(--qt-grid) 1px, transparent 1px) 0 0 / 100% 34px,
+    linear-gradient(90deg, var(--qt-grid) 1px, transparent 1px) 0 0 / 34px 100%;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+.VPHome .VPHero,
+.VPHome .VPFeatures { position: relative; z-index: 1; }
+
+.VPHero .name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+.VPHero .text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  max-width: 660px;
+}
+.VPHero .tagline {
+  max-width: 560px;
+  color: var(--vp-c-text-2);
+  line-height: 1.7;
+}
+
+/* hero 入场:staggered reveal */
+@keyframes qt-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* name 是 background-clip:text 渐变文字 —— 绝不能加 transform/will-change 动画,
+   否则触发合成层会让 clip 渲染失效、文字变透明消失。用纯 opacity 淡入即可。 */
+@keyframes qt-fade { from { opacity: 0; } to { opacity: 1; } }
+.VPHero .name { animation: qt-fade 0.6s ease both; }
+.VPHero .text { animation: qt-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.07s both; }
+.VPHero .tagline { animation: qt-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s both; }
+.VPHero .actions { animation: qt-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.23s both; }
+
+/* 按钮:terminal 感 */
+.VPButton {
+  border-radius: 9px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+.VPButton.brand {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 8px 24px -10px var(--qt-glow);
+}
+.VPButton.brand:hover { transform: translateY(-1px); }
+.VPButton.alt {
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+/* ===== 5. Features:mono 编号 + accent 线 + hover 发光抬起 ===== */
+.VPFeatures .items { counter-reset: qtfeat; }
+.VPFeature {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-soft);
+  overflow: hidden;
+  transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1),
+    border-color 0.28s, box-shadow 0.28s;
+  animation: qt-rise 0.5s ease both;
+}
+/* mono 编号 01–06 */
+.VPFeature::before {
+  counter-increment: qtfeat;
+  content: counter(qtfeat, decimal-leading-zero);
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--vp-c-text-3);
+  opacity: 0.55;
+  transition: color 0.28s, opacity 0.28s;
+}
+/* 顶部 teal→amber accent 线(hover 展开)*/
+.VPFeature::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--vp-c-brand-1), var(--qt-accent));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.32s ease;
+}
+.VPFeature:hover {
+  transform: translateY(-4px);
+  border-color: var(--vp-c-brand-3);
+  box-shadow: 0 18px 44px -22px var(--qt-glow);
+}
+.VPFeature:hover::before { color: var(--vp-c-brand-1); opacity: 1; }
+.VPFeature:hover::after { transform: scaleX(1); }
+.VPFeature .icon {
+  border-radius: 11px !important;
+  background: var(--vp-c-brand-soft) !important;
+}
+.VPFeature .title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.VPFeature .details {
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+/* features stagger(接 hero 之后入场)*/
+.VPFeatures .items > div:nth-child(1) .VPFeature { animation-delay: 0.30s; }
+.VPFeatures .items > div:nth-child(2) .VPFeature { animation-delay: 0.37s; }
+.VPFeatures .items > div:nth-child(3) .VPFeature { animation-delay: 0.44s; }
+.VPFeatures .items > div:nth-child(4) .VPFeature { animation-delay: 0.51s; }
+.VPFeatures .items > div:nth-child(5) .VPFeature { animation-delay: 0.58s; }
+.VPFeatures .items > div:nth-child(6) .VPFeature { animation-delay: 0.65s; }
+
+/* ===== 6. Nav ===== */
+.VPNavBarTitle .title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+/* v2 角标:mono 胶囊 */
+.VPNavBarTitle .title::after {
+  content: 'v2';
+  display: inline-block;
+  margin-left: 9px;
+  padding: 2px 7px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  border: 1px solid var(--vp-c-brand-soft);
+  border-radius: 6px;
+  vertical-align: middle;
+  transform: translateY(-1px);
+}
+/* nav 链接 hover 下划线动画 */
+.VPNavBarMenuLink {
+  position: relative;
+}
+.VPNavBarMenuLink::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vp-c-brand-1);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+.VPNavBarMenuLink:hover::after,
+.VPNavBarMenuLink.active::after { transform: scaleX(1); }
+
+/* ===== 7. 内容:inline code / 链接 / 代码块 / 表格 ===== */
+.vp-doc :not(pre) > code {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.84em;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.vp-doc a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 0.2s;
+}
+.vp-doc div[class*='language-'] {
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+}
+/* 代码块语言标签:mono 终端感 */
+.vp-doc div[class*='language-']::before {
+  font-family: var(--vp-font-family-mono);
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+/* 表格表头:mono 大写小字,数据感 */
+.vp-doc table { font-size: 13.5px; }
+.vp-doc th {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+
+/* ===== 8. 侧边栏 / 当前项 accent ===== */
+.VPSidebarItem.is-active > .item .text { font-weight: 600; }
+.VPSidebarItem.level-0 > .item > .text {
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+/* ===== 9. 无障碍:尊重 reduce-motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .VPHero .name,
+  .VPHero .text,
+  .VPHero .tagline,
+  .VPHero .actions,
+  .VPFeature { animation: none !important; }
+}

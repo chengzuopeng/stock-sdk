@@ -3,22 +3,29 @@
 [![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
-[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://www.npmjs.com/package/stock-sdk-mcp)
-[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/en/mcp/)
+[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk-v2.linkdiary.cn/en/mcp/)
+[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk-v2.linkdiary.cn/en/mcp/)
 
 English | **[中文](./README.md)**
 
 A **stock market data JavaScript SDK for frontend and Node.js**.
 
-No Python. No backend service. Fetch real-time quotes and K-line data for **A-shares / Hong Kong stocks / US stocks / mutual funds** directly in **the browser or Node.js**.
+No Python. No backend service. Fetch real-time quotes and K-line data for **A-shares / Hong Kong stocks / US stocks / mutual funds** directly in **the browser or Node.js**. It also ships a **command-line tool** and an **MCP server** — one command to pull quotes or wire up AI tools.
 
-**✨ Zero dependencies | 🌐 Browser + Node.js | 📦 Lightweight distribution | 🧠 Full TypeScript typings**
+**✨ Zero dependencies | 🌐 Browser + Node.js | 📦 ESM + CJS + subpaths | 🧠 Full TypeScript typings | 🖥️ CLI | 🤖 MCP**
 
-## Documentation
+> 🧪 **v2.0.0 Beta**: v2 is an architectural leap (namespaced API, unified symbol model, `Quote` discriminated union, unified error system, CLI / MCP / subpath exports).
+> Install the beta: `npm i stock-sdk@beta`. Upgrading from v1? Read the [v1 → v2 migration guide](https://stock-sdk-v2.linkdiary.cn/en/guide/migration-v1-to-v2) first (**breaking changes, no compat aliases**).
 
-👉🏻 [Documentation](https://stock-sdk.linkdiary.cn/)
+## 📖 Official docs (v2 Beta)
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground/)
+> ## 👉 https://stock-sdk-v2.linkdiary.cn/en/
+>
+> **Temporary official site for the v2 Beta** — full API, namespace overview, CLI / MCP guides, the online Playground, and the v1 → v2 migration guide all live here. Start with the docs for the fastest onboarding.
+>
+> (v1 stable docs remain at https://stock-sdk.linkdiary.cn/en/)
+
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Playground](https://stock-sdk-v2.linkdiary.cn/playground/)
 
 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/): A stock market dashboard demo built with stock-sdk. Feel free to try it.
 
@@ -28,372 +35,261 @@ If you're a frontend engineer, you may have encountered these problems:
 
 * Most stock market tools are in the **Python ecosystem**, making them hard to use directly in frontend
 * You want to build a quote dashboard / demo without maintaining an extra backend service
-* Financial APIs return messy formats with complex encoding (GBK / concurrency / batch)
-* AkShare is powerful, but not suitable for browser or Node.js projects
+* Financial APIs return messy, complex formats (GBK encoding / concurrency / batching)
 
-**The goal of stock-sdk is simple:**
+**stock-sdk's goal is simple:**
 
-> Let frontend engineers elegantly fetch stock market data using familiar JavaScript / TypeScript.
+> Let frontend engineers fetch stock market data elegantly, using the JavaScript / TypeScript they already know.
 
 ---
 
-## Use Cases
+## Use cases
 
 * 📊 Stock quote dashboards (Web / Admin)
 * 📈 Data visualization (ECharts / TradingView)
 * 🎓 Stock / finance course demos
-* 🧪 Quantitative strategy prototyping (JS / Node)
-* 🕒 Scheduled quote fetching via Node.js
+* 🧪 Quant strategy prototyping (JS / Node)
+* 🕒 Scheduled quote scraping in Node.js
+* 🖥️ Ad-hoc quotes from the terminal / 🤖 a data source for AI tools
 
 ---
 
 ## Features
 
-- ✅ **Zero dependencies**, lightweight distribution
-- ✅ Works in both **browser** and **Node.js 18+**
-- ✅ Provides both **ESM** and **CommonJS** module formats
-- ✅ Complete **TypeScript** type definitions and unit test coverage
-- ✅ Real-time quotes for **A-shares, HK stocks, US stocks, mutual funds**
-- ✅ **Fund deep data** (v1.10.0+): NAV history (full unit/accumulated), intraday NAV estimate, similar-type rank, fund/ETF dividends
-- ✅ **Historical K-line** (daily/weekly/monthly), **minute K-line** (1/5/15/30/60 minutes), and **today's timeline** data
-- ✅ **Technical indicators**: Built-in MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR, OBV, ROC, DMI, SAR, and KC
-- ✅ **Futures data**: Domestic futures K-line, global futures real-time quotes & K-line, futures inventory data
-- ✅ **Options data**: CFFEX index options, SSE ETF options, commodity options (T-quotes / K-line / minute data)
-- ✅ **Fund flow** (individual / market / ranking / sector), **large order ratio**, **limit-up pools**, **stock changes**
-- ✅ **Northbound / Southbound capital** (minute, summary, holding rank, history, individual)
-- ✅ **Dragon-Tiger List** (detail, stock stats, institution flow, branch ranking, seat detail)
-- ✅ **Block trade** + **margin trading** full data set
-- ✅ Get full **A-share code list** (5000+ stocks) and batch fetch **whole-market quotes** (with built-in concurrency control)
-- ✅ Supports **provider-level retry / rate limit / circuit breaker overrides** while keeping legacy global config compatible
-- ✅ **AI / MCP Ready** — Companion [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server, one command to integrate with Cursor / Claude / Gemini and more
+- ✅ **Zero dependencies**, runs in both the browser and Node.js 18+; ships both **ESM** and **CommonJS**
+- ✅ **Namespaced API**: `sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.options.etf.dailyKline()`, grouped by domain, great IDE autocomplete
+- ✅ **Unified symbol model**: `string` as a first-class input — `sh600519` / `600519` / `600519.SH` / `00700` / `hk00700` / `AAPL` / `105.AAPL` are all parsed tolerantly
+- ✅ **A-shares / HK / US / mutual funds**: real-time quotes, daily/weekly/monthly K-lines, minute K-lines (1/5/15/30/60), intraday time-series
+- ✅ **Technical indicators**: MA / MACD / BOLL / KDJ / RSI / WR / BIAS / CCI / ATR / OBV / ROC / DMI / SAR / KC
+- ✅ **Signals / screener / backtest**: `calcSignals` (golden/death cross, overbought/oversold, etc.), a chainable screener, local backtesting
+- ✅ **Futures / options / fund flow / dragon-tiger list / northbound / block trades / margin / limit-up pool** and more
+- ✅ **Mutual-fund deep data**: NAV history, intraday estimates, peer-ranking trends, fund/ETF dividends
+- ✅ **Subpath exports**: `stock-sdk/{indicators,signals,symbols,screener,cache,errors}` — pure-compute imports don't pull in the network layer (tree-shake friendly)
+- ✅ **Unified error system**: only `SdkError` is thrown to callers, each with a stable `code`, importable from `stock-sdk/errors`
+- ✅ **Request governance**: per-provider retry / rate-limit / circuit-breaker + injectable `fetchImpl` / `signal` / lifecycle `hooks`
+- ✅ **CLI**: `stock-sdk quote 600519` to pull quotes straight from the terminal
+- ✅ **Built-in MCP server**: `stock-sdk mcp` wires up Cursor / Claude / Codex and other AI tools in one line (hand-written, zero deps, no `@modelcontextprotocol/sdk`)
 
-## Market Coverage Matrix
-
-Coverage varies by market. The table below helps you check whether the SDK fits your use case.
-
-- ✅ supported
-- ⚠️ partial / see notes
-- ❌ not yet implemented (the market has this capability or a data source exists; SDK may add later)
-- — N/A (the capability does not apply to this market / product — e.g. funds have no daily price limit, futures contracts don't pay dividends)
-
-| Capability | A-share | HK | US | Mutual Fund | Futures | Options |
-|------------|:-------:|:--:|:--:|:-----------:|:-------:|:-------:|
-| Real-time quotes | ✅ | ✅ | ✅ | ✅ | ✅ Global | ✅ ETF / CFFEX / Commodity |
-| History K-line (D/W/M) | ✅ | ✅ | ✅ | ⚠️ On-exchange ETF/LOF (via `getHistoryKline`) | ✅ Domestic + Global | ✅ |
-| Minute K-line (5/15/30/60) | ✅ | ✅ `getHKMinuteKline` | ✅ `getUSMinuteKline` | ⚠️ On-exchange ETF/LOF (via `getMinuteKline`) | ❌ | ❌ |
-| Today's timeline (1-min) | ✅ | ✅ `getHKMinuteKline` (period='1') | ✅ `getUSMinuteKline` (period='1') | ⚠️ On-exchange ETF/LOF | ❌ | ✅ ETF options |
-| Dividend events | ✅ | ❌ | ❌ | ✅ Funds + ETFs (`getFundDividendList`) | — | — |
-| Fund flow | ✅ Stock / Market / Rank / Sector | ❌ | ❌ | — | — | — |
-| Sectors (Industry / Concept) | ✅ | ❌ | ❌ | ❌ | — | — |
-| Dragon-Tiger list | ✅ | — | — | — | — | ✅ Option LHB |
-| Stock Connect / Northbound | ✅ Northbound | ✅ Southbound | — | — | — | — |
-| Block trade | ✅ | ❌ | ❌ | — | — | — |
-| Margin trading | ✅ | — | — | — | — | — |
-| Limit-up pool / Tape changes | ✅ | — | — | — | — | — |
-| Full market code list | ✅ 5000+ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Batch quotes | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Inventory data | — | — | — | — | ✅ Domestic + COMEX | — |
-| Trading calendar | ✅ + `isTradingDay()` helpers | ⚠️ Market status only (Mon-Fri) | ⚠️ Market status only (Mon-Fri) | — | — | — |
-
-> **Data delay**: Real-time quotes come from public endpoints (Tencent Finance / EastMoney) and are
-> **not exchange tick data**. Latency typically ranges from tens of seconds to several minutes.
-> The SDK is not intended for HFT decisions.
->
-> **HK / US K-line types**: Since v1.9.1, split into dedicated `HKHistoryKline` / `USHistoryKline`,
-> each carrying `currency` and timezone metadata; the legacy `HKUSHistoryKline` alias still works.
+---
 
 ## Installation
 
 ```bash
+# v2 Beta (namespaced API / CLI / MCP)
+npm install stock-sdk@beta
+
+# v1 stable
 npm install stock-sdk
-# or
-yarn add stock-sdk
-# or
-pnpm add stock-sdk
 ```
 
-## Quick Start (10-line Demo)
+## Quick start
 
 ```ts
 import { StockSDK } from 'stock-sdk';
 
 const sdk = new StockSDK();
 
-const quotes = await sdk.getSimpleQuotes([
-  'sh000001',
-  'sz000858',
-  'sh600519',
-]);
-
-quotes.forEach(q => {
+// Namespaced API (v2) — symbol input is tolerant: '600519' / 'sh600519' / '600519.SH' all work
+const quotes = await sdk.quotes.cnSimple(['sh000001', 'sz000858', 'sh600519']);
+quotes.forEach((q) => {
   console.log(`${q.name}: ${q.price} (${q.changePercent}%)`);
 });
-```
 
-## Example: Whole-market A-share Quotes
-
-Fetch the entire A-share market (5000+ stocks) directly from the frontend, with no Python or backend service.
-
-```ts
-const allQuotes = await sdk.getAllAShareQuotes({
-  batchSize: 300,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(`Progress: ${completed}/${total}`);
-  },
+// History K-line + technical indicators
+const kline = await sdk.kline.withIndicators('600519', {
+  period: 'daily',
+  indicators: { ma: { periods: [5, 10, 20] }, macd: {} },
 });
 
-console.log(`Fetched ${allQuotes.length} stocks`);
+// Whole-market A-share quotes (5000+ stocks, built-in concurrency control)
+const all = await sdk.batch.cn({ concurrency: 5 });
+console.log(`${all.length} stocks`);
 ```
 
-## Request Governance & Error Codes
+> HK `'00700'` / `'hk00700'`, US `'AAPL'` / `'105.AAPL'` — all normalized by `normalizeSymbol`.
 
-```ts
-import { StockSDK, HttpError, getSdkErrorCode } from 'stock-sdk';
+---
 
-const sdk = new StockSDK({
-  retry: { maxRetries: 2, baseDelay: 500 },
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      rateLimit: { requestsPerSecond: 3, maxBurst: 3 },
-    },
-  },
-});
+## Command line (CLI)
 
-try {
-  await sdk.getSimpleQuotes(['sh600519']);
-} catch (error) {
-  if (error instanceof HttpError) {
-    console.log(error.status, error.statusText);
-  }
-
-  console.log(getSdkErrorCode(error)); // HTTP_ERROR / NETWORK_ERROR / TIMEOUT ...
-}
-```
-
-`getSdkErrorCode` only standardizes classification. It does not replace the original error instance, so network failures still behave like `TypeError` and timeouts remain compatible with `AbortError` / `DOMException`.
-
-## Development Commands
+After install you get the `stock-sdk` command (or use `npx`):
 
 ```bash
-yarn typecheck
-yarn build
-yarn test
-yarn test:integration:smoke
-# Full integration sweep
-yarn test:integration:full
+# Quotes (market auto-detected from the code)
+npx stock-sdk quote 600519 00700 AAPL
+# K-line with output truncation
+npx stock-sdk kline 600519 --period weekly --limit 30
+# With technical indicators
+npx stock-sdk indicators 600519 --ma 5,10,20 --macd
+# Search
+npx stock-sdk search 茅台
+# Direct access to any namespace method
+npx stock-sdk quotes cn sh600519 sz000001
 ```
 
-## 🤖 AI / MCP Integration
+JSON output by default; add `--format table|csv`, `--pretty`, `--limit N`.
 
-Stock SDK comes with a companion MCP Server ([stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp)) for seamless integration with popular AI tools:
+---
 
-| AI Tool | Configuration |
-|---------|---------------|
-| Cursor | `~/.cursor/mcp.json` |
-| Claude Desktop | `claude_desktop_config.json` |
-| OpenClaw | `~/.clawdbot/config.yaml` |
-| Codex CLI | `~/.codex/config.json` |
-| Gemini CLI | `~/.gemini/settings.json` |
+## 🤖 AI / MCP integration
 
-**Configuration example:**
+v2 ships a built-in, zero-dependency MCP server — start it with one command:
+
+```bash
+npx stock-sdk mcp
+```
+
+Wire it into Cursor / Claude Desktop / Codex / Gemini, etc. (`mcpServers` config):
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
-**4 built-in AI Skills:** Technical Analysis / Smart Screener / Market Overview / Real-time Monitor
+`STOCK_SDK_MCP_TOOLS=core|full|<comma-separated tool names>` controls the tool set (default `core`).
 
-👉 [Full MCP Documentation](https://stock-sdk.linkdiary.cn/en/mcp/)
+👉 [Full MCP docs](https://stock-sdk-v2.linkdiary.cn/en/mcp/)
 
 ---
 
-## API List
+## Signals / screener / backtest
 
-💡 For detailed API documentation, please visit [https://stock-sdk.linkdiary.cn/](https://stock-sdk.linkdiary.cn/)
+```ts
+import { calcSignals } from 'stock-sdk/signals';
+import { screen, backtest } from 'stock-sdk/screener';
 
-### Real-time Quotes
+// Event detection (golden/death cross, overbought/oversold) on indicator-enriched K-lines
+const signals = calcSignals(klineWithIndicators, {
+  ma: { fast: 5, slow: 20 },
+  rsi: {},
+});
 
-| Method | Description |
-|--------|-------------|
-| `getFullQuotes` | Full quotes for A-shares / indices |
-| `getSimpleQuotes` | Simple quotes for A-shares / indices |
-| `getHKQuotes` | HK stock quotes |
-| `getUSQuotes` | US stock quotes |
-| `getFundQuotes` | Mutual fund quotes |
+// Chainable screening over any quote array — purely local, no network
+const picks = screen(allQuotes)
+  .where((q) => q.pe != null && q.pe < 20)
+  .where((q) => q.changePercent > 3)
+  .sortBy((q) => q.amount)
+  .top(20);
 
-### K-line Data
+// Local backtest
+const report = backtest({
+  klines,
+  strategy: (bar, i, all) => 'hold', // return 'buy' | 'sell' | 'hold'
+});
+console.log(report.totalReturn, report.winRate, report.maxDrawdown);
+```
 
-| Method | Description |
-|--------|-------------|
-| `getHistoryKline` | A-share historical K-line (daily/weekly/monthly) |
-| `getHKHistoryKline` | HK stock historical K-line (daily/weekly/monthly) |
-| `getUSHistoryKline` | US stock historical K-line (daily/weekly/monthly) |
-| `getMinuteKline` | A-share minute K-line (1/5/15/30/60 minutes) |
-| `getHKMinuteKline` | HK minute K-line (5/15/30/60) or intraday timeline (period='1'), v1.10.0+ |
-| `getUSMinuteKline` | US minute K-line (5/15/30/60) or intraday timeline (period='1'), v1.10.0+ |
-| `getTodayTimeline` | A-share today's timeline |
+---
 
-### Technical Indicators
+## Request governance & errors
 
-| Method | Description |
-|--------|-------------|
-| `getKlineWithIndicators` | Get K-line data with technical indicators |
-| `calcMA` | Calculate moving average (SMA/EMA/WMA) |
-| `calcMACD` | Calculate MACD |
-| `calcBOLL` | Calculate Bollinger Bands |
-| `calcKDJ` | Calculate KDJ |
-| `calcRSI` | Calculate RSI |
-| `calcWR` | Calculate Williams %R |
-| `calcBIAS` | Calculate BIAS |
-| `calcCCI` | Calculate Commodity Channel Index |
-| `calcATR` | Calculate Average True Range |
-| `calcOBV` | Calculate On Balance Volume |
-| `calcROC` | Calculate Rate of Change |
-| `calcDMI` | Calculate Directional Movement Index |
-| `calcSAR` | Calculate Parabolic SAR |
-| `calcKC` | Calculate Keltner Channel |
+```ts
+import { StockSDK } from 'stock-sdk';
+import { HttpError, getSdkErrorCode } from 'stock-sdk/errors';
 
-### Industry Sectors
+const sdk = new StockSDK({
+  retry: { maxRetries: 2, baseDelay: 500 },
+  providerPolicies: {
+    eastmoney: { timeout: 12000, rateLimit: { requestsPerSecond: 3, maxBurst: 3 } },
+  },
+});
 
-| Method | Description |
-|--------|-------------|
-| `getIndustryList` | Industry sector name list |
-| `getIndustrySpot` | Industry sector real-time quotes |
-| `getIndustryConstituents` | Industry sector constituents |
-| `getIndustryKline` | Industry sector historical K-line (daily/weekly/monthly) |
-| `getIndustryMinuteKline` | Industry sector minute K-line (1/5/15/30/60 minutes) |
+try {
+  await sdk.quotes.cnSimple(['sh600519']);
+} catch (error) {
+  // v2 only throws SdkError, each carrying a stable code
+  if (error instanceof HttpError) console.log(error.status, error.statusText);
+  console.log(getSdkErrorCode(error)); // HTTP_ERROR / NETWORK_ERROR / TIMEOUT / ABORTED / PARSE_ERROR ...
+}
+```
 
-### Concept Sectors
+---
 
-| Method | Description |
-|--------|-------------|
-| `getConceptList` | Concept sector name list |
-| `getConceptSpot` | Concept sector real-time quotes |
-| `getConceptConstituents` | Concept sector constituents |
-| `getConceptKline` | Concept sector historical K-line (daily/weekly/monthly) |
-| `getConceptMinuteKline` | Concept sector minute K-line (1/5/15/30/60 minutes) |
+## Subpath exports
 
-### Futures
+For pure-compute use (indicators / symbols / signals / screener), import from a subpath so the bundle doesn't pull in `RequestClient` or any provider:
 
-| Method | Description |
-|--------|-------------|
-| `getFuturesKline` | Domestic futures historical K-line (daily/weekly/monthly) |
-| `getGlobalFuturesSpot` | Global futures real-time quotes |
-| `getGlobalFuturesKline` | Global futures historical K-line (daily/weekly/monthly) |
-| `getFuturesInventorySymbols` | Futures inventory symbol list |
-| `getFuturesInventory` | Futures inventory data |
-| `getComexInventory` | COMEX gold/silver inventory |
+```ts
+import { calcMACD, calcKDJ } from 'stock-sdk/indicators';
+import { normalizeSymbol, toTencentSymbol } from 'stock-sdk/symbols';
+import { calcSignals } from 'stock-sdk/signals';
+import { screen, backtest } from 'stock-sdk/screener';
+import { MemoryCacheStore, cacheThrough } from 'stock-sdk/cache';
+import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
+```
 
-### Options
+---
 
-| Method | Description |
-|--------|-------------|
-| `getIndexOptionSpot` | CFFEX index option T-quotes (calls + puts) |
-| `getIndexOptionKline` | Index option contract daily K-line |
-| `getCFFEXOptionQuotes` | All CFFEX option real-time quotes |
-| `getETFOptionMonths` | SSE ETF option expiration months |
-| `getETFOptionExpireDay` | ETF option expiration date & remaining days |
-| `getETFOptionMinute` | ETF option intraday minute data |
-| `getETFOptionDailyKline` | ETF option historical daily K-line |
-| `getETFOption5DayMinute` | ETF option 5-day minute data |
-| `getCommodityOptionSpot` | Commodity option T-quotes |
-| `getCommodityOptionKline` | Commodity option contract daily K-line |
-| `getOptionLHB` | Option leaderboard (龙虎榜) |
+## Market coverage matrix
 
-### Extended Data
+Coverage varies by market — this table helps you quickly check whether the SDK fits your scenario.
 
-| Method | Description |
-|--------|-------------|
-| `getFundFlow` | Fund flow (batch by codes) |
-| `getPanelLargeOrder` | Large order ratio |
-| `getTradingCalendar` | A-share trading calendar |
-| `getDividendDetail` | Stock dividend & bonus details |
+- ✅ Supported ｜ ⚠️ Partial (see notes) ｜ ❌ Not yet ｜ — Not applicable
 
-### Fund Extended (v1.10.0+)
+| Capability | A-share | HK | US | Mutual fund | Futures | Options |
+|------|:----:|:----:|:----:|:--------:|:----:|:----:|
+| Real-time quotes | ✅ | ✅ | ✅ | ✅ | ✅ global | ✅ ETF / CFFEX / commodity |
+| History K-line (D/W/M) | ✅ | ✅ | ✅ | ⚠️ listed ETF/LOF | ✅ domestic + global | ✅ |
+| Minute K-line (5/15/30/60) | ✅ | ✅ `kline.hkMinute` | ✅ `kline.usMinute` | ⚠️ listed ETF/LOF | ❌ | ❌ |
+| Intraday (1-min) | ✅ `quotes.timeline` | ✅ `kline.hkMinute`(period='1') | ✅ `kline.usMinute`(period='1') | ⚠️ listed ETF/LOF | ❌ | ✅ ETF options |
+| Dividends | ✅ | ❌ | ❌ | ✅ fund + ETF | — | — |
+| Fund flow | ✅ stock/market/rank/sector | ❌ | ❌ | — | — | — |
+| Sectors (industry / concept) | ✅ | ❌ | ❌ | ❌ | — | — |
+| Dragon-tiger list | ✅ | — | — | — | — | ✅ option LHB |
+| Stock Connect / northbound | ✅ northbound | ✅ southbound | — | — | — | — |
+| Block trades / margin | ✅ | ❌ | ❌ | — | — | — |
+| Limit-up pool / abnormal moves | ✅ | — | — | — | — | — |
+| Code list / batch quotes | ✅ 5000+ | ✅ | ✅ | ✅ codes | ❌ | ❌ |
+| Inventory data | — | — | — | — | ✅ domestic + COMEX | — |
+| Trading calendar | ✅ `calendar.*` | ⚠️ market status only | ⚠️ market status only | — | — | — |
 
-| Method | Description |
-|--------|-------------|
-| `getFundDividendList` | Fund / ETF dividend events (full market, year-paginated, code filter) |
-| `getFundNavHistory` | Fund NAV history (unit + accumulated, full history in one call) |
-| `getFundEstimate` | Fund intraday NAV estimate (latest settled NAV + intraday estimate) |
-| `getFundRankHistory` | Fund similar-type rank history (3-month rank + percentile) |
+> **Data latency**: real-time quotes come from public endpoints (Tencent Finance / Eastmoney, etc.), **not exchange matching feeds** — typically delayed by seconds to minutes. Not suitable for high-frequency trading decisions.
 
-### Fund Flow (Deep)
+---
 
-| Method | Description |
-|--------|-------------|
-| `getIndividualFundFlow` | Individual stock fund flow history (daily/weekly/monthly) |
-| `getMarketFundFlow` | Market fund flow (Shanghai + Shenzhen indices) |
-| `getFundFlowRank` | Fund flow ranking (today / 3-day / 5-day / 10-day) |
-| `getSectorFundFlowRank` | Sector fund flow ranking (industry / concept / region) |
-| `getSectorFundFlowHistory` | Single sector's historical fund flow |
+## API overview (namespaces)
 
-### Northbound / Stock Connect
+💡 Full API in the [documentation](https://stock-sdk-v2.linkdiary.cn/en/api/). In v2, every method lives under a namespace:
 
-| Method | Description |
-|--------|-------------|
-| `getNorthboundMinute` | Northbound / Southbound minute data |
-| `getNorthboundFlowSummary` | Stock Connect market flow summary |
-| `getNorthboundHoldingRank` | Northbound / Shanghai / Shenzhen holding rank |
-| `getNorthboundHistory` | Northbound / Southbound capital history |
-| `getNorthboundIndividual` | Per-stock northbound holding history |
+| Namespace | Representative methods |
+|---|---|
+| `sdk.quotes` | `.cn` / `.cnSimple` / `.hk` / `.us` / `.fund` / `.fundFlow` / `.largeOrder` / `.timeline` |
+| `sdk.codes` | `.cn` / `.us` / `.hk` / `.fund` |
+| `sdk.batch` | `.cn` / `.hk` / `.us` / `.byCodes` / `.raw` |
+| `sdk.kline` | `.cn` / `.cnMinute` / `.hk` / `.hkMinute` / `.us` / `.usMinute` / `.withIndicators` |
+| `sdk.board` | `.industry.*` / `.concept.*` (`list` / `spot` / `constituents` / `kline` / `minuteKline`) |
+| `sdk.options` | `.index.*` / `.etf.*` / `.commodity.*` / `.cffex.*` / `.lhb` |
+| `sdk.futures` | `.kline` / `.globalSpot` / `.globalKline` / `.inventory` / `.comexInventory` … |
+| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` / `.sectorHistory` |
+| `sdk.northbound` | `.minute` / `.summary` / `.holdingRank` / `.history` / `.individual` |
+| `sdk.marketEvent` | `.ztPool` / `.stockChanges` / `.boardChanges` |
+| `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
+| `sdk.blockTrade` / `sdk.margin` | block trades / margin trading |
+| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` |
+| `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
+| `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
+| top-level | `sdk.search(keyword)` |
 
-### Limit-Up Pool / Stock Changes
+> Indicator math moved from the main package to a subpath: `import { calcMACD } from 'stock-sdk/indicators'`.
+> Migrating from the v1 flat API? See the [v1 → v2 migration guide](https://stock-sdk-v2.linkdiary.cn/en/guide/migration-v1-to-v2) (with the full `sdk.getXxx()` → `sdk.<ns>.<method>()` mapping).
 
-| Method | Description |
-|--------|-------------|
-| `getZTPool` | 6 pools: limit-up / yesterday / strong / sub-new / broken / limit-down |
-| `getStockChanges` | 22 change types (rocket launch / large buy / limit-up seal etc.) |
-| `getBoardChanges` | Daily board change details |
+---
 
-### Dragon-Tiger List
+## Dev checks
 
-| Method | Description |
-|--------|-------------|
-| `getDragonTigerDetail` | Dragon-tiger detail (by date range) |
-| `getDragonTigerStockStats` | Stock listing statistics (1m / 3m / 6m / 1y) |
-| `getDragonTigerInstitution` | Institution buy/sell statistics |
-| `getDragonTigerBranchRank` | Brokerage branch ranking |
-| `getDragonTigerStockSeatDetail` | Per-stock seat detail (buy + sell sides) |
-
-### Block Trade / Margin Trading
-
-| Method | Description |
-|--------|-------------|
-| `getBlockTradeMarketStat` | Block trade market summary (daily) |
-| `getBlockTradeDetail` | Block trade detail entries |
-| `getBlockTradeDailyStat` | Block trade daily statistics (by stock) |
-| `getMarginAccountInfo` | Margin trading account statistics |
-| `getMarginTargetList` | Margin trading target securities |
-
-### Batch Query
-
-| Method | Description |
-|--------|-------------|
-| `getAShareCodeList` | Get all A-share codes |
-| `getUSCodeList` | Get all US stock codes |
-| `getHKCodeList` | Get all HK stock codes |
-| `getAllAShareQuotes` | Get whole-market A-share quotes |
-| `getAllHKShareQuotes` | Get whole-market HK stock quotes |
-| `getAllUSShareQuotes` | Get whole-market US stock quotes |
-| `getAllQuotesByCodes` | Batch fetch quotes for specified stocks |
-
-### Search
-
-| Method | Description |
-|--------|-------------|
-| `search` | Search stocks by code/name/pinyin |
-
-Use `generateSearchExternalLinks(result)` with one search result to create East Money and Xueqiu links.
+```bash
+yarn typecheck
+yarn build
+yarn test
+yarn test:integration:smoke   # smoke integration (real network)
+yarn test:integration:full    # full integration regression
+```
 
 ---
 
@@ -403,8 +299,8 @@ Use `generateSearchExternalLinks(result)` with one search result to create East 
 
 ---
 
-🌐 [Website](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [Website](https://stock-sdk-v2.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk-v2.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 
-If this project helps you, feel free to Star ⭐ or open an Issue for feedback.
+If this project helps you, a Star ⭐ or an Issue is very welcome.

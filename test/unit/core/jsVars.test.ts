@@ -134,7 +134,7 @@ describe('fetchJsVars (Node fetch path)', () => {
     );
     await expect(
       fetchJsVars('https://example.com/x.js', ['a'])
-    ).rejects.toThrow(/fetchJsVars fetch failed.*500/);
+    ).rejects.toThrow(/status: 500/);
   });
 
   it('throws on timeout', async () => {

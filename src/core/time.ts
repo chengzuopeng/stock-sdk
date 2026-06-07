@@ -30,8 +30,8 @@ export type MarketTz = (typeof MARKET_TZ)[keyof typeof MARKET_TZ];
  * 时间元信息:与原始 `time`/`date` 字符串配套使用。
  */
 export interface TimeMeta {
-  /** UTC unix 毫秒时间戳。原始字符串无法解析时为 `NaN`。 */
-  timestamp: number;
+  /** UTC unix 毫秒时间戳。原始字符串无法解析时为 `null`。 */
+  timestamp: number | null;
   /** 原始字符串对应的市场时区 (IANA name)。 */
   tz: MarketTz;
 }
@@ -112,6 +112,27 @@ function parseWallClock(input: string): ParsedWallClock | null {
  * 给定一个市场时区,把"该时区的壁钟时间"换算成 UTC unix ms。
  * 使用 `Intl.DateTimeFormat` 二次查询确定时区偏移,可正确处理夏令时。
  */
+/**
+ * 缓存 Intl.DateTimeFormat：其构造是 V8 中最昂贵的操作之一(每次重载 ICU 区域数据),
+ * 而每个 (locale, tz) 的 options 固定。按行调用的 kline/quote/timeline parser 循环里
+ * 复用同一实例,避免逐行重建(3000 bar K 线原本要建 3000 个 formatter)。
+ * key 用 locale|tz —— 本模块每个 locale 对应唯一一组 options(en-US 含秒、sv-SE 不含)。
+ */
+const FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+function getCachedFormatter(
+  locale: string,
+  tz: string,
+  options: Intl.DateTimeFormatOptions
+): Intl.DateTimeFormat {
+  const key = `${locale}|${tz}|${JSON.stringify(options)}`;
+  let dtf = FORMATTER_CACHE.get(key);
+  if (!dtf) {
+    dtf = new Intl.DateTimeFormat(locale, { timeZone: tz, ...options });
+    FORMATTER_CACHE.set(key, dtf);
+  }
+  return dtf;
+}
+
 function wallTimeToUTC(wall: ParsedWallClock, tz: string): number {
   // 第一次:把壁钟时间当作 UTC 得到一个候选时间戳。
   const utcGuess = Date.UTC(
@@ -124,8 +145,7 @@ function wallTimeToUTC(wall: ParsedWallClock, tz: string): number {
   );
 
   // 看这个 UTC 时间在目标时区显示的壁钟时间。差值即为时区偏移。
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
+  const dtf = getCachedFormatter('en-US', tz, {
     hour12: false,
     year: 'numeric',
     month: '2-digit',
@@ -213,8 +233,13 @@ export function parseMarketTime(local: string, tz: MarketTz): number {
  * @param local 市场本地时间字符串
  * @param tz    市场时区
  */
+/** 把 parseMarketTime 的 `NaN` 结果归一化为 `null`（v2：禁止手写 NaN） */
+function toNullableEpoch(ts: number): number | null {
+  return Number.isNaN(ts) ? null : ts;
+}
+
 export function buildTimeMeta(local: string, tz: MarketTz): TimeMeta {
-  return { timestamp: parseMarketTime(local, tz), tz };
+  return { timestamp: toNullableEpoch(parseMarketTime(local, tz)), tz };
 }
 
 /**
@@ -232,8 +257,8 @@ export function buildTimeMetaFromDateAndTime(
   tz: MarketTz
 ): TimeMeta {
   const wall = combineDateAndTime(baseDate, hhmm);
-  if (!wall) return { timestamp: NaN, tz };
-  return { timestamp: wallTimeToUTC(wall, tz), tz };
+  if (!wall) return { timestamp: null, tz };
+  return { timestamp: toNullableEpoch(wallTimeToUTC(wall, tz)), tz };
 }
 
 /**
@@ -248,13 +273,12 @@ export function buildTimeMetaFromDateAndTime(
  *
  * 使用 `Intl.DateTimeFormat` 处理夏令时；epoch 为 `NaN` 时返回空串。
  */
-export function formatInTz(epoch: number, tz: MarketTz): string {
-  if (!Number.isFinite(epoch)) return '';
+export function formatInTz(epoch: number | null, tz: MarketTz): string {
+  if (epoch == null || !Number.isFinite(epoch)) return '';
   // 用 sv-SE locale 直接 format —— sv-SE 天然以 `YYYY-MM-DD HH:mm:ss` 形式输出，
   // 比 formatToParts + 手动拼接更稳健（避免某些 Node ICU 实现里 minute 字段
   // 携带额外冒号后缀的怪异行为）。
-  const formatted = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: tz,
+  const formatted = getCachedFormatter('sv-SE', tz, {
     hour12: false,
     year: 'numeric',
     month: '2-digit',

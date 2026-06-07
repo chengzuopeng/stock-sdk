@@ -1,4 +1,4 @@
-import type { HistoryKline, HKUSHistoryKline } from '../types';
+import type { AnyHistoryKline } from '../types';
 import { calcATR } from './atr';
 import { calcBIAS } from './bias';
 import { calcBOLL } from './boll';
@@ -15,7 +15,7 @@ import { calcSAR } from './sar';
 import type { IndicatorOptions, OHLCV } from './types';
 import { calcWR } from './wr';
 
-type BaseKline = HistoryKline | HKUSHistoryKline;
+type BaseKline = AnyHistoryKline;
 export type IndicatorKey = keyof IndicatorOptions;
 
 interface IndicatorComputationContext {

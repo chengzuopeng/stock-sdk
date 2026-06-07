@@ -162,3 +162,41 @@ export {
   withScriptMutex,
 } from './core';
 export { BROWSER_JSVARS_MUTEX_KEY } from './core/jsVars';
+
+// 统一符号模型（v2 A1）
+export {
+  normalizeSymbol,
+  toTencentSymbol,
+  toEastmoneySecid,
+  type SymbolInput,
+  type SymbolRef,
+  type NormalizedSymbol,
+  type Market,
+  type AssetType,
+  type Exchange,
+} from './symbols';
+
+// 指标信号层（v2 B1）
+export { calcSignals } from './signals';
+export type { Signal, SignalType, SignalOptions } from './signals';
+
+// 选股器 + 回测（v2 B2）
+export { screen, backtest } from './screener';
+export type {
+  ScreenerBuilder,
+  Strategy,
+  StrategySignal,
+  Trade,
+  BacktestOptions,
+  BacktestReport,
+} from './screener';
+
+// 统一缓存层（v2 B3）
+export {
+  MemoryCacheStore,
+  cacheThrough,
+  MemoryCache,
+  getSharedCache,
+  createCacheKey,
+} from './cache';
+export type { CacheStore, MaybePromise, CacheOptions } from './cache';

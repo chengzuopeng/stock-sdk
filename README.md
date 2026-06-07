@@ -3,22 +3,29 @@
 [![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
-[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://www.npmjs.com/package/stock-sdk-mcp)
-[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/mcp/)
+[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk-v2.linkdiary.cn/mcp/)
+[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk-v2.linkdiary.cn/mcp/)
 
 **[English](./README_EN.md)** | 中文
 
 为 **前端和 Node.js 设计的股票行情 JavaScript SDK**。
 
-无需 Python、无需后端服务，直接在 **浏览器或 Node.js** 中获取 **A 股 / 港股 / 美股 / 公募基金** 的实时行情与 K 线数据。
+无需 Python、无需后端服务，直接在 **浏览器或 Node.js** 中获取 **A 股 / 港股 / 美股 / 公募基金** 的实时行情与 K 线数据。还自带 **命令行工具** 与 **MCP server**，一条命令取行情或接入 AI。
 
-**✨ 零依赖 | 🌐 Browser + Node.js | 📦 轻量发布包 | 🧠 完整 TypeScript 类型**
+**✨ 零依赖 | 🌐 Browser + Node.js | 📦 ESM + CJS + subpath | 🧠 完整 TypeScript 类型 | 🖥️ CLI | 🤖 MCP**
 
-## Documentation
+> 🧪 **v2.0.0 Beta**：v2 是一次架构跃迁（命名空间 API、统一符号模型、`Quote` 可辨识联合、统一错误体系、CLI / MCP / subpath 导出）。
+> 安装 beta：`npm i stock-sdk@beta`。从 v1 升级请先读 [v1 → v2 迁移指南](https://stock-sdk-v2.linkdiary.cn/guide/migration-v1-to-v2)（**破坏性变更，无兼容别名**）。
 
-👉🏻 [官方文档](https://stock-sdk.linkdiary.cn/)
+## 📖 官网文档（v2 Beta）
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground/)
+> ## 👉 https://stock-sdk-v2.linkdiary.cn
+>
+> **v2 Beta 的临时官网** —— 完整 API、命名空间总览、CLI / MCP 指南、在线 Playground、v1 → v2 迁移文档全部在这里。先看官网再上手最快。
+>
+> （v1 稳定版文档仍在 https://stock-sdk.linkdiary.cn）
+
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线 Playground](https://stock-sdk-v2.linkdiary.cn/playground/)
 
 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/)：基于 stock-sdk 搭建的股票数据大盘演示站点，欢迎体验。
 
@@ -29,7 +36,6 @@
 * 股票行情工具大多是 **Python 生态**，前端难以直接使用
 * 想做行情看板 / Demo，不想额外维护后端服务
 * 财经接口返回格式混乱、编码复杂（GBK / 并发 / 批量）
-* AkShare 很强，但并不适合浏览器或 Node.js 项目
 
 **stock-sdk 的目标很简单：**
 
@@ -44,355 +50,246 @@
 * 🎓 股票 / 金融课程 Demo
 * 🧪 量化策略原型验证（JS / Node）
 * 🕒 Node.js 定时抓取行情数据
+* 🖥️ 命令行临时查行情 / 🤖 给 AI 工具接数据源
 
 ---
 
 ## 特性
 
-- ✅ **零依赖**，轻量级发布包
-- ✅ 支持 **浏览器** 和 **Node.js 18+** 双端运行
-- ✅ 同时提供 **ESM** 和 **CommonJS** 两种模块格式
-- ✅ 完整的 **TypeScript** 类型定义和单元测试覆盖
-- ✅ **A 股、港股、美股、公募基金**实时行情
-- ✅ **基金深度数据**（v1.10.0+）：历史净值（全历史单位/累计）、实时估值（盘中刷新）、同类排名走势、基金/ETF 分红送配
-- ✅ **历史 K 线**（日/周/月）、**分钟 K 线**（1/5/15/30/60 分钟）和**当日分时走势**数据
-- ✅ **技术指标**：内置 MA、MACD、BOLL、KDJ、RSI、WR、BIAS、CCI、ATR、OBV、ROC、DMI、SAR、KC
-- ✅ **期货行情**：国内期货 K 线、全球期货实时行情与 K 线、期货库存数据
-- ✅ **期权数据**：中金所股指期权、上交所 ETF 期权、商品期权的报价 / K 线 / 分钟行情
-- ✅ **资金流向**（个股/大盘/排名/板块）、**盘口大单**、**涨停板池**、**盘口异动** 等扩展数据
-- ✅ **沪深港通 / 北向资金**（分时、汇总、持股排行、历史、个股持仓）
-- ✅ **龙虎榜**（详情、个股统计、机构买卖、营业部排行、席位明细）
-- ✅ **大宗交易** + **融资融券** 全套数据
-- ✅ 获取全部 **A 股代码列表**（5000+ 只股票）和批量获取**全市场行情**（内置并发控制）
-- ✅ 支持 **provider 级重试 / 限流 / 熔断策略覆盖**，兼容旧的全局请求配置
-- ✅ **AI / MCP 就绪** — 配套 [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) MCP Server，一行命令接入 Cursor / Claude / Gemini 等 AI 工具
+- ✅ **零依赖**，浏览器 + Node.js 18+ 双端运行；同时提供 **ESM** 和 **CommonJS**
+- ✅ **命名空间 API**：`sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.options.etf.dailyKline()`，按领域分组、IDE 自动补全友好
+- ✅ **统一符号模型**：`string` 一等公民，`sh600519` / `600519` / `600519.SH` / `00700` / `hk00700` / `AAPL` / `105.AAPL` 等写法容错解析
+- ✅ **A 股 / 港股 / 美股 / 公募基金**实时行情、历史 K 线（日/周/月）、分钟 K 线（1/5/15/30/60）、当日分时
+- ✅ **技术指标**：MA / MACD / BOLL / KDJ / RSI / WR / BIAS / CCI / ATR / OBV / ROC / DMI / SAR / KC
+- ✅ **信号 / 选股 / 回测**：`calcSignals`（金叉死叉/超买超卖等事件识别）、链式选股器、本地回测
+- ✅ **期货 / 期权 / 资金流 / 龙虎榜 / 北向 / 大宗交易 / 融资融券 / 涨停板** 等全套扩展数据
+- ✅ **基金深度数据**：历史净值、实时估值、同类排名走势、基金/ETF 分红送配
+- ✅ **subpath 导出**：`stock-sdk/{indicators,signals,symbols,screener,cache,errors}`，纯计算不拖入网络层，tree-shake 友好
+- ✅ **统一错误体系**：对外只抛 `SdkError`，带标准 `code`，可从 `stock-sdk/errors` 导入
+- ✅ **请求治理**：provider 级重试 / 限流 / 熔断 + 可注入 `fetchImpl` / `signal` / 生命周期 `hooks`
+- ✅ **CLI**：`stock-sdk quote 600519` 终端直接取行情
+- ✅ **内置 MCP server**：`stock-sdk mcp` 一行接入 Cursor / Claude / Codex 等 AI 工具（零依赖手写，无 `@modelcontextprotocol/sdk`）
 
-## 市场支持矩阵
-
-不同市场的能力覆盖度差异较大，下表帮你快速判断 SDK 是否覆盖你的场景。
-
-- ✅ 已支持
-- ⚠️ 部分支持 / 限制见备注
-- ❌ 暂未实现（市场有此能力或存在数据源，SDK 后续可补）
-- — 概念不适用（该市场 / 产品本身不存在此能力，如基金不会涨停、期货合约无分红）
-
-| 能力 | A 股 | 港股 | 美股 | 公募基金 | 期货 | 期权 |
-|------|:----:|:----:|:----:|:--------:|:----:|:----:|
-| 实时行情 | ✅ | ✅ | ✅ | ✅ | ✅ 全球期货 | ✅ ETF / 中金所 / 商品 |
-| 历史 K 线（日/周/月） | ✅ | ✅ | ✅ | ⚠️ 场内 ETF/LOF（走 `getHistoryKline`） | ✅ 国内 + 全球 | ✅ |
-| 分钟 K 线（5/15/30/60） | ✅ | ✅ `getHKMinuteKline` | ✅ `getUSMinuteKline` | ⚠️ 场内 ETF/LOF（走 `getMinuteKline`） | ❌ | ❌ |
-| 当日分时（1 分钟） | ✅ | ✅ `getHKMinuteKline` (period='1') | ✅ `getUSMinuteKline` (period='1') | ⚠️ 场内 ETF/LOF | ❌ | ✅ ETF 期权 |
-| 分红派送 | ✅ | ❌ | ❌ | ✅ 基金 + ETF（`getFundDividendList`） | — | — |
-| 资金流向 | ✅ 个股/大盘/排名/板块 | ❌ | ❌ | — | — | — |
-| 板块（行业 / 概念） | ✅ | ❌ | ❌ | ❌ | — | — |
-| 龙虎榜 | ✅ | — | — | — | — | ✅ 期权龙虎榜 |
-| 沪深港通 / 北向资金 | ✅ 北向 | ✅ 南向 | — | — | — | — |
-| 大宗交易 | ✅ | ❌ | ❌ | — | — | — |
-| 融资融券 | ✅ | — | — | — | — | — |
-| 涨停板 / 盘口异动 | ✅ | — | — | — | — | — |
-| 全市场代码列表 | ✅ 5000+ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| 批量行情 | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| 库存数据 | — | — | — | — | ✅ 国内 + COMEX | — |
-| 交易日历 | ✅ + `isTradingDay()` 等工具 | ⚠️ 仅市场状态判断（按周一-周五） | ⚠️ 仅市场状态判断（按周一-周五） | — | — | — |
-
-> **数据延迟**：实时行情来自腾讯财经 / 东方财富等公开接口，**非实时撮合**，
-> 通常有数十秒到数分钟延迟。SDK 不适合做高频交易决策。
->
-> **港股 / 美股 K 线类型**：自 v1.9.1 起拆分为 `HKHistoryKline` / `USHistoryKline`，
-> 各自带 `currency` 与时区元信息；老的 `HKUSHistoryKline` 别名仍兼容。
+---
 
 ## 安装
 
 ```bash
+# v2 Beta（命名空间 API / CLI / MCP）
+npm install stock-sdk@beta
+
+# v1 稳定版
 npm install stock-sdk
-# 或
-yarn add stock-sdk
-# 或
-pnpm add stock-sdk
 ```
 
-## 快速开始（10 行 Demo）
+## 快速开始
 
 ```ts
 import { StockSDK } from 'stock-sdk';
 
 const sdk = new StockSDK();
 
-const quotes = await sdk.getSimpleQuotes([
-  'sh000001',
-  'sz000858',
-  'sh600519',
-]);
-
-quotes.forEach(q => {
+// 命名空间 API（v2）— 符号写法容错，'600519' / 'sh600519' / '600519.SH' 都可
+const quotes = await sdk.quotes.cnSimple(['sh000001', 'sz000858', 'sh600519']);
+quotes.forEach((q) => {
   console.log(`${q.name}: ${q.price} (${q.changePercent}%)`);
 });
-```
 
-## 示例：全市场 A 股行情
-
-前端直接一次性获取全市场 A 股行情（5000+股票），无需 Python 或后端服务。
-
-```ts
-const allQuotes = await sdk.getAllAShareQuotes({
-  batchSize: 300,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(`进度: ${completed}/${total}`);
-  },
+// 历史 K 线 + 技术指标
+const kline = await sdk.kline.withIndicators('600519', {
+  period: 'daily',
+  indicators: { ma: { periods: [5, 10, 20] }, macd: {} },
 });
 
-console.log(`共获取 ${allQuotes.length} 只股票`);
+// 全市场 A 股行情（5000+ 股票，内置并发控制）
+const all = await sdk.batch.cn({ concurrency: 5 });
+console.log(`共 ${all.length} 只`);
 ```
 
-## 请求治理与错误码
+> 港股 `'00700'` / `'hk00700'`，美股 `'AAPL'` / `'105.AAPL'`，由 `normalizeSymbol` 统一容错解析。
 
-```ts
-import { StockSDK, HttpError, getSdkErrorCode } from 'stock-sdk';
+---
 
-const sdk = new StockSDK({
-  retry: { maxRetries: 2, baseDelay: 500 },
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      rateLimit: { requestsPerSecond: 3, maxBurst: 3 },
-    },
-  },
-});
+## 命令行（CLI）
 
-try {
-  await sdk.getSimpleQuotes(['sh600519']);
-} catch (error) {
-  if (error instanceof HttpError) {
-    console.log(error.status, error.statusText);
-  }
-
-  console.log(getSdkErrorCode(error)); // HTTP_ERROR / NETWORK_ERROR / TIMEOUT ...
-}
-```
-
-`getSdkErrorCode` 只做标准化识别，不会改变原始错误实例类型。网络错误仍然保持 `TypeError`，超时仍然保持 `AbortError` / `DOMException` 的兼容行为。
-
-## 开发校验命令
+安装后即得 `stock-sdk` 命令（或用 `npx`）：
 
 ```bash
-yarn typecheck
-yarn build
-yarn test
-yarn test:integration:smoke
-# 全量集成回归
-yarn test:integration:full
+# 行情（按代码自动识别市场）
+npx stock-sdk quote 600519 00700 AAPL
+# K 线 + 输出截断
+npx stock-sdk kline 600519 --period weekly --limit 30
+# 带技术指标
+npx stock-sdk indicators 600519 --ma 5,10,20 --macd
+# 搜索
+npx stock-sdk search 茅台
+# 任意命名空间方法直达
+npx stock-sdk quotes cn sh600519 sz000001
 ```
+
+默认 JSON 输出，可加 `--format table|csv`、`--pretty`、`--limit N`。
+
+---
 
 ## 🤖 AI / MCP 集成
 
-Stock SDK 配套 MCP Server（[stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp)），可一键接入主流 AI 工具：
+v2 内置零依赖 MCP server，一条命令启动：
 
-| AI 工具 | 配置方式 |
-|---------|---------|
-| Cursor | `~/.cursor/mcp.json` |
-| Claude Desktop | `claude_desktop_config.json` |
-| OpenClaw | `~/.clawdbot/config.yaml` |
-| Codex CLI | `~/.codex/config.json` |
-| Gemini CLI | `~/.gemini/settings.json` |
+```bash
+npx stock-sdk mcp
+```
 
-**配置示例：**
+接入 Cursor / Claude Desktop / Codex / Gemini 等（配置 `mcpServers`）：
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
-**内置 4 个专业 AI Skills：** 技术分析 / 智能选股 / 市场概览 / 实时监控
+环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集范围（默认 `core`）。
 
-👉 [完整 MCP 文档](https://stock-sdk.linkdiary.cn/mcp/)
+👉 [完整 MCP 文档](https://stock-sdk-v2.linkdiary.cn/mcp/)
 
 ---
 
-## API 列表
+## 信号 / 选股 / 回测
 
-💡 API 详细文档请查阅 [https://stock-sdk.linkdiary.cn/](https://stock-sdk.linkdiary.cn/)
+```ts
+import { calcSignals } from 'stock-sdk/signals';
+import { screen, backtest } from 'stock-sdk/screener';
 
-### 实时行情
+// 金叉/死叉/超买超卖等事件识别（基于带指标的 K 线）
+const signals = calcSignals(klineWithIndicators, {
+  ma: { fast: 5, slow: 20 },
+  rsi: {},
+});
 
-| 方法 | 说明 |
-|------|------|
-| `getFullQuotes` | A 股/指数全量行情 |
-| `getSimpleQuotes` | A 股/指数简要行情 |
-| `getHKQuotes` | 港股行情 |
-| `getUSQuotes` | 美股行情 |
-| `getFundQuotes` | 公募基金行情 |
+// 链式选股（输入任意行情数组，纯本地、无网络）
+const picks = screen(allQuotes)
+  .where((q) => q.pe != null && q.pe < 20)
+  .where((q) => q.changePercent > 3)
+  .sortBy((q) => q.amount)
+  .top(20);
 
-### K 线数据
+// 本地回测
+const report = backtest({
+  klines,
+  strategy: (bar, i, all) => 'hold', // 返回 'buy' | 'sell' | 'hold'
+});
+console.log(report.totalReturn, report.winRate, report.maxDrawdown);
+```
 
-| 方法 | 说明 |
-|------|------|
-| `getHistoryKline` | A 股历史 K 线（日/周/月） |
-| `getHKHistoryKline` | 港股历史 K 线（日/周/月） |
-| `getUSHistoryKline` | 美股历史 K 线（日/周/月） |
-| `getMinuteKline` | A 股分钟 K 线（1/5/15/30/60 分钟） |
-| `getHKMinuteKline` | 港股分钟 K 线（5/15/30/60 分钟）或当日分时（period='1'），v1.10.0+ |
-| `getUSMinuteKline` | 美股分钟 K 线（5/15/30/60 分钟）或当日分时（period='1'），v1.10.0+ |
-| `getTodayTimeline` | A 股当日分时走势 |
+---
 
-### 技术指标
+## 请求治理与错误
 
-| 方法 | 说明 |
-|------|------|
-| `getKlineWithIndicators` | 获取带技术指标的 K 线数据 |
-| `calcMA` | 计算均线（SMA/EMA/WMA） |
-| `calcMACD` | 计算 MACD |
-| `calcBOLL` | 计算布林带 |
-| `calcKDJ` | 计算 KDJ |
-| `calcRSI` | 计算 RSI |
-| `calcWR` | 计算威廉指标 |
-| `calcBIAS` | 计算乖离率 |
-| `calcCCI` | 计算商品通道指数 |
-| `calcATR` | 计算平均真实波幅 |
-| `calcOBV` | 计算能量潮 |
-| `calcROC` | 计算变动率指标 |
-| `calcDMI` | 计算趋向指标 |
-| `calcSAR` | 计算抛物线转向 |
-| `calcKC` | 计算肯特纳通道 |
+```ts
+import { StockSDK } from 'stock-sdk';
+import { HttpError, getSdkErrorCode } from 'stock-sdk/errors';
 
-### 行业板块
+const sdk = new StockSDK({
+  retry: { maxRetries: 2, baseDelay: 500 },
+  providerPolicies: {
+    eastmoney: { timeout: 12000, rateLimit: { requestsPerSecond: 3, maxBurst: 3 } },
+  },
+});
 
-| 方法 | 说明 |
-|------|------|
-| `getIndustryList` | 行业板块名称列表 |
-| `getIndustrySpot` | 行业板块实时行情 |
-| `getIndustryConstituents` | 行业板块成分股 |
-| `getIndustryKline` | 行业板块历史 K 线（日/周/月） |
-| `getIndustryMinuteKline` | 行业板块分时行情（1/5/15/30/60 分钟） |
+try {
+  await sdk.quotes.cnSimple(['sh600519']);
+} catch (error) {
+  // v2 对外只抛 SdkError，带统一 code
+  if (error instanceof HttpError) console.log(error.status, error.statusText);
+  console.log(getSdkErrorCode(error)); // HTTP_ERROR / NETWORK_ERROR / TIMEOUT / ABORTED / PARSE_ERROR ...
+}
+```
 
-### 概念板块
+---
 
-| 方法 | 说明 |
-|------|------|
-| `getConceptList` | 概念板块名称列表 |
-| `getConceptSpot` | 概念板块实时行情 |
-| `getConceptConstituents` | 概念板块成分股 |
-| `getConceptKline` | 概念板块历史 K 线（日/周/月） |
-| `getConceptMinuteKline` | 概念板块分时行情（1/5/15/30/60 分钟） |
+## 子路径导出（subpath）
 
-### 期货行情
+只用纯计算（指标 / 符号 / 信号 / 选股）时，从 subpath 导入，bundle 不会拖入 `RequestClient` 与所有 provider：
 
-| 方法 | 说明 |
-|------|------|
-| `getFuturesKline` | 国内期货历史 K 线（日/周/月） |
-| `getGlobalFuturesSpot` | 全球期货实时行情 |
-| `getGlobalFuturesKline` | 全球期货历史 K 线（日/周/月） |
-| `getFuturesInventorySymbols` | 期货库存品种列表 |
-| `getFuturesInventory` | 期货库存数据 |
-| `getComexInventory` | COMEX 黄金/白银库存 |
+```ts
+import { calcMACD, calcKDJ } from 'stock-sdk/indicators';
+import { normalizeSymbol, toTencentSymbol } from 'stock-sdk/symbols';
+import { calcSignals } from 'stock-sdk/signals';
+import { screen, backtest } from 'stock-sdk/screener';
+import { MemoryCacheStore, cacheThrough } from 'stock-sdk/cache';
+import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
+```
 
-### 期权数据
+---
 
-| 方法 | 说明 |
-|------|------|
-| `getIndexOptionSpot` | 中金所股指期权 T 型报价（看涨 + 看跌） |
-| `getIndexOptionKline` | 股指期权合约日 K 线 |
-| `getCFFEXOptionQuotes` | 中金所全部期权实时行情列表 |
-| `getETFOptionMonths` | 上交所 ETF 期权到期月份列表 |
-| `getETFOptionExpireDay` | ETF 期权到期日与剩余天数 |
-| `getETFOptionMinute` | ETF 期权当日分钟行情 |
-| `getETFOptionDailyKline` | ETF 期权历史日 K 线 |
-| `getETFOption5DayMinute` | ETF 期权 5 日分钟行情 |
-| `getCommodityOptionSpot` | 商品期权 T 型报价 |
-| `getCommodityOptionKline` | 商品期权合约日 K 线 |
-| `getOptionLHB` | 期权龙虎榜 |
+## 市场支持矩阵
 
-### 扩展数据
+不同市场的能力覆盖度差异较大，下表帮你快速判断 SDK 是否覆盖你的场景。
 
-| 方法 | 说明 |
-|------|------|
-| `getFundFlow` | 资金流向（按代码批量查询） |
-| `getPanelLargeOrder` | 盘口大单占比 |
-| `getTradingCalendar` | A 股交易日历 |
-| `getDividendDetail` | 股票分红派送详情 |
+- ✅ 已支持 ｜ ⚠️ 部分支持（见备注）｜ ❌ 暂未实现 ｜ — 概念不适用
 
-### 基金扩展（v1.10.0+）
+| 能力 | A 股 | 港股 | 美股 | 公募基金 | 期货 | 期权 |
+|------|:----:|:----:|:----:|:--------:|:----:|:----:|
+| 实时行情 | ✅ | ✅ | ✅ | ✅ | ✅ 全球期货 | ✅ ETF / 中金所 / 商品 |
+| 历史 K 线（日/周/月） | ✅ | ✅ | ✅ | ⚠️ 场内 ETF/LOF | ✅ 国内 + 全球 | ✅ |
+| 分钟 K 线（5/15/30/60） | ✅ | ✅ `kline.hkMinute` | ✅ `kline.usMinute` | ⚠️ 场内 ETF/LOF | ❌ | ❌ |
+| 当日分时（1 分钟） | ✅ `quotes.timeline` | ✅ `kline.hkMinute`(period='1') | ✅ `kline.usMinute`(period='1') | ⚠️ 场内 ETF/LOF | ❌ | ✅ ETF 期权 |
+| 分红派送 | ✅ | ❌ | ❌ | ✅ 基金 + ETF | — | — |
+| 资金流向 | ✅ 个股/大盘/排名/板块 | ❌ | ❌ | — | — | — |
+| 板块（行业 / 概念） | ✅ | ❌ | ❌ | ❌ | — | — |
+| 龙虎榜 | ✅ | — | — | — | — | ✅ 期权龙虎榜 |
+| 沪深港通 / 北向资金 | ✅ 北向 | ✅ 南向 | — | — | — | — |
+| 大宗交易 / 融资融券 | ✅ | ❌ | ❌ | — | — | — |
+| 涨停板 / 盘口异动 | ✅ | — | — | — | — | — |
+| 全市场代码列表 / 批量行情 | ✅ 5000+ | ✅ | ✅ | ✅ 代码 | ❌ | ❌ |
+| 库存数据 | — | — | — | — | ✅ 国内 + COMEX | — |
+| 交易日历 | ✅ `calendar.*` | ⚠️ 仅市场状态 | ⚠️ 仅市场状态 | — | — | — |
 
-| 方法 | 说明 |
-|------|------|
-| `getFundDividendList` | 基金 / ETF 分红明细（全市场，按年份分页，可按代码过滤） |
-| `getFundNavHistory` | 基金历史净值（单位 + 累计，全历史一次返回） |
-| `getFundEstimate` | 基金当日实时估值（含 T-1 单位净值 + 盘中估算） |
-| `getFundRankHistory` | 基金同类排名走势（每日近三月排名 + 百分位） |
+> **数据延迟**：实时行情来自腾讯财经 / 东方财富等公开接口，**非实时撮合**，通常有数十秒到数分钟延迟，不适合高频交易决策。
 
-### 资金流向（深度）
+---
 
-| 方法 | 说明 |
-|------|------|
-| `getIndividualFundFlow` | 个股资金流历史（日/周/月） |
-| `getMarketFundFlow` | 大盘（上证 + 深证）资金流历史 |
-| `getFundFlowRank` | 个股资金流排名（今日 / 3 日 / 5 日 / 10 日） |
-| `getSectorFundFlowRank` | 板块资金流排名（行业 / 概念 / 地域） |
-| `getSectorFundFlowHistory` | 单个板块的历史资金流 |
+## API 概览（命名空间）
 
-### 沪深港通 / 北向资金
+💡 完整 API 见 [官方文档](https://stock-sdk-v2.linkdiary.cn/api/)。v2 全部方法挂在命名空间下：
 
-| 方法 | 说明 |
-|------|------|
-| `getNorthboundMinute` | 北向 / 南向资金分时数据 |
-| `getNorthboundFlowSummary` | 沪深港通市场资金流向汇总 |
-| `getNorthboundHoldingRank` | 北向 / 沪股通 / 深股通持股个股排行 |
-| `getNorthboundHistory` | 北向 / 南向资金历史 |
-| `getNorthboundIndividual` | 个股北向持仓历史 |
+| 命名空间 | 代表方法 |
+|---|---|
+| `sdk.quotes` | `.cn` / `.cnSimple` / `.hk` / `.us` / `.fund` / `.fundFlow` / `.largeOrder` / `.timeline` |
+| `sdk.codes` | `.cn` / `.us` / `.hk` / `.fund` |
+| `sdk.batch` | `.cn` / `.hk` / `.us` / `.byCodes` / `.raw` |
+| `sdk.kline` | `.cn` / `.cnMinute` / `.hk` / `.hkMinute` / `.us` / `.usMinute` / `.withIndicators` |
+| `sdk.board` | `.industry.*` / `.concept.*`（`list` / `spot` / `constituents` / `kline` / `minuteKline`） |
+| `sdk.options` | `.index.*` / `.etf.*` / `.commodity.*` / `.cffex.*` / `.lhb` |
+| `sdk.futures` | `.kline` / `.globalSpot` / `.globalKline` / `.inventory` / `.comexInventory` … |
+| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` / `.sectorHistory` |
+| `sdk.northbound` | `.minute` / `.summary` / `.holdingRank` / `.history` / `.individual` |
+| `sdk.marketEvent` | `.ztPool` / `.stockChanges` / `.boardChanges` |
+| `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
+| `sdk.blockTrade` / `sdk.margin` | 大宗交易 / 融资融券 |
+| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` |
+| `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
+| `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
+| 顶层 | `sdk.search(keyword)` |
 
-### 涨停板 / 盘口异动
+> 指标计算从主包改为 subpath：`import { calcMACD } from 'stock-sdk/indicators'`。
+> 从 v1 扁平 API 迁移？见 [v1 → v2 迁移指南](https://stock-sdk-v2.linkdiary.cn/guide/migration-v1-to-v2)（含完整 `sdk.getXxx()` → `sdk.<ns>.<method>()` 映射表）。
 
-| 方法 | 说明 |
-|------|------|
-| `getZTPool` | 涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停 6 大股池 |
-| `getStockChanges` | 22 种盘口异动（火箭发射 / 大笔买入 / 封涨停 等） |
-| `getBoardChanges` | 当日板块异动详情 |
+---
 
-### 龙虎榜
+## 开发校验
 
-| 方法 | 说明 |
-|------|------|
-| `getDragonTigerDetail` | 龙虎榜详情（按日期范围） |
-| `getDragonTigerStockStats` | 个股上榜统计（近 1/3/6 月、1 年） |
-| `getDragonTigerInstitution` | 机构买卖统计 |
-| `getDragonTigerBranchRank` | 营业部排行 |
-| `getDragonTigerStockSeatDetail` | 个股某日上榜席位明细（买入榜 + 卖出榜） |
-
-### 大宗交易 / 融资融券
-
-| 方法 | 说明 |
-|------|------|
-| `getBlockTradeMarketStat` | 大宗交易市场每日总览 |
-| `getBlockTradeDetail` | 大宗交易明细 |
-| `getBlockTradeDailyStat` | 大宗交易每日统计（按股票汇总） |
-| `getMarginAccountInfo` | 融资融券账户统计 |
-| `getMarginTargetList` | 融资融券标的明细 |
-
-### 批量查询
-
-| 方法 | 说明 |
-|------|------|
-| `getAShareCodeList` | 获取全部 A 股代码 |
-| `getUSCodeList` | 获取全部美股代码 |
-| `getHKCodeList` | 获取全部港股代码 |
-| `getAllAShareQuotes` | 获取全市场 A 股行情 |
-| `getAllHKShareQuotes` | 获取全市场港股行情 |
-| `getAllUSShareQuotes` | 获取全市场美股行情 |
-| `getAllQuotesByCodes` | 批量获取指定股票行情 |
-
-### 搜索
-
-| 方法 | 说明 |
-|------|------|
-| `search` | 搜索股票代码/名称/拼音 |
-
-搜索结果可配合 `generateSearchExternalLinks(result)` 生成东方财富、雪球外链。
+```bash
+yarn typecheck
+yarn build
+yarn test
+yarn test:integration:smoke   # 冒烟集成（真实网络）
+yarn test:integration:full    # 全量集成回归
+```
 
 ---
 
@@ -402,7 +299,7 @@ Stock SDK 配套 MCP Server（[stock-sdk-mcp](https://www.npmjs.com/package/stoc
 
 ---
 
-🌐 [官网](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [官网](https://stock-sdk-v2.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk-v2.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

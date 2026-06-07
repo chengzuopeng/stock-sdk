@@ -7,7 +7,7 @@ export interface HistoryKline {
   /** 日期 YYYY-MM-DD (A 股时区) */
   date: string;
   /** 当日 00:00 (`Asia/Shanghai`) 的 UTC 毫秒时间戳;无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 日期所属市场时区 (`Asia/Shanghai`) */
   tz: MarketTz;
   /** 股票代码 */
@@ -41,7 +41,7 @@ export interface MinuteTimeline {
   /** 时间 YYYY-MM-DD HH:mm (A 股时区) */
   time: string;
   /** UTC 毫秒时间戳 (`Asia/Shanghai` 解释);无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 时间所属市场时区 (`Asia/Shanghai`) */
   tz: MarketTz;
   /** 开盘价 */
@@ -67,7 +67,7 @@ export interface MinuteKline {
   /** 时间 YYYY-MM-DD HH:mm (A 股时区) */
   time: string;
   /** UTC 毫秒时间戳 (`Asia/Shanghai` 解释);无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 时间所属市场时区 (`Asia/Shanghai`) */
   tz: MarketTz;
   /** 开盘价 */
@@ -102,7 +102,7 @@ export interface TodayTimeline {
    * UTC 毫秒时间戳。由所属 `TodayTimelineResponse.date` 与 `time` 拼接后,
    * 按 `Asia/Shanghai` 解释得到;无法解析时为 `NaN`。
    */
-  timestamp: number;
+  timestamp: number | null;
   /** 时间所属市场时区 (`Asia/Shanghai`) */
   tz: MarketTz;
   /** 当前价 */
@@ -124,7 +124,7 @@ export interface TodayTimelineResponse {
   /** 交易日期 YYYY-MM-DD (A 股时区) */
   date: string;
   /** 交易日 00:00 (`Asia/Shanghai`) 的 UTC 毫秒时间戳;无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 日期所属市场时区 (`Asia/Shanghai`) */
   tz: MarketTz;
   /**
@@ -147,7 +147,7 @@ interface ForeignHistoryKlineBase {
   /** 日期 YYYY-MM-DD (市场本地时区) */
   date: string;
   /** UTC 毫秒时间戳;无法解析时为 `NaN` */
-  timestamp: number;
+  timestamp: number | null;
   /** 股票代码 */
   code: string;
   /** 股票名称 */
@@ -204,13 +204,10 @@ export interface USHistoryKline extends ForeignHistoryKlineBase {
 }
 
 /**
- * 港股 / 美股历史 K 线 (兼容别名)
- *
- * @deprecated 自 v1.9.1 起拆分为 {@link HKHistoryKline} 与 {@link USHistoryKline},
- * 各自带本地化字段 (currency / lotSize)。本别名仍是它们的 union,
- * 老代码无需立即迁移;新代码请直接用具体类型以获得更好的类型推断。
+ * A 股 / 港股 / 美股历史 K 线的联合类型。
+ * 供指标计算等需要统一约束「任意市场历史 K 线」的通用逻辑使用。
  */
-export type HKUSHistoryKline = HKHistoryKline | USHistoryKline;
+export type AnyHistoryKline = HistoryKline | HKHistoryKline | USHistoryKline;
 
 /**
  * 港股分钟 K 线（5/15/30/60；v1.10.0+）

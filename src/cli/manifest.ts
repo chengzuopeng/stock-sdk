@@ -1,0 +1,645 @@
+/**
+ * 命令清单（cli.md §4）。
+ *
+ * 两部分：
+ * 1. NAMESPACE_COMMANDS —— 全部 84 个命名空间方法（`sdk.<ns>.<method>`）+ 顶层 `search`，
+ *    每个标注 argShape 与位置参数；options 类方法透传 `--flags`。
+ * 2. ALIAS_COMMANDS —— 第 1 层高频快捷命令（带自定义 `invoke`，如 `quote` 的市场识别）。
+ */
+import { normalizeSymbol, toTencentSymbol } from '../symbols';
+import type { StockSDK } from '../sdk';
+import { CliUsageError } from './errors';
+import type {
+  ArgShape,
+  CommandSpec,
+  InvokeContext,
+  OptionSpec,
+  PositionalSpec,
+} from './types';
+
+// ---------- 可复用 option 片段 ----------
+const ADJUST: OptionSpec = {
+  flag: 'adjust',
+  type: 'enum',
+  enum: ['qfq', 'hfq', 'none'],
+  map: { none: '' },
+  desc: '复权：qfq 前复权(默认) / hfq 后复权 / none 不复权',
+};
+const START: OptionSpec = { flag: 'start', field: 'startDate', type: 'string', desc: '开始日期 YYYYMMDD' };
+const END: OptionSpec = { flag: 'end', field: 'endDate', type: 'string', desc: '结束日期 YYYYMMDD' };
+const START_REQ: OptionSpec = { ...START, required: true };
+const END_REQ: OptionSpec = { ...END, required: true };
+const DIRECTION_OPT: OptionSpec = { flag: 'direction', type: 'enum', enum: ['north', 'south'], desc: '方向 north / south' };
+const PERIOD_DWM: OptionSpec = {
+  flag: 'period',
+  type: 'enum',
+  enum: ['daily', 'weekly', 'monthly'],
+  desc: 'K 线周期 daily/weekly/monthly',
+};
+const PERIOD_MIN: OptionSpec = {
+  flag: 'period',
+  type: 'enum',
+  enum: ['1', '5', '15', '30', '60'],
+  desc: '分钟周期 1/5/15/30/60',
+};
+const KLINE_OPTS: OptionSpec[] = [PERIOD_DWM, ADJUST, START, END];
+const MINUTE_OPTS: OptionSpec[] = [PERIOD_MIN, ADJUST, START, END];
+const BATCH_OPTS: OptionSpec[] = [
+  { flag: 'batchSize', type: 'number', desc: '单批数量(默认 500)' },
+  { flag: 'concurrency', type: 'number', desc: '并发数(默认 7)' },
+  { flag: 'market', type: 'string', desc: '市场筛选 sh/sz/bj/kc/cy' },
+];
+const CODELIST_OPTS: OptionSpec[] = [
+  { flag: 'simple', type: 'boolean', desc: '去掉交易所前缀' },
+  { flag: 'market', type: 'string', desc: '市场筛选 sh/sz/bj/kc/cy' },
+];
+const SYMBOL: PositionalSpec[] = [{ name: 'symbol', required: true }];
+const CODE: PositionalSpec[] = [{ name: 'code', required: true }];
+
+// ---------- 指标 option（单一来源：周期型 / 布尔型列表驱动声明 + 解析）----------
+/** 周期型指标(number[]，如 ma 5,10,20)。 */
+const PERIOD_INDICATORS = ['ma', 'rsi', 'wr', 'bias'] as const;
+/** 布尔型指标(开关启用)。 */
+const BOOL_INDICATORS = ['macd', 'kdj', 'boll', 'cci', 'atr', 'obv', 'roc', 'dmi', 'sar', 'kc'] as const;
+/** 全部指标 flag 声明(供别名 `indicators` 与命名空间 `kline withIndicators` 共用，避免逐个手写)。 */
+const INDICATOR_OPTS: OptionSpec[] = [
+  ...PERIOD_INDICATORS.map(
+    (flag): OptionSpec => ({
+      flag,
+      type: 'number[]',
+      desc: `${flag.toUpperCase()} 周期(逗号分隔，如 5,10；仅 --${flag} 用默认)`,
+    })
+  ),
+  ...BOOL_INDICATORS.map(
+    (flag): OptionSpec => ({ flag, type: 'boolean', desc: `启用 ${flag.toUpperCase()}` })
+  ),
+];
+const MARKET_ENUM_OPT: OptionSpec = {
+  flag: 'market',
+  type: 'enum',
+  enum: ['A', 'HK', 'US'],
+  upper: true,
+  desc: '市场(默认自动识别)',
+};
+const WITH_INDICATORS_OPTS: OptionSpec[] = [PERIOD_DWM, ADJUST, START, END, MARKET_ENUM_OPT, ...INDICATOR_OPTS];
+
+// ---------- 84 个命名空间方法定义 ----------
+interface NsDef {
+  path: string; // 'quotes.cn'
+  shape: ArgShape;
+  summary: string;
+  pos?: PositionalSpec[];
+  opts?: OptionSpec[];
+  invoke?: CommandSpec['invoke'];
+}
+
+const NS_DEFS: NsDef[] = [
+  // quotes (8)
+  { path: 'quotes.cn', shape: 'codes[]', summary: 'A股全量行情(含五档)' },
+  { path: 'quotes.cnSimple', shape: 'codes[]', summary: 'A股简要行情' },
+  { path: 'quotes.hk', shape: 'codes[]', summary: '港股行情' },
+  { path: 'quotes.us', shape: 'codes[]', summary: '美股行情' },
+  { path: 'quotes.fund', shape: 'codes[]', summary: '基金行情' },
+  { path: 'quotes.fundFlow', shape: 'codes[]', summary: '资金流向(简版)' },
+  { path: 'quotes.largeOrder', shape: 'codes[]', summary: '盘口大单占比' },
+  { path: 'quotes.timeline', shape: 'positional', summary: '当日分时', pos: CODE },
+  // codes (4)
+  { path: 'codes.cn', shape: 'options', summary: 'A股代码列表', opts: CODELIST_OPTS },
+  { path: 'codes.us', shape: 'options', summary: '美股代码列表', opts: CODELIST_OPTS },
+  { path: 'codes.hk', shape: 'none', summary: '港股代码列表' },
+  { path: 'codes.fund', shape: 'none', summary: '基金代码列表' },
+  // batch (5)
+  { path: 'batch.cn', shape: 'options', summary: '全市场A股行情', opts: BATCH_OPTS },
+  { path: 'batch.hk', shape: 'options', summary: '全市场港股行情', opts: BATCH_OPTS },
+  { path: 'batch.us', shape: 'options', summary: '全市场美股行情', opts: BATCH_OPTS },
+  { path: 'batch.byCodes', shape: 'codes+options', summary: '按代码批量行情', opts: BATCH_OPTS },
+  { path: 'batch.raw', shape: 'positional', summary: '腾讯原始批量', pos: [{ name: 'params', required: true }] },
+  // kline (7)
+  { path: 'kline.cn', shape: 'symbol+options', summary: 'A股历史K线', pos: SYMBOL, opts: KLINE_OPTS },
+  { path: 'kline.cnMinute', shape: 'symbol+options', summary: 'A股分钟K线/分时', pos: SYMBOL, opts: MINUTE_OPTS },
+  { path: 'kline.hk', shape: 'symbol+options', summary: '港股历史K线', pos: SYMBOL, opts: KLINE_OPTS },
+  { path: 'kline.hkMinute', shape: 'symbol+options', summary: '港股分钟K线/分时', pos: SYMBOL, opts: MINUTE_OPTS },
+  { path: 'kline.us', shape: 'symbol+options', summary: '美股历史K线', pos: SYMBOL, opts: KLINE_OPTS },
+  { path: 'kline.usMinute', shape: 'symbol+options', summary: '美股分钟K线/分时', pos: SYMBOL, opts: MINUTE_OPTS },
+  {
+    path: 'kline.withIndicators',
+    shape: 'symbol+options',
+    summary: '带指标K线(--ma 5,10 --macd --kdj --rsi ...)',
+    pos: SYMBOL,
+    opts: WITH_INDICATORS_OPTS,
+    invoke: (sdk, ctx) => invokeWithIndicators(sdk, ctx),
+  },
+  // board (10)
+  { path: 'board.industry.list', shape: 'none', summary: '行业板块列表' },
+  { path: 'board.industry.spot', shape: 'positional', summary: '行业板块成分行情', pos: SYMBOL },
+  { path: 'board.industry.constituents', shape: 'positional', summary: '行业板块成分股', pos: SYMBOL },
+  { path: 'board.industry.kline', shape: 'symbol+options', summary: '行业板块K线', pos: SYMBOL, opts: KLINE_OPTS },
+  { path: 'board.industry.minuteKline', shape: 'symbol+options', summary: '行业板块分时', pos: SYMBOL, opts: MINUTE_OPTS },
+  { path: 'board.concept.list', shape: 'none', summary: '概念板块列表' },
+  { path: 'board.concept.spot', shape: 'positional', summary: '概念板块成分行情', pos: SYMBOL },
+  { path: 'board.concept.constituents', shape: 'positional', summary: '概念板块成分股', pos: SYMBOL },
+  { path: 'board.concept.kline', shape: 'symbol+options', summary: '概念板块K线', pos: SYMBOL, opts: KLINE_OPTS },
+  { path: 'board.concept.minuteKline', shape: 'symbol+options', summary: '概念板块分时', pos: SYMBOL, opts: MINUTE_OPTS },
+  // options (11)
+  { path: 'options.index.spot', shape: 'positional', summary: '股指期权T型报价', pos: [{ name: 'product', required: true }, { name: 'contract', required: true }] },
+  { path: 'options.index.kline', shape: 'positional', summary: '股指期权日K', pos: SYMBOL },
+  { path: 'options.etf.months', shape: 'positional', summary: 'ETF期权月份', pos: [{ name: 'cate', required: true }] },
+  { path: 'options.etf.expireDay', shape: 'positional', summary: 'ETF期权到期日', pos: [{ name: 'cate', required: true }, { name: 'month', required: true }] },
+  { path: 'options.etf.minute', shape: 'positional', summary: 'ETF期权当日分时', pos: CODE },
+  { path: 'options.etf.dailyKline', shape: 'positional', summary: 'ETF期权日K', pos: CODE },
+  { path: 'options.etf.fiveDayMinute', shape: 'positional', summary: 'ETF期权5日分时', pos: CODE },
+  { path: 'options.commodity.spot', shape: 'positional', summary: '商品期权T型报价', pos: [{ name: 'variety', required: true }, { name: 'contract', required: true }] },
+  { path: 'options.commodity.kline', shape: 'positional', summary: '商品期权日K', pos: SYMBOL },
+  { path: 'options.cffex.quotes', shape: 'options', summary: '中金所期权当日报价' },
+  { path: 'options.lhb', shape: 'positional', summary: '期权龙虎榜', pos: [{ name: 'symbol', required: true }, { name: 'date', required: true }] },
+  // futures (6)
+  { path: 'futures.kline', shape: 'symbol+options', summary: '国内期货K线', pos: SYMBOL, opts: KLINE_OPTS },
+  { path: 'futures.globalSpot', shape: 'options', summary: '全球期货实时行情' },
+  { path: 'futures.globalKline', shape: 'symbol+options', summary: '全球期货K线', pos: SYMBOL, opts: KLINE_OPTS },
+  { path: 'futures.inventorySymbols', shape: 'none', summary: '期货库存品种列表' },
+  { path: 'futures.inventory', shape: 'symbol+options', summary: '期货库存历史', pos: SYMBOL },
+  { path: 'futures.comexInventory', shape: 'symbol+options', summary: 'COMEX 库存', pos: [{ name: 'symbol', required: true, enum: ['gold', 'silver'] }] },
+  // fundFlow (5)
+  { path: 'fundFlow.individual', shape: 'symbol+options', summary: '个股资金流历史', pos: SYMBOL },
+  { path: 'fundFlow.market', shape: 'none', summary: '大盘资金流' },
+  { path: 'fundFlow.rank', shape: 'options', summary: '个股资金流排名' },
+  { path: 'fundFlow.sectorRank', shape: 'options', summary: '板块资金流排名' },
+  { path: 'fundFlow.sectorHistory', shape: 'symbol+options', summary: '单板块历史资金流', pos: SYMBOL },
+  // northbound (5)
+  {
+    path: 'northbound.minute',
+    shape: 'positional',
+    summary: '北向/南向分时(--direction north|south 或位置参数)',
+    pos: [{ name: 'direction', enum: ['north', 'south'] }],
+    opts: [DIRECTION_OPT],
+    invoke: (sdk, ctx) => callMethod(sdk, ['northbound', 'minute'], [readDirection(ctx)]),
+  },
+  { path: 'northbound.summary', shape: 'none', summary: '沪深港通资金汇总' },
+  { path: 'northbound.holdingRank', shape: 'options', summary: '北向持股排行' },
+  {
+    path: 'northbound.history',
+    shape: 'symbol+options',
+    summary: '北向/南向历史(--direction north|south；--start/--end)',
+    pos: [{ name: 'direction', enum: ['north', 'south'] }],
+    opts: [DIRECTION_OPT, START, END],
+    invoke: (sdk, ctx) => {
+      const opts: Record<string, unknown> = {};
+      if (ctx.options.start !== undefined) opts.startDate = ctx.options.start;
+      if (ctx.options.end !== undefined) opts.endDate = ctx.options.end;
+      return callMethod(sdk, ['northbound', 'history'], [readDirection(ctx), opts]);
+    },
+  },
+  { path: 'northbound.individual', shape: 'symbol+options', summary: '个股北向持仓历史', pos: SYMBOL },
+  // marketEvent (3)
+  { path: 'marketEvent.ztPool', shape: 'positional', summary: '涨停股池', pos: [{ name: 'type' }, { name: 'date' }] },
+  { path: 'marketEvent.stockChanges', shape: 'positional', summary: '盘口异动', pos: [{ name: 'type' }] },
+  { path: 'marketEvent.boardChanges', shape: 'none', summary: '板块异动' },
+  // dragonTiger (5)
+  { path: 'dragonTiger.detail', shape: 'options', summary: '龙虎榜详情(必填 --start/--end)', opts: [START_REQ, END_REQ] },
+  { path: 'dragonTiger.stockStats', shape: 'positional', summary: '个股上榜统计', pos: [{ name: 'period' }] },
+  { path: 'dragonTiger.institution', shape: 'options', summary: '机构买卖统计(必填 --start/--end)', opts: [START_REQ, END_REQ] },
+  { path: 'dragonTiger.branchRank', shape: 'positional', summary: '营业部排行', pos: [{ name: 'period' }] },
+  { path: 'dragonTiger.seatDetail', shape: 'positional', summary: '个股席位明细', pos: [{ name: 'symbol', required: true }, { name: 'date', required: true }] },
+  // blockTrade (3)
+  { path: 'blockTrade.marketStat', shape: 'none', summary: '大宗交易市场统计' },
+  { path: 'blockTrade.detail', shape: 'options', summary: '大宗交易明细' },
+  { path: 'blockTrade.dailyStat', shape: 'options', summary: '大宗交易每日统计' },
+  // margin (2)
+  { path: 'margin.accountInfo', shape: 'none', summary: '融资融券账户统计' },
+  { path: 'margin.targetList', shape: 'positional', summary: '融资融券标的', pos: [{ name: 'date' }] },
+  // fund (4)
+  { path: 'fund.dividendList', shape: 'options', summary: '基金分红明细' },
+  { path: 'fund.navHistory', shape: 'positional', summary: '基金历史净值', pos: CODE },
+  { path: 'fund.estimate', shape: 'positional', summary: '基金当日估值', pos: CODE },
+  { path: 'fund.rankHistory', shape: 'positional', summary: '基金同类排名走势', pos: CODE },
+  // calendar (4)
+  { path: 'calendar.isTradingDay', shape: 'positional', summary: '是否交易日', pos: [{ name: 'date' }] },
+  { path: 'calendar.nextTradingDay', shape: 'positional', summary: '下一交易日', pos: [{ name: 'date' }] },
+  { path: 'calendar.prevTradingDay', shape: 'positional', summary: '上一交易日', pos: [{ name: 'date' }] },
+  { path: 'calendar.marketStatus', shape: 'positional', summary: '市场状态', pos: [{ name: 'market', upper: true, enum: ['A', 'HK', 'US'] }] },
+  // reference (2)
+  { path: 'reference.dividendDetail', shape: 'positional', summary: '分红配股明细', pos: SYMBOL },
+  { path: 'reference.tradingCalendar', shape: 'none', summary: '交易日历(原始数组)' },
+];
+
+/** 顶层 search 特例（不在命名空间下，cli.md §2/§3）。 */
+const SEARCH_DEF: NsDef = {
+  path: 'search',
+  shape: 'positional',
+  summary: '搜索股票/指数/基金',
+  pos: [{ name: 'keyword', required: true }],
+};
+
+function nsToSpec(def: NsDef): CommandSpec {
+  return {
+    path: def.path.split('.'),
+    summary: def.summary,
+    argShape: def.shape,
+    positional: def.pos,
+    options: def.opts,
+    invoke: def.invoke,
+  };
+}
+
+/** 全部命名空间方法 + 顶层 search 的 CommandSpec。 */
+export const NAMESPACE_COMMANDS: CommandSpec[] = [...NS_DEFS, SEARCH_DEF].map(nsToSpec);
+
+// ---------- 高频别名命令（带自定义 invoke）----------
+const MARKET_ALIAS_OPT: OptionSpec = {
+  flag: 'market',
+  type: 'enum',
+  enum: ['a', 'hk', 'us'],
+  desc: '市场 a/hk/us(默认按代码自动识别)',
+};
+const QUOTE_MARKET_OPT: OptionSpec = {
+  flag: 'market',
+  type: 'enum',
+  enum: ['a', 'hk', 'us', 'fund'],
+  desc: '市场 a/hk/us/fund(默认按代码自动识别；基金须显式 --market fund)',
+};
+const LIMIT_OPT: OptionSpec = { flag: 'limit', type: 'number', desc: '只取前 N 条(CLI 输出层裁剪)' };
+
+/** symbol 智能识别市场 → 'a'|'hk'|'us'（CLI 别名层用）。 */
+function detectMarketTag(symbol: string): 'a' | 'hk' | 'us' {
+  try {
+    const ns = normalizeSymbol(symbol);
+    return ns.market === 'HK' ? 'hk' : ns.market === 'US' ? 'us' : 'a';
+  } catch {
+    return 'a';
+  }
+}
+
+/** 动态调用命名空间方法（CLI 参数本就是动态的，统一在此做一次受控断言）。 */
+function callMethod(sdk: StockSDK, path: string[], args: unknown[]): Promise<unknown> {
+  const target = path.reduce<unknown>(
+    (o, k) => (o as Record<string, unknown>)[k],
+    sdk
+  );
+  return Promise.resolve((target as (...a: unknown[]) => unknown)(...args));
+}
+
+/** CLI 市场标签 → SDK Market。 */
+function tagToMarket(tag: 'a' | 'hk' | 'us'): 'CN' | 'HK' | 'US' {
+  return tag === 'hk' ? 'HK' : tag === 'us' ? 'US' : 'CN';
+}
+
+/** 校验并归一 `--market` 取值；非法值（含 parser 把无值 flag 置成的 `true`）抛 CliUsageError。 */
+function resolveForcedMarket(raw: unknown): 'a' | 'hk' | 'us' | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === 'a' || raw === 'hk' || raw === 'us') return raw;
+  throw new CliUsageError('--market 非法值', '可选: a / hk / us');
+}
+
+/** quote 命令额外支持 fund（基金行情走 quotes.fund）。 */
+function resolveQuoteMarket(raw: unknown): 'a' | 'hk' | 'us' | 'fund' | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === 'a' || raw === 'hk' || raw === 'us' || raw === 'fund') return raw;
+  throw new CliUsageError('--market 非法值', '可选: a / hk / us / fund');
+}
+
+/** northbound 的 direction：支持 --direction flag 或首位置参数，校验 north/south。 */
+function readDirection(ctx: InvokeContext): 'north' | 'south' | undefined {
+  const raw = ctx.options.direction ?? ctx.positional[0];
+  if (raw === undefined) return undefined;
+  if (raw === 'north' || raw === 'south') return raw;
+  throw new CliUsageError('direction 非法值', '可选: north / south');
+}
+
+function klineOptsFromCtx(ctx: InvokeContext): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (ctx.options.period !== undefined) out.period = ctx.options.period;
+  if (ctx.options.adjust !== undefined) {
+    out.adjust = ctx.options.adjust === 'none' ? '' : ctx.options.adjust;
+  }
+  if (ctx.options.start !== undefined) out.startDate = ctx.options.start;
+  if (ctx.options.end !== undefined) out.endDate = ctx.options.end;
+  return out;
+}
+
+/** indicators 命令：把 --ma/--macd/... 组装成 KlineWithIndicatorsOptions.indicators（cli.md §4.1）。 */
+function buildIndicatorOptions(opts: Record<string, unknown>): Record<string, unknown> {
+  const indicators: Record<string, unknown> = {};
+  for (const key of PERIOD_INDICATORS) {
+    const v = opts[key];
+    if (v === undefined) continue;
+    if (v === true) {
+      indicators[key] = {}; // 仅 --ma → 用指标默认周期
+      continue;
+    }
+    const nums = toNumberArray(v);
+    if (nums.length > 0) indicators[key] = { periods: nums };
+    // v 为 'false'/'0'/'no' 等非数字串 → toNumberArray 为空 → 不启用(修 --ma=false 误启用)
+  }
+  for (const key of BOOL_INDICATORS) {
+    const v = opts[key];
+    if (v === undefined) continue;
+    // 布尔语义：--macd / --macd true → 启用；--macd=false / =0 / =no → 不启用(修 =false 反而启用)
+    if (v === true || v === 'true' || v === '1' || v === 'yes') indicators[key] = true;
+  }
+  return indicators;
+}
+
+/** kline.withIndicators 的统一 invoke(别名 `indicators` 与命名空间直达 `kline withIndicators` 共用)。 */
+function invokeWithIndicators(sdk: StockSDK, ctx: InvokeContext): Promise<unknown> {
+  const symbol = requireSymbol(ctx, 'indicators');
+  const opts: Record<string, unknown> = {};
+  if (ctx.options.period !== undefined) opts.period = ctx.options.period;
+  if (ctx.options.adjust !== undefined) opts.adjust = ctx.options.adjust === 'none' ? '' : ctx.options.adjust;
+  if (ctx.options.start !== undefined) opts.startDate = ctx.options.start;
+  if (ctx.options.end !== undefined) opts.endDate = ctx.options.end;
+  if (ctx.options.market !== undefined) opts.market = ctx.options.market;
+  opts.indicators = buildIndicatorOptions(ctx.options);
+  return callMethod(sdk, ['kline', 'withIndicators'], [symbol, opts]);
+}
+
+function toNumberArray(value: unknown): number[] {
+  const raw = Array.isArray(value) ? value.join(',') : String(value);
+  return raw
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => !Number.isNaN(n));
+}
+
+export const ALIAS_COMMANDS: CommandSpec[] = [
+  {
+    path: ['quotes', 'cnSimple'],
+    alias: ['quote'],
+    summary: '行情(自动识别市场；--full 全量五档；--market 强制市场)',
+    argShape: 'codes[]',
+    positional: [{ name: 'code', required: true, variadic: true }],
+    options: [QUOTE_MARKET_OPT, { flag: 'full', type: 'boolean', desc: 'A股全量五档行情' }],
+    invoke: async (sdk, ctx) => {
+      const codes = ctx.positional;
+      if (codes.length === 0) throw new CliUsageError('缺少股票代码', '用法: stock-sdk quote <code...>');
+      const forced = resolveQuoteMarket(ctx.options.market);
+      const full = ctx.options.full === true;
+      // 按市场分组(显式优先，否则按代码识别；基金不参与自动识别，须显式 --market fund)
+      const groups: Record<'a' | 'hk' | 'us' | 'fund', string[]> = { a: [], hk: [], us: [], fund: [] };
+      for (const c of codes) {
+        const tag = forced ?? detectMarketTag(c);
+        if (tag === 'fund') {
+          groups.fund.push(c); // 基金代码直接透传(quotes.fund 接受纯代码)
+          continue;
+        }
+        // 规范化成各市场期望的代码格式：A股需带交易所前缀(sh600519)，港/美用纯代码
+        try {
+          const ns = normalizeSymbol(c, { market: tagToMarket(tag) });
+          groups[tag].push(tag === 'a' ? toTencentSymbol(ns) : ns.code);
+        } catch {
+          groups[tag].push(c);
+        }
+      }
+      // 各市场并发请求、互不阻塞;单市场失败不连累其它(部分成功仍返回可用结果)。
+      const tasks: Array<Promise<unknown>> = [];
+      if (groups.a.length)
+        tasks.push(Promise.resolve(full ? sdk.quotes.cn(groups.a) : sdk.quotes.cnSimple(groups.a)));
+      if (groups.hk.length) tasks.push(Promise.resolve(sdk.quotes.hk(groups.hk)));
+      if (groups.us.length) tasks.push(Promise.resolve(sdk.quotes.us(groups.us)));
+      if (groups.fund.length) tasks.push(Promise.resolve(sdk.quotes.fund(groups.fund)));
+      const settled = await Promise.allSettled(tasks);
+      const out: unknown[] = [];
+      const rejected: unknown[] = [];
+      for (const r of settled) {
+        if (r.status === 'fulfilled') out.push(...(r.value as unknown[]));
+        else rejected.push(r.reason);
+      }
+      // 全部失败 → 抛首个错误(保留 SdkError 类型与退出码);部分成功 → 返回可用结果 + stderr 提示。
+      if (out.length === 0 && rejected.length > 0) throw rejected[0];
+      if (rejected.length > 0) {
+        const msg = rejected.map((e) => (e instanceof Error ? e.message : String(e))).join('; ');
+        process.stderr.write(`stock-sdk: 部分市场行情查询失败: ${msg}\n`);
+      }
+      return out;
+    },
+  },
+  {
+    path: ['kline', 'cn'],
+    alias: ['kline'],
+    summary: 'K线(--market a/hk/us；--limit 截断)',
+    argShape: 'symbol+options',
+    positional: SYMBOL,
+    options: [PERIOD_DWM, ADJUST, START, END, MARKET_ALIAS_OPT, LIMIT_OPT],
+    invoke: async (sdk, ctx) => {
+      const symbol = requireSymbol(ctx, 'kline');
+      const market = resolveForcedMarket(ctx.options.market) ?? detectMarketTag(symbol);
+      const opts = klineOptsFromCtx(ctx);
+      const method = market === 'hk' ? 'hk' : market === 'us' ? 'us' : 'cn';
+      return callMethod(sdk, ['kline', method], [symbol, opts]);
+    },
+  },
+  {
+    path: ['kline', 'cnMinute'],
+    alias: ['minute'],
+    summary: '分钟K线/分时(--period 1/5/15/30/60；--market)',
+    argShape: 'symbol+options',
+    positional: SYMBOL,
+    options: [PERIOD_MIN, ADJUST, START, END, MARKET_ALIAS_OPT, LIMIT_OPT],
+    invoke: async (sdk, ctx) => {
+      const symbol = requireSymbol(ctx, 'minute');
+      const market = resolveForcedMarket(ctx.options.market) ?? detectMarketTag(symbol);
+      const opts = klineOptsFromCtx(ctx);
+      const method = market === 'hk' ? 'hkMinute' : market === 'us' ? 'usMinute' : 'cnMinute';
+      return callMethod(sdk, ['kline', method], [symbol, opts]);
+    },
+  },
+  {
+    path: ['kline', 'withIndicators'],
+    alias: ['indicators'],
+    summary: '带指标K线(--ma 5,10,20 --macd --kdj --rsi --boll ...)',
+    argShape: 'symbol+options',
+    positional: SYMBOL,
+    options: [PERIOD_DWM, ADJUST, START, END, ...INDICATOR_OPTS],
+    invoke: invokeWithIndicators,
+  },
+  {
+    path: ['search'],
+    alias: ['search'],
+    summary: '搜索股票/指数/基金(--limit 截断)',
+    argShape: 'positional',
+    positional: [{ name: 'keyword', required: true }],
+    options: [LIMIT_OPT],
+    invoke: async (sdk, ctx) => {
+      const keyword = ctx.positional[0];
+      if (!keyword) throw new CliUsageError('缺少搜索关键词', '用法: stock-sdk search <keyword>');
+      return sdk.search(keyword);
+    },
+  },
+  {
+    path: ['quotes', 'timeline'],
+    alias: ['timeline'],
+    summary: '当日分时',
+    argShape: 'positional',
+    positional: CODE,
+    invoke: async (sdk, ctx) => {
+      const code = ctx.positional[0];
+      if (!code) throw new CliUsageError('缺少股票代码', '用法: stock-sdk timeline <code>');
+      return sdk.quotes.timeline(code);
+    },
+  },
+  {
+    path: ['codes', 'cn'],
+    alias: ['codes'],
+    summary: '代码列表(market: a/hk/us/fund；--simple；--board sh/sz/bj/kc/cy)',
+    argShape: 'positional',
+    positional: [{ name: 'market', required: true, enum: ['a', 'hk', 'us', 'fund'] }],
+    options: [{ flag: 'simple', type: 'boolean', desc: '去前缀' }, { flag: 'board', field: 'market', type: 'string', desc: '板块 sh/sz/bj/kc/cy(仅A股)' }],
+    invoke: async (sdk, ctx) => {
+      const market = ctx.positional[0];
+      const opts: Record<string, unknown> = {};
+      if (ctx.options.simple === true) opts.simple = true;
+      if (ctx.options.board !== undefined) opts.market = ctx.options.board;
+      switch (market) {
+        case 'a':
+          return callMethod(sdk, ['codes', 'cn'], [opts]);
+        case 'us':
+          return callMethod(sdk, ['codes', 'us'], [opts]);
+        case 'hk':
+          return sdk.codes.hk();
+        case 'fund':
+          return sdk.codes.fund();
+        default:
+          throw new CliUsageError(`未知市场: ${market}`, '可选: a / hk / us / fund');
+      }
+    },
+  },
+  {
+    path: ['calendar', 'marketStatus'],
+    alias: ['status'],
+    summary: '市场状态(a/hk/us，默认 a)',
+    argShape: 'positional',
+    positional: [{ name: 'market', upper: true, enum: ['A', 'HK', 'US'] }],
+    invoke: async (sdk, ctx) => {
+      const raw = ctx.positional[0];
+      const market = (raw ? raw.toUpperCase() : 'A') as 'A' | 'HK' | 'US';
+      return sdk.calendar.marketStatus(market);
+    },
+  },
+  {
+    path: ['marketEvent', 'ztPool'],
+    alias: ['ztpool'],
+    summary: '涨停股池 zt/yesterday/strong/sub_new/broken/dt(--date)',
+    argShape: 'positional',
+    positional: [{ name: 'type', enum: ['zt', 'yesterday', 'strong', 'sub_new', 'broken', 'dt'] }],
+    options: [{ flag: 'date', type: 'string', desc: '交易日 YYYYMMDD' }],
+    invoke: async (sdk, ctx) => {
+      const type = ctx.positional[0] as
+        | 'zt'
+        | 'yesterday'
+        | 'strong'
+        | 'sub_new'
+        | 'broken'
+        | 'dt'
+        | undefined;
+      const date = ctx.options.date as string | undefined;
+      return sdk.marketEvent.ztPool(type, date);
+    },
+  },
+  {
+    path: ['call'],
+    alias: ['call'],
+    summary: "原始直通：调用任意命名空间方法（--args 传 JSON 实参数组）",
+    argShape: 'positional',
+    positional: [{ name: 'method', required: true }],
+    options: [{ flag: 'args', type: 'string', desc: 'JSON 实参数组，如 \'[["sh600519"]]\'' }],
+    invoke: (sdk, ctx) => {
+      const path = ctx.positional[0];
+      if (!path) {
+        throw new CliUsageError('call 缺少方法路径', "用法: stock-sdk call <ns.method> --args '[...]'");
+      }
+      let args: unknown[] = [];
+      const argsRaw = ctx.options.args;
+      if (typeof argsRaw === 'string') {
+        try {
+          const parsed: unknown = JSON.parse(argsRaw);
+          args = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          throw new CliUsageError('--args 不是合法 JSON', '示例: --args \'[["sh600519"]]\'');
+        }
+      }
+      // 防原型链逃逸:禁止 __proto__/prototype/constructor 与 Object.prototype 上的继承成员
+      // (否则 `call toString` / `call constructor` 会命中内置方法并产生困惑输出/报错)。
+      const DANGEROUS = new Set(['__proto__', 'prototype', 'constructor']);
+      let target: unknown = sdk;
+      for (const k of path.split('.')) {
+        if (
+          DANGEROUS.has(k) ||
+          k in Object.prototype ||
+          target == null ||
+          (typeof target !== 'object' && typeof target !== 'function')
+        ) {
+          target = undefined;
+          break;
+        }
+        target = (target as Record<string, unknown>)[k];
+      }
+      if (typeof target !== 'function') {
+        throw new CliUsageError(`未知方法: ${path}`, '形如 quotes.cn / kline.cn');
+      }
+      return Promise.resolve((target as (...a: unknown[]) => unknown)(...args));
+    },
+  },
+];
+
+/** mcp 命令（特殊：不调用 sdk，启动 MCP server）。在 index 单独处理。 */
+export const MCP_COMMAND_NAME = 'mcp';
+
+/** 所有命令（别名优先于命名空间，便于覆盖默认派生）。 */
+export const COMMANDS: CommandSpec[] = [...ALIAS_COMMANDS, ...NAMESPACE_COMMANDS];
+
+/** 命名空间方法路径数（用于 manifest 完整性测试）。 */
+export function namespaceMethodCount(): number {
+  return NS_DEFS.length; // 84
+}
+
+/** 全部命名空间方法路径（点分），含顶层 search。 */
+export function allMethodPaths(): string[] {
+  return [...NS_DEFS.map((d) => d.path), SEARCH_DEF.path];
+}
+
+function requireSymbol(ctx: InvokeContext, cmd: string): string {
+  const symbol = ctx.positional[0];
+  if (!symbol) throw new CliUsageError('缺少代码参数', `用法: stock-sdk ${cmd} <symbol>`);
+  return symbol;
+}
+
+/**
+ * 收集所有布尔 flag（供 parser 识别，避免吞掉下一个 token）。
+ * 含全局布尔 + manifest 中 type==='boolean' 的 option + 它们的短名。
+ */
+export function collectBooleanFlags(): Set<string> {
+  const set = new Set<string>(['help', 'h', 'version', 'V', 'quiet', 'q', 'pretty']);
+  for (const cmd of COMMANDS) {
+    for (const opt of cmd.options ?? []) {
+      if (opt.type === 'boolean') set.add(opt.flag);
+    }
+  }
+  // indicators 别名支持的布尔指标（buildIndicatorOptions 用到，但未在 options 显式声明），
+  // 必须登记为布尔，否则 parser 会贪婪吃掉后面的 symbol（如 `indicators --cci 600519`）。
+  for (const k of BOOL_INDICATORS) set.add(k);
+  return set;
+}
+
+/**
+ * 按 positional tokens 匹配命令：
+ * 先匹配第 1 个 token 是否为别名；否则按命名空间路径做最长前缀匹配。
+ * @returns 命中的 spec 与「命令路径之后剩余的位置参数」；无匹配返回 null
+ */
+export function findCommand(tokens: string[]): { spec: CommandSpec; rest: string[] } | null {
+  if (tokens.length === 0) return null;
+  // 1. 命名空间最长前缀匹配，**≥2 段优先**（消除 `kline cn` / `codes cn` 被别名 `kline`/`codes` 抢占的歧义）
+  for (let len = Math.min(3, tokens.length); len >= 2; len--) {
+    const prefix = tokens.slice(0, len).join('.');
+    const def = NAMESPACE_COMMANDS.find((c) => c.path.join('.') === prefix);
+    if (def) return { spec: def, rest: tokens.slice(len) };
+  }
+  // 2. 别名（单 token，带增强：市场识别 / limit 等）
+  for (const cmd of ALIAS_COMMANDS) {
+    if (cmd.alias?.includes(tokens[0])) {
+      return { spec: cmd, rest: tokens.slice(1) };
+    }
+  }
+  // 3. 单段命名空间方法（如顶层 `search`，无别名时）
+  const single = NAMESPACE_COMMANDS.find((c) => c.path.join('.') === tokens[0]);
+  if (single) return { spec: single, rest: tokens.slice(1) };
+  return null;
+}

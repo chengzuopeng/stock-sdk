@@ -120,36 +120,4 @@ export interface OptionLHBItem {
   buyPositionChange: number | null;
   netBuyPosition: number | null;
   buyPositionRatio: number | null;
-  /**
-   * @deprecated 请改用 `date`
-   */
-  tradeDate: string;
-  /**
-   * @deprecated 旧字段，使用当前数据时优先读取 `buyVolume` / `sellVolume`
-   */
-  volume: number | null;
-  /**
-   * @deprecated 旧字段，使用当前数据时优先读取 `buyVolumeChange` / `sellVolumeChange`
-   */
-  volumeChange: number | null;
-  /**
-   * @deprecated 旧字段，历史实现中无稳定金额语义，当前返回最接近的持仓值
-   */
-  amount: number | null;
-  /**
-   * @deprecated 旧字段，历史实现中无稳定金额变动语义，当前返回最接近的持仓变动值
-   */
-  amountChange: number | null;
-  /**
-   * @deprecated 请改用 `buyPosition` / `sellPosition`
-   */
-  openInterest: number | null;
-  /**
-   * @deprecated 请改用 `buyPositionChange` / `sellPositionChange`
-   */
-  openInterestChange: number | null;
-  /**
-   * @deprecated 请改用更细粒度的 `tradeType`
-   */
-  side: 'buy' | 'sell' | 'net' | null;
 }
