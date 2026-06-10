@@ -17,7 +17,7 @@ Stock SDK 完全支持在浏览器环境中使用，无需任何额外配置。
   <div id="result"></div>
 
   <script type="module">
-    import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
+    import { StockSDK } from 'https://unpkg.com/stock-sdk@1.10.1/dist/index.js';
 
     const sdk = new StockSDK();
     const quotes = await sdk.getFullQuotes(['sz000858', 'sh600519']);

@@ -5,7 +5,7 @@ This page covers the most common setup path. By default, create one `StockSDK` i
 ## Installation
 
 ```bash
-npm install stock-sdk
+npm install stock-sdk@1.10.1
 ```
 
 ## Create an Instance

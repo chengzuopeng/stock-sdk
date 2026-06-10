@@ -5,15 +5,15 @@
 ::: code-group
 
 ```bash [npm]
-npm install stock-sdk
+npm install stock-sdk@1.10.1
 ```
 
 ```bash [yarn]
-yarn add stock-sdk
+yarn add stock-sdk@1.10.1
 ```
 
 ```bash [pnpm]
-pnpm add stock-sdk
+pnpm add stock-sdk@1.10.1
 ```
 
 :::
@@ -24,7 +24,7 @@ pnpm add stock-sdk
 
 ```html
 <script type="module">
-  import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
+  import { StockSDK } from 'https://unpkg.com/stock-sdk@1.10.1/dist/index.js';
 
   const sdk = new StockSDK();
   const quotes = await sdk.getFullQuotes(['sz000858']);

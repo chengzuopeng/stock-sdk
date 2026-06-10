@@ -5,7 +5,7 @@
 ## 安装
 
 ```bash
-npm install stock-sdk
+npm install stock-sdk@1.10.1
 ```
 
 ## 创建实例

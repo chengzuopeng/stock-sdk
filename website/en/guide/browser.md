@@ -14,7 +14,7 @@ Stock SDK is designed to work seamlessly in browser environments.
   <div id="app"></div>
   
   <script type="module">
-    import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
+    import { StockSDK } from 'https://unpkg.com/stock-sdk@1.10.1/dist/index.js';
     
     const sdk = new StockSDK();
     
@@ -143,4 +143,3 @@ Never disable CORS in production. Always use proper proxy solutions.
 
 - [Technical Indicators](/en/guide/indicators)
 - [Batch Query](/en/guide/batch)
-

@@ -1,16 +1,10 @@
 import { defineConfig } from 'vitepress'
-import { resolve } from 'path'
-import { readFileSync } from 'fs'
 import faroUploader from '@grafana/faro-rollup-plugin'
 
 const base = process.env.DOCS_BASE || '/'
 
-// 构建期读取真实版本号，注入 themeConfig 供 HeroMeta 等组件使用（避免硬编码失真）
-const sdkVersion = (
-  JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as {
-    version: string
-  }
-).version
+// v1 文档站已封存，不能再跟随根包升级到 v2。
+const sdkVersion = '1.10.1'
 
 // MCP 中文侧边栏配置
 const zhMcpSidebar = {
@@ -470,17 +464,7 @@ export default defineConfig({
 
   // Vite 配置
   vite: {
-    resolve: {
-      alias: {
-        // 开发模式下将 'stock-sdk-local' 指向本地 src 目录
-        'stock-sdk-local': resolve(__dirname, '../../src'),
-      },
-    },
     server: {
-      fs: {
-        // 允许访问上级目录（用于引用 src）
-        allow: ['../..'],
-      },
       // 本地开发反向代理:把 /api/llm/* 转发到本地运行的 api-worker(文档问答 agent)。
       // ⚠️ 只代理 /api/llm,绝不能用 /api —— 因为本站的 API 文档页就在 /api/* 路径下
       //    (如 /api/kline、/api/quotes),用 /api 会把文档页也代理走导致 404。

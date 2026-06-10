@@ -81,7 +81,8 @@ function stampNow(): void {
   time.value = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-// ---- SDK 加载（与 Playground 同款双模式：dev 引本地 src，prod 走 unpkg）----
+// ---- SDK 加载：v1 文档站固定使用 stock-sdk@1.10.1 ----
+const SDK_CDN_URL = 'https://unpkg.com/stock-sdk@1.10.1/dist/index.js'
 let sdk: any = null
 let sdkLoading: Promise<any> | null = null
 
@@ -89,10 +90,7 @@ async function loadSDK(): Promise<any> {
   if (sdk) return sdk
   if (sdkLoading) return sdkLoading
   sdkLoading = (async () => {
-    const isDev = import.meta.env.DEV
-    const mod: any = isDev
-      ? await import('stock-sdk-local')
-      : await import(/* @vite-ignore */ 'https://unpkg.com/stock-sdk/dist/index.js')
+    const mod: any = await import(/* @vite-ignore */ SDK_CDN_URL)
     const StockSDK = mod.StockSDK || mod.default
     sdk = new StockSDK({ timeout: 8000, retry: { maxRetries: 1, baseDelay: 600 } })
     return sdk

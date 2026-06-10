@@ -5,15 +5,15 @@
 ::: code-group
 
 ```bash [npm]
-npm install stock-sdk
+npm install stock-sdk@1.10.1
 ```
 
 ```bash [yarn]
-yarn add stock-sdk
+yarn add stock-sdk@1.10.1
 ```
 
 ```bash [pnpm]
-pnpm add stock-sdk
+pnpm add stock-sdk@1.10.1
 ```
 
 :::
@@ -25,13 +25,13 @@ For browser usage, you can use unpkg or jsDelivr:
 ```html
 <!-- unpkg -->
 <script type="module">
-  import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
+  import { StockSDK } from 'https://unpkg.com/stock-sdk@1.10.1/dist/index.js';
   const sdk = new StockSDK();
 </script>
 
 <!-- jsDelivr -->
 <script type="module">
-  import { StockSDK } from 'https://cdn.jsdelivr.net/npm/stock-sdk/dist/index.js';
+  import { StockSDK } from 'https://cdn.jsdelivr.net/npm/stock-sdk@1.10.1/dist/index.js';
   const sdk = new StockSDK();
 </script>
 ```
@@ -56,4 +56,3 @@ const quotes: FullQuote[] = await sdk.getFullQuotes(['sz000858']);
 
 - [Quick Start](/en/guide/getting-started) - Start using Stock SDK
 - [Browser Usage](/en/guide/browser) - Using in browser environment
-

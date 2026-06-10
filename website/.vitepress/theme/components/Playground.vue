@@ -346,21 +346,14 @@ function clearResult() {
 }
 
 // === SDK 加载与重建 ===
-// SDKClass 缓存避免每次 apply 配置都重新 fetch unpkg。
+// v1 文档站固定使用 stock-sdk@1.10.1；SDKClass 缓存避免每次 apply 配置都重新 fetch unpkg。
+const SDK_CDN_URL = 'https://unpkg.com/stock-sdk@1.10.1/dist/index.js'
 let cachedSDKClass: any = null
 
 async function loadSDKClass() {
   if (cachedSDKClass) return cachedSDKClass
-  const isDev = import.meta.env.DEV
-  if (isDev) {
-    // 本地开发：直接引用 src 源码
-    const module = (await import('stock-sdk-local')) as any
-    cachedSDKClass = module.StockSDK || module.default
-  } else {
-    // 生产环境：从 unpkg 加载
-    const module = (await import('https://unpkg.com/stock-sdk/dist/index.js')) as any
-    cachedSDKClass = module.StockSDK
-  }
+  const module = (await import(/* @vite-ignore */ SDK_CDN_URL)) as any
+  cachedSDKClass = module.StockSDK || module.default
   return cachedSDKClass
 }
 
