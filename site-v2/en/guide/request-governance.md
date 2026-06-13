@@ -20,7 +20,7 @@ Governance is resolved in three layers, **nearest wins**:
 
 1. **Global defaults**: the top-level constructor fields (`timeout` / `retry` / `rateLimit` / `circuitBreaker` / `headers` / `userAgent` / `rotateUserAgent`), applied to every provider.
 2. **Per-provider**: `providerPolicies` overrides a single data source; providers not listed fall back to the global defaults. Merging is **shallow** — a provider policy only needs the fields you want to change; the rest are inherited.
-3. **Per-request**: `fetchImpl` / `signal` can be passed on each call, taking precedence over the client-level values of the same name (exact per-call shape subject to the final implementation).
+3. **Per-request**: the internal request layer (`RequestClient.get`) supports per-call `fetchImpl` / `signal`, but **public namespace methods do not accept per-call options yet** — per-call cancellation/injection is on the 2.0.0 roadmap. For now use the client-level `signal` (which cancels all in-flight requests of the instance).
 
 ```ts
 const sdk = new StockSDK({
@@ -151,7 +151,7 @@ const sdk = new StockSDK({
 const controller = new AbortController()
 
 const sdk = new StockSDK({ signal: controller.signal }) // client-level
-// or per-call: sdk.quotes.cn(['600519'], { signal: controller.signal }) (per-call shape subject to implementation)
+// Note: namespace methods do not accept a per-call { signal } yet (roadmap item); a client-level abort cancels all in-flight requests of the instance
 
 // somewhere later
 controller.abort()
@@ -212,7 +212,7 @@ const sdk = new StockSDK({
 - `providerPolicies` is additive and orthogonal to the global config; omitting it has no effect.
 - `fetchImpl` / `signal` / `hooks` are all optional and orthogonal to existing provider policies; the new fields don't break existing calls.
 
-> The v2 SDK is still being implemented: the config fields and defaults above are stable, but the **exact shape of per-request options is subject to the final implementation**.
+> Per-request options on namespace methods are not implemented yet (on the 2.0.0 roadmap); all client-level config fields and defaults above are stable.
 
 ## See also
 

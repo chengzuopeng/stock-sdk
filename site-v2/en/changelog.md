@@ -32,7 +32,7 @@ This page records the release history of Stock SDK. The latest v2.0.0 is an **ar
 - **Composable request layer**: `RequestClientOptions` / `GetOptions` gain `fetchImpl` (inject a custom fetch) and `signal` (external cancellation); client-level lifecycle `hooks` are added. See [Request governance](/en/guide/request-governance).
 - **Signal layer**: `calcSignals` (event detection for golden / death crosses, overbought / oversold, etc.) — pure computation, no network — exported from `stock-sdk/signals`.
 - **Screener + backtest**: chainable `sdk.screener()` for local filtering plus `backtest()` for strategy backtesting, exported from `stock-sdk/screener`.
-- **Unified cache layer**: an injectable `CacheStore` interface (default `MemoryCache`, with localStorage / IndexedDB / file / Redis adapters injectable), with per-endpoint TTL policies configured at construction time.
+- **Unified cache layer**: low-level cache primitives are exported (`MemoryCache` / `getSharedCache` / `cacheThrough` via the `stock-sdk/cache` subpath); the SDK uses them internally for the trading calendar, code lists and board mappings with tiered TTLs. Note: caches are currently module-level (shared across instances); injecting a `CacheStore` at construction time with per-endpoint policies is not implemented yet and is on the 2.0.0 roadmap.
 
 ### Compatibility & baseline
 

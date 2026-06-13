@@ -32,7 +32,7 @@ pageClass: changelog-page
 - **请求层可组合化**：`RequestClientOptions` / `GetOptions` 新增 `fetchImpl`（注入自定义 fetch）与 `signal`（外部取消信号）；client 级新增生命周期 `hooks`。详见[请求治理](/guide/request-governance)。
 - **信号层**：`calcSignals`（金叉 / 死叉 / 超买 / 超卖等事件识别），纯计算、零网络，从 `stock-sdk/signals` 导出。
 - **选股器 + 回测**：链式 `sdk.screener()` 本地筛选 + `backtest()` 策略回测，从 `stock-sdk/screener` 导出。
-- **统一缓存层**：可注入的 `CacheStore` 接口（默认 `MemoryCache`，可注入 localStorage / IndexedDB / 文件 / Redis 适配器），构造时按接口分级配置 TTL。
+- **统一缓存层**：导出低层缓存原语（`MemoryCache` / `getSharedCache` / `cacheThrough`，经 `stock-sdk/cache` 子路径），SDK 内部用于交易日历、代码列表、板块映射的进程级缓存（TTL 分级）。注意：缓存目前为模块级共享（跨实例），「构造时注入 CacheStore 并按接口分级配置」尚未实现，列入 2.0.0 正式版 roadmap。
 
 ### 兼容性与基线
 

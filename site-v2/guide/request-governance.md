@@ -20,7 +20,7 @@ const sdk = new StockSDK({
 
 1. **全局默认**：构造时的顶层字段（`timeout` / `retry` / `rateLimit` / `circuitBreaker` / `headers` / `userAgent` / `rotateUserAgent`），对所有 provider 生效。
 2. **provider 级**：`providerPolicies` 为单个数据源覆盖策略，未列出的 provider 回退到全局默认。合并是**浅合并** —— provider 级只需写要改的字段，其余继承全局。
-3. **单次请求级**：`fetchImpl` / `signal` 可在每次取数时单独传入，优先级高于 client 级同名配置（具体单次入参以实现为准）。
+3. **单次请求级**：内部请求层（`RequestClient.get`）支持单次 `fetchImpl` / `signal`，但**公开的命名空间方法目前不接收单次入参** —— 单次级取消/注入尚未透出，列入 2.0.0 正式版 roadmap。当前请使用 client 级 `signal`（取消该实例全部在途请求）。
 
 ```ts
 const sdk = new StockSDK({
@@ -151,7 +151,7 @@ const sdk = new StockSDK({
 const controller = new AbortController()
 
 const sdk = new StockSDK({ signal: controller.signal }) // client 级
-// 或单次：sdk.quotes.cn(['600519'], { signal: controller.signal })（单次入参以实现为准）
+// 注意：命名空间方法目前不接收单次 { signal } 入参（roadmap 项）；client 级 abort 会取消该实例全部在途请求
 
 // 某处触发取消
 controller.abort()
@@ -212,7 +212,7 @@ const sdk = new StockSDK({
 - `providerPolicies` 是新增能力，与全局配置正交；不配则无影响。
 - `fetchImpl` / `signal` / `hooks` 全部为可选项，与既有 provider 策略正交，新增字段不破坏既有调用。
 
-> v2 SDK 仍在实现中：上述配置字段与默认值稳定，**单次请求级入参的精确形态以最终实现为准**。
+> 单次请求级入参（命名空间方法的 per-call options）尚未实现，列入 2.0.0 正式版 roadmap；上述 client 级配置字段与默认值均已稳定。
 
 ## 相关阅读
 
