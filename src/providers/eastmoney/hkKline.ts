@@ -24,7 +24,12 @@ import {
   createHistoryKlineProvider,
   type HistoryKlineRequestOptions,
 } from './historyKlineFactory';
-import { fetchEmHistoryKline, parseEmKlineCsv, normalizeMinuteWindow} from './utils';
+import {
+  fetchEmHistoryKline,
+  parseEmKlineCsv,
+  normalizeMinuteWindow,
+  resolveMinuteBegEnd,
+} from './utils';
 
 export interface HKKlineOptions extends HistoryKlineRequestOptions {}
 
@@ -164,6 +169,11 @@ export async function getHKMinuteKline(
   }
 
   // 5/15/30/60 分钟 K 线
+  // F34:调用方传了 startDate/endDate 时把日期部分下推为 beg/end 做服务端裁剪,
+  // 不再硬编码 beg=0&end=20500000 全量下载数年历史再本地过滤。
+  // 港股 HKT 与上游北京时间同为 UTC+8(双方均无夏令时),本地日期 == 北京日期,
+  // 可整天直推,无需像美股那样给 end 加一天;HH:mm 精度仍由下方本地过滤保证。
+  const serverWindow = resolveMinuteBegEnd(options.startDate, options.endDate);
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6',
     fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
@@ -171,8 +181,8 @@ export async function getHKMinuteKline(
     klt: period,
     fqt: getAdjustCode(adjust),
     secid,
-    beg: '0',
-    end: '20500000',
+    beg: serverWindow.beg,
+    end: serverWindow.end,
   });
   const { klines } = await fetchEmHistoryKline(client, EM_HK_KLINE_URL, params);
   if (klines.length === 0) {

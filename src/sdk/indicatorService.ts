@@ -109,13 +109,6 @@ export class IndicatorService {
     return dateStr.replace(/-/g, '');
   }
 
-  private dateToTimestamp(dateStr: string): number {
-    const normalized = dateStr.includes('-')
-      ? dateStr
-      : `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
-    return new Date(normalized).getTime();
-  }
-
   async getKlineWithIndicators(
     symbol: string,
     options: KlineWithIndicatorsOptions = {}
@@ -170,7 +163,20 @@ export class IndicatorService {
         allKlines = await this.klineService.getHistoryKline(symbol, klineOptions);
     }
 
-    if (startDate && allKlines.length < requiredBars) {
+    // F35:短上市标的双请求短路。
+    // 原逻辑只要 `allKlines.length < requiredBars` 就无条件全量 refetch,但若首次
+    // 返回的第一根 K 线日期已【晚于】请求的 actualStartDate,说明上游在
+    // actualStartDate 之前本就没有更多历史(标的上市晚),refetch 只会拿回
+    // 完全相同的数据 —— 每次调用白白双倍上游流量。
+    // 仅当返回为空、或首根 <= actualStartDate(数据可能确实被 beg 截断)时
+    // 才保留原有的全量 refetch。日期统一归一成 'YYYY-MM-DD' 后按字符串比较
+    // (allKlines[0].date 是 'YYYY-MM-DD',actualStartDate 是 'YYYYMMDD')。
+    const mayHaveEarlierData =
+      allKlines.length === 0 ||
+      actualStartDate === undefined ||
+      this.normalizeDate(allKlines[0].date) <= this.normalizeDate(actualStartDate);
+
+    if (startDate && allKlines.length < requiredBars && mayHaveEarlierData) {
       switch (market) {
         case 'HK':
           allKlines = await this.klineService.getHKHistoryKline(symbol, {
@@ -192,17 +198,34 @@ export class IndicatorService {
       }
     }
 
-    const withIndicators = addIndicators(allKlines, indicators);
-
+    // F37:先裁剪后算指标。
+    // 原逻辑对全量历史先 addIndicators 算完全部指标,再逐 bar `new Date()` 过滤,
+    // 窄窗口查询时 >99% 的计算结果直接被丢弃(refetch 全量历史时尤甚)。
+    // 现在先按日期字符串定位窗口首根,向前保留 requiredBars 根 lookback 再计算:
+    // requiredBars 本就是 estimateIndicatorLookback 给出的"指标需要的前置根数"
+    // (EMA 类的 1.5x buffer 已含余量),窗口内指标值与全量计算一致
+    // (见 test/unit/sdk/perf-request.test.ts 的全量 vs 切片对拍)。
+    // 最终过滤同样改为归一化日期字符串比较(ISO 'YYYY-MM-DD' 字典序即时间序),
+    // 消除逐 bar 的 new Date() 分配。
     if (startDate) {
-      const startTs = this.dateToTimestamp(startDate);
-      const endTs = endDate ? this.dateToTimestamp(endDate) : Infinity;
-      return withIndicators.filter((item) => {
-        const ts = this.dateToTimestamp(item.date);
-        return ts >= startTs && ts <= endTs;
+      const startNorm = this.normalizeDate(startDate);
+      const endNorm = endDate ? this.normalizeDate(endDate) : undefined;
+
+      const windowStartIdx = allKlines.findIndex(
+        (kline) => this.normalizeDate(kline.date) >= startNorm
+      );
+      if (windowStartIdx === -1) {
+        // 所有 K 线都早于 startDate → 窗口为空,任何指标计算都会被丢弃,直接短路
+        return [];
+      }
+
+      const sliced = allKlines.slice(Math.max(0, windowStartIdx - requiredBars));
+      return addIndicators(sliced, indicators).filter((item) => {
+        const date = this.normalizeDate(item.date);
+        return date >= startNorm && (endNorm === undefined || date <= endNorm);
       });
     }
 
-    return withIndicators;
+    return addIndicators(allKlines, indicators);
   }
 }

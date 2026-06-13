@@ -43,6 +43,51 @@ export function normalizeMinuteWindow(
 }
 
 /**
+ * F34:把分钟K线(5/15/30/60)的 startDate/endDate【日期部分】下推为
+ * kline/get 端点的 beg/end(YYYYMMDD),让服务端先按天裁剪。
+ *
+ * 此前该分支硬编码 `beg=0&end=20500000` 全量下载数年分钟历史(查 1 天也要
+ * 拉数百 KB,并对每行跑 CSV 解析 + 时间换算)再本地丢弃;同端点的日 K 路径
+ * (getHistoryKline)已证明 beg/end 可做服务端裁剪。
+ *
+ * - 兼容 'YYYY-MM-DD HH:mm' / 'YYYY-MM-DDTHH:mm' / 'YYYY-MM-DD' / 'YYYYMMDD'
+ *   等形式:仅提取日期部分并去横线
+ * - 未传或无法识别的格式保留全量窗口('0' / '20500000'),与历史行为一致
+ * - 这里只做"天"级裁剪(服务端窗口必须是目标数据的超集),
+ *   HH:mm 精度仍由调用方的 normalizeMinuteWindow 本地过滤保证
+ * - `endExtraDays`:上游 beg/end 按【北京时间】日期裁剪,而 startDate/endDate
+ *   语义是市场本地时区。美股(UTC-4/-5)的下午盘对应北京时间次日凌晨,
+ *   end 若取本地日期当天会把这些行裁掉,故美股调用方需传 1(详见 usKline.ts);
+ *   beg 无此问题 —— 北京时间恒早于/等于西半球本地时间,本地日期 D 的行
+ *   其北京日期只会 >= D,beg=D 不会漏数据
+ */
+export function resolveMinuteBegEnd(
+  startDate: string | undefined,
+  endDate: string | undefined,
+  endExtraDays = 0
+): { beg: string; end: string } {
+  const toCompactDay = (value?: string): string | undefined => {
+    if (!value) return undefined;
+    const m = /^(\d{4})-?(\d{2})-?(\d{2})/.exec(value.trim());
+    return m ? `${m[1]}${m[2]}${m[3]}` : undefined;
+  };
+
+  const beg = toCompactDay(startDate) ?? '0';
+  let end = toCompactDay(endDate);
+  if (end !== undefined && endExtraDays > 0) {
+    // 用 UTC 做日期加法,避免运行环境本地时区/DST 影响跨月跨年进位
+    const d = new Date(
+      Date.UTC(+end.slice(0, 4), +end.slice(4, 6) - 1, +end.slice(6, 8))
+    );
+    d.setUTCDate(d.getUTCDate() + endExtraDays);
+    end = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(
+      d.getUTCDate()
+    ).padStart(2, '0')}`;
+  }
+  return { beg, end: end ?? '20500000' };
+}
+
+/**
  * 分页获取数据
  * @param client 请求客户端
  * @param baseUrl 基础 URL

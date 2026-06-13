@@ -24,7 +24,12 @@ import {
   createHistoryKlineProvider,
   type HistoryKlineRequestOptions,
 } from './historyKlineFactory';
-import { fetchEmHistoryKline, parseEmKlineCsv, normalizeMinuteWindow} from './utils';
+import {
+  fetchEmHistoryKline,
+  parseEmKlineCsv,
+  normalizeMinuteWindow,
+  resolveMinuteBegEnd,
+} from './utils';
 
 export interface USKlineOptions extends HistoryKlineRequestOptions {}
 
@@ -169,6 +174,14 @@ export async function getUSMinuteKline(
   }
 
   // 5/15/30/60 分钟 K 线
+  // F34:调用方传了 startDate/endDate 时把日期部分下推为 beg/end 做服务端裁剪,
+  // 不再硬编码 beg=0&end=20500000 全量下载数年历史再本地过滤。
+  // 上游 beg/end 按北京时间日期裁剪,而本函数的 startDate/endDate 是美东时区:
+  // NY 交易日 D 的下午盘对应北京时间 D+1 凌晨,end 取当天会把这些行裁掉,
+  // 故 end 加 1 天(endExtraDays=1)保证服务端窗口是目标数据的超集;
+  // beg 无此问题(NY 日期 D 的行其北京日期只会是 D 或 D+1)。
+  // 多拉的边缘行仍由下方 NY 本地时间过滤兜底,语义不变。
+  const serverWindow = resolveMinuteBegEnd(options.startDate, options.endDate, 1);
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6',
     fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
@@ -176,8 +189,8 @@ export async function getUSMinuteKline(
     klt: period,
     fqt: getAdjustCode(adjust),
     secid,
-    beg: '0',
-    end: '20500000',
+    beg: serverWindow.beg,
+    end: serverWindow.end,
   });
   const { klines } = await fetchEmHistoryKline(client, EM_US_KLINE_URL, params);
   if (klines.length === 0) {

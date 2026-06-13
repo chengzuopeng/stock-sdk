@@ -17,7 +17,12 @@ import {
 } from '../../core';
 import type { HistoryKline, MinuteTimeline, MinuteKline } from '../../types';
 import { normalizeSymbol, toEastmoneySecid } from '../../symbols';
-import { fetchEmHistoryKline, parseEmKlineCsv, normalizeMinuteWindow} from './utils';
+import {
+  fetchEmHistoryKline,
+  parseEmKlineCsv,
+  normalizeMinuteWindow,
+  resolveMinuteBegEnd,
+} from './utils';
 
 export interface HistoryKlineOptions {
   /** K 线周期 @default 'daily' */
@@ -177,6 +182,11 @@ export async function getMinuteKline(
       .filter((row) => row.time >= start && row.time <= end);
   } else {
     // 5/15/30/60 分钟 K 线，使用 kline/get 接口
+    // F34:调用方传了 startDate/endDate 时把日期部分下推为 beg/end 做服务端裁剪,
+    // 不再硬编码 beg=0&end=20500000 全量下载数年历史再本地过滤。
+    // A 股行情时间即北京时间,日期可整天直推;HH:mm 精度仍由下方本地过滤保证。
+    // 注意取 options.* 原始值(解构默认值是哨兵时间,不应推给上游)。
+    const serverWindow = resolveMinuteBegEnd(options.startDate, options.endDate);
     const params = new URLSearchParams({
       fields1: 'f1,f2,f3,f4,f5,f6',
       fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
@@ -184,8 +194,8 @@ export async function getMinuteKline(
       klt: period,
       fqt: getAdjustCode(adjust || ''), // 分钟线如果不传 adjust，默认为不复权？这里原代码 adjust 可选
       secid,
-      beg: '0',
-      end: '20500000',
+      beg: serverWindow.beg,
+      end: serverWindow.end,
     });
 
     const url = EM_KLINE_URL;
