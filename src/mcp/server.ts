@@ -35,9 +35,11 @@ function isObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * 按 tool.inputSchema 校验 args：required 缺失 / 基本类型不符 → 返回错误消息(否则 null)。
+ * 按 tool.inputSchema 校验 args：required 缺失 / 基本类型不符 / enum 取值非法
+ * → 返回错误消息(否则 null)。
  * MCP server 此前完全不按 schema 校验 tools/call 入参,脏入参(如 codes 传字符串而非数组)会
  * 越过 provider 空值守卫、抛出 `codes.join is not a function` 这类泄漏实现细节的 Error[UNKNOWN]。
+ * enum 校验与 CLI 的 enum 拒绝语义一致(spec 派生的 schema 自带 enum,在边界即拒绝非法值)。
  */
 function validateArgs(
   schema: ToolDef['inputSchema'],
@@ -50,22 +52,27 @@ function validateArgs(
   }
   for (const [key, prop] of Object.entries(schema.properties)) {
     const v = args[key];
-    if (v === undefined || v === null || !prop.type) continue;
-    const okType =
-      prop.type === 'array'
-        ? Array.isArray(v)
-        : prop.type === 'string'
-          ? typeof v === 'string'
-          : prop.type === 'integer'
-            ? Number.isInteger(v)
-            : prop.type === 'number'
-              ? typeof v === 'number'
-              : prop.type === 'boolean'
-                ? typeof v === 'boolean'
-                : prop.type === 'object'
-                  ? typeof v === 'object' && !Array.isArray(v)
-                  : true;
-    if (!okType) return `参数 "${key}" 类型应为 ${prop.type}`;
+    if (v === undefined || v === null) continue;
+    if (prop.type) {
+      const okType =
+        prop.type === 'array'
+          ? Array.isArray(v)
+          : prop.type === 'string'
+            ? typeof v === 'string'
+            : prop.type === 'integer'
+              ? Number.isInteger(v)
+              : prop.type === 'number'
+                ? typeof v === 'number'
+                : prop.type === 'boolean'
+                  ? typeof v === 'boolean'
+                  : prop.type === 'object'
+                    ? typeof v === 'object' && !Array.isArray(v)
+                    : true;
+      if (!okType) return `参数 "${key}" 类型应为 ${prop.type}`;
+    }
+    if (prop.enum && !(prop.enum as readonly unknown[]).includes(v)) {
+      return `参数 "${key}" 取值非法「${String(v)}」，可选: ${prop.enum.join(' / ')}`;
+    }
   }
   return null;
 }

@@ -1,38 +1,29 @@
 /**
- * 工具注册表：聚合各领域 ToolDef，提供按 tier / 名称列表的过滤。
+ * 工具注册表：自 `src/spec/methods.ts` 的共享方法 spec 派生全部 ToolDef
+ * （CLI 与 MCP 单一事实来源），提供按 tier / 名称列表的过滤。
  * 见 mcp.md §3 / §10。
+ *
+ * 仅 get_kline_with_indicators 保留手写 schema/invoke（嵌套 indicators 对象
+ * 无法由扁平 ParamSpec 表达，原因见 ./kline.ts），其余 78 个工具全部派生。
  */
 import type { ToolDef, ToolTier } from '../types';
-import { quotesTools, searchTools, codesTools, batchTools } from './quotes';
-import { klineTools } from './kline';
-import { boardTools } from './board';
-import { fundFlowTools } from './fundFlow';
-import { northboundTools } from './northbound';
-import { marketEventTools } from './marketEvent';
-import { dragonTigerTools } from './dragonTiger';
-import { futuresTools } from './futures';
-import { optionsTools } from './options';
-import { fundTools } from './fund';
-import { calendarTools } from './calendar';
-import { referenceTools } from './reference';
+import { METHOD_SPECS } from '../../spec/methods';
+import { toToolDef } from '../../spec/derive-mcp';
+import { klineWithIndicatorsTool } from './kline';
 
-export const TOOLS: ToolDef[] = [
-  ...quotesTools,
-  ...searchTools,
-  ...codesTools,
-  ...batchTools,
-  ...klineTools,
-  ...boardTools,
-  ...fundFlowTools,
-  ...northboundTools,
-  ...marketEventTools,
-  ...dragonTigerTools,
-  ...futuresTools,
-  ...optionsTools,
-  ...fundTools,
-  ...calendarTools,
-  ...referenceTools,
-];
+/** spec 标记 mcpCustom 的手写工具（按方法点分路径注册）。 */
+const CUSTOM_TOOLS: Record<string, ToolDef> = {
+  'kline.withIndicators': klineWithIndicatorsTool,
+};
+
+export const TOOLS: ToolDef[] = METHOD_SPECS.filter((s) => s.mcp !== false).map((s) => {
+  if (s.mcpCustom) {
+    const custom = CUSTOM_TOOLS[s.path.join('.')];
+    if (!custom) throw new Error(`方法 ${s.path.join('.')} 标记了 mcpCustom 但未注册手写工具`);
+    return custom;
+  }
+  return toToolDef(s);
+});
 
 export const TOOL_MAP = new Map<string, ToolDef>(TOOLS.map((t) => [t.name, t]));
 
