@@ -112,8 +112,12 @@ describe('core parser utilities', () => {
       expect(toFiniteNumberOrNull(null)).toBeNull();
       expect(toFiniteNumberOrNull(undefined)).toBeNull();
       expect(toFiniteNumberOrNull('')).toBeNull();
+      expect(toFiniteNumberOrNull('   ')).toBeNull();
+      expect(toFiniteNumberOrNull('\t')).toBeNull();
       expect(toFiniteNumberOrNull('-')).toBeNull();
+      expect(toFiniteNumberOrNull(' - ')).toBeNull();
       expect(toFiniteNumberOrNull('--')).toBeNull();
+      expect(toFiniteNumberOrNull(' -- ')).toBeNull();
     });
 
     it('rejects trailing garbage (Number 严格语义,非 parseFloat 前缀)', () => {

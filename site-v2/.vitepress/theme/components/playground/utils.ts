@@ -22,6 +22,7 @@ export function yesterdayISO(): string {
 /** 当前月份 + offset 的 YYMM（期权 / 期货合约月份默认值，如 '2607'） */
 export function contractYYMM(offsetMonths: number): string {
   const d = new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + offsetMonths);
   return `${String(d.getFullYear() % 100).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -29,6 +30,7 @@ export function contractYYMM(offsetMonths: number): string {
 /** 当前月份 + offset 的 YYYY-MM（ETF 期权到期日查询默认值） */
 export function monthISO(offsetMonths: number): string {
   const d = new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + offsetMonths);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }

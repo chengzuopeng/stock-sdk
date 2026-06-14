@@ -7,9 +7,3 @@ declare module 'stock-sdk-local' {
   export const StockSDK: any
   export default StockSDK
 }
-
-// 声明动态 URL 导入模块（用于生产环境的 unpkg CDN，锁 @beta dist-tag）
-declare module 'https://unpkg.com/stock-sdk@beta/dist/index.js' {
-  export const StockSDK: any
-  export default StockSDK
-}

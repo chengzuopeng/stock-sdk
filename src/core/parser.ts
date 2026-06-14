@@ -39,7 +39,8 @@ export function parseResponse(text: string): { key: string; fields: string[] }[]
  * 实现),集中到这里统一识别,避免语义漂移。
  */
 function isNoDataPlaceholder(val: string): boolean {
-  return val === '' || val === '-' || val === '--';
+  const trimmed = val.trim();
+  return trimmed === '' || trimmed === '-' || trimmed === '--';
 }
 
 /**
@@ -98,4 +99,3 @@ export function toFiniteNumberOrNull(
   const n = Number(val);
   return Number.isFinite(n) ? n : null;
 }
-

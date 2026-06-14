@@ -14,7 +14,7 @@
  *
  * 与 v1 版的差异：
  * - 取数走 v2 命名空间 API：sdk.quotes.cnSimple(...)（返回字段与 v1 一致）
- * - 生产环境 CDN 锁 @beta dist-tag（stock-sdk latest 仍是 v1，裸引会拿到旧包）
+ * - 生产环境 CDN 锁精确版本（stock-sdk latest 仍是 v1，裸引会拿到旧包）
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
@@ -44,7 +44,7 @@ const FALLBACK: Row[] = [
   { code: 'sh601318', name: '中国平安', price: 54.3, change: 0.33, changePercent: 0.61 },
 ]
 
-const { lang } = useData()
+const { lang, theme } = useData()
 const isEn = computed(() => lang.value.toLowerCase().startsWith('en'))
 const t = computed(() =>
   isEn.value
@@ -85,7 +85,7 @@ function stampNow(): void {
   time.value = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-// ---- SDK 加载（dev 引本地 src，prod 走 unpkg 并锁 @beta dist-tag）----
+// ---- SDK 加载（dev 引本地 src，prod 走 unpkg 并锁构建期精确版本）----
 let sdk: any = null
 let sdkLoading: Promise<any> | null = null
 
@@ -94,9 +94,10 @@ async function loadSDK(): Promise<any> {
   if (sdkLoading) return sdkLoading
   sdkLoading = (async () => {
     const isDev = import.meta.env.DEV
+    const version = (theme.value as any).sdkVersion as string
     const mod: any = isDev
       ? await import('stock-sdk-local')
-      : await import(/* @vite-ignore */ 'https://unpkg.com/stock-sdk@beta/dist/index.js')
+      : await import(/* @vite-ignore */ `https://unpkg.com/stock-sdk@${version}/dist/index.js`)
     const StockSDK = mod.StockSDK || mod.default
     sdk = new StockSDK({ timeout: 8000, retry: { maxRetries: 1, baseDelay: 600 } })
     return sdk
