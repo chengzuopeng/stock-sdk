@@ -5,15 +5,7 @@ import {
   RequestClient,
   EM_HK_KLINE_URL,
   EM_HK_TRENDS_URL,
-  EM_PUSH_TOKEN,
   MARKET_TZ,
-  assertMinutePeriod,
-  assertAdjustType,
-  parseMarketTime,
-  toNullableEpoch,
-  formatInTz,
-  getAdjustCode,
-  toNumber,
 } from '../../core';
 import type {
   HKHistoryKline,
@@ -26,11 +18,9 @@ import {
   type HistoryKlineRequestOptions,
 } from './historyKlineFactory';
 import {
-  fetchEmHistoryKline,
-  parseEmKlineCsv,
-  normalizeMinuteWindow,
-  resolveMinuteBegEnd,
-} from './utils';
+  createMinuteKlineProvider,
+  createOverseasMinuteRowMappers,
+} from './minuteKlineFactory';
 
 export interface HKKlineOptions extends HistoryKlineRequestOptions {}
 
@@ -92,6 +82,31 @@ export interface HKMinuteKlineOptions {
   ndays?: number;
 }
 
+// F45:分钟K线流程收编进 createMinuteKlineProvider 工厂,港股差异点:
+// - secid 经 symbols 层归一(F39:'00700' / 'hk00700' / '0700' / '700' →
+//   116.00700),行的 code 字段回填归一结果的 code
+// - 行时间走 createOverseasMinuteRowMappers(北京时间解析 → HK 时区格式化;
+//   HKT 与 CST 同为 UTC+8,数值上无偏移,统一流程见工厂注释)
+// - F34 beg/end 下推:港股 HKT 与上游北京时间同为 UTC+8(双方均无夏令时),
+//   本地日期 == 北京日期,可整天直推,无需像美股那样给 end 加一天
+const getHKMinuteKlineByFactory = createMinuteKlineProvider<
+  HKMinuteTimeline,
+  HKMinuteKline
+>({
+  trendsUrl: EM_HK_TRENDS_URL,
+  klineUrl: EM_HK_KLINE_URL,
+  resolveTarget: (symbol) => {
+    const ns = normalizeSymbol(symbol, { market: 'HK' });
+    return { secid: toEastmoneySecid(ns), code: ns.code };
+  },
+  defaultPeriod: '1',
+  ndays: 'option',
+  fqt: 'option',
+  includeUt: true,
+  window: { mode: 'filter' },
+  ...createOverseasMinuteRowMappers(MARKET_TZ.HK, 'HKD'),
+});
+
 /**
  * 获取港股分钟 K 线（5/15/30/60 分钟）或当日分时（1 分钟）。
  *
@@ -105,118 +120,5 @@ export async function getHKMinuteKline(
   symbol: string,
   options: HKMinuteKlineOptions = {}
 ): Promise<HKMinuteTimeline[] | HKMinuteKline[]> {
-  const {
-    period = '1',
-    adjust = 'qfq',
-    startDate = '1979-09-01 09:32:00',
-    endDate = '2222-01-01 09:32:00',
-    ndays = 1,
-  } = options;
-  assertMinutePeriod(period);
-  assertAdjustType(adjust);
-
-  // F39: 同上,经 symbols 层归一( '00700' / 'hk00700' / '0700' / '700' →
-  // secid 116.00700),pureSymbol(code 字段回填)取归一结果的 code。
-  const ns = normalizeSymbol(symbol, { market: 'HK' });
-  const secid = toEastmoneySecid(ns);
-  const pureSymbol = ns.code;
-
-  // 东方财富 trends2 / kline 返回的 time 字符串以 +08:00 (CST) 表示。
-  // 港股 HKT 与 CST 同为 UTC+8 → 数值上 HK 没有偏移问题，但为统一处理风格
-  // 与未来兼容性，仍走 "先 CN 解析得 epoch、再 format 到目标 tz" 流程。
-  const toLocal = (timeStr: string) => {
-    const epoch = parseMarketTime(timeStr, MARKET_TZ.CN);
-    return {
-      time: formatInTz(epoch, MARKET_TZ.HK) || timeStr,
-      // NaN→null 归一:本文件是全库仅有的两处绕过 buildTimeMeta 直落 timestamp
-      // 的调用,不归一会让 NaN 流进 `number | null` 字段(违反 v2 契约)
-      timestamp: toNullableEpoch(epoch),
-    };
-  };
-
-  if (period === '1') {
-    const params = new URLSearchParams({
-      fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
-      fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
-      ut: EM_PUSH_TOKEN,
-      ndays: String(ndays),
-      iscr: '0',
-      secid,
-    });
-    const url = `${EM_HK_TRENDS_URL}?${params.toString()}`;
-    const json = await client.get<{ data?: { trends?: string[] } }>(url, {
-      responseType: 'json',
-    });
-    const trends = json?.data?.trends;
-    if (!Array.isArray(trends) || trends.length === 0) {
-      return [];
-    }
-    const { start, end } = normalizeMinuteWindow(startDate, endDate);
-    return trends
-      .map<HKMinuteTimeline>((line) => {
-        const [rawTime, open, close, high, low, volume, amount, avgPrice] =
-          line.split(',');
-        const { time, timestamp } = toLocal(rawTime);
-        return {
-          time,
-          timestamp,
-          tz: MARKET_TZ.HK,
-          open: toNumber(open),
-          close: toNumber(close),
-          high: toNumber(high),
-          low: toNumber(low),
-          volume: toNumber(volume),
-          amount: toNumber(amount),
-          avgPrice: toNumber(avgPrice),
-          currency: 'HKD',
-          code: pureSymbol,
-        };
-      })
-      .filter((row) => row.time >= start && row.time <= end);
-  }
-
-  // 5/15/30/60 分钟 K 线
-  // F34:调用方传了 startDate/endDate 时把日期部分下推为 beg/end 做服务端裁剪,
-  // 不再硬编码 beg=0&end=20500000 全量下载数年历史再本地过滤。
-  // 港股 HKT 与上游北京时间同为 UTC+8(双方均无夏令时),本地日期 == 北京日期,
-  // 可整天直推,无需像美股那样给 end 加一天;HH:mm 精度仍由下方本地过滤保证。
-  const serverWindow = resolveMinuteBegEnd(options.startDate, options.endDate);
-  const params = new URLSearchParams({
-    fields1: 'f1,f2,f3,f4,f5,f6',
-    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
-    ut: EM_PUSH_TOKEN,
-    klt: period,
-    fqt: getAdjustCode(adjust),
-    secid,
-    beg: serverWindow.beg,
-    end: serverWindow.end,
-  });
-  const { klines } = await fetchEmHistoryKline(client, EM_HK_KLINE_URL, params);
-  if (klines.length === 0) {
-    return [];
-  }
-  const { start, end } = normalizeMinuteWindow(startDate, endDate);
-  return klines
-    .map<HKMinuteKline>((line) => {
-      const item = parseEmKlineCsv(line);
-      const { time, timestamp } = toLocal(item.date);
-      return {
-        time,
-        timestamp,
-        tz: MARKET_TZ.HK,
-        open: item.open,
-        close: item.close,
-        high: item.high,
-        low: item.low,
-        volume: item.volume,
-        amount: item.amount,
-        amplitude: item.amplitude,
-        changePercent: item.changePercent,
-        change: item.change,
-        turnoverRate: item.turnoverRate,
-        currency: 'HKD',
-        code: pureSymbol,
-      };
-    })
-    .filter((row) => row.time >= start && row.time <= end);
+  return getHKMinuteKlineByFactory(client, symbol, options);
 }

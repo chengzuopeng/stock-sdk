@@ -5,15 +5,14 @@
 import {
   RequestClient,
   getSharedCache,
-  toNumber,
   assertKlinePeriod,
   assertAdjustType,
-  assertMinutePeriod,
   getPeriodCode,
   getAdjustCode,
 } from '../../core';
 import { NotFoundError, UpstreamEmptyError } from '../../core/errors';
 import { toNumberSafe } from '../../core/parser';
+import { createMinuteKlineProvider } from './minuteKlineFactory';
 import {
   fetchPaginatedData,
   fetchEmHistoryKline,
@@ -307,7 +306,30 @@ export async function fetchBoardKline(
 }
 
 /**
+ * 板块分钟 K 线 provider 缓存(F45)
+ *
+ * fetchBoardMinuteKline 的 klineUrl/trendsUrl 按板块类型(行业/概念)逐调用
+ * 传入,与工厂"一份 config 一个 provider"的形态不同 —— 这里按 URL 对 memo,
+ * 实际只会出现行业/概念两个实例。
+ */
+const boardMinuteProviders = new Map<
+  string,
+  (
+    client: RequestClient,
+    boardCode: string,
+    options?: BoardMinuteKlineOptions
+  ) => Promise<IndustryBoardMinuteTimeline[] | IndustryBoardMinuteKline[]>
+>();
+
+/**
  * 获取板块分时行情通用逻辑
+ *
+ * F45:接入 createMinuteKlineProvider 工厂。板块差异点(与收编前一致):
+ * - secid 为 `90.${boardCode}`(BK 代码已由调用方 boardFactory 解析)
+ * - 接口不带 ut token;kline 分支 fqt 固定 '1'、附带 smplmt/lmt
+ * - 无 startDate/endDate 选项(window mode='full' 全量拉取,不做本地过滤;
+ *   不要悄悄给板块加窗口选项)、默认 period '5'、分时固定 ndays=1
+ * - 行为简化形态:不带 timestamp/tz/currency 字段
  */
 export async function fetchBoardMinuteKline(
   client: RequestClient,
@@ -316,76 +338,39 @@ export async function fetchBoardMinuteKline(
   trendsUrl: string,
   options: BoardMinuteKlineOptions = {}
 ): Promise<IndustryBoardMinuteTimeline[] | IndustryBoardMinuteKline[]> {
-  const { period = '5' } = options;
-  assertMinutePeriod(period);
-
-  if (period === '1') {
-    const params = new URLSearchParams({
-      fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
-      fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
-      iscr: '0',
-      ndays: '1',
-      secid: `90.${boardCode}`,
+  const providerKey = `${klineUrl}|${trendsUrl}`;
+  let provider = boardMinuteProviders.get(providerKey);
+  if (!provider) {
+    provider = createMinuteKlineProvider<
+      IndustryBoardMinuteTimeline,
+      IndustryBoardMinuteKline
+    >({
+      trendsUrl,
+      klineUrl,
+      resolveTarget: (code) => ({ secid: `90.${code}`, code }),
+      defaultPeriod: '5',
+      ndays: { fixed: '1' },
+      fqt: { fixed: '1' },
+      includeUt: false,
+      window: { mode: 'full', beg: '0', end: '20500101' },
+      extraKlineParams: { smplmt: '10000', lmt: '1000000' },
+      // 板块 trends 最后一列语义为最新价 → 由通用的 avgPrice 槽位改名 price
+      mapTrendRow: ({ avgPrice, ...rest }) => ({ ...rest, price: avgPrice }),
+      mapKlineRow: (item) => ({
+        time: item.date,
+        open: item.open,
+        close: item.close,
+        high: item.high,
+        low: item.low,
+        changePercent: item.changePercent,
+        change: item.change,
+        volume: item.volume,
+        amount: item.amount,
+        amplitude: item.amplitude,
+        turnoverRate: item.turnoverRate,
+      }),
     });
-
-    const url = `${trendsUrl}?${params.toString()}`;
-    const json = await client.get<{ data?: { trends?: string[] } }>(url, {
-      responseType: 'json',
-    });
-
-    const trends = json?.data?.trends;
-    if (!Array.isArray(trends) || trends.length === 0) return [];
-
-    return trends.map((line) => {
-      const [time, open, close, high, low, volume, amount, price] = line.split(',');
-      const latestPrice = toNumber(price);
-      return {
-        time,
-        open: toNumber(open),
-        close: toNumber(close),
-        high: toNumber(high),
-        low: toNumber(low),
-        volume: toNumber(volume),
-        amount: toNumber(amount),
-        price: latestPrice,
-      } as IndustryBoardMinuteTimeline;
-    });
-  } else {
-    const params = new URLSearchParams({
-      secid: `90.${boardCode}`,
-      fields1: 'f1,f2,f3,f4,f5,f6',
-      fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
-      klt: period,
-      fqt: '1',
-      beg: '0',
-      end: '20500101',
-      smplmt: '10000',
-      lmt: '1000000',
-    });
-
-    const url = `${klineUrl}?${params.toString()}`;
-    const json = await client.get<{ data?: { klines?: string[] } }>(url, {
-      responseType: 'json',
-    });
-
-    const klines = json?.data?.klines;
-    if (!Array.isArray(klines) || klines.length === 0) return [];
-
-    return klines.map((line) => {
-      const [time, open, close, high, low, volume, amount, amplitude, changePercent, change, turnoverRate] = line.split(',');
-      return {
-        time,
-        open: toNumber(open),
-        close: toNumber(close),
-        high: toNumber(high),
-        low: toNumber(low),
-        changePercent: toNumber(changePercent),
-        change: toNumber(change),
-        volume: toNumber(volume),
-        amount: toNumber(amount),
-        amplitude: toNumber(amplitude),
-        turnoverRate: toNumber(turnoverRate),
-      } as IndustryBoardMinuteKline;
-    });
+    boardMinuteProviders.set(providerKey, provider);
   }
+  return provider(client, boardCode, options);
 }
