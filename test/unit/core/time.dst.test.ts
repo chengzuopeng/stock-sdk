@@ -104,3 +104,35 @@ describe('F1 formatInTz 与 parseMarketTime 在 DST 日互逆', () => {
     expect(formatInTz(parseMarketTime(wall, US), US)).toBe(wall);
   });
 });
+
+describe('P3-12 固定偏移年缓存不破坏历史 DST 年与跨年边界', () => {
+  it('中国 1990(夏令时年,UTC+9):四点采样检出 DST,走 two-pass 仍正确', () => {
+    // 本机 tzdata 实测:1990-07 为 GMT+9、1990-01 为 GMT+8
+    expect(iso(parseMarketTime('1990-07-02 10:00', CN))).toBe(
+      '1990-07-02T01:00:00.000Z'
+    );
+    expect(iso(parseMarketTime('1990-01-15 10:00', CN))).toBe(
+      '1990-01-15T02:00:00.000Z'
+    );
+  });
+
+  it('现代年快路径与跨年边界守卫输出一致正确', () => {
+    // 快路径(年中)
+    expect(iso(parseMarketTime('2024-06-15 10:00', CN))).toBe(
+      '2024-06-15T02:00:00.000Z'
+    );
+    // 跨年边界(1/1、12/31)走 two-pass 守卫,结果不受影响
+    expect(iso(parseMarketTime('2024-01-01 00:30', CN))).toBe(
+      '2023-12-31T16:30:00.000Z'
+    );
+    expect(iso(parseMarketTime('2024-12-31 23:30', CN))).toBe(
+      '2024-12-31T15:30:00.000Z'
+    );
+  });
+
+  it('美东 DST 年逐行 two-pass(采样四点必不一致),切换日断言依旧成立', () => {
+    expect(iso(parseMarketTime('2024-03-10 04:00', US))).toBe(
+      '2024-03-10T08:00:00.000Z'
+    );
+  });
+});

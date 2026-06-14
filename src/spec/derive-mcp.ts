@@ -9,6 +9,7 @@
  *   并用 apply 保留命名空间上下文（顶层 search 等原型方法不丢 this）。
  */
 import type { JsonSchema, JsonSchemaProp, ToolDef } from '../mcp/types';
+import { resolveSdkMethod } from './resolve';
 import type { MethodSpec, ParamSpec, SpecPositional } from './methods';
 
 /** ParamSpec.type → JSON Schema 类型（数值参数现行 schema 均为 integer）。 */
@@ -64,7 +65,7 @@ function mcpParams(spec: MethodSpec): ParamSpec[] {
 }
 
 /** MethodSpec → inputSchema：codes/positional/params 依序成为属性，required 跟随声明。 */
-export function toInputSchema(spec: MethodSpec): JsonSchema {
+function toInputSchema(spec: MethodSpec): JsonSchema {
   const properties: Record<string, JsonSchemaProp> = {};
   const required: string[] = [];
   if (spec.argShape === 'codes[]' || spec.argShape === 'codes+options') {
@@ -89,17 +90,13 @@ export function toInputSchema(spec: MethodSpec): JsonSchema {
 
 /** 沿 path 取 SDK 方法并保留父级上下文（与 CLI dispatch.invokeMethod 同语义）。 */
 function resolveMethod(sdk: unknown, path: string[]): (args: unknown[]) => unknown {
-  let parent: unknown = undefined;
-  const target = path.reduce<unknown>((o, k) => {
-    if (o == null || typeof o !== 'object') return undefined;
-    parent = o;
-    return (o as Record<string, unknown>)[k];
-  }, sdk);
-  if (typeof target !== 'function') {
+  // walker 收编进 spec/resolve(P3-13),与 CLI dispatch.invokeMethod 同一实现
+  const resolved = resolveSdkMethod(sdk, path);
+  if (!resolved) {
     // spec 路径静态可信（contract 测试全量覆盖），此处仅防御性兜底
     throw new Error(`SDK 上不存在方法: ${path.join('.')}`);
   }
-  return (args) => (target as (...a: unknown[]) => unknown).apply(parent, args);
+  return (args) => resolved.fn.apply(resolved.parent, args);
 }
 
 /** MethodSpec → invoke：按 argShape 把扁平 args 重组成 SDK 方法签名。 */

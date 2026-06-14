@@ -1,7 +1,7 @@
 /**
  * 东方财富 - 通用工具函数
  */
-import { RequestClient } from '../../core';
+import { RequestClient, addDays } from '../../core';
 
 /**
  * 把 YYYYMMDD 转为 YYYY-MM-DD（datacenter filter 要求横线格式）。
@@ -29,13 +29,9 @@ export function normalizeMinuteWindow(
   startDate: string,
   endDate: string
 ): { start: string; end: string } {
-  const norm = (v: string): string => {
-    let s = v.replace('T', ' ').trim();
-    if (/^\d{8}$/.test(s)) {
-      s = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
-    }
-    return s.slice(0, 16);
-  };
+  // 8 位转横线复用 toIsoDate(P3-13:同文件此前内联了一份逐字相同的转换)
+  const norm = (v: string): string =>
+    toIsoDate(v.replace('T', ' ').trim()).slice(0, 16);
   const start = norm(startDate);
   let end = norm(endDate);
   if (end.length === 10) end += ' 23:59';
@@ -75,14 +71,11 @@ export function resolveMinuteBegEnd(
   const beg = toCompactDay(startDate) ?? '0';
   let end = toCompactDay(endDate);
   if (end !== undefined && endExtraDays > 0) {
-    // 用 UTC 做日期加法,避免运行环境本地时区/DST 影响跨月跨年进位
-    const d = new Date(
-      Date.UTC(+end.slice(0, 4), +end.slice(4, 6) - 1, +end.slice(6, 8))
-    );
-    d.setUTCDate(d.getUTCDate() + endExtraDays);
-    end = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(
-      d.getUTCDate()
-    ).padStart(2, '0')}`;
+    // 日历日加法收编到 core/time.addDays(P3-13:此前与 indicatorService 各持一份)
+    end = addDays(
+      `${end.slice(0, 4)}-${end.slice(4, 6)}-${end.slice(6, 8)}`,
+      endExtraDays
+    ).replace(/-/g, '');
   }
   return { beg, end: end ?? '20500000' };
 }

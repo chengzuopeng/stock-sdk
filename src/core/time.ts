@@ -202,7 +202,51 @@ function displayedWallUtc(tsUtc: number, tz: string): number {
   );
 }
 
+/**
+ * (tz, 年) 固定偏移缓存(Review P3-12)。
+ * DST two-pass 修复让每次换算做两次 Intl.formatToParts(采样+验证),
+ * 而 Asia/Shanghai / Asia/Hong_Kong 是固定时差时区,验证永远命中纯属白付
+ * (实测 5800 行批量解析 Intl 开销 14.2ms→28.4ms 翻倍)。
+ * 每 (tz, 年) 首次使用时按 1/4/7/10 月四点采样:全年偏移一致 → 缓存该偏移,
+ * 后续同年行【零 Intl 调用】直接做差(比修复前的单遍还快);
+ * 不一致(DST 年,如 America/New_York、Asia/Shanghai 1986-1991)→ 缓存 null,
+ * 逐行走 two-pass。
+ */
+const FIXED_OFFSET_CACHE = new Map<string, number | null>();
+
+function offsetAt(tsUtc: number, tz: string): number {
+  return displayedWallUtc(tsUtc, tz) - tsUtc;
+}
+
+function fixedOffsetForYear(tz: string, year: number): number | null {
+  const key = `${tz}|${year}`;
+  let cached = FIXED_OFFSET_CACHE.get(key);
+  if (cached === undefined) {
+    const samples = [0, 3, 6, 9].map((month) =>
+      offsetAt(Date.UTC(year, month, 1, 12), tz)
+    );
+    cached = samples.every((o) => o === samples[0]) ? samples[0] : null;
+    FIXED_OFFSET_CACHE.set(key, cached);
+  }
+  return cached;
+}
+
 function wallTimeToUTC(wall: ParsedWallClock, tz: string): number {
+  // 快路径:全年固定偏移的 (tz, 年) 直接做差。
+  // 跨年边界(1 月 1-2 日 / 12 月 30-31 日)的真实 instant 可能落在相邻年,
+  // 偏移应取相邻年的 —— 这几天保守走 two-pass(每年仅 4 天,代价可忽略)。
+  const nearYearBoundary =
+    (wall.month === 1 && wall.day <= 2) || (wall.month === 12 && wall.day >= 30);
+  if (!nearYearBoundary) {
+    const fixed = fixedOffsetForYear(tz, wall.year);
+    if (fixed !== null) {
+      return (
+        Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second) -
+        fixed
+      );
+    }
+  }
+
   // 目标:找到 UTC 时刻 T,使其在 tz 显示的壁钟 == wall。
   // 记 displayed(T) 为 T 在 tz 的壁钟(UTC ms 编码),偏移 off(T) = displayed(T) - T,
   // 则解满足 T = target - off(T),用定点迭代求解。
@@ -283,12 +327,6 @@ export function parseMarketTime(local: string, tz: MarketTz): number {
 }
 
 /**
- * 构造 `TimeMeta`。原始字符串无法解析时 `timestamp` 为 `NaN`。
- *
- * @param local 市场本地时间字符串
- * @param tz    市场时区
- */
-/**
  * 把 parseMarketTime 的 `NaN` 结果归一化为 `null`（v2：对外契约禁止 NaN）。
  * 所有直接调用 parseMarketTime 落 `timestamp` 字段的 parser 必须经由本函数
  * （或 buildTimeMeta*），否则 NaN 会流进类型标注为 `number | null` 的字段。
@@ -297,8 +335,25 @@ export function toNullableEpoch(ts: number): number | null {
   return Number.isNaN(ts) ? null : ts;
 }
 
+/**
+ * 构造 `TimeMeta`。原始字符串无法解析时 `timestamp` 为 `null`。
+ *
+ * @param local 市场本地时间字符串
+ * @param tz    市场时区
+ */
 export function buildTimeMeta(local: string, tz: MarketTz): TimeMeta {
   return { timestamp: toNullableEpoch(parseMarketTime(local, tz)), tz };
+}
+
+/**
+ * 'YYYY-MM-DD' 加 n 个自然日（UTC 日历加法，正确处理跨月/跨年进位，
+ * 不受运行环境本地时区/DST 影响）。
+ * 全库唯一一份日历日加法（P3-13 收编:此前 indicatorService 与
+ * eastmoney/utils 各持一份同义实现）。
+ */
+export function addDays(isoDate: string, days: number): string {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
 /**

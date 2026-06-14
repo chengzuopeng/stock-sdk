@@ -51,6 +51,20 @@ const CLI_INVOKE_OVERRIDES: Record<string, CommandSpec['invoke']> = {
   },
 };
 
+// 装载期对账(Review P3-14):override 键拼错 / spec 路径改名时此前会【静默】
+// 落回默认派生 invoke(northbound 的 --direction 会进 options 而非首实参,
+// 返回错方向数据)。镜像 MCP 侧 CUSTOM_TOOLS 的 throw 对账,装载即失败。
+{
+  const knownPaths = new Set(METHOD_SPECS.map((spec) => spec.path.join('.')));
+  for (const key of Object.keys(CLI_INVOKE_OVERRIDES)) {
+    if (!knownPaths.has(key)) {
+      throw new Error(
+        `CLI_INVOKE_OVERRIDES 引用了 spec 中不存在的方法路径: ${key}`
+      );
+    }
+  }
+}
+
 /** 全部命名空间方法 + 顶层 search 的 CommandSpec（自共享 spec 派生）。 */
 export const NAMESPACE_COMMANDS: CommandSpec[] = METHOD_SPECS.map((spec) =>
   toCommandSpec(spec, CLI_INVOKE_OVERRIDES[spec.path.join('.')])

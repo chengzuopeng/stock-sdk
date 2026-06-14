@@ -10,23 +10,16 @@ import type {
   BlockTradeDailyStatItem,
 } from '../../types';
 import { fetchDatacenterList, parseDcDate } from './datacenter';
-
-/** 把 YYYYMMDD 转为 YYYY-MM-DD（datacenter filter 要求） */
-function toIsoDate(date?: string): string | undefined {
-  if (!date) return undefined;
-  if (/^\d{8}$/.test(date)) {
-    return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
-  }
-  return date;
-}
+import { toIsoDate } from './utils';
 
 /**
  * 拼装日期范围 filter 段。
  */
 function buildDateFilter(options?: BlockTradeDateOptions): string {
   if (!options) return '';
-  const startDate = toIsoDate(options.startDate);
-  const endDate = toIsoDate(options.endDate);
+  // P3-13: 改用 utils 共享 toIsoDate(其 docstring 本就宣称覆盖 blockTrade)
+  const startDate = options.startDate ? toIsoDate(options.startDate) : undefined;
+  const endDate = options.endDate ? toIsoDate(options.endDate) : undefined;
   const parts: string[] = [];
   if (startDate) parts.push(`(TRADE_DATE>='${startDate}')`);
   if (endDate) parts.push(`(TRADE_DATE<='${endDate}')`);

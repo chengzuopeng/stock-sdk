@@ -90,29 +90,29 @@ export interface MethodSpec {
 /** 复权 CLI 取值（MCP 线上取值 = 经 ADJUST.map 映射后的 ['qfq','hfq','']）。 */
 export const ADJUST_VALUES: string[] = ['qfq', 'hfq', 'none'];
 /** 历史 K 线周期。 */
-export const PERIOD_DWM_VALUES: string[] = ['daily', 'weekly', 'monthly'];
+const PERIOD_DWM_VALUES: string[] = ['daily', 'weekly', 'monthly'];
 /** 分钟 K 线周期。 */
-export const PERIOD_MIN_VALUES: string[] = ['1', '5', '15', '30', '60'];
+const PERIOD_MIN_VALUES: string[] = ['1', '5', '15', '30', '60'];
 /** A 股板块筛选。 */
-export const CN_BOARD_VALUES: string[] = ['sh', 'sz', 'bj', 'kc', 'cy'];
+const CN_BOARD_VALUES: string[] = ['sh', 'sz', 'bj', 'kc', 'cy'];
 /** 美股交易所筛选。 */
-export const US_MARKET_VALUES: string[] = ['NASDAQ', 'NYSE', 'AMEX'];
+const US_MARKET_VALUES: string[] = ['NASDAQ', 'NYSE', 'AMEX'];
 /** 市场（A/HK/US）。 */
 export const SUPPORTED_MARKETS: string[] = ['A', 'HK', 'US'];
 /** 沪深港通方向。 */
-export const NB_DIRECTIONS: string[] = ['north', 'south'];
+const NB_DIRECTIONS: string[] = ['north', 'south'];
 /** 涨停股池类型（见 src/types/marketEvent.ts ZTPoolType）。 */
 export const ZT_POOL_TYPES: string[] = ['zt', 'yesterday', 'strong', 'sub_new', 'broken', 'dt'];
 /** 龙虎榜统计周期（DragonTigerPeriod 全量取值）。 */
-export const DRAGON_TIGER_PERIODS: string[] = ['1month', '3month', '6month', '1year'];
+const DRAGON_TIGER_PERIODS: string[] = ['1month', '3month', '6month', '1year'];
 /** ETF 期权品种（src/types/options.ts: ETFOptionCate）。 */
-export const ETF_OPTION_CATES: string[] = ['50ETF', '300ETF', '500ETF', '科创50', '科创板50'];
+const ETF_OPTION_CATES: string[] = ['50ETF', '300ETF', '500ETF', '科创50', '科创板50'];
 /** 中金所股指期权产品（src/types/options.ts: IndexOptionProduct）。 */
-export const INDEX_OPTION_PRODUCTS: string[] = ['ho', 'io', 'mo'];
+const INDEX_OPTION_PRODUCTS: string[] = ['ho', 'io', 'mo'];
 /** COMEX 库存品种。 */
-export const COMEX_SYMBOLS: string[] = ['gold', 'silver'];
+const COMEX_SYMBOLS: string[] = ['gold', 'silver'];
 /** 盘口异动类型（见 src/types/marketEvent.ts StockChangeType，全 22 项）。 */
-export const STOCK_CHANGE_TYPES: string[] = [
+const STOCK_CHANGE_TYPES: string[] = [
   'rocket_launch', // 火箭发射
   'quick_rebound', // 快速反弹
   'large_buy', // 大笔买入

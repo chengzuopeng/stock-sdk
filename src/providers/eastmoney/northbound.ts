@@ -126,24 +126,14 @@ export async function getNorthboundMinute(
   if (direction === 'south') {
     const list = data.n2s ?? [];
     const date = data.n2sDate ?? '';
-    return list.map((line) => parseMinuteRow(line, formatDate(date)));
+    return list.map((line) => parseMinuteRow(line, toIsoDate(date)));
   }
 
   const list = data.s2n ?? [];
   const date = data.s2nDate ?? '';
-  return list.map((line) => parseMinuteRow(line, formatDate(date)));
+  return list.map((line) => parseMinuteRow(line, toIsoDate(date)));
 }
 
-/**
- * 把 YYYYMMDD 或 YYYY-MM-DD 格式的字符串归一化为 YYYY-MM-DD。
- */
-function formatDate(value: string): string {
-  if (!value) return '';
-  if (/^\d{8}$/.test(value)) {
-    return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
-  }
-  return value;
-}
 
 /**
  * 获取沪深港通市场资金流向汇总（北向/南向 + 港股通沪深拆分）

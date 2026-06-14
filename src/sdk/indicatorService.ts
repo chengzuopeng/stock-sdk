@@ -15,16 +15,13 @@ import { addIndicators, estimateIndicatorLookback, hasCumulativeIndicator, type 
 const RECURSIVE_WARMUP = 500;
 const WARMUP_LOOKBACK_MULTIPLIER = 15;
 
-/** 'YYYY-MM-DD' 加 n 个自然日(UTC 日历加法,正确处理跨月/跨年) */
-function addNaturalDays(isoDate: string, days: number): string {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
+
 import type { AnyHistoryKline } from '../types';
 import type { KlineService } from './klineService';
 import type { QuoteService } from './quoteService';
 import { marketOf } from '../symbols';
 import { InvalidArgumentError } from '../core/errors';
+import { addDays } from '../core/time';
 
 export type MarketType = 'A' | 'HK' | 'US';
 
@@ -210,7 +207,7 @@ export class IndicatorService {
       actualStartDate === undefined ||
       period !== 'daily' ||
       this.normalizeDate(allKlines[0].date) <=
-        addNaturalDays(this.normalizeDate(actualStartDate), 30);
+        addDays(this.normalizeDate(actualStartDate), 30);
 
     let refetchedFullHistory = false;
     if (startDate && allKlines.length < requiredBars && mayHaveEarlierData) {

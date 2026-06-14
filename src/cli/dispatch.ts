@@ -7,6 +7,7 @@
  */
 import type { StockSDK } from '../sdk';
 import { CliUsageError } from './errors';
+import { resolveSdkMethod } from '../spec/resolve';
 import type { CommandSpec, InvokeContext, OptionSpec, PositionalSpec } from './types';
 
 /** 未声明 flag 的字段名映射：CLI 习惯的 --start/--end → SDK 的 startDate/endDate。 */
@@ -127,19 +128,13 @@ function normalizePositional(p: PositionalSpec, value: string): string {
 }
 
 export function invokeMethod(sdk: StockSDK, path: string[], args: unknown[]): Promise<unknown> {
-  let parent: unknown = undefined;
-  const target = path.reduce<unknown>((o, k) => {
-    if (o == null || typeof o !== 'object') return undefined;
-    parent = o;
-    return (o as Record<string, unknown>)[k];
-  }, sdk);
-  if (typeof target !== 'function') {
+  // walker 收编进 spec/resolve(P3-13),CLI 仅包装错误类型
+  const resolved = resolveSdkMethod(sdk, path);
+  if (!resolved) {
     throw new CliUsageError(`未知命令: ${path.join(' ')}`);
   }
-  // 用 apply 保留父级上下文，防止未来未 .bind 的命名空间方法丢失 this(当前命名空间方法均已 bind，此为防御)。
-  return Promise.resolve(
-    (target as (...a: unknown[]) => unknown).apply(parent, args)
-  );
+  // apply 保留父级上下文,防止未 .bind 的方法丢失 this(命名空间方法均已 bind,此为防御)
+  return Promise.resolve(resolved.fn.apply(resolved.parent, args));
 }
 
 /**
