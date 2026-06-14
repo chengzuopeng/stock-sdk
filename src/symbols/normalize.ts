@@ -54,6 +54,16 @@ const SECID_MAP: Record<string, { market: Market; exchange: Exchange }> = {
   '107': { market: 'US', exchange: 'AMEX' },
 };
 
+/**
+ * 有损 secid 前缀的可容交易所集(Review P2-9):东财 '0' 同时承载深交所与
+ * 北交所(adapters 的 EXCHANGE_TO_SECID_PREFIX 即 BSE→'0'),
+ * '0.bj430047' 是自洽输入 —— bj 前缀恰是该有损前缀需要的消歧信息,
+ * 不应被 exchange 级精确比较误判为矛盾。
+ */
+const SECID_ADMISSIBLE_EXCHANGES: Record<string, Exchange[]> = {
+  '0': ['SZSE', 'BSE'],
+};
+
 /** 交易所 → 所属市场（校验 exchange hint 与解析结果是否矛盾；未知交易所不校验） */
 const EXCHANGE_MARKET: Partial<Record<Exchange, Market>> = {
   SSE: 'CN',
@@ -72,28 +82,34 @@ const EXCHANGE_MARKET: Partial<Record<Exchange, Market>> = {
 /**
  * 点分形式中剥离与已解析市场冗余的字母前缀（'sh600519.SH' / '1.sh600519' → '600519'）。
  * 仅当前缀后是纯数字才视为前缀 —— 'SHW.US' / 'USB.US' 等真实字母 ticker 不受影响；
- * 前缀与解析出的市场/交易所矛盾时抛 InvalidSymbolError（如 'hk00700.SZ'、'1.sz000001'），
+ * 前缀与解析结果矛盾时抛 InvalidSymbolError（如 'hk00700.SZ'、'1.sz000001'），
  * 不静默选边返回错误标的。
+ *
+ * `admissibleExchanges` 是解析侧允许的交易所集合(有损 secid 前缀如 '0'
+ * 同时容纳 SZSE/BSE);命中集合内的前缀视为消歧信息,返回细化后的交易所
+ * ('0.bj430047' → BSE,使 toTencentSymbol 拼出正确的 bj430047)。
  */
 function stripRedundantPrefix(
   part: string,
   resolved: { market: Market; exchange: Exchange },
-  rawInput: string
-): string {
+  rawInput: string,
+  admissibleExchanges?: Exchange[]
+): { code: string; exchange: Exchange } {
+  const admissible = admissibleExchanges ?? [resolved.exchange];
   const lower = part.toLowerCase();
   for (const p of PREFIXES) {
     if (!lower.startsWith(p) || part.length <= p.length) continue;
     const rest = part.slice(p.length);
     if (!/^\d+$/.test(rest)) continue;
     const pm = PREFIX_MAP[p];
-    if (pm.market !== resolved.market || pm.exchange !== resolved.exchange) {
+    if (pm.market !== resolved.market || !admissible.includes(pm.exchange)) {
       throw new InvalidSymbolError(
         `${rawInput} (prefix '${p}' conflicts with resolved ${resolved.market}/${resolved.exchange})`
       );
     }
-    return rest;
+    return { code: rest, exchange: pm.exchange };
   }
-  return part;
+  return { code: part, exchange: resolved.exchange };
 }
 
 export function normalizeSymbol(
@@ -151,6 +167,15 @@ export function normalizeSymbol(
     };
   };
 
+  // 点分分支的 code 归一(Review P2-10):HK 数字代码补零到 5 位、US 统一大写,
+  // 与前缀/纯数字分支一致 —— 否则 '700.HK' 的行 code='700' 而 'hk700' 的
+  // code='00700',code 字段随输入写法漂移,下游跨接口 join/对账静默丢行。
+  const normalizeStockCode = (code: string, market: Market): string => {
+    if (market === 'HK' && /^\d+$/.test(code)) return code.padStart(5, '0');
+    if (market === 'US') return code.toUpperCase();
+    return code;
+  };
+
   // 1) 点分形式
   if (code0.includes('.')) {
     const dot = code0.indexOf('.');
@@ -163,16 +188,33 @@ export function normalizeSymbol(
       const s = SECID_MAP[left];
       // secid 分支同样剥离冗余前缀：'1.sh600519' 的 code 应为 '600519'，
       // 否则 toTencentSymbol 拼成 'shsh600519'（与 SUFFIX 分支同款问题）。
-      return finish(s.market, s.exchange, stripRedundantPrefix(right, s, rawInput), 'stock');
+      const stripped = stripRedundantPrefix(
+        right,
+        s,
+        rawInput,
+        SECID_ADMISSIBLE_EXCHANGES[left]
+      );
+      return finish(
+        s.market,
+        stripped.exchange,
+        normalizeStockCode(stripped.code, s.market),
+        'stock'
+      );
     }
-    // Object.hasOwn 守卫:小写键查找会命中 Object.prototype 继承属性
+    // hasOwnProperty 守卫:小写键查找会命中 Object.prototype 继承属性
     // ('600519.constructor' 此前产出 market/exchange 均 undefined 的畸形对象)
     const suffixKey = right.toLowerCase();
     const suffix = Object.prototype.hasOwnProperty.call(PREFIX_MAP, suffixKey)
       ? PREFIX_MAP[suffixKey]
       : undefined;
     if (suffix) {
-      return finish(suffix.market, suffix.exchange, stripRedundantPrefix(left, suffix, rawInput), 'stock');
+      const stripped = stripRedundantPrefix(left, suffix, rawInput);
+      return finish(
+        suffix.market,
+        stripped.exchange,
+        normalizeStockCode(stripped.code, suffix.market),
+        'stock'
+      );
     }
     if (FUTURES_EXCHANGES[upperLeft]) {
       const fx = FUTURES_EXCHANGES[upperLeft];

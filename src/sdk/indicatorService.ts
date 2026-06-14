@@ -1,12 +1,19 @@
-import { addIndicators, estimateIndicatorLookback, type IndicatorOptions, type KlineWithIndicators } from '../indicators';
+import { addIndicators, estimateIndicatorLookback, hasCumulativeIndicator, type IndicatorOptions, type KlineWithIndicators } from '../indicators';
 
 /**
  * 全量 refetch 后切片的 lookback 下限(根)。
  * estimateIndicatorLookback 的 requiredBars 是"窗口期能算出值"的下限,
  * 不足以让递归型指标(KDJ/RSI/ATR/DMI)的平滑状态收敛到 round(2) 之下;
  * 500 根下 Wilder-14 的状态差衰减至 ~2e-16,对 2 位小数输出即逐值一致。
+ *
+ * Review P2-7:500 只按默认周期标定 —— 非默认大周期(如 rsi periods:[100])
+ * 的 Wilder-100 在 400 步后仅衰减到 ~1.8%,round(2) 可见。实际下限取
+ * max(500, 15 × maxLookback):暖机内首个有效值前还要消耗 ~N 根种子,
+ * 有效衰减步数 ≈ (15-1)N,Wilder-N 衰减 14N 步 ≈ e^-14 ≈ 1e-6 ——
+ * 远低于 2 位舍入界,.xx5 刀尖位也不会翻转(10× 时实测仍有单 bar ±0.01)。
  */
 const RECURSIVE_WARMUP = 500;
+const WARMUP_LOOKBACK_MULTIPLIER = 15;
 
 /** 'YYYY-MM-DD' 加 n 个自然日(UTC 日历加法,正确处理跨月/跨年) */
 function addNaturalDays(isoDate: string, days: number): string {
@@ -136,7 +143,7 @@ export class IndicatorService {
   ): Promise<KlineWithIndicators<AnyHistoryKline>[]> {
     const { startDate, endDate, indicators = {} } = options;
     const market = options.market ?? this.detectMarket(symbol);
-    const { requiredBars } = estimateIndicatorLookback(indicators);
+    const { requiredBars, maxLookback } = estimateIndicatorLookback(indicators);
     const ratioMap = { A: 1.5, HK: 1.46, US: 1.45 };
     let actualStartDate: string | undefined;
 
@@ -257,10 +264,16 @@ export class IndicatorService {
       }
 
       let toCompute = allKlines;
-      if (refetchedFullHistory && !indicators.obv) {
+      // 累计型指标(OBV)依赖序列起点,切片会改变绝对值 —— 由 registry 的
+      // cumulative 标记驱动(P2-7),新增累计型指标时无需改这里
+      if (refetchedFullHistory && !hasCumulativeIndicator(indicators)) {
         // refetch 触发条件含 length < requiredBars,requiredBars > 0 即必有指标,
-        // 故此分支总需要暖机 lookback
-        const lookback = Math.max(requiredBars, RECURSIVE_WARMUP);
+        // 故此分支总需要暖机 lookback;下限随最大周期成比例放大(P2-7)
+        const lookback = Math.max(
+          requiredBars,
+          RECURSIVE_WARMUP,
+          WARMUP_LOOKBACK_MULTIPLIER * maxLookback
+        );
         toCompute = allKlines.slice(Math.max(0, windowStartIdx - lookback));
       }
       return addIndicators(toCompute, indicators).filter((item) => {

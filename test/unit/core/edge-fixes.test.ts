@@ -78,6 +78,23 @@ describe('F20 熔断器 HALF_OPEN 在途限流', () => {
   });
 });
 
+describe('P2-11 半开在途名额的时间回收(防泄漏永久卡死)', () => {
+  it('未配对释放的名额在 resetTimeout 后被回收,熔断器可恢复探测', async () => {
+    const cb = new CircuitBreaker({
+      failureThreshold: 1,
+      resetTimeout: 40,
+      halfOpenRequests: 1,
+    });
+    cb.recordFailure();
+    await sleep(50); // → HALF_OPEN
+    expect(cb.canRequest()).toBe(true); // 预占名额
+    // 调用方异常路径漏配对(或把 canRequest 当探询):不做任何 record*/release
+    expect(cb.canRequest()).toBe(false);
+    await sleep(50); // 超过 resetTimeout → 失联名额回收
+    expect(cb.canRequest()).toBe(true); // 此前会永久 false 卡死
+  });
+});
+
 describe('F23 jsonp/jsVars 非 abort 失败归一为 SdkError', () => {
   const originalFetch = globalThis.fetch;
   afterEach(() => {

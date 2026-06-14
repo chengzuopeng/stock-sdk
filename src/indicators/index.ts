@@ -28,6 +28,6 @@ export {
   INDICATOR_REGISTRY,
   buildIndicatorContext,
   getEnabledIndicatorKeys,
-  estimateIndicatorLookback,
+  estimateIndicatorLookback, hasCumulativeIndicator,
   type IndicatorKey,
 } from './registry';

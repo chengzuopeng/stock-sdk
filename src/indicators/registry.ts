@@ -39,6 +39,13 @@ type CanonicalOption<K extends IndicatorKey> = Exclude<
 
 interface IndicatorDescriptor<K extends IndicatorKey = IndicatorKey> {
   key: K;
+  /**
+   * 全量累计型指标(如 OBV:从序列首根累计成交量):数值依赖序列起点,
+   * 任何切片都会改变绝对值 —— 消费方(indicatorService 的 refetch 切片)
+   * 必须跳过切片。该知识声明在 registry(P2-7),新增累计型指标时
+   * 在此标记即可,无需记得去改 service 的白名单。
+   */
+  cumulative?: boolean;
   estimateLookback: (option: CanonicalOption<K>) => IndicatorLookback;
   compute: (
     context: IndicatorComputationContext,
@@ -185,6 +192,7 @@ export const INDICATOR_REGISTRY: IndicatorDescriptorMap = {
   },
   obv: {
     key: 'obv',
+    cumulative: true,
     estimateLookback: (option) => {
       const maPeriod =
         typeof option === 'object' && option.maPeriod
@@ -266,6 +274,13 @@ export function normalizeIndicatorOptions(options: IndicatorOptions): IndicatorO
     }
   }
   return (out as IndicatorOptions | null) ?? options;
+}
+
+/** 启用的指标中是否含全量累计型(OBV 等):切片会改变其绝对值 */
+export function hasCumulativeIndicator(options: IndicatorOptions): boolean {
+  return getEnabledIndicatorKeys(normalizeIndicatorOptions(options)).some(
+    (key) => INDICATOR_REGISTRY[key].cumulative === true
+  );
 }
 
 export function getEnabledIndicatorKeys(options: IndicatorOptions): IndicatorKey[] {

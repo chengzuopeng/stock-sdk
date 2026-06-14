@@ -52,6 +52,8 @@ export class CircuitBreaker {
   private halfOpenSuccessCount: number = 0;
   /** 半开状态下在途(已放行未出结果)的探测请求数 */
   private halfOpenInFlight: number = 0;
+  /** 最近一次放行探测的时刻(P2-11:用于回收未配对释放的失联名额) */
+  private lastProbeAcquiredAt: number = 0;
 
   private readonly failureThreshold: number;
   private readonly resetTimeout: number;
@@ -88,8 +90,18 @@ export class CircuitBreaker {
         // 半开限流:在途探测 + 已成功 < 限额才放行,放行即预占一个在途名额。
         // 此前仅看 halfOpenSuccessCount(只在探测完成后递增,达标即转 CLOSED),
         // 该条件在 HALF_OPEN 内恒真 → 并发请求不限量轰击恢复中的上游。
-        // canRequest 在本状态有副作用(预占),与 recordSuccess / recordFailure /
-        // releaseProbe(外部取消)配对释放。
+        // ⚠️ canRequest 在本状态【有副作用】(预占名额),必须与 recordSuccess /
+        // recordFailure / releaseProbe(外部取消)之一配对 —— 把它当只读探询
+        // 轮询会占用名额。
+        // P2-11 兜底:在途名额超过 resetTimeout 仍未配对释放(调用方异常路径
+        // 漏配对/把 canRequest 当探询)时视为失联,全部回收 —— 否则 HALF_OPEN
+        // 没有任何时间逃逸,名额泄漏会让熔断器永久卡死拒绝该 provider。
+        if (
+          this.halfOpenInFlight > 0 &&
+          Date.now() - this.lastProbeAcquiredAt >= this.resetTimeout
+        ) {
+          this.halfOpenInFlight = 0;
+        }
         if (
           this.halfOpenInFlight + this.halfOpenSuccessCount >=
           this.halfOpenRequests
@@ -97,6 +109,7 @@ export class CircuitBreaker {
           return false;
         }
         this.halfOpenInFlight++;
+        this.lastProbeAcquiredAt = Date.now();
         return true;
       }
     }

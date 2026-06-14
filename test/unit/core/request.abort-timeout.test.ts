@@ -123,6 +123,46 @@ describe('F3 外部取消（任意 reason 形状）→ ABORTED 且不重试', ()
   });
 });
 
+describe('P2-8 自定义 fetchImpl 不透传 reason 时超时仍归 TIMEOUT', () => {
+  /** node-fetch 风格:abort 时抛自建 plain-Error AbortError 而非 signal.reason */
+  function nodeFetchStyle(): typeof fetch {
+    return vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+      return new Promise<Response>((_resolve, reject) => {
+        const s = init?.signal;
+        if (!s) return;
+        const fail = () =>
+          reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' }));
+        if (s.aborted) return fail();
+        s.addEventListener('abort', fail, { once: true });
+      });
+    }) as unknown as typeof fetch;
+  }
+
+  it('超时 → code TIMEOUT 且 retryOnTimeout:false 生效(此前 NETWORK_ERROR + 3 次重试)', async () => {
+    const f = nodeFetchStyle();
+    const client = new RequestClient({
+      fetchImpl: f,
+      timeout: 20,
+      retry: { maxRetries: 2, retryOnTimeout: false, retryOnNetworkError: true, baseDelay: 1 },
+    });
+    const err = await client.get('https://example.com/a').catch((e) => e);
+    expect(err.code).toBe('TIMEOUT');
+    expect(f).toHaveBeenCalledOnce();
+  });
+
+  it('外部取消优先级不受影响(自建 AbortError + 外部已取消 → ABORTED)', async () => {
+    const f = nodeFetchStyle();
+    const controller = new AbortController();
+    const client = new RequestClient({ fetchImpl: f, retry: { maxRetries: 2, baseDelay: 1 } });
+    const pending = client
+      .get('https://example.com/a', { signal: controller.signal })
+      .catch((e) => e);
+    controller.abort('stop');
+    const err = await pending;
+    expect(err).toBeInstanceOf(AbortedError);
+  });
+});
+
 describe('F4 ABORTED 不计入失败记账', () => {
   it('连续取消不会把熔断器打开', async () => {
     let mode: 'hang' | 'ok' = 'hang';

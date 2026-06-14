@@ -535,6 +535,14 @@ export class RequestClient {
             url
           );
         }
+        // Review P2-8:自定义 fetchImpl(node-fetch 风格)可能不透传 signal.reason
+        // 而抛自建 plain-Error AbortError —— reason 同一性溯源落空、又非外部取消,
+        // 此前会坠入 normalizeRequestError 的 NETWORK_ERROR 分支,绕过
+        // retryOnTimeout:false。内部超时已触发且错误形似 abort → 抛本请求的
+        // timeoutReason(DOMException),由 normalizeRequestError 正确归类 TIMEOUT。
+        if (timeoutController.signal.aborted && isAbortShapedError(error)) {
+          throw timeoutReason;
+        }
       }
       throw error;
     } finally {

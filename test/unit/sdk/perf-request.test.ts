@@ -395,6 +395,47 @@ describe('F35: skip the full-history refetch for short-listed symbols', () => {
   });
 });
 
+describe('P2-7: 暖机下限随最大周期成比例放大 + 累计型由 registry 标记', () => {
+  it('rsi periods:[100] 的 refetch 切片与全量计算逐值一致(10×maxLookback 暖机)', async () => {
+    const rsiBig: IndicatorOptions = { rsi: { periods: [100] } };
+    const longHistory = genKlines(2500);
+    const startIdx = 2400;
+    const startDate = longHistory[startIdx].date;
+    const legacy = addIndicators(longHistory, rsiBig).filter(
+      (item) => item.date >= startDate
+    );
+    vi.mocked(addIndicators).mockClear();
+
+    const { service } = makeService({ A: [[], longHistory] });
+    const rows = await service.getKlineWithIndicators('600519', {
+      startDate,
+      indicators: rsiBig,
+    });
+
+    // rsi 的 estimateLookback bars = max(periods)+1 = 101 →
+    // 暖机 = max(requiredBars≈122, 500, 15×101=1515) → 切到 2400-1515=885 起
+    const computed = vi.mocked(addIndicators).mock.calls[
+      vi.mocked(addIndicators).mock.calls.length - 1
+    ][0];
+    expect(computed).toHaveLength(longHistory.length - (startIdx - 1515)); // 1615
+    // 旧实现(固定 500)在此场景 Wilder-100 仅衰减 ~1.8%,round(2) 可见漂移
+    expect(rows).toEqual(legacy);
+  });
+
+  it('OBV 由 registry cumulative 标记驱动跳过切片(不再依赖 service 白名单)', async () => {
+    const withObv: IndicatorOptions = { obv: true };
+    const longHistory = genKlines(800);
+    const startDate = longHistory[700].date;
+    vi.mocked(addIndicators).mockClear();
+    const { service } = makeService({ A: [[], longHistory] });
+    await service.getKlineWithIndicators('600519', { startDate, indicators: withObv });
+    const computed = vi.mocked(addIndicators).mock.calls[
+      vi.mocked(addIndicators).mock.calls.length - 1
+    ][0];
+    expect(computed).toHaveLength(longHistory.length);
+  });
+});
+
 describe('P1-6: 非法日期格式干净报错(不再裸 RangeError / 静默空窗)', () => {
   it.each(['2024-1-5', '2024/01/05', '2024-6-3', 'not-a-date'])(
     "startDate '%s' → InvalidArgumentError",
