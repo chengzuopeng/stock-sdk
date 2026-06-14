@@ -100,7 +100,17 @@ const zhApiSidebar = {
   ],
 }
 
-const zhCliSidebar = { '/cli/': [{ text: 'CLI 命令行', items: [{ text: '命令总览', link: '/cli/' }] }] }
+const zhCliSidebar = {
+  '/cli/': [
+    {
+      text: 'CLI 命令行',
+      items: [
+        { text: '概览', link: '/cli/' },
+        { text: '命令清单', link: '/cli/commands' },
+      ],
+    },
+  ],
+}
 const zhMcpSidebar = {
   '/mcp/': [
     {
@@ -203,7 +213,17 @@ const enApiSidebar = {
   ],
 }
 
-const enCliSidebar = { '/en/cli/': [{ text: 'CLI', items: [{ text: 'Overview', link: '/en/cli/' }] }] }
+const enCliSidebar = {
+  '/en/cli/': [
+    {
+      text: 'CLI',
+      items: [
+        { text: 'Overview', link: '/en/cli/' },
+        { text: 'Command Reference', link: '/en/cli/commands' },
+      ],
+    },
+  ],
+}
 const enMcpSidebar = {
   '/en/mcp/': [
     {

@@ -74,7 +74,7 @@ try {
 import { HttpError, isSdkError } from 'stock-sdk/errors'
 
 try {
-  await sdk.kline.cn('600519', { period: 'day' })
+  await sdk.kline.cn('600519', { period: 'daily' })
 } catch (e) {
   if (e instanceof HttpError) {
     console.error(`HTTP ${e.status} ${e.statusText}`)

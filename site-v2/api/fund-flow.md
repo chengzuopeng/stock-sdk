@@ -37,13 +37,13 @@ const latest = flow.at(-1);
 console.log(`${latest?.date} 主力净流入: ${latest?.mainNetInflow} 元`);
 ```
 
-`symbol` 可传裸字符串或 `SymbolRef`（如 `'sh600519'` / `'600519'` / `{ code: '600519' }`），由 `normalizeSymbol` 容错解析。
+`symbol` 传裸字符串（如 `'sh600519'` / `'600519'`），由 `normalizeSymbol` 容错解析。
 
 ### 参数
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | 股票代码 |
+| `symbol` | `string` | 股票代码 |
 | `options.period` | `'daily' \| 'weekly' \| 'monthly'` | 周期，默认 `'daily'` |
 
 ### 返回说明
@@ -198,7 +198,7 @@ console.log(`银行板块历史数据 ${banking.length} 条`);
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | 板块代码（BK 编号或东财 secid） |
+| `symbol` | `string` | 板块代码（BK 编号或东财 secid） |
 | `options.period` | `'daily' \| 'weekly' \| 'monthly'` | 周期，默认 `'daily'` |
 
 ### 返回说明

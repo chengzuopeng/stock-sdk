@@ -17,7 +17,7 @@ Get the dividend & bonus history of a given A-share stock, including bonus/trans
 
 | Param | Type | Required | Description |
 |---|---|---|---|
-| `symbol` | `string \| SymbolRef` | Yes | Stock symbol; `string` is first-class, e.g. `'600519'` / `'sh600519'` / `'600519.SH'`; a `SymbolRef` also works |
+| `symbol` | `string` | Yes | Stock symbol, e.g. `'600519'` / `'sh600519'` / `'600519.SH'` |
 
 > Symbols are parsed leniently via `normalizeSymbol`, so prefix style doesn't matter. See [Symbols & Code Rules](../guide/symbols.md).
 

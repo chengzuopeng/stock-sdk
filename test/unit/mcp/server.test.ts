@@ -151,8 +151,41 @@ describe('mcp/server · dispatchMessage', () => {
     expect(result.content[0].text).toContain('INVALID_ARGUMENT');
   });
 
+  it('tools/call 未声明参数 → INVALID_ARGUMENT', async () => {
+    const r = await dispatchMessage(
+      {
+        jsonrpc: '2.0',
+        id: 13,
+        method: 'tools/call',
+        params: { name: 'get_market_status', arguments: { market: 'A', typo: 'x' } },
+      },
+      makeCtx()
+    );
+    const result = r?.result as CallResult;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('INVALID_ARGUMENT');
+    expect(result.content[0].text).toContain('未知参数 "typo"');
+  });
+
+  it('tools/call optional object 传 null → INVALID_ARGUMENT', async () => {
+    const r = await dispatchMessage(
+      {
+        jsonrpc: '2.0',
+        id: 14,
+        method: 'tools/call',
+        params: { name: 'get_kline_with_indicators', arguments: { symbol: '600519', indicators: null } },
+      },
+      makeCtx()
+    );
+    const result = r?.result as CallResult;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('INVALID_ARGUMENT');
+    expect(result.content[0].text).toContain('参数 "indicators" 类型应为 object');
+    expect(result.content[0].text).not.toContain('UNKNOWN');
+  });
+
   it('#11 serverInfo.version 走构建注入，不硬编码 2.0.0', async () => {
-    const r = await dispatchMessage({ jsonrpc: '2.0', id: 13, method: 'initialize', params: {} }, makeCtx());
+    const r = await dispatchMessage({ jsonrpc: '2.0', id: 15, method: 'initialize', params: {} }, makeCtx());
     const result = r?.result as InitResult;
     expect(result.serverInfo.version).not.toBe('2.0.0');
     expect(result.serverInfo.version).toBe('0.0.0-dev');

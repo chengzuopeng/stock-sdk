@@ -8,11 +8,11 @@ import { StockSDK } from 'stock-sdk'
 const sdk = new StockSDK()
 
 const quotes = await sdk.quotes.cn(['600519', '000001']) // namespaced call
-const kline = await sdk.kline.cn('600519', { period: 'day' })
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
 const k = await sdk.options.etf.dailyKline('10004336') // nested namespace
 ```
 
-> A `string` symbol is a first-class input: `'sh600519'` / `'600519'` / `'00700'` / `'AAPL'` all work, resolved leniently by `normalizeSymbol`; you may also pass a `SymbolRef` with hints. See [Symbols & Codes](/en/guide/symbols).
+> A `string` symbol is a first-class input: `'sh600519'` / `'600519'` / `'00700'` / `'AAPL'` all work, resolved leniently by `normalizeSymbol`. When you need object hints, use `normalizeSymbol` from `stock-sdk/symbols` first. See [Symbols & Codes](/en/guide/symbols).
 
 ## Quotes & Batch
 
@@ -75,5 +75,5 @@ import { normalizeSymbol } from 'stock-sdk/symbols'
 ## Conventions
 
 - **Method table → call example → return notes** is the shared layout of every API page.
-- Return values follow the v2 unified data contract: base fields `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`; the `raw` field is removed; `timestamp` is `number | null` (`null` when unparseable); percentages are percentage numbers (e.g. `5.2`); amounts / prices are in each market's **base quote currency**; volume unit is **shares**. See [Migrate from v1](/en/guide/migration-v1-to-v2).
+- Return values follow the v2 unified data contract: base fields `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`; the `raw` field is removed; `timestamp` is `number | null` (`null` when unparseable); percentages are percentage numbers (e.g. `5.2`). Amount / price / volume have unified target units, but in the current beta runtime values still follow each provider's raw convention. See [Migrate from v1](/en/guide/migration-v1-to-v2).
 - The v2 SDK is still being implemented: namespaces and method names are stable, but **exact parameters / return fields are subject to the final implementation**.

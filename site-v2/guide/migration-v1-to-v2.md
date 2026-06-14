@@ -107,10 +107,10 @@ console.log(q.raw); // ['1', '贵州茅台', ...]
 ### 单位与口径
 
 - `volume`（成交量）目标口径统一为**股**；
-- `amount` / `price` / 市值统一为**各自计价货币的主单位**（A 股 = 人民币元、港股 = 港元、美股 = 美元，由 `currency` 标明，**不跨币种折算**）；
+- `amount` / `price` / 市值目标口径统一为**各自计价货币的主单位**（A 股 = 人民币元、港股 = 港元、美股 = 美元，由 `currency` 标明，**不跨币种折算**）；
 - 百分比统一为**百分数**（如 `5.2` 表示 5.2%）。
 
-> 这意味着部分数值口径相对 v1 发生变化，**回测 / 展示逻辑需重新校准**。`currency` 字段现为每条 quote 必填。
+> 这是 v2 的目标数据契约；正式落地后部分数值口径会相对 v1 发生变化，**回测 / 展示逻辑需重新校准**。`currency` 字段现为每条 quote 必填。
 >
 > ⚠️ 单位换算（手→股 ×100、万→元 ×10000 等）需用真实数据逐源校准，本期暂以各源原始口径输出，校准后落地。以最终实现为准。
 
@@ -128,7 +128,7 @@ if (q.timestamp === null) { /* 无效 */ }
 
 ### Quote 可辨识联合
 
-行情类型从「各自独立的接口」收敛为按 `assetType` 判别的联合类型 `Quote`。旧类型名（`FullQuote` / `HKUSHistoryKline` 等）移除。调用方用 `switch` 收窄：
+行情类型从「各自独立的接口」收敛为按 `assetType` 判别的联合类型 `Quote`。旧类型名（`FullQuote` / `HKUSHistoryKline` 等）在 beta 阶段可能暂留以保护迁移，但新代码建议统一面向 `Quote`。调用方用 `switch` 收窄：
 
 ```ts
 import type { Quote } from 'stock-sdk';
@@ -222,7 +222,7 @@ import { SdkError } from 'stock-sdk/errors';
 
 const sdk = new StockSDK();
 
-const quotes = await sdk.quotes.cn(['sh600519']); // 或 '600519' / { code: '600519' }
+const quotes = await sdk.quotes.cn(['sh600519']); // 或 ['600519']
 const kline = await sdk.options.etf.dailyKline('10004336');
 const dividends = await sdk.reference.dividendDetail('600519');
 
@@ -240,7 +240,7 @@ try {
 
 ## 5. 其它清理项
 
-- 删除全部 `@deprecated` 字段（如 `tradeDate` 别名、`OptionLHBItem` 旧字段、`ComexInventory.inventory` 等）。
+- v1 扁平方法已移除；部分旧字段 / 旧类型名在 beta 阶段可能暂留以保护迁移，最终以类型定义为准。
 - 删除旧的 `boolean` 签名：`getAShareCodeList(boolean)` / `getUSCodeList(boolean)` 仅保留 options 对象签名（对应 v2 `codes.cn(opts)` / `codes.us(opts)`）。
 - Node baseline 维持 `>=18`（`AbortSignal.any` 带运行时降级）。
 - 新增 subpath 导出：`stock-sdk/{indicators,symbols,signals,screener,cache,errors}`。

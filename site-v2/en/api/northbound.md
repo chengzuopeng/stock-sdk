@@ -192,7 +192,7 @@ console.log('last 5 days of Northbound holdings:\n' + recent.join('\n'));
 
 | Param | Type | Description |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | Stock code |
+| `symbol` | `string` | Stock code |
 | `options.startDate` | `string` | Start date `YYYY-MM-DD` |
 | `options.endDate` | `string` | End date `YYYY-MM-DD` |
 

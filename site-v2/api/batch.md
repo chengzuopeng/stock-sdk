@@ -67,16 +67,16 @@ const raw = await sdk.batch.raw({ /* 底层参数，以实现为准 */ })
 ```ts
 const all = await sdk.batch.cn()
 
-// 全市场本地筛选（也可直接用 sdk.screener()）
+// 全市场本地筛选（也可配合 stock-sdk/screener）
 const hot = all.filter(
   (q) => q.assetType === 'stock' && q.changePercent > 5,
 )
 ```
 
 ::: tip 口径与缓存
-- 返回值遵循 v2 统一口径：百分比为百分数、金额 / 价格为计价货币主单位、成交量单位为股、`timestamp` 为 `number | null`、无 `raw` 字段。
+- 返回值遵循 v2 统一契约：百分比为百分数、`timestamp` 为 `number | null`、无 `raw` 字段。金额 / 价格 / 成交量有统一目标口径，但当前 beta 的运行值仍以各 provider 原始口径为准。
 - 全市场快照适合配合缓存做短 TTL 复用，避免短时间内重复全量拉取。
 - `batch.raw` 返回原始结构，**不**经统一契约归并，字段以底层接口为准。
 :::
 
-> batch 是 [选股器 `sdk.screener()`](/api/) 的底层数据源。具体并发参数、进度回调签名与原始结构以实现为准，随 `src/sdk/namespaces` 最终确定。
+> batch 常作为 `stock-sdk/screener` 的输入数据源。具体并发参数、进度回调签名与原始结构以实现为准。

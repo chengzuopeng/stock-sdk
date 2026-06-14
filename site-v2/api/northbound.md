@@ -192,7 +192,7 @@ console.log('近 5 日北向持股：\n' + recent.join('\n'));
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | 股票代码 |
+| `symbol` | `string` | 股票代码 |
 | `options.startDate` | `string` | 起始日期 `YYYY-MM-DD` |
 | `options.endDate` | `string` | 结束日期 `YYYY-MM-DD` |
 

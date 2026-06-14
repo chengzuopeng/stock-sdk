@@ -15,7 +15,7 @@ hero:
 
 features:
   - icon:
-      src: /icons/compass.svg
+      src: /icons/boxes.svg
       wrap: true
     title: Namespaced API
     details: sdk.quotes.cn() / sdk.kline.cn() / sdk.options.etf.dailyKline() — organized by domain, no more flat long method names.
@@ -25,7 +25,7 @@ features:
     title: Zero-dependency · Dual-runtime
     details: Zero runtime dependencies, runs in the browser and Node.js 18+; ESM + CJS with subpath imports.
   - icon:
-      src: /icons/layers.svg
+      src: /icons/file-check.svg
       wrap: true
     title: Unified data contract
     details: A unified Quote model with base fields (symbol / market / timestamp / tz) — consistent units and a discriminated union.
@@ -35,7 +35,7 @@ features:
     title: Indicators & signals
     details: 14 built-in indicators plus a signal layer (golden/death cross, overbought/oversold), imported on demand from stock-sdk/indicators and stock-sdk/signals.
   - icon:
-      src: /icons/flask.svg
+      src: /icons/filter.svg
       wrap: true
     title: Screener & backtest
     details: A declarative screener over market-wide quotes, boards and capital flow, plus a local, reproducible backtest engine.
@@ -61,7 +61,7 @@ npm i stock-sdk
 import { StockSDK } from 'stock-sdk'
 
 const sdk = new StockSDK()
-const quote = await sdk.quotes.cn('600519') // Kweichow Moutai
+const [quote] = await sdk.quotes.cn(['600519']) // Kweichow Moutai
 ```
 
 </div>

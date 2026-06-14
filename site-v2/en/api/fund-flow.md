@@ -37,13 +37,13 @@ const latest = flow.at(-1);
 console.log(`${latest?.date} main net inflow: ${latest?.mainNetInflow}`);
 ```
 
-`symbol` accepts a bare string or a `SymbolRef` (e.g. `'sh600519'` / `'600519'` / `{ code: '600519' }`), resolved fault-tolerantly by `normalizeSymbol`.
+`symbol` accepts a bare string (e.g. `'sh600519'` / `'600519'`), resolved fault-tolerantly by `normalizeSymbol`.
 
 ### Parameters
 
 | Param | Type | Description |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | Stock code |
+| `symbol` | `string` | Stock code |
 | `options.period` | `'daily' \| 'weekly' \| 'monthly'` | Period, defaults to `'daily'` |
 
 ### Returns
@@ -198,7 +198,7 @@ console.log(`banking sector history: ${banking.length} records`);
 
 | Param | Type | Description |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | Sector code (BK id or East Money secid) |
+| `symbol` | `string` | Sector code (BK id or East Money secid) |
 | `options.period` | `'daily' \| 'weekly' \| 'monthly'` | Period, defaults to `'daily'` |
 
 ### Returns

@@ -9,6 +9,7 @@ import {
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFilePath);
 const rootDir = path.resolve(currentDir, '..');
+const docsDir = process.env.DOCS_DIR || 'site-v2';
 
 async function readJson(relativePath) {
   return JSON.parse(
@@ -58,10 +59,10 @@ function isIgnoredParityPath(relativePath, ignoredPatterns) {
 const docsMeta = await readJson('docs-meta/sdk.json');
 const generatedMeta = await generateDocMeta({ write: false });
 const errors = [];
-const websiteMarkdownFiles = await listMarkdownFiles('website');
-const docFilesToScan = ['README.md', 'README_EN.md', ...websiteMarkdownFiles];
-const websiteRelativeFiles = new Set(
-  websiteMarkdownFiles.map((file) => file.replace(/^website\//, ''))
+const docsMarkdownFiles = await listMarkdownFiles(docsDir);
+const docFilesToScan = ['README.md', 'README_EN.md', ...docsMarkdownFiles];
+const docsRelativeFiles = new Set(
+  docsMarkdownFiles.map((file) => file.replace(new RegExp(`^${docsDir}/`), ''))
 );
 
 compareExactArray(
@@ -115,14 +116,18 @@ for (const method of generatedMeta.sdk.methods) {
 }
 
 const expectedSummary = `${renderSummaryMarkdown(docsMeta, generatedMeta)}\n`;
-const actualSummary = await readText('website/summary.md');
+const summaryPath = `${docsDir}/summary.md`;
+const actualSummary = await readText(summaryPath);
 if (actualSummary !== expectedSummary) {
-  errors.push('website/summary.md is out of date. Run `yarn docs:meta`.');
+  errors.push(`${summaryPath} is out of date. Run \`yarn docs:meta\`.`);
 }
 
 for (const [file, requiredTokens] of Object.entries(
   docsMeta.docExpectations.requiredTokensByFile
 )) {
+  if (docsDir !== 'website' && !file.startsWith(`${docsDir}/`)) {
+    continue;
+  }
   const content = await readText(file);
 
   for (const token of requiredTokens) {
@@ -149,14 +154,14 @@ for (const file of docFilesToScan) {
 
 const parityIgnore = docsMeta.docExpectations.parityIgnore ?? [];
 
-for (const relativePath of websiteRelativeFiles) {
+for (const relativePath of docsRelativeFiles) {
   if (relativePath.startsWith('en/')) {
     const zhPath = relativePath.replace(/^en\//, '');
     if (
       !isIgnoredParityPath(zhPath, parityIgnore) &&
-      !websiteRelativeFiles.has(zhPath)
+      !docsRelativeFiles.has(zhPath)
     ) {
-      errors.push(`Missing Chinese mirror for website/en/${zhPath}`);
+      errors.push(`Missing Chinese mirror for ${docsDir}/en/${zhPath}`);
     }
     continue;
   }
@@ -166,8 +171,8 @@ for (const relativePath of websiteRelativeFiles) {
   }
 
   const enPath = `en/${relativePath}`;
-  if (!websiteRelativeFiles.has(enPath)) {
-    errors.push(`Missing English mirror for website/${relativePath}`);
+  if (!docsRelativeFiles.has(enPath)) {
+    errors.push(`Missing English mirror for ${docsDir}/${relativePath}`);
   }
 }
 

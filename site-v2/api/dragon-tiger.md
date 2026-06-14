@@ -193,7 +193,7 @@ sellSide.forEach(s => console.log(`  ${s.branchName} 卖出 ${s.sellAmount} 元`
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | 个股符号，如 `'600519'` / `'sh600519'` / `{ code: '600519' }` |
+| `symbol` | `string` | 个股符号，如 `'600519'` / `'sh600519'` |
 | `date` | `string` | 上榜日期，如 `'20240115'` |
 
 ### 返回说明

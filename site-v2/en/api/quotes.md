@@ -102,19 +102,20 @@ switch (q.assetType) {
 
 | Field | Type | Description |
 |---|---|---|
-| `price` | `number` | Current price (base quote currency) |
+| `price` | `number` | Current price (current beta follows the provider's raw convention) |
 | `prevClose` / `open` / `high` / `low` | `number` | Prev close / open / high / low |
 | `change` | `number` | Change amount |
 | `changePercent` | `number` | Change percent (percentage number, e.g. `5.2`) |
-| `volume` | `number` | Volume (unit: shares) |
-| `amount` | `number` | Turnover (base quote currency) |
+| `volume` | `number` | Volume (current beta follows the provider's raw convention) |
+| `amount` | `number` | Turnover (current beta follows the provider's raw convention) |
 
 A-share (`StockQuote`) additionally carries five-level `bid` / `ask`, `turnoverRate`, `pe`, `pb`, `limitUp`, `limitDown`, etc.; HK carries `lotSize`; US carries `pe` / `pb`. Funds (`FundQuote`) carry `nav` / `accNav` / `change` / `changePercent`.
 
 ::: tip Unit conventions
 - Percentages are **percentage numbers** (`5.2` means 5.2%, not `0.052`).
-- Amounts / prices are in each market's **base quote currency** (CN = CNY / HK = HKD / US = USD), indicated by `currency`, with **no cross-currency conversion**.
+- Amounts / prices target each market's **base quote currency** (CN = CNY / HK = HKD / US = USD), indicated by `currency`, with **no cross-currency conversion**.
 - Volume targets the **shares** unit.
+- The current beta has not completed per-source unit calibration, so runtime values still follow each provider's raw convention (for example, Tencent A-share volume is lots and turnover is in 10k CNY).
 - Invalid timestamps are `null` (no longer `NaN`).
 - The `raw` field is removed; for debugging raw payloads, use the provider-level `getXxxRaw()`.
 :::

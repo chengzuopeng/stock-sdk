@@ -1,6 +1,6 @@
 # kline · K-line & Intraday
 
-`sdk.kline` provides historical K-lines, minute K-lines, and indicator-enriched K-lines for CN / HK / US markets. The first argument is always a symbol (a plain `string` or a `SymbolRef`, parsed leniently by `normalizeSymbol`); the second is an optional options object for period / adjustment / date range.
+`sdk.kline` provides historical K-lines, minute K-lines, and indicator-enriched K-lines for CN / HK / US markets. The first argument is always a symbol string (parsed leniently by `normalizeSymbol`); the second is an optional options object for period / adjustment / date range.
 
 ```ts
 import { StockSDK } from 'stock-sdk'
@@ -124,7 +124,7 @@ HK / US historical K-lines additionally carry `currency` (`'HKD'` / `'USD'`) and
 
 Minute K-lines (`'5'~'60'`) mirror historical fields but use a `time` field (`YYYY-MM-DD HH:mm`); the intraday series (`'1'`) carries `time` + OHLC + `volume/amount` + `avgPrice`.
 
-> Percentage fields are expressed as percentages (e.g. `5.2` means 5.2%); amounts/prices are in each market's native currency main unit (CN=CNY, HK=HKD, US=USD; no cross-currency conversion); the target unit for volume is "shares". `timestamp` is `null` when invalid (no more `NaN`). **Exact fields follow the implementation.**
+> Percentage fields are expressed as percentages (e.g. `5.2` means 5.2%). Amount / price / volume have unified target units, but in the current beta runtime values still follow each provider's raw convention. `timestamp` is `null` when invalid (no more `NaN`). **Exact fields follow the implementation.**
 
 ## K-line with indicators
 

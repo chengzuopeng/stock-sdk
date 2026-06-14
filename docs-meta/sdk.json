@@ -249,7 +249,13 @@
     "< 20KB",
     "StockSDK/1.4",
     "StockSDK/1.8.0",
-    "coverage-95.88%25"
+    "coverage-95.88%25",
+    "period: 'day'",
+    "period: \"day\"",
+    "indicators: ['MA'",
+    "addIndicators(kline, ['MA'",
+    "sdk.screener()",
+    ".rankBy("
   ],
   "docExpectations": {
     "requiredTokensByFile": {

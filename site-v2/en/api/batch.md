@@ -67,16 +67,16 @@ const raw = await sdk.batch.raw({ /* low-level params, subject to implementation
 ```ts
 const all = await sdk.batch.cn()
 
-// Local screening over the whole market (or use sdk.screener() directly)
+// Local screening over the whole market (or combine with stock-sdk/screener)
 const hot = all.filter(
   (q) => q.assetType === 'stock' && q.changePercent > 5,
 )
 ```
 
 ::: tip Units & caching
-- Return values follow the v2 unified conventions: percentages as percentage numbers, amounts / prices in base quote currency, volume in shares, `timestamp` as `number | null`, and no `raw` field.
+- Return values follow the v2 unified contract: percentages as percentage numbers, `timestamp` as `number | null`, and no `raw` field. Amount / price / volume have unified target units, but in the current beta runtime values still follow each provider's raw convention.
 - Whole-market snapshots pair well with a short-TTL cache to avoid repeated full pulls in a short window.
 - `batch.raw` returns the raw structure and is **not** merged into the unified contract; its fields follow the underlying endpoint.
 :::
 
-> batch is the underlying data source for the [screener `sdk.screener()`](/en/api/). Exact concurrency params, progress callback signature and raw structure are subject to the implementation, finalized along with `src/sdk/namespaces`.
+> batch is often used as the input data source for `stock-sdk/screener`. Exact concurrency params, progress callback signature and raw structure are subject to the implementation.

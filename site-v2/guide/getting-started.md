@@ -27,11 +27,11 @@ const quotes = await sdk.quotes.cn(['sh600519'])
 const q = quotes[0]
 
 console.log(q.name)           // 名称
-console.log(q.price)          // 现价（计价货币主单位）
+console.log(q.price)          // 现价（单位以数据源当前口径为准）
 console.log(q.changePercent)  // 涨跌幅（百分数，如 5.2 表示 5.2%）
 ```
 
-> 符号 `string` 是一等公民，`'sh600519'` / `'600519'` / `{ code: '600519' }` 都能识别。返回字段以最终实现为准。
+> 符号 `string` 是一等公民，`'sh600519'` / `'600519'` 都能识别；需要消歧时可先用 `stock-sdk/symbols` 的 `normalizeSymbol`。返回字段以最终实现为准。
 
 ## 常见用法
 
@@ -48,12 +48,12 @@ await sdk.quotes.fund(['510300'])            // 基金
 
 ```ts
 // A 股日 K 线
-const kline = await sdk.kline.cn('600519', { period: 'day' })
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
 
 // 分钟 K 线 / 港股 / 美股
 await sdk.kline.cnMinute('600519')
-await sdk.kline.hk('00700', { period: 'day' })
-await sdk.kline.us('AAPL', { period: 'day' })
+await sdk.kline.hk('00700', { period: 'daily' })
+await sdk.kline.us('AAPL', { period: 'daily' })
 ```
 
 > K 线方法的具体参数（周期、复权、数量、日期范围等）以实现为准。
@@ -63,7 +63,7 @@ await sdk.kline.us('AAPL', { period: 'day' })
 ```ts
 // 直接返回带指标的 K 线
 const withInd = await sdk.kline.withIndicators('600519', {
-  indicators: ['MA', 'MACD'],
+  indicators: { ma: [5, 20], macd: true },
 })
 ```
 
@@ -72,8 +72,8 @@ const withInd = await sdk.kline.withIndicators('600519', {
 ```ts
 import { addIndicators } from 'stock-sdk/indicators'
 
-const kline = await sdk.kline.cn('600519', { period: 'day' })
-const enriched = addIndicators(kline, ['MA', 'MACD', 'KDJ'])
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true, kdj: true })
 ```
 
 ### 识别买卖信号
@@ -82,8 +82,8 @@ const enriched = addIndicators(kline, ['MA', 'MACD', 'KDJ'])
 import { addIndicators } from 'stock-sdk/indicators'
 import { calcSignals } from 'stock-sdk/signals'
 
-const kline = await sdk.kline.cn('600519', { period: 'day' })
-const enriched = addIndicators(kline, ['MA', 'MACD'])
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true })
 
 const signals = calcSignals(enriched, {
   ma: { fast: 5, slow: 20 },  // 金叉 / 死叉

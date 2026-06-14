@@ -1,6 +1,6 @@
 # kline · K 线与分时
 
-`sdk.kline` 提供 A 股 / 港股 / 美股的历史 K 线、分钟 K 线，以及带技术指标的 K 线。所有方法第一个参数都是符号（裸 `string` 或 `SymbolRef`，由 `normalizeSymbol` 容错解析），第二个参数是可选的周期 / 复权 / 时间范围选项。
+`sdk.kline` 提供 A 股 / 港股 / 美股的历史 K 线、分钟 K 线，以及带技术指标的 K 线。所有方法第一个参数都是符号字符串（由 `normalizeSymbol` 容错解析），第二个参数是可选的周期 / 复权 / 时间范围选项。
 
 ```ts
 import { StockSDK } from 'stock-sdk'
@@ -124,7 +124,7 @@ const withInd = await sdk.kline.withIndicators('600519', { period: 'daily' })
 
 分钟 K 线（`'5'~'60'`）字段与历史 K 线类似，时间字段为 `time`（`YYYY-MM-DD HH:mm`）；当日分时（`'1'`）则为 `time` + `open/close/high/low` + `volume/amount` + `avgPrice`。
 
-> 百分比字段为百分数（如涨跌幅 `5.2` 表示 5.2%）；金额 / 价格以各市场计价货币的主单位计（A 股=元、港股=港元、美股=美元，不跨币种折算），成交量目标口径为「股」。`timestamp` 无效时为 `null`（不再使用 `NaN`）。**具体字段以实现为准。**
+> 百分比字段为百分数（如涨跌幅 `5.2` 表示 5.2%）；金额 / 价格 / 成交量有统一目标口径，但当前 beta 的运行值仍以各 provider 原始口径为准。`timestamp` 无效时为 `null`（不再使用 `NaN`）。**具体字段以实现为准。**
 
 ## 带指标的 K 线
 

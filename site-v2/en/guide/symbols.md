@@ -4,12 +4,12 @@ stock-sdk v2 funnels the whole "how do I write a ticker" question through a sing
 
 This page covers two things:
 
-1. How to pass symbols (`string` as the first-class input, plus an optional `SymbolRef`);
+1. How to pass symbols (SDK methods primarily take `string` / `string[]`; `normalizeSymbol` supports an optional `SymbolRef`);
 2. The fault-tolerant parsing rules, the pure-code ambiguities, and when a hint is **required**.
 
-## Input: string first-class + SymbolRef
+## Input: string first-class
 
-Every symbol-accepting method takes `string | SymbolRef`:
+Public SDK methods primarily take `string` / `string[]`. `SymbolRef` is the disambiguation input exposed by `stock-sdk/symbols` for `normalizeSymbol`:
 
 ```ts
 type SymbolInput = string | SymbolRef;
@@ -25,22 +25,22 @@ interface SymbolRef {
 A bare `string` is the preferred form and covers the vast majority of cases:
 
 ```ts
-await sdk.quotes.cn('600519');        // A-share
 await sdk.quotes.cn(['sh600519', '000001']);
-await sdk.quotes.hk('00700');         // Hong Kong
-await sdk.quotes.us('AAPL');          // US
+await sdk.quotes.hk(['00700']);        // Hong Kong
+await sdk.quotes.us(['AAPL']);         // US
 ```
 
-`SymbolRef` is not a separate system — it's a **"string with hints"**. Its `code` still goes through `normalizeSymbol`; it just carries extra `market` / `assetType` / `exchange` hints to disambiguate. Both forms share one inference path, so there is no dual-implementation drift.
+`SymbolRef` is not a separate system — it's a **"string with hints"**. Its `code` still goes through `normalizeSymbol`; it just carries extra `market` / `assetType` / `exchange` hints to disambiguate. When you need object hints, normalize first and then pass the explicit code string to the SDK method.
 
 ```ts
 // Use SymbolRef only when a bare code can't be told apart
-await sdk.quotes.fund({ code: '510300', assetType: 'fund' });
+normalizeSymbol({ code: '510300', assetType: 'fund' });
+await sdk.quotes.fund(['510300']);
 ```
 
 ## normalizeSymbol: unified fault-tolerant parsing
 
-`normalizeSymbol` is exported from `stock-sdk/symbols`. It's a pure function — zero network, works in both browser and Node. Every provider calls it first internally, and you can use it directly to normalize symbols yourself.
+`normalizeSymbol` is exported from `stock-sdk/symbols`. It's a pure function — zero network, works in both browser and Node. Providers reuse it where needed, and you can use it directly to normalize symbols yourself.
 
 ```ts
 import { normalizeSymbol } from 'stock-sdk/symbols';
@@ -105,7 +105,7 @@ When you supply only a pure code (no prefix, no suffix, no hint), inference foll
 | 5 / 4 pure digits | Hong Kong stock | zero-padded to 5 digits |
 | Pure letters | US stock | — |
 
-Pure-code inference is "most-common-wins", so **some cases simply cannot be told apart from the code alone** and require a hint or `SymbolRef`.
+Pure-code inference is "most-common-wins", so **some cases simply cannot be told apart from the code alone** and require a hint or `SymbolRef` when calling `normalizeSymbol`.
 
 ### Known ambiguities that require a hint
 
@@ -115,9 +115,8 @@ On-exchange fund / ETF code ranges overlap with stock code ranges; a bare code c
 
 ```ts
 // Without a hint this is treated as a stock
-await sdk.quotes.fund({ code: '510300', assetType: 'fund' });
-// or
 normalizeSymbol('510300', { assetType: 'fund' });
+await sdk.quotes.fund(['510300']);
 ```
 
 **② Index vs. stock (both 6 digits)**

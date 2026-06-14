@@ -27,11 +27,11 @@ const quotes = await sdk.quotes.cn(['sh600519'])
 const q = quotes[0]
 
 console.log(q.name)           // name
-console.log(q.price)          // last price (in the quote-currency major unit)
+console.log(q.price)          // last price (current runtime unit follows the data source)
 console.log(q.changePercent)  // change (percentage points, e.g. 5.2 means 5.2%)
 ```
 
-> A symbol `string` is a first-class citizen — `'sh600519'`, `'600519'`, and `{ code: '600519' }` are all recognized. Returned fields follow the final implementation.
+> A symbol `string` is a first-class citizen — `'sh600519'` and `'600519'` are recognized; use `normalizeSymbol` from `stock-sdk/symbols` when you need explicit disambiguation. Returned fields follow the final implementation.
 
 ## Common usage
 
@@ -48,12 +48,12 @@ await sdk.quotes.fund(['510300'])            // funds
 
 ```ts
 // A-share daily K-line
-const kline = await sdk.kline.cn('600519', { period: 'day' })
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
 
 // Minute K-lines / HK / US
 await sdk.kline.cnMinute('600519')
-await sdk.kline.hk('00700', { period: 'day' })
-await sdk.kline.us('AAPL', { period: 'day' })
+await sdk.kline.hk('00700', { period: 'daily' })
+await sdk.kline.us('AAPL', { period: 'daily' })
 ```
 
 > Exact K-line parameters (period, adjustment, count, date range, etc.) follow the implementation.
@@ -63,7 +63,7 @@ await sdk.kline.us('AAPL', { period: 'day' })
 ```ts
 // Return K-lines with indicators directly
 const withInd = await sdk.kline.withIndicators('600519', {
-  indicators: ['MA', 'MACD'],
+  indicators: { ma: [5, 20], macd: true },
 })
 ```
 
@@ -72,8 +72,8 @@ You can also fetch raw K-lines first, then attach indicators with pure functions
 ```ts
 import { addIndicators } from 'stock-sdk/indicators'
 
-const kline = await sdk.kline.cn('600519', { period: 'day' })
-const enriched = addIndicators(kline, ['MA', 'MACD', 'KDJ'])
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true, kdj: true })
 ```
 
 ### Detect buy/sell signals
@@ -82,8 +82,8 @@ const enriched = addIndicators(kline, ['MA', 'MACD', 'KDJ'])
 import { addIndicators } from 'stock-sdk/indicators'
 import { calcSignals } from 'stock-sdk/signals'
 
-const kline = await sdk.kline.cn('600519', { period: 'day' })
-const enriched = addIndicators(kline, ['MA', 'MACD'])
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true })
 
 const signals = calcSignals(enriched, {
   ma: { fast: 5, slow: 20 },  // golden / death cross

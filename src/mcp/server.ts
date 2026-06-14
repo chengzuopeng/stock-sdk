@@ -34,8 +34,29 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
+type JsonSchemaType = NonNullable<ToolDef['inputSchema']['properties'][string]['type']>;
+
+function matchesJsonSchemaType(v: unknown, type: JsonSchemaType): boolean {
+  switch (type) {
+    case 'array':
+      return Array.isArray(v);
+    case 'string':
+      return typeof v === 'string';
+    case 'integer':
+      return Number.isInteger(v);
+    case 'number':
+      return typeof v === 'number';
+    case 'boolean':
+      return typeof v === 'boolean';
+    case 'object':
+      return isObject(v);
+    default:
+      return true;
+  }
+}
+
 /**
- * 按 tool.inputSchema 校验 args：required 缺失 / 基本类型不符 / enum 取值非法
+ * 按 tool.inputSchema 校验 args：unknown key / required 缺失 / 基本类型不符 / enum 取值非法
  * → 返回错误消息(否则 null)。
  * MCP server 此前完全不按 schema 校验 tools/call 入参,脏入参(如 codes 传字符串而非数组)会
  * 越过 provider 空值守卫、抛出 `codes.join is not a function` 这类泄漏实现细节的 Error[UNKNOWN]。
@@ -45,6 +66,14 @@ function validateArgs(
   schema: ToolDef['inputSchema'],
   args: Record<string, unknown>
 ): string | null {
+  if (schema.additionalProperties === false) {
+    const allowed = new Set(Object.keys(schema.properties));
+    for (const key of Object.keys(args)) {
+      if (!allowed.has(key)) {
+        return `未知参数 "${key}"`;
+      }
+    }
+  }
   for (const key of schema.required ?? []) {
     if (args[key] === undefined || args[key] === null) {
       return `缺少必填参数 "${key}"`;
@@ -52,23 +81,11 @@ function validateArgs(
   }
   for (const [key, prop] of Object.entries(schema.properties)) {
     const v = args[key];
-    if (v === undefined || v === null) continue;
+    if (v === undefined) continue;
     if (prop.type) {
-      const okType =
-        prop.type === 'array'
-          ? Array.isArray(v)
-          : prop.type === 'string'
-            ? typeof v === 'string'
-            : prop.type === 'integer'
-              ? Number.isInteger(v)
-              : prop.type === 'number'
-                ? typeof v === 'number'
-                : prop.type === 'boolean'
-                  ? typeof v === 'boolean'
-                  : prop.type === 'object'
-                    ? typeof v === 'object' && !Array.isArray(v)
-                    : true;
-      if (!okType) return `参数 "${key}" 类型应为 ${prop.type}`;
+      if (!matchesJsonSchemaType(v, prop.type)) {
+        return `参数 "${key}" 类型应为 ${prop.type}`;
+      }
     }
     if (prop.enum && !(prop.enum as readonly unknown[]).includes(v)) {
       return `参数 "${key}" 取值非法「${String(v)}」，可选: ${prop.enum.join(' / ')}`;

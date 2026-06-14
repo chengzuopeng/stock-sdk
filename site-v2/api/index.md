@@ -8,11 +8,11 @@ import { StockSDK } from 'stock-sdk'
 const sdk = new StockSDK()
 
 const quotes = await sdk.quotes.cn(['600519', '000001']) // 命名空间调用
-const kline = await sdk.kline.cn('600519', { period: 'day' })
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
 const k = await sdk.options.etf.dailyKline('10004336') // 二级命名空间
 ```
 
-> 符号入参 `string` 是一等公民：`'sh600519'` / `'600519'` / `'00700'` / `'AAPL'` 均可，由 `normalizeSymbol` 容错解析；也可传 `SymbolRef` 带提示。详见 [符号与代码规则](/guide/symbols)。
+> 符号入参 `string` 是一等公民：`'sh600519'` / `'600519'` / `'00700'` / `'AAPL'` 均可，由 `normalizeSymbol` 容错解析。需要对象 hint 时，请先使用 `stock-sdk/symbols` 的 `normalizeSymbol`。详见 [符号与代码规则](/guide/symbols)。
 
 ## 行情与批量
 
@@ -75,5 +75,5 @@ import { normalizeSymbol } from 'stock-sdk/symbols'
 ## 约定
 
 - **方法表 → 调用示例 → 返回说明** 是每个 API 页的统一结构。
-- 返回值遵循 v2 统一数据契约：基础字段 `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`；`raw` 字段已移除；`timestamp` 为 `number | null`（无法解析为 `null`）；百分比为百分数（如 `5.2`）；金额 / 价格为各市场**计价货币主单位**，成交量单位为**股**。详见 [统一数据契约](/guide/migration-v1-to-v2)。
+- 返回值遵循 v2 统一数据契约：基础字段 `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`；`raw` 字段已移除；`timestamp` 为 `number | null`（无法解析为 `null`）；百分比为百分数（如 `5.2`）。金额 / 价格 / 成交量有统一目标口径，但当前 beta 的运行值仍以各 provider 原始口径为准。详见 [统一数据契约](/guide/migration-v1-to-v2)。
 - v2 SDK 仍在实现中，命名空间与方法名稳定，**精确参数 / 返回字段以最终实现为准**。

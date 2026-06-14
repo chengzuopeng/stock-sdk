@@ -193,7 +193,7 @@ sellSide.forEach(s => console.log(`  ${s.branchName} sold ${s.sellAmount}`))
 
 | Parameter | Type | Description |
 |---|---|---|
-| `symbol` | `string \| SymbolRef` | Stock symbol, e.g. `'600519'` / `'sh600519'` / `{ code: '600519' }` |
+| `symbol` | `string` | Stock symbol, e.g. `'600519'` / `'sh600519'` |
 | `date` | `string` | Listing date, e.g. `'20240115'` |
 
 ### Returns

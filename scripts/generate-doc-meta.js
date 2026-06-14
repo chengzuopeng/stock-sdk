@@ -6,6 +6,7 @@ import { gzipSync } from 'node:zlib';
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFilePath);
 const rootDir = path.resolve(currentDir, '..');
+const docsDir = process.env.DOCS_DIR || 'site-v2';
 
 async function readJson(relativePath) {
   const absolutePath = path.join(rootDir, relativePath);
@@ -233,8 +234,7 @@ ${methodGroups}
 - [请求治理](/guide/request-governance)
 - [期货与期权](/guide/futures-options)
 - [分红与交易日历](/guide/dividend-calendar)
-- [API 总览](/api/)
-`;
+- [API 总览](/api/)`;
 }
 
 export async function generateDocMeta(options = {}) {
@@ -312,9 +312,9 @@ export async function generateDocMeta(options = {}) {
   };
 
   if (write) {
-    const generatedDir = path.join(rootDir, 'website/.generated');
+    const generatedDir = path.join(rootDir, docsDir, '.generated');
     const metaOutputPath = path.join(generatedDir, 'sdk-meta.json');
-    const summaryOutputPath = path.join(rootDir, 'website/summary.md');
+    const summaryOutputPath = path.join(rootDir, docsDir, 'summary.md');
     await fs.mkdir(generatedDir, { recursive: true });
     await fs.writeFile(metaOutputPath, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
     await fs.writeFile(
@@ -329,6 +329,6 @@ export async function generateDocMeta(options = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === currentFilePath) {
   await generateDocMeta();
-  console.log('Generated website/.generated/sdk-meta.json');
-  console.log('Generated website/summary.md');
+  console.log(`Generated ${docsDir}/.generated/sdk-meta.json`);
+  console.log(`Generated ${docsDir}/summary.md`);
 }

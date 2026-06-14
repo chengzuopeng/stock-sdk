@@ -31,13 +31,13 @@ import { StockSDK } from 'stock-sdk'
 const sdk = new StockSDK()
 
 // 国内期货 K 线：螺纹钢 2510 合约
-const rbKline = await sdk.futures.kline('rb2510', { period: 'day' })
+const rbKline = await sdk.futures.kline('rb2510', { period: 'daily' })
 
 // 全球期货实时行情
 const comexGold = await sdk.futures.globalSpot('GC') // COMEX 黄金（示意）
 
 // 全球期货 K 线
-const wtiKline = await sdk.futures.globalKline('CL', { period: 'day' })
+const wtiKline = await sdk.futures.globalKline('CL', { period: 'daily' })
 
 // 库存：先列可查品种，再取具体库存
 const symbols = await sdk.futures.inventorySymbols()

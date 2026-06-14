@@ -28,7 +28,8 @@ coverage/
 # VitePress
 **/.vitepress/dist
 **/.vitepress/cache
-website/.generated/
+**/.generated/
+.playwright-mcp/
 
 # Environment
 .env

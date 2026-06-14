@@ -107,10 +107,10 @@ console.log(q.raw); // ['1', 'Kweichow Moutai', ...]
 ### Units and conventions
 
 - `volume` (turnover volume) targets a unified unit of **shares**;
-- `amount` / `price` / market cap are unified to **each instrument's quote currency major unit** (A-share = CNY, Hong Kong = HKD, US = USD, indicated by `currency`, **no cross-currency conversion**);
+- `amount` / `price` / market cap target **each instrument's quote currency major unit** (A-share = CNY, Hong Kong = HKD, US = USD, indicated by `currency`, **no cross-currency conversion**);
 - Percentages are unified as **percent numbers** (e.g. `5.2` means 5.2%).
 
-> This means some values change in magnitude relative to v1, so **backtest / display logic must be recalibrated**. The `currency` field is now required on every quote.
+> This is the v2 target data contract. Once it fully lands, some values will change in magnitude relative to v1, so **backtest / display logic must be recalibrated**. The `currency` field is now required on every quote.
 >
 > ⚠️ Unit conversions (lots→shares ×100, 10k→unit ×10000, etc.) must be calibrated against real data per source; for now each source emits its original convention, with calibration landing later. Subject to the final implementation.
 
@@ -128,7 +128,7 @@ if (q.timestamp === null) { /* invalid */ }
 
 ### Quote discriminated union
 
-Quote types collapse from "separate interfaces" into a union `Quote` discriminated by `assetType`. Old type names (`FullQuote` / `HKUSHistoryKline`, etc.) are removed. Callers narrow with `switch`:
+Quote types collapse from "separate interfaces" into a union `Quote` discriminated by `assetType`. Old type names (`FullQuote` / `HKUSHistoryKline`, etc.) may remain during beta to protect migration, but new code should target `Quote`. Callers narrow with `switch`:
 
 ```ts
 import type { Quote } from 'stock-sdk';
@@ -222,7 +222,7 @@ import { SdkError } from 'stock-sdk/errors';
 
 const sdk = new StockSDK();
 
-const quotes = await sdk.quotes.cn(['sh600519']); // or '600519' / { code: '600519' }
+const quotes = await sdk.quotes.cn(['sh600519']); // or ['600519']
 const kline = await sdk.options.etf.dailyKline('10004336');
 const dividends = await sdk.reference.dividendDetail('600519');
 
@@ -240,7 +240,7 @@ try {
 
 ## 5. Other cleanups
 
-- All `@deprecated` fields removed (e.g. the `tradeDate` alias, legacy `OptionLHBItem` fields, `ComexInventory.inventory`, etc.).
+- v1 flat methods are removed. Some legacy fields / type names may remain during beta to protect migration; the final source of truth is the type definitions.
 - Old `boolean` signatures removed: `getAShareCodeList(boolean)` / `getUSCodeList(boolean)` keep only the options-object signature (v2 `codes.cn(opts)` / `codes.us(opts)`).
 - Node baseline stays at `>=18` (`AbortSignal.any` with a runtime fallback).
 - New subpath exports: `stock-sdk/{indicators,symbols,signals,screener,cache,errors}`.

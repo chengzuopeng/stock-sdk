@@ -102,19 +102,20 @@ switch (q.assetType) {
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `price` | `number` | 现价（计价货币主单位） |
+| `price` | `number` | 现价（当前 beta 以数据源原始口径为准） |
 | `prevClose` / `open` / `high` / `low` | `number` | 昨收 / 今开 / 最高 / 最低 |
 | `change` | `number` | 涨跌额 |
 | `changePercent` | `number` | 涨跌幅（百分数，如 `5.2`） |
-| `volume` | `number` | 成交量（单位：股） |
-| `amount` | `number` | 成交额（计价货币主单位） |
+| `volume` | `number` | 成交量（当前 beta 以数据源原始口径为准） |
+| `amount` | `number` | 成交额（当前 beta 以数据源原始口径为准） |
 
 A 股（`StockQuote`）额外含五档 `bid` / `ask`、`turnoverRate`、`pe`、`pb`、`limitUp`、`limitDown` 等；港股含 `lotSize`；美股含 `pe` / `pb`。基金（`FundQuote`）则为 `nav` / `accNav` / `change` / `changePercent`。
 
 ::: tip 口径约定
 - 百分比为**百分数**（`5.2` 表示 5.2%，非 `0.052`）。
-- 金额 / 价格为各市场**计价货币主单位**（A股=元 / 港股=港元 / 美股=美元），由 `currency` 标明，**不跨币种折算**。
+- 金额 / 价格目标口径为各市场**计价货币主单位**（A股=元 / 港股=港元 / 美股=美元），由 `currency` 标明，**不跨币种折算**。
 - 成交量目标口径为**股**。
+- 当前 beta 尚未完成逐源单位校准，运行值仍以各 provider 原始口径为准（例如腾讯 A 股成交量为手、成交额为万元）。
 - 无效时间用 `null` 表示（不再是 `NaN`）。
 - `raw` 字段已移除；如需调试原始报文，使用 provider 层的 `getXxxRaw()`。
 :::

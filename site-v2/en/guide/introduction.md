@@ -24,7 +24,7 @@ const sdk = new StockSDK()
 
 // v2 namespaced calls
 await sdk.quotes.cn(['sh600519'])              // A-share full quotes
-await sdk.kline.cn('600519', { period: 'day' }) // A-share historical K-line
+await sdk.kline.cn('600519', { period: 'daily' }) // A-share historical K-line
 await sdk.options.etf.dailyKline('10004336')    // ETF option daily K-line
 ```
 
@@ -56,7 +56,7 @@ v2 collapses the quote types into a **discriminated union** `Quote` keyed by `as
 - Base fields: `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`.
 - `timestamp` is `number | null` (`null` when it cannot be parsed, replacing v1's `NaN`).
 - Percentages are unified as **percentage points** (e.g. `5.2` means 5.2%).
-- Amounts / prices are in the **major unit of each market's quote currency** (A-share = CNY / HK = HKD / US = USD, with no cross-currency conversion); volume targets the "share" unit.
+- Amounts / prices target the **major unit of each market's quote currency** (A-share = CNY / HK = HKD / US = USD, with no cross-currency conversion); volume targets the "share" unit. In the current beta, runtime values still follow each provider's raw convention until per-source calibration lands.
 - The `raw` field has been removed from data objects entirely (the debug escape hatch moved to provider-level `getXxxRaw()`).
 
 ```ts
@@ -84,11 +84,13 @@ CLI / MCP live behind separate entries — not a single byte enters the user's b
 A declarative screener built on full-market quotes, boards and capital flows, plus a local backtest engine (pure computation, reproducible):
 
 ```ts
-const picks = await sdk.screener()
-  .universe('cn')
+import { screen } from 'stock-sdk/screener'
+
+const all = await sdk.batch.cn()
+const picks = screen(all)
   .where(q => q.pe != null && q.pe < 20)
   .where(q => q.changePercent > 3)
-  .rankBy('amount', 'desc')
+  .sortBy(q => q.amount, 'desc')
   .top(20)
 ```
 
@@ -106,7 +108,7 @@ const picks = await sdk.screener()
 | Indicators | `stock-sdk/indicators` | 14 technical-indicator functions + `addIndicators` |
 | Signals | `stock-sdk/signals` | `calcSignals`: golden / death cross, overbought / oversold, etc. |
 | Symbols | `stock-sdk/symbols` | `normalizeSymbol`, `SymbolRef` |
-| Screener & backtest | `sdk.screener()` / `stock-sdk/screener` | Declarative screener, local backtest engine |
+| Screener & backtest | `stock-sdk/screener` | Declarative screener, local backtest engine |
 | Cache | `stock-sdk/cache` | Injectable unified cache layer (TTL / LRU) |
 | CLI · MCP | `stock-sdk` (bin) / `stock-sdk mcp` | Terminal fetching, built-in MCP server |
 

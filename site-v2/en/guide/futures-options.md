@@ -31,13 +31,13 @@ import { StockSDK } from 'stock-sdk'
 const sdk = new StockSDK()
 
 // Domestic futures K-line: rebar steel 2510 contract
-const rbKline = await sdk.futures.kline('rb2510', { period: 'day' })
+const rbKline = await sdk.futures.kline('rb2510', { period: 'daily' })
 
 // Global futures real-time quote
 const comexGold = await sdk.futures.globalSpot('GC') // COMEX gold (illustrative)
 
 // Global futures K-line
-const wtiKline = await sdk.futures.globalKline('CL', { period: 'day' })
+const wtiKline = await sdk.futures.globalKline('CL', { period: 'daily' })
 
 // Inventory: list available varieties first, then fetch specific inventory
 const symbols = await sdk.futures.inventorySymbols()
