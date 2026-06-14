@@ -232,7 +232,7 @@ describe('TencentStockSDK - Batch', () => {
     it('should call onProgress callback', async () => {
       let progressCalled = false;
       const customSdk = new StockSDK();
-      const res = await customSdk.getAllAShareQuotes({
+      const res = await customSdk.batch.cn({
         batchSize: 50,
         concurrency: 1,
         onProgress: (completed, total) => {
@@ -247,7 +247,7 @@ describe('TencentStockSDK - Batch', () => {
 
     it('should filter by market: kc (科创板)', async () => {
       const customSdk = new StockSDK();
-      const res = await customSdk.getAllAShareQuotes({
+      const res = await customSdk.batch.cn({
         market: 'kc',
         batchSize: 100,
         concurrency: 3,
@@ -261,7 +261,7 @@ describe('TencentStockSDK - Batch', () => {
 
     it('should filter by market: cy (创业板)', async () => {
       const customSdk = new StockSDK();
-      const res = await customSdk.getAllAShareQuotes({
+      const res = await customSdk.batch.cn({
         market: 'cy',
         batchSize: 100,
         concurrency: 3,
@@ -277,7 +277,7 @@ describe('TencentStockSDK - Batch', () => {
   describe('getAllHKShareQuotes', () => {
     it('should return 港股全量行情 with correct HKQuote structure', async () => {
       const customSdk = new StockSDK();
-      const res = await customSdk.getAllHKShareQuotes({
+      const res = await customSdk.batch.hk({
         batchSize: 50,
         concurrency: 2,
       });
@@ -298,7 +298,7 @@ describe('TencentStockSDK - Batch', () => {
       expect(sample).toHaveProperty('low');
       expect(sample).toHaveProperty('amount');
       expect(sample).toHaveProperty('currency');
-      expect(sample).toHaveProperty('raw');
+      // v2 契约:raw 字段已移除(单轨硬切),不再断言
 
       expect(typeof sample.price).toBe('number');
       expect(typeof sample.changePercent).toBe('number');
@@ -308,7 +308,7 @@ describe('TencentStockSDK - Batch', () => {
   describe('getAllUSShareQuotes', () => {
     it('should return 美股全量行情 with correct USQuote structure', async () => {
       const customSdk = new StockSDK();
-      const res = await customSdk.getAllUSShareQuotes({
+      const res = await customSdk.batch.us({
         batchSize: 50,
         concurrency: 2,
       });
@@ -328,7 +328,7 @@ describe('TencentStockSDK - Batch', () => {
       expect(sample).toHaveProperty('volume');
       expect(sample).toHaveProperty('amount');
       expect(sample).toHaveProperty('totalMarketCap');
-      expect(sample).toHaveProperty('raw');
+      // v2 契约:raw 字段已移除(单轨硬切),不再断言
 
       expect(typeof sample.price).toBe('number');
       expect(typeof sample.changePercent).toBe('number');
@@ -336,7 +336,7 @@ describe('TencentStockSDK - Batch', () => {
 
     it('should filter by market: NASDAQ', async () => {
       const customSdk = new StockSDK();
-      const res = await customSdk.getAllUSShareQuotes({
+      const res = await customSdk.batch.us({
         market: 'NASDAQ',
         batchSize: 100,
         concurrency: 3,
@@ -349,7 +349,7 @@ describe('TencentStockSDK - Batch', () => {
 
     it('should filter by market: NYSE', async () => {
       const customSdk = new StockSDK();
-      const res = await customSdk.getAllUSShareQuotes({
+      const res = await customSdk.batch.us({
         market: 'NYSE',
         batchSize: 100,
         concurrency: 3,
