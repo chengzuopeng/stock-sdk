@@ -22,6 +22,18 @@ import type {
   FundNavPoint,
   FundRankHistory,
   FundRankPoint,
+  FundProfile,
+  FundHolding,
+  FundBondHolding,
+  FundAssetAllocation,
+  FundPositionPoint,
+  FundManager,
+  FundPerformanceEvaluation,
+  FundHolderStructure,
+  FundScaleChange,
+  FundBuySedemption,
+  FundStageReturns,
+  FundSameType,
 } from '../../types';
 
 const FUND_DATA_INDEX_URL =
@@ -451,5 +463,303 @@ export async function getFundRankHistory(
     code: vars.fS_code ?? code,
     name: vars.fS_name ?? null,
     items,
+  };
+}
+
+// ============================================================
+// 基金深度资料（pingzhongdata 全量字段，一次请求）
+// ============================================================
+
+interface FundProfileRaw {
+  fS_code?: string;
+  fS_name?: string;
+  fund_sourceRate?: string;
+  fund_Rate?: string;
+  fund_minsg?: string;
+  /** 前十大重仓股代码（新市场号编码：`"0.300308"`, `"1.688012"`, ...） */
+  stockCodesNew?: string[];
+  /** 前五大债券持仓代码（新市场号编码） */
+  zqCodesNew?: string;
+  /** 资产配置 */
+  Data_assetAllocation?: {
+    series?: Array<{
+      name?: string;
+      data?: (number | null)[];
+    }>;
+    categories?: string[];
+  };
+  /** 股票仓位测算（每日） */
+  Data_fundSharesPositions?: Array<[number, number]>;
+  /** 基金经理 */
+  Data_currentFundManager?: Array<{
+    id?: string;
+    name?: string;
+    startDate?: string;
+    days?: number;
+    experience?: number;
+    fundCount?: number;
+    fundScale?: number;
+    resume?: string;
+  }>;
+  /** 业绩评价 */
+  Data_performanceEvaluation?: {
+    avr?: string;
+    categories?: string[];
+    dsc?: string[];
+    data?: number[];
+  };
+  /** 持有人结构 */
+  Data_holderStructure?: {
+    categories?: string[];
+    series?: Array<{ name?: string; data?: (number | null)[] }>;
+  };
+  /** 规模变动 */
+  Data_fluctuationScale?: {
+    categories?: string[];
+    series?: Array<{ y?: number; mom?: string }>;
+  };
+  /** 申购赎回 */
+  Data_buySedemption?: {
+    categories?: string[];
+    series?: Array<{
+      name?: string;
+      data?: (number | null)[];
+    }>;
+  };
+  /** 阶段收益率 */
+  syl_1y?: string;
+  syl_3y?: string;
+  syl_6y?: string;
+  syl_1n?: string;
+  /** 同类基金 */
+  swithSameType?: Array<{ code?: string; name?: string }>;
+}
+
+function parseHoldings(raw: string[] | undefined): FundHolding[] {
+  if (!raw) return [];
+  return raw.map((s) => {
+    const dot = s.indexOf('.');
+    if (dot < 0) return { code: s, marketId: '' };
+    return {
+      marketId: s.slice(0, dot),
+      code: s.slice(dot + 1),
+    };
+  });
+}
+
+function parseBondHoldings(raw: string | undefined): FundBondHolding[] {
+  if (!raw) return [];
+  return raw.split(',').map((s) => {
+    const dot = s.indexOf('.');
+    if (dot < 0) return { code: s, marketId: '' };
+    return {
+      marketId: s.slice(0, dot),
+      code: s.slice(dot + 1),
+    };
+  });
+}
+
+function parseAssetAllocation(raw: FundProfileRaw['Data_assetAllocation']): FundAssetAllocation[] {
+  if (!raw?.categories?.length || !raw?.series) return [];
+  const categories = raw.categories;
+  const series = raw.series;
+  const result: FundAssetAllocation[] = [];
+
+  const getData = (name: string): (number | null)[] => {
+    const s = series.find((s) => s.name === name);
+    return s?.data ?? [];
+  };
+  const stockData = getData('股票占净比');
+  const bondData = getData('债券占净比');
+  const cashData = getData('现金占净比');
+  const otherData = getData('其他占净比');
+  const netAssetData = getData('净资产');
+
+  for (let i = 0; i < categories.length; i++) {
+    const date = categories[i];
+    const ts = new Date(date + 'T00:00:00+08:00').getTime();
+    result.push({
+      date,
+      timestamp: ts,
+      stockRatio: stockData[i] ?? 0,
+      bondRatio: bondData[i] ?? 0,
+      cashRatio: cashData[i] ?? 0,
+      otherRatio: otherData[i] ?? 0,
+      netAsset: netAssetData[i] ?? 0,
+    });
+  }
+  return result;
+}
+
+function parsePositions(raw: Array<[number, number]> | undefined): FundPositionPoint[] {
+  if (!raw) return [];
+  return raw.map(([ts, pos]) => ({
+    date: timestampToDate(ts),
+    timestamp: ts,
+    position: pos,
+  }));
+}
+
+function parseManagers(raw: FundProfileRaw['Data_currentFundManager']): FundManager[] {
+  if (!raw) return [];
+  return raw.map((m) => ({
+    id: m.id ?? '',
+    name: m.name ?? '',
+    startDate: m.startDate?.trim() ? m.startDate.trim() : null,
+    daysInOffice: m.days ?? 0,
+    experienceYears: m.experience ?? 0,
+    currentFundCount: m.fundCount ?? 0,
+    currentFundScale: m.fundScale ?? 0,
+    resume: m.resume?.trim() ? m.resume.trim() : null,
+  }));
+}
+
+function parsePerformance(raw: FundProfileRaw['Data_performanceEvaluation']): FundPerformanceEvaluation | null {
+  if (!raw?.categories?.length) return null;
+  return {
+    overall: toFiniteNumberOrNull(raw.avr) ?? 0,
+    categories: raw.categories,
+    scores: raw.data ?? [],
+    descriptions: raw.dsc ?? [],
+  };
+}
+
+function parseHolderStructure(raw: FundProfileRaw['Data_holderStructure']): FundHolderStructure[] {
+  if (!raw?.categories?.length || !raw?.series) return [];
+  const result: FundHolderStructure[] = [];
+  const getData = (name: string) => {
+    const s = raw.series!.find((s) => s.name === name);
+    return s?.data ?? [];
+  };
+  const instData = getData('机构持有比例');
+  const indvData = getData('个人持有比例');
+  const internalData = getData('内部持有比例');
+
+  for (let i = 0; i < raw.categories.length; i++) {
+    const date = raw.categories[i];
+    const ts = new Date(date + 'T00:00:00+08:00').getTime();
+    result.push({
+      date,
+      timestamp: ts,
+      institutionRatio: instData[i] ?? 0,
+      individualRatio: indvData[i] ?? 0,
+      internalRatio: internalData[i] ?? 0,
+    });
+  }
+  return result;
+}
+
+function parseScaleChanges(raw: FundProfileRaw['Data_fluctuationScale']): FundScaleChange[] {
+  if (!raw?.categories?.length || !raw?.series) return [];
+  return raw.categories.map((date, i) => ({
+    date,
+    scale: raw.series![i]?.y ?? 0,
+    mom: raw.series![i]?.mom ?? '',
+  }));
+}
+
+function parseBuySedemption(raw: FundProfileRaw['Data_buySedemption']): FundBuySedemption[] {
+  if (!raw?.categories?.length || !raw?.series) return [];
+  const getData = (name: string) => {
+    const s = raw.series!.find((s) => s.name === name);
+    return s?.data ?? [];
+  };
+  const buyData = getData('期间申购');
+  const sellData = getData('期间赎回');
+  const totalData = getData('期末总份额');
+
+  return raw.categories.map((date, i) => {
+    const ts = new Date(date + 'T00:00:00+08:00').getTime();
+    return {
+      date,
+      timestamp: ts,
+      buy: buyData[i] ?? 0,
+      sell: sellData[i] ?? 0,
+      total: totalData[i] ?? 0,
+    };
+  });
+}
+
+function parseStageReturns(raw: FundProfileRaw): FundStageReturns {
+  return {
+    oneMonth: toFiniteNumberOrNull(raw.syl_1y),
+    threeMonth: toFiniteNumberOrNull(raw.syl_3y),
+    sixMonth: toFiniteNumberOrNull(raw.syl_6y),
+    oneYear: toFiniteNumberOrNull(raw.syl_1n),
+  };
+}
+
+function parseSameType(raw: FundProfileRaw['swithSameType']): FundSameType | null {
+  if (!raw?.length) return null;
+  return {
+    codes: raw.map((s) => s.code ?? ''),
+    names: raw.map((s) => s.name ?? ''),
+  };
+}
+
+/**
+ * 获取基金深度资料（pingzhongdata 全量字段，一次请求）。
+ *
+ * 包含：前十大重仓股、资产配置、仓位测算、基金经理、业绩评价、
+ * 持有人结构、规模变动、申购赎回、阶段收益率、同类基金等。
+ *
+ * 数据源：`https://fund.eastmoney.com/pingzhongdata/{code}.js`
+ *
+ * @param code 基金代码（纯数字，如 `'000001'`）
+ *
+ * @example
+ * const profile = await sdk.fund.profile('000001');
+ * console.log(profile.holdings[0].code);    // "300308"
+ * console.log(profile.assetAllocation[0]);   // { date, stockRatio, bondRatio, ... }
+ * console.log(profile.performance.overall);  // 77.0
+ */
+export async function getFundProfile(
+  client: RequestClient,
+  code: string
+): Promise<FundProfile> {
+  const url = `${FUND_PINGZHONGDATA_URL}/${encodeURIComponent(code)}.js`;
+  const vars = await fetchJsVars<FundProfileRaw>(
+    url,
+    [
+      'fS_code',
+      'fS_name',
+      'fund_sourceRate',
+      'fund_Rate',
+      'fund_minsg',
+      'stockCodesNew',
+      'zqCodesNew',
+      'Data_assetAllocation',
+      'Data_fundSharesPositions',
+      'Data_currentFundManager',
+      'Data_performanceEvaluation',
+      'Data_holderStructure',
+      'Data_fluctuationScale',
+      'Data_buySedemption',
+      'syl_1y',
+      'syl_3y',
+      'syl_6y',
+      'syl_1n',
+      'swithSameType',
+    ],
+    { client }
+  );
+
+  return {
+    code: vars.fS_code ?? code,
+    name: vars.fS_name ?? null,
+    sourceRate: toFiniteNumberOrNull(vars.fund_sourceRate),
+    rate: toFiniteNumberOrNull(vars.fund_Rate),
+    minSubscription: toFiniteNumberOrNull(vars.fund_minsg),
+    holdings: parseHoldings(vars.stockCodesNew),
+    bondHoldings: parseBondHoldings(vars.zqCodesNew),
+    assetAllocation: parseAssetAllocation(vars.Data_assetAllocation),
+    positions: parsePositions(vars.Data_fundSharesPositions),
+    managers: parseManagers(vars.Data_currentFundManager),
+    performance: parsePerformance(vars.Data_performanceEvaluation),
+    holderStructure: parseHolderStructure(vars.Data_holderStructure),
+    scaleChanges: parseScaleChanges(vars.Data_fluctuationScale),
+    buySedemption: parseBuySedemption(vars.Data_buySedemption),
+    stageReturns: parseStageReturns(vars),
+    sameType: parseSameType(vars.swithSameType),
   };
 }

@@ -149,3 +149,181 @@ export interface FundRankHistory {
   /** 排名走势序列；按日期升序 */
   items: FundRankPoint[];
 }
+
+// ============================================================
+// 基金深度资料（pingzhongdata 全量字段）
+// ============================================================
+
+/** 前十大重仓股 */
+export interface FundHolding {
+  /** 股票代码（纯数字 6 位，如 `"600519"`） */
+  code: string;
+  /** 新市场号（`"0"`=深圳, `"1"`=上海），用于拼接东财 secid */
+  marketId: string;
+}
+
+/** 前五大债券持仓 */
+export interface FundBondHolding {
+  /** 债券代码 */
+  code: string;
+  /** 新市场号 */
+  marketId: string;
+}
+
+/** 资产配置项（单季度） */
+export interface FundAssetAllocation {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 报告期 UTC 毫秒时间戳 */
+  timestamp: number;
+  /** 股票占净值比（%） */
+  stockRatio: number;
+  /** 债券占净值比（%） */
+  bondRatio: number;
+  /** 现金占净值比（%） */
+  cashRatio: number;
+  /** 其他资产占净值比（%） */
+  otherRatio: number;
+  /** 净资产（亿元） */
+  netAsset: number;
+}
+
+/** 股票仓位测算点（每日） */
+export interface FundPositionPoint {
+  /** 日期 `YYYY-MM-DD` */
+  date: string;
+  /** UTC 毫秒时间戳 */
+  timestamp: number;
+  /** 股票仓位占比（%） */
+  position: number;
+}
+
+/** 基金经理信息 */
+export interface FundManager {
+  /** 基金经理 ID */
+  id: string;
+  /** 姓名 */
+  name: string;
+  /** 任职起始日期 `YYYY-MM-DD` */
+  startDate: string | null;
+  /** 任职天数 */
+  daysInOffice: number;
+  /** 从业年限 */
+  experienceYears: number;
+  /** 现任基金数量 */
+  currentFundCount: number;
+  /** 现任基金规模（亿元） */
+  currentFundScale: number;
+  /** 简历 */
+  resume: string | null;
+}
+
+/** 业绩评价 */
+export interface FundPerformanceEvaluation {
+  /** 综合评分 */
+  overall: number;
+  /** 评价维度 */
+  categories: string[];
+  /** 各维度得分 */
+  scores: number[];
+  /** 各维度描述 */
+  descriptions: string[];
+}
+
+/** 持有人结构（单期） */
+export interface FundHolderStructure {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 报告期 UTC 毫秒时间戳 */
+  timestamp: number;
+  /** 机构持有比例（%） */
+  institutionRatio: number;
+  /** 个人持有比例（%） */
+  individualRatio: number;
+  /** 内部持有比例（%） */
+  internalRatio: number;
+}
+
+/** 规模变动（单季度） */
+export interface FundScaleChange {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 基金规模（亿元） */
+  scale: number;
+  /** 环比变动（如 `"+3.67%"`） */
+  mom: string;
+}
+
+/** 申购赎回（单季度） */
+export interface FundBuySedemption {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 报告期 UTC 毫秒时间戳 */
+  timestamp: number;
+  /** 期间申购（亿份） */
+  buy: number;
+  /** 期间赎回（亿份） */
+  sell: number;
+  /** 期末总份额（亿份） */
+  total: number;
+}
+
+/** 阶段收益率 */
+export interface FundStageReturns {
+  /** 近一月收益率（%） */
+  oneMonth: number | null;
+  /** 近三月收益率（%） */
+  threeMonth: number | null;
+  /** 近六月收益率（%） */
+  sixMonth: number | null;
+  /** 近一年收益率（%） */
+  oneYear: number | null;
+}
+
+/** 同类基金（同类型基金代码列表，用于切换对比） */
+export interface FundSameType {
+  /** 同类型基金代码列表 */
+  codes: string[];
+  /** 同类型基金名称列表 */
+  names: string[];
+}
+
+/**
+ * 基金深度资料（pingzhongdata 全量字段，一次请求返回）。
+ *
+ * 数据源：`https://fund.eastmoney.com/pingzhongdata/{code}.js`
+ */
+export interface FundProfile {
+  /** 基金代码 */
+  code: string;
+  /** 基金简称 */
+  name: string | null;
+  /** 原申购费率（%） */
+  sourceRate: number | null;
+  /** 现申购费率（%） */
+  rate: number | null;
+  /** 最小申购金额（元） */
+  minSubscription: number | null;
+  /** 前十大重仓股 */
+  holdings: FundHolding[];
+  /** 前五大债券持仓 */
+  bondHoldings: FundBondHolding[];
+  /** 资产配置（按季度，最近 4 期） */
+  assetAllocation: FundAssetAllocation[];
+  /** 股票仓位测算（每日，最近约 20 个交易日） */
+  positions: FundPositionPoint[];
+  /** 基金经理列表 */
+  managers: FundManager[];
+  /** 业绩评价 */
+  performance: FundPerformanceEvaluation | null;
+  /** 持有人结构（按报告期） */
+  holderStructure: FundHolderStructure[];
+  /** 规模变动（按季度） */
+  scaleChanges: FundScaleChange[];
+  /** 申购赎回（按季度） */
+  buySedemption: FundBuySedemption[];
+  /** 阶段收益率 */
+  stageReturns: FundStageReturns;
+  /** 同类基金 */
+  sameType: FundSameType | null;
+}
