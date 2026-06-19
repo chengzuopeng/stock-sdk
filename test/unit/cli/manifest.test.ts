@@ -52,11 +52,11 @@ describe('findCommand — 命名空间 vs 别名歧义', () => {
 });
 
 describe('manifest 完整性', () => {
-  it('84 个命名空间方法 + 顶层 search', () => {
-    expect(namespaceMethodCount()).toBe(84);
+  it('85 个命名空间方法 + 顶层 search', () => {
+    expect(namespaceMethodCount()).toBe(85);
     const paths = allMethodPaths();
     expect(paths).toContain('search');
-    expect(paths.length).toBe(85);
+    expect(paths.length).toBe(86);
   });
 
   it('collectBooleanFlags 含全局、声明布尔与全部布尔指标 flag', () => {

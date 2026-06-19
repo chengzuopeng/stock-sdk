@@ -236,7 +236,8 @@
           "fund.dividendList",
           "fund.navHistory",
           "fund.estimate",
-          "fund.rankHistory"
+          "fund.rankHistory",
+          "fund.profile"
         ]
       }
     ],

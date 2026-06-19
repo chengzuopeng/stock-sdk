@@ -174,15 +174,15 @@ export interface FundBondHolding {
 export interface FundAssetAllocation {
   /** 报告期 `YYYY-MM-DD` */
   date: string;
-  /** 报告期 UTC 毫秒时间戳 */
-  timestamp: number;
+  /** 报告期 UTC 毫秒时间戳；日期串无法解析时为 `null`（不产出 NaN） */
+  timestamp: number | null;
   /** 股票占净值比（%） */
   stockRatio: number;
   /** 债券占净值比（%） */
   bondRatio: number;
   /** 现金占净值比（%） */
   cashRatio: number;
-  /** 其他资产占净值比（%） */
+  /** 其他资产占净值比（%）；上游部分基金不提供该项，缺失时为 `0` */
   otherRatio: number;
   /** 净资产（亿元） */
   netAsset: number;
@@ -204,18 +204,25 @@ export interface FundManager {
   id: string;
   /** 姓名 */
   name: string;
-  /** 任职起始日期 `YYYY-MM-DD` */
-  startDate: string | null;
-  /** 任职天数 */
-  daysInOffice: number;
-  /** 从业年限 */
-  experienceYears: number;
-  /** 现任基金数量 */
-  currentFundCount: number;
-  /** 现任基金规模（亿元） */
-  currentFundScale: number;
-  /** 简历 */
-  resume: string | null;
+  /** 头像图片 URL；无则为 `null` */
+  avatarUrl: string | null;
+  /** 天天基金星级（0–5）；无评级为 `null` */
+  star: number | null;
+  /**
+   * 任职年限描述（东财原文，如 `"14年又192天"`）；无则为 `null`。
+   * 上游只提供这段中文描述，不提供可计算的天数/起始日，故原样透传。
+   */
+  workTime: string | null;
+  /**
+   * 在管基金规模描述（东财原文，如 `"78.91亿(4只基金)"`）；无则为 `null`。
+   * 规模与只数被上游拼在同一段字符串里，原样透传不做拆解。
+   */
+  fundSize: string | null;
+  /**
+   * 基金经理能力评分（综合分 + 各维度雷达），结构同 {@link FundPerformanceEvaluation}；
+   * 无评分为 `null`。
+   */
+  power: FundPerformanceEvaluation | null;
 }
 
 /** 业绩评价 */
@@ -234,8 +241,8 @@ export interface FundPerformanceEvaluation {
 export interface FundHolderStructure {
   /** 报告期 `YYYY-MM-DD` */
   date: string;
-  /** 报告期 UTC 毫秒时间戳 */
-  timestamp: number;
+  /** 报告期 UTC 毫秒时间戳；日期串无法解析时为 `null`（不产出 NaN） */
+  timestamp: number | null;
   /** 机构持有比例（%） */
   institutionRatio: number;
   /** 个人持有比例（%） */
@@ -250,7 +257,7 @@ export interface FundScaleChange {
   date: string;
   /** 基金规模（亿元） */
   scale: number;
-  /** 环比变动（如 `"+3.67%"`） */
+  /** 环比变动（东财原文，如 `"3.67%"` / `"-1.20%"`，不带前导 `+`） */
   mom: string;
 }
 
@@ -258,13 +265,13 @@ export interface FundScaleChange {
 export interface FundBuySedemption {
   /** 报告期 `YYYY-MM-DD` */
   date: string;
-  /** 报告期 UTC 毫秒时间戳 */
-  timestamp: number;
+  /** 报告期 UTC 毫秒时间戳；日期串无法解析时为 `null`（不产出 NaN） */
+  timestamp: number | null;
   /** 期间申购（亿份） */
   buy: number;
   /** 期间赎回（亿份） */
   sell: number;
-  /** 期末总份额（亿份） */
+  /** 期末总份额（亿份）；上游 series 名为「总份额」 */
   total: number;
 }
 
@@ -280,12 +287,29 @@ export interface FundStageReturns {
   oneYear: number | null;
 }
 
-/** 同类基金（同类型基金代码列表，用于切换对比） */
+/** 同类基金中的一只 */
+export interface FundSameTypePeer {
+  /** 基金代码（纯数字） */
+  code: string;
+  /** 基金简称 */
+  name: string;
+  /**
+   * 东财附带的排序数值（随分组维度而定，通常为某区间收益或净值）；
+   * 无法解析为 `null`。
+   */
+  value: number | null;
+}
+
+/**
+ * 同类基金（用于「切换同类基金」对比）。
+ *
+ * 上游 `swithSameType` 是一个二维数组：东财按多个维度各取一组同类基金，
+ * 故这里用 `groups`（外层为分组、内层为该组下的基金）如实表达。
+ * 只想要去重后的代码列表可自行 `groups.flat()`。
+ */
 export interface FundSameType {
-  /** 同类型基金代码列表 */
-  codes: string[];
-  /** 同类型基金名称列表 */
-  names: string[];
+  /** 同类基金分组 */
+  groups: FundSameTypePeer[][];
 }
 
 /**

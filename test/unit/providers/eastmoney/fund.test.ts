@@ -4,6 +4,7 @@ import {
   getFundDividendList,
   getFundEstimate,
   getFundNavHistory,
+  getFundProfile,
   getFundRankHistory,
 } from '../../../../src/providers/eastmoney/fund';
 
@@ -474,5 +475,232 @@ describe('getFundRankHistory', () => {
     expect(r.items).toEqual([]);
     expect(r.name).toBe('X');
     expect(r.code).toBe('110011');
+  });
+});
+
+describe('getFundProfile', () => {
+  let lastUrl: string | undefined;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    lastUrl = undefined;
+  });
+
+  function stubPingzhongdata(body: string): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        lastUrl = String(input);
+        return new Response(body, { status: 200 });
+      })
+    );
+  }
+
+  // 合成 pingzhongdata：只含 getFundProfile 读取的变量，格式照搬线上真实结构
+  // （manager 真实字段、buySedemption 用「总份额」、swithSameType 单引号二维数组）。
+  const PROFILE_BODY = [
+    'var fS_code = "000001";',
+    'var fS_name = "测试成长混合";',
+    'var fund_sourceRate = "1.50";',
+    'var fund_Rate = "0.15";',
+    'var fund_minsg = "10";',
+    'var stockCodesNew = ["0.300308","1.688012","1.600519"];',
+    'var zqCodesNew = "1.019827,0.524462";',
+    'var Data_assetAllocation = {"series":[' +
+      '{"name":"股票占净比","data":[78.32,75.44]},' +
+      '{"name":"债券占净比","data":[20.71,20.42]},' +
+      '{"name":"现金占净比","data":[1.63,4.92]},' +
+      '{"name":"净资产","data":[258.1,260.3]}' +
+      '],"categories":["2025-09-30","2025-12-31"]};',
+    'var Data_fundSharesPositions = [[1779120000000,84.44],[1779206400000,85.1]];',
+    'var Data_currentFundManager = [{"id":"30040527","pic":"https://e.com/p.jpg",' +
+      '"name":"郑晓辉","star":5,"workTime":"14年又192天","fundSize":"78.91亿(4只基金)",' +
+      '"power":{"avr":"85.35","categories":["经验值","收益率"],"dsc":["d1","d2"],' +
+      '"data":[99.5,90.4],"jzrq":"2026-06-18"}}];',
+    'var Data_performanceEvaluation = {"avr":"77.00","categories":["选证能力","收益率"],' +
+      '"dsc":["d1","d2"],"data":[70,80]};',
+    'var Data_holderStructure = {"categories":["2024-06-30","2024-12-31"],"series":[' +
+      '{"name":"机构持有比例","data":[30.5,32.1]},' +
+      '{"name":"个人持有比例","data":[69.0,67.5]},' +
+      '{"name":"内部持有比例","data":[0.5,0.4]}]};',
+    'var Data_fluctuationScale = {"categories":["2025-09-30","2025-12-31"],"series":[' +
+      '{"y":26.04,"mom":"3.67%"},{"y":25.7,"mom":"-1.31%"}]};',
+    'var Data_buySedemption = {"categories":["2025-09-30","2025-12-31"],"series":[' +
+      '{"name":"期间申购","data":[12.3,10.1]},' +
+      '{"name":"期间赎回","data":[8.2,9.0]},' +
+      '{"name":"总份额","data":[100.5,101.6]}]};',
+    'var syl_1y="15.67";var syl_3y="33.61";var syl_6y="39.54";var syl_1n="75.93";',
+    "var swithSameType = [['001480_财通成长优选混合A_472.06','021528_财通成长优选混合C_469.92']," +
+      "['720001_财通价值动量混合A_407.75']];",
+  ].join(' ');
+
+  it('builds pingzhongdata URL and parses scalar fields', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(lastUrl).toBe('https://fund.eastmoney.com/pingzhongdata/000001.js');
+    expect(p.code).toBe('000001');
+    expect(p.name).toBe('测试成长混合');
+    expect(p.sourceRate).toBe(1.5);
+    expect(p.rate).toBe(0.15);
+    expect(p.minSubscription).toBe(10);
+  });
+
+  it('parses stock / bond holdings with new market id', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.holdings).toEqual([
+      { marketId: '0', code: '300308' },
+      { marketId: '1', code: '688012' },
+      { marketId: '1', code: '600519' },
+    ]);
+    expect(p.bondHoldings).toEqual([
+      { marketId: '1', code: '019827' },
+      { marketId: '0', code: '524462' },
+    ]);
+  });
+
+  it('skips empty/whitespace segments in bond holdings (no {code:"",marketId:""})', async () => {
+    // 上游尾随逗号 / 空格段不应产出畸形持仓
+    stubPingzhongdata('var zqCodesNew = "1.019827, 0.524462,";');
+    const p = await getFundProfile(client, '000001');
+    expect(p.bondHoldings).toEqual([
+      { marketId: '1', code: '019827' },
+      { marketId: '0', code: '524462' },
+    ]);
+  });
+
+  it('parses asset allocation; otherRatio defaults to 0 when its series is absent', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.assetAllocation).toHaveLength(2);
+    expect(p.assetAllocation[0]).toEqual({
+      date: '2025-09-30',
+      timestamp: Date.parse('2025-09-30T00:00:00+08:00'),
+      stockRatio: 78.32,
+      bondRatio: 20.71,
+      cashRatio: 1.63,
+      otherRatio: 0, // 上游无「其他占净比」series → 默认 0
+      netAsset: 258.1,
+    });
+  });
+
+  it('parses managers with the real schema (regression: was all-zero/null)', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.managers).toHaveLength(1);
+    const m = p.managers[0];
+    expect(m).toMatchObject({
+      id: '30040527',
+      name: '郑晓辉',
+      avatarUrl: 'https://e.com/p.jpg',
+      star: 5,
+      workTime: '14年又192天',
+      fundSize: '78.91亿(4只基金)',
+    });
+    // power 复用业绩评价结构（avr/categories/dsc/data）
+    expect(m.power).toEqual({
+      overall: 85.35,
+      categories: ['经验值', '收益率'],
+      scores: [99.5, 90.4],
+      descriptions: ['d1', 'd2'],
+    });
+    // 旧实现臆造的字段已彻底移除
+    expect(m).not.toHaveProperty('daysInOffice');
+    expect(m).not.toHaveProperty('currentFundScale');
+  });
+
+  it('parses performance evaluation', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.performance).toEqual({
+      overall: 77,
+      categories: ['选证能力', '收益率'],
+      scores: [70, 80],
+      descriptions: ['d1', 'd2'],
+    });
+  });
+
+  it('parses holder structure and daily positions', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.holderStructure[0]).toEqual({
+      date: '2024-06-30',
+      timestamp: Date.parse('2024-06-30T00:00:00+08:00'),
+      institutionRatio: 30.5,
+      individualRatio: 69.0,
+      internalRatio: 0.5,
+    });
+    // pingzhongdata 的 x 是「北京时间当日 00:00」(= 16:00 UTC)，date 取北京日历日：
+    // 1779120000000 = 2026-05-18T16:00Z = 北京 2026-05-19（按 UTC 切片会偏早一天）
+    expect(p.positions).toEqual([
+      { date: '2026-05-19', timestamp: 1779120000000, position: 84.44 },
+      { date: '2026-05-20', timestamp: 1779206400000, position: 85.1 },
+    ]);
+  });
+
+  it('drops positions with non-finite timestamps instead of throwing', async () => {
+    // 上游若塞入 null/NaN 时间戳，timestampToDate 内部 Intl 会抛 RangeError；应被过滤
+    stubPingzhongdata(
+      'var Data_fundSharesPositions = [[1779120000000,84.44],[null,9],[1779206400000,85.1]];'
+    );
+    const p = await getFundProfile(client, '000001');
+    expect(p.positions).toEqual([
+      { date: '2026-05-19', timestamp: 1779120000000, position: 84.44 },
+      { date: '2026-05-20', timestamp: 1779206400000, position: 85.1 },
+    ]);
+  });
+
+  it('parses buy/redemption via the 总份额 series (regression: total was always 0)', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.buySedemption).toHaveLength(2);
+    expect(p.buySedemption[0]).toMatchObject({ buy: 12.3, sell: 8.2, total: 100.5 });
+    expect(p.buySedemption[1].total).toBe(101.6);
+  });
+
+  it('parses scale changes (mom without leading +) and stage returns', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.scaleChanges[0]).toEqual({ date: '2025-09-30', scale: 26.04, mom: '3.67%' });
+    // 负向环比：保留前导 '-'，但正向不带 '+'
+    expect(p.scaleChanges[1]).toEqual({ date: '2025-12-31', scale: 25.7, mom: '-1.31%' });
+    // syl_1y=近一月 / syl_3y=近三月 / syl_6y=近6月 / syl_1n=近一年
+    expect(p.stageReturns).toEqual({
+      oneMonth: 15.67,
+      threeMonth: 33.61,
+      sixMonth: 39.54,
+      oneYear: 75.93,
+    });
+  });
+
+  it('parses sameType from single-quoted nested arrays (regression: was null on Node)', async () => {
+    stubPingzhongdata(PROFILE_BODY);
+    const p = await getFundProfile(client, '000001');
+    expect(p.sameType).not.toBeNull();
+    expect(p.sameType!.groups).toEqual([
+      [
+        { code: '001480', name: '财通成长优选混合A', value: 472.06 },
+        { code: '021528', name: '财通成长优选混合C', value: 469.92 },
+      ],
+      [{ code: '720001', name: '财通价值动量混合A', value: 407.75 }],
+    ]);
+  });
+
+  it('degrades to empty/null on missing variables without throwing', async () => {
+    stubPingzhongdata('var fS_code = "000002";');
+    const p = await getFundProfile(client, '000002');
+    expect(p.code).toBe('000002');
+    expect(p.holdings).toEqual([]);
+    expect(p.managers).toEqual([]);
+    expect(p.performance).toBeNull();
+    expect(p.sameType).toBeNull();
+    expect(p.assetAllocation).toEqual([]);
+    expect(p.buySedemption).toEqual([]);
+    expect(p.stageReturns).toEqual({
+      oneMonth: null,
+      threeMonth: null,
+      sixMonth: null,
+      oneYear: null,
+    });
   });
 });

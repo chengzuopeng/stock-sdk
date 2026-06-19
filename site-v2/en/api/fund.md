@@ -12,6 +12,7 @@ For real-time fund quotes, use [`sdk.quotes.fund()`](./quotes.md); this namespac
 | `sdk.fund.navHistory(code)` | Full NAV history of a single fund (unit NAV + accumulated NAV) |
 | `sdk.fund.estimate(code)` | Today's intraday estimate + latest settled NAV |
 | `sdk.fund.rankHistory(code)` | Same-category rank trend (trailing-3-month rank + percentile) |
+| `sdk.fund.profile(code)` | Fund deep profile (holdings / asset allocation / managers / evaluation, in one call) |
 
 > Symbol inputs follow the v2 convention: a fund code is a plain numeric string (e.g. `'110011'`). Exact fields follow the final implementation.
 
@@ -222,10 +223,119 @@ interface FundRankPoint {
 }
 ```
 
+## sdk.fund.profile
+
+Fetch a fund's deep profile in one request (the full set of Eastmoney pingzhongdata fields): top-10 stock holdings, top-5 bond holdings, quarterly asset allocation, daily position estimates, fund managers, performance evaluation, holder structure, scale changes, purchase/redemption, stage returns, and same-category peers.
+
+Shares the data source with `navHistory` / `rankHistory` (the same pingzhongdata file, different fields). Good for assembling most of the static data a "fund detail page" needs.
+
+> Fields may be empty depending on fund type and upstream completeness: array fields become `[]`, object fields (`performance` / `sameType`) become `null`, and scalars become `null` or `0` (for ratios).
+
+### Parameters
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `code` | `string` | Yes | Fund code (plain digits, e.g. `'000001'`) |
+
+### Example
+
+```ts
+const p = await sdk.fund.profile('000001');
+
+console.log(`${p.name}  ${p.holdings.length} top holdings`);
+// Build an Eastmoney secid from a holding: `${marketId}.${code}`
+p.holdings.forEach((h) => console.log(`${h.marketId}.${h.code}`));
+
+// Managers (with star rating and ability scores)
+p.managers.forEach((m) => {
+  console.log(`${m.name}  ★${m.star}  ${m.workTime}  ${m.fundSize}`);
+  if (m.power) console.log(`  overall score ${m.power.overall}`);
+});
+
+// Latest asset allocation
+const a = p.assetAllocation.at(-1);
+if (a) console.log(`stock ${a.stockRatio}% / bond ${a.bondRatio}% / cash ${a.cashRatio}%`);
+
+console.log('overall score', p.performance?.overall);
+console.log(p.stageReturns); // { oneMonth, threeMonth, sixMonth, oneYear }
+```
+
+### Returns
+
+Returns `FundProfile`; array fields become `[]` and object fields become `null` when data is missing:
+
+```ts
+interface FundProfile {
+  code: string;
+  name: string | null;
+  sourceRate: number | null;        // original subscription rate (%)
+  rate: number | null;              // current subscription rate (%)
+  minSubscription: number | null;   // minimum subscription amount (CNY)
+  holdings: FundHolding[];          // top-10 stock holdings
+  bondHoldings: FundBondHolding[];  // top-5 bond holdings
+  assetAllocation: FundAssetAllocation[]; // quarterly asset allocation
+  positions: FundPositionPoint[];   // daily position estimates
+  managers: FundManager[];          // fund managers
+  performance: FundPerformanceEvaluation | null; // performance evaluation
+  holderStructure: FundHolderStructure[];        // holder structure
+  scaleChanges: FundScaleChange[];  // scale changes
+  buySedemption: FundBuySedemption[]; // purchase / redemption
+  stageReturns: FundStageReturns;   // stage returns
+  sameType: FundSameType | null;    // same-category peers
+}
+
+interface FundHolding {
+  code: string;      // stock code (plain digits, e.g. "600519")
+  marketId: string;  // new market id ("0"=Shenzhen, "1"=Shanghai), for secid
+}
+
+interface FundManager {
+  id: string;
+  name: string;
+  avatarUrl: string | null;  // avatar URL
+  star: number | null;       // star rating (0–5)
+  workTime: string | null;   // tenure description, e.g. "14年又192天" (upstream raw)
+  fundSize: string | null;   // AUM description, e.g. "78.91亿(4只基金)" (upstream raw)
+  power: FundPerformanceEvaluation | null; // ability scores (same shape as evaluation)
+}
+
+interface FundPerformanceEvaluation {
+  overall: number;        // overall score
+  categories: string[];   // evaluation dimensions
+  scores: number[];       // per-dimension scores
+  descriptions: string[]; // per-dimension descriptions
+}
+
+interface FundAssetAllocation {
+  date: string;        // report date YYYY-MM-DD
+  timestamp: number | null; // UTC ms; null if unparseable
+  stockRatio: number;  // stock ratio of NAV (%)
+  bondRatio: number;   // bond ratio of NAV (%)
+  cashRatio: number;   // cash ratio of NAV (%)
+  otherRatio: number;  // other ratio of NAV (%); 0 when upstream omits it
+  netAsset: number;    // net asset (100M CNY)
+}
+
+interface FundStageReturns {
+  oneMonth: number | null;   // trailing 1 month (%)
+  threeMonth: number | null; // trailing 3 months (%)
+  sixMonth: number | null;   // trailing 6 months (%)
+  oneYear: number | null;    // trailing 1 year (%)
+}
+
+// Same-category peers: upstream returns one group per ranking dimension.
+// `groups` is outer = groups, inner = funds in that group.
+interface FundSameType {
+  groups: Array<Array<{ code: string; name: string; value: number | null }>>;
+}
+```
+
+The remaining sub-types (`FundBondHolding` / `FundPositionPoint` / `FundHolderStructure` / `FundScaleChange` / `FundBuySedemption`) follow the same shape; see the type definitions for field meanings.
+
 ## Notes
 
-1. **Data sources**: dividends via `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`; NAV history / rank history via `fund.eastmoney.com/pingzhongdata/{code}.js`; intraday estimate via `fundgz.1234567.com.cn/js/{code}.js`.
-2. **Same file, two methods**: `navHistory` and `rankHistory` actually download the same pingzhongdata file (~600KB). If you need both, combine the call or use the cache layer.
+1. **Data sources**: dividends via `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`; NAV history / rank history / deep profile via `fund.eastmoney.com/pingzhongdata/{code}.js`; intraday estimate via `fundgz.1234567.com.cn/js/{code}.js`.
+2. **Same file, multiple methods**: `navHistory` / `rankHistory` / `profile` all download the same pingzhongdata file (~600KB), only reading different fields. If you need several, use the cache layer to avoid re-downloading.
 3. **Serialized in browsers**: in the browser these endpoints load via `<script>` injection (sources lack CORS headers). The SDK guards against concurrent global-variable clobbering with a script mutex, so `Promise.all([...])` runs serially in the browser. Node is unaffected.
 4. **Request-governance difference**: in Node these methods go through `RequestClient` (`retry` / `providerPolicies` apply). In the browser the `<script>` path bypasses `fetch`, so `headers` / `rateLimit` / `circuitBreaker` do not apply; `timeout` is honored via internal parameters. See [Request Governance](../guide/request-governance.md).
 5. **On-exchange ETF quotes**: for on-exchange ETFs (e.g. 510050, 159919), use the stock endpoints [`sdk.quotes.cn()`](./quotes.md) / [`sdk.kline.cn()`](./kline.md), not this namespace.

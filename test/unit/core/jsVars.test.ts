@@ -65,11 +65,32 @@ describe('parseJsVars (synchronous text extraction)', () => {
   });
 
   it('returns no key for variables whose value is not valid JSON', () => {
-    // JS 字面量但非 JSON：未引号 key、单引号
+    // 未引号 key：单引号兜底也救不回来（归一后仍是非法 JSON）→ 丢弃
     const text = "var bad = {key: 'value'}; var good = [1];";
     const out = parseJsVars(text, ['bad', 'good']);
     expect(out).toEqual({ good: [1] });
     expect('bad' in out).toBe(false);
+  });
+
+  it('parses single-quoted string arrays via fallback (e.g. pingzhongdata swithSameType)', () => {
+    // 东财 swithSameType：单引号字符串的嵌套数组，非严格 JSON；
+    // 浏览器端 <script> 注入能直接拿到，这里验证 Node 端兜底对齐。
+    const text =
+      "var swithSameType = [['001480_财通成长优选混合A_472.06','021528_财通C_469.92'],['720001_财通价值动量混合A_407.75']];";
+    const out = parseJsVars<{ swithSameType: string[][] }>(text, [
+      'swithSameType',
+    ]);
+    expect(out.swithSameType).toEqual([
+      ['001480_财通成长优选混合A_472.06', '021528_财通C_469.92'],
+      ['720001_财通价值动量混合A_407.75'],
+    ]);
+  });
+
+  it('is quote-aware when normalizing single quotes', () => {
+    // 单引号串内含双引号、双引号串内含单引号——确保归一不串味
+    const text = `var v = ['a"b', "it's ok"];`;
+    const out = parseJsVars<{ v: string[] }>(text, ['v']);
+    expect(out.v).toEqual(['a"b', "it's ok"]);
   });
 
   it('parses real funddataIndex_Interface-style payload', () => {

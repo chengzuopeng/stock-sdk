@@ -11,7 +11,12 @@ import { extractJsonFromJsonp } from '../../core/jsonp';
 import { SdkError } from '../../core/errors';
 import { withScriptMutex } from '../../core/scriptMutex';
 import { toFiniteNumberOrNull } from '../../core/parser';
-import { todayInTz, MARKET_TZ } from '../../core/time';
+import {
+  todayInTz,
+  MARKET_TZ,
+  parseMarketTime,
+  toNullableEpoch,
+} from '../../core/time';
 import type { RequestClient } from '../../core/request';
 import type {
   FundDividend,
@@ -34,6 +39,7 @@ import type {
   FundBuySedemption,
   FundStageReturns,
   FundSameType,
+  FundSameTypePeer,
 } from '../../types';
 
 const FUND_DATA_INDEX_URL =
@@ -193,9 +199,28 @@ interface FundNavRaw {
 }
 
 function timestampToDate(ts: number): string {
-  // pingzhongdata 的 x 是 UTC 当日 00:00 的毫秒数（每条对应 A 股一个交易日）
-  // 直接用 ISO 字符串切前 10 位即可得到 YYYY-MM-DD
-  return new Date(ts).toISOString().slice(0, 10);
+  // pingzhongdata 的 x 是「北京时间当日 00:00」的毫秒数（= 16:00 UTC，每条对应 A 股
+  // 一个交易日）。必须按北京时区取日期：直接切 UTC ISO 会得到前一天（早 8 小时），
+  // 用 fundgz 权威 jzrq 已实测验证此前 UTC 口径偏早一天。复用 core/time 的 todayInTz
+  // （夏令时安全），与全库日期口径一致。
+  return todayInTz(MARKET_TZ.CN, ts);
+}
+
+/**
+ * 报告期日期串（北京时区，如 `"2025-09-30"`）→ UTC 毫秒。
+ * 走 core/time 的 parseMarketTime（夏令时安全）+ toNullableEpoch
+ * （v2 对外契约禁止 NaN：无法解析归一为 `null`）。
+ */
+function reportDateToTs(date: string): number | null {
+  return toNullableEpoch(parseMarketTime(date, MARKET_TZ.CN));
+}
+
+/** 从 `{name,data}` series 数组里按名取 data 序列；series 或该名缺失时为 `[]`。 */
+function seriesData(
+  series: Array<{ name?: string; data?: (number | null)[] }> | undefined,
+  name: string
+): (number | null)[] {
+  return series?.find((s) => s.name === name)?.data ?? [];
 }
 
 /**
@@ -490,16 +515,25 @@ interface FundProfileRaw {
   };
   /** 股票仓位测算（每日） */
   Data_fundSharesPositions?: Array<[number, number]>;
-  /** 基金经理 */
+  /** 基金经理（真实字段：id/pic/name/star/workTime/fundSize/power/profit） */
   Data_currentFundManager?: Array<{
     id?: string;
+    /** 头像 URL */
+    pic?: string;
     name?: string;
-    startDate?: string;
-    days?: number;
-    experience?: number;
-    fundCount?: number;
-    fundScale?: number;
-    resume?: string;
+    /** 星级（0–5） */
+    star?: number;
+    /** 任职年限描述，如 `"14年又192天"` */
+    workTime?: string;
+    /** 在管规模描述，如 `"78.91亿(4只基金)"` */
+    fundSize?: string;
+    /** 能力评分雷达（结构同 Data_performanceEvaluation） */
+    power?: {
+      avr?: string;
+      categories?: string[];
+      dsc?: string[];
+      data?: number[];
+    };
   }>;
   /** 业绩评价 */
   Data_performanceEvaluation?: {
@@ -531,87 +565,86 @@ interface FundProfileRaw {
   syl_3y?: string;
   syl_6y?: string;
   syl_1n?: string;
-  /** 同类基金 */
-  swithSameType?: Array<{ code?: string; name?: string }>;
+  /**
+   * 同类基金：二维数组，内层每项为 `"代码_名称_数值"` 拼接串
+   * （如 `"001480_财通成长优选混合A_472.06"`）。
+   * 注意上游用单引号字面量，Node 端经 jsVars 的单引号兜底归一后才能解析。
+   */
+  swithSameType?: string[][];
+}
+
+/** 把 `"marketId.code"`（如 `"0.300308"`）拆成 `{marketId, code}`。 */
+function splitMarketCode(s: string): FundHolding {
+  const dot = s.indexOf('.');
+  if (dot < 0) return { code: s, marketId: '' };
+  return { marketId: s.slice(0, dot), code: s.slice(dot + 1) };
 }
 
 function parseHoldings(raw: string[] | undefined): FundHolding[] {
   if (!raw) return [];
-  return raw.map((s) => {
-    const dot = s.indexOf('.');
-    if (dot < 0) return { code: s, marketId: '' };
-    return {
-      marketId: s.slice(0, dot),
-      code: s.slice(dot + 1),
-    };
-  });
+  return raw
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(splitMarketCode);
 }
 
 function parseBondHoldings(raw: string | undefined): FundBondHolding[] {
   if (!raw) return [];
-  return raw.split(',').map((s) => {
-    const dot = s.indexOf('.');
-    if (dot < 0) return { code: s, marketId: '' };
-    return {
-      marketId: s.slice(0, dot),
-      code: s.slice(dot + 1),
-    };
-  });
+  // 去空格 + 过滤空片段：上游若返回尾随逗号/空段（`"1.x,"`），
+  // 直接 split 会产出畸形的 `{code:'',marketId:''}`
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(splitMarketCode);
 }
 
 function parseAssetAllocation(raw: FundProfileRaw['Data_assetAllocation']): FundAssetAllocation[] {
   if (!raw?.categories?.length || !raw?.series) return [];
-  const categories = raw.categories;
-  const series = raw.series;
-  const result: FundAssetAllocation[] = [];
+  const stockData = seriesData(raw.series, '股票占净比');
+  const bondData = seriesData(raw.series, '债券占净比');
+  const cashData = seriesData(raw.series, '现金占净比');
+  const otherData = seriesData(raw.series, '其他占净比');
+  const netAssetData = seriesData(raw.series, '净资产');
 
-  const getData = (name: string): (number | null)[] => {
-    const s = series.find((s) => s.name === name);
-    return s?.data ?? [];
-  };
-  const stockData = getData('股票占净比');
-  const bondData = getData('债券占净比');
-  const cashData = getData('现金占净比');
-  const otherData = getData('其他占净比');
-  const netAssetData = getData('净资产');
-
-  for (let i = 0; i < categories.length; i++) {
-    const date = categories[i];
-    const ts = new Date(date + 'T00:00:00+08:00').getTime();
-    result.push({
-      date,
-      timestamp: ts,
-      stockRatio: stockData[i] ?? 0,
-      bondRatio: bondData[i] ?? 0,
-      cashRatio: cashData[i] ?? 0,
-      otherRatio: otherData[i] ?? 0,
-      netAsset: netAssetData[i] ?? 0,
-    });
-  }
-  return result;
+  return raw.categories.map((date, i) => ({
+    date,
+    timestamp: reportDateToTs(date),
+    stockRatio: stockData[i] ?? 0,
+    bondRatio: bondData[i] ?? 0,
+    cashRatio: cashData[i] ?? 0,
+    otherRatio: otherData[i] ?? 0,
+    netAsset: netAssetData[i] ?? 0,
+  }));
 }
 
 function parsePositions(raw: Array<[number, number]> | undefined): FundPositionPoint[] {
   if (!raw) return [];
-  return raw.map(([ts, pos]) => ({
-    date: timestampToDate(ts),
-    timestamp: ts,
-    position: pos,
-  }));
+  return raw
+    // 过滤非有限时间戳：timestampToDate(NaN/Infinity) 内部 Intl 会抛 RangeError
+    .filter(([ts]) => typeof ts === 'number' && Number.isFinite(ts))
+    .map(([ts, pos]) => ({
+      date: timestampToDate(ts),
+      timestamp: ts,
+      position: pos,
+    }));
 }
 
 function parseManagers(raw: FundProfileRaw['Data_currentFundManager']): FundManager[] {
   if (!raw) return [];
-  return raw.map((m) => ({
-    id: m.id ?? '',
-    name: m.name ?? '',
-    startDate: m.startDate?.trim() ? m.startDate.trim() : null,
-    daysInOffice: m.days ?? 0,
-    experienceYears: m.experience ?? 0,
-    currentFundCount: m.fundCount ?? 0,
-    currentFundScale: m.fundScale ?? 0,
-    resume: m.resume?.trim() ? m.resume.trim() : null,
-  }));
+  return raw.map((m) => {
+    const star = m?.star;
+    return {
+      id: m?.id ?? '',
+      name: m?.name ?? '',
+      avatarUrl: m?.pic?.trim() || null,
+      star: typeof star === 'number' && Number.isFinite(star) ? star : null,
+      workTime: m?.workTime?.trim() || null,
+      fundSize: m?.fundSize?.trim() || null,
+      // power 与 Data_performanceEvaluation 同构（avr/categories/dsc/data），直接复用解析
+      power: parsePerformance(m?.power),
+    };
+  });
 }
 
 function parsePerformance(raw: FundProfileRaw['Data_performanceEvaluation']): FundPerformanceEvaluation | null {
@@ -626,58 +659,42 @@ function parsePerformance(raw: FundProfileRaw['Data_performanceEvaluation']): Fu
 
 function parseHolderStructure(raw: FundProfileRaw['Data_holderStructure']): FundHolderStructure[] {
   if (!raw?.categories?.length || !raw?.series) return [];
-  const result: FundHolderStructure[] = [];
-  const getData = (name: string) => {
-    const s = raw.series!.find((s) => s.name === name);
-    return s?.data ?? [];
-  };
-  const instData = getData('机构持有比例');
-  const indvData = getData('个人持有比例');
-  const internalData = getData('内部持有比例');
+  const instData = seriesData(raw.series, '机构持有比例');
+  const indvData = seriesData(raw.series, '个人持有比例');
+  const internalData = seriesData(raw.series, '内部持有比例');
 
-  for (let i = 0; i < raw.categories.length; i++) {
-    const date = raw.categories[i];
-    const ts = new Date(date + 'T00:00:00+08:00').getTime();
-    result.push({
-      date,
-      timestamp: ts,
-      institutionRatio: instData[i] ?? 0,
-      individualRatio: indvData[i] ?? 0,
-      internalRatio: internalData[i] ?? 0,
-    });
-  }
-  return result;
+  return raw.categories.map((date, i) => ({
+    date,
+    timestamp: reportDateToTs(date),
+    institutionRatio: instData[i] ?? 0,
+    individualRatio: indvData[i] ?? 0,
+    internalRatio: internalData[i] ?? 0,
+  }));
 }
 
 function parseScaleChanges(raw: FundProfileRaw['Data_fluctuationScale']): FundScaleChange[] {
   if (!raw?.categories?.length || !raw?.series) return [];
   return raw.categories.map((date, i) => ({
     date,
-    scale: raw.series![i]?.y ?? 0,
-    mom: raw.series![i]?.mom ?? '',
+    scale: raw.series?.[i]?.y ?? 0,
+    mom: raw.series?.[i]?.mom ?? '',
   }));
 }
 
 function parseBuySedemption(raw: FundProfileRaw['Data_buySedemption']): FundBuySedemption[] {
   if (!raw?.categories?.length || !raw?.series) return [];
-  const getData = (name: string) => {
-    const s = raw.series!.find((s) => s.name === name);
-    return s?.data ?? [];
-  };
-  const buyData = getData('期间申购');
-  const sellData = getData('期间赎回');
-  const totalData = getData('期末总份额');
+  const buyData = seriesData(raw.series, '期间申购');
+  const sellData = seriesData(raw.series, '期间赎回');
+  // 上游 series 名是「总份额」，此前误写为「期末总份额」导致 total 恒为 0
+  const totalData = seriesData(raw.series, '总份额');
 
-  return raw.categories.map((date, i) => {
-    const ts = new Date(date + 'T00:00:00+08:00').getTime();
-    return {
-      date,
-      timestamp: ts,
-      buy: buyData[i] ?? 0,
-      sell: sellData[i] ?? 0,
-      total: totalData[i] ?? 0,
-    };
-  });
+  return raw.categories.map((date, i) => ({
+    date,
+    timestamp: reportDateToTs(date),
+    buy: buyData[i] ?? 0,
+    sell: sellData[i] ?? 0,
+    total: totalData[i] ?? 0,
+  }));
 }
 
 function parseStageReturns(raw: FundProfileRaw): FundStageReturns {
@@ -689,12 +706,39 @@ function parseStageReturns(raw: FundProfileRaw): FundStageReturns {
   };
 }
 
+/**
+ * 解析单条同类基金串 `"代码_名称_数值"`。
+ * 代码取第一个 `_` 之前、数值取最后一个 `_` 之后，中间整段为名称
+ * （基金名一般不含 `_`，但用首/尾定位对极端情况更稳）。
+ */
+function parsePeerEntry(entry: unknown): FundSameTypePeer | null {
+  if (typeof entry !== 'string') return null;
+  const first = entry.indexOf('_');
+  if (first < 0) return null;
+  const code = entry.slice(0, first);
+  if (!code) return null;
+  const last = entry.lastIndexOf('_');
+  if (last > first) {
+    return {
+      code,
+      name: entry.slice(first + 1, last),
+      value: toFiniteNumberOrNull(entry.slice(last + 1)),
+    };
+  }
+  // 只有一个分隔符：code_name，无数值
+  return { code, name: entry.slice(first + 1), value: null };
+}
+
 function parseSameType(raw: FundProfileRaw['swithSameType']): FundSameType | null {
   if (!raw?.length) return null;
-  return {
-    codes: raw.map((s) => s.code ?? ''),
-    names: raw.map((s) => s.name ?? ''),
-  };
+  const groups = raw
+    .map((group) =>
+      (Array.isArray(group) ? group : [])
+        .map(parsePeerEntry)
+        .filter((p): p is FundSameTypePeer => p !== null)
+    )
+    .filter((g) => g.length > 0);
+  return groups.length ? { groups } : null;
 }
 
 /**
