@@ -122,27 +122,8 @@ if (actualSummary !== expectedSummary) {
   errors.push(`${summaryPath} is out of date. Run \`yarn docs:meta\`.`);
 }
 
-for (const [file, requiredTokens] of Object.entries(
-  docsMeta.docExpectations.requiredTokensByFile
-)) {
-  if (docsDir !== 'website' && !file.startsWith(`${docsDir}/`)) {
-    continue;
-  }
-  const content = await readText(file);
-
-  for (const token of requiredTokens) {
-    if (!content.includes(token)) {
-      errors.push(`${file} is missing required token: ${token}`);
-    }
-  }
-
-  for (const token of docsMeta.forbiddenTokens) {
-    if (content.includes(token)) {
-      errors.push(`${file} still contains forbidden token: ${token}`);
-    }
-  }
-}
-
+// 注：v1 的「每文件必含-token」覆盖规格（docExpectations.requiredTokensByFile）
+// 已随 v1 站退役（详见发版改动）。forbiddenTokens 仍由下方全文件扫描强制执行。
 for (const file of docFilesToScan) {
   const content = await readText(file);
   for (const token of docsMeta.forbiddenTokens) {

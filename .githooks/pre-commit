@@ -6,8 +6,8 @@
 # 避免文档/测试单独提交时被拖慢（build 约 3s）。
 #
 # 自动行为：
-#   1. 跑 `yarn docs:meta` 重新生成 summary.md / sdk-meta.json
-#   2. 如果生成结果与暂存区不一致，自动 git add，避免 commit 后 docs:check 仍然失败
+#   1. 跑 `yarn docs:meta` 重新生成 summary.md（及 gitignored 的 sdk-meta.json）
+#   2. 如果 summary.md 与暂存区不一致，自动 git add，避免 commit 后 docs:check 仍然失败
 #   3. 任何步骤失败都会中止提交，并打印恢复指引
 #
 # 跳过方法：
@@ -41,9 +41,11 @@ if ! yarn --silent docs:meta >/dev/null 2>&1; then
   exit 1
 fi
 
-# 如果 summary.md / sdk-meta.json 被改动，自动加入暂存
+# 如果 summary.md 被改动，自动加入暂存。
+# 注：sdk-meta.json 在 .gitignore（**/.generated/）内、不被跟踪，无需也无法 git add；
+# docs:check 是在内存里重新生成并比对它，只有 summary.md 是受跟踪、需保持同步的产物。
 CHANGED_DOCS=""
-for f in website/summary.md website/.generated/sdk-meta.json; do
+for f in website/summary.md; do
   if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
     git add "$f"
     CHANGED_DOCS="$CHANGED_DOCS $f"

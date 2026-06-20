@@ -258,7 +258,6 @@
     ".rankBy("
   ],
   "docExpectations": {
-    "requiredTokensByFile": {},
     "parityIgnore": [
       "summary.md",
       "mcp/",
