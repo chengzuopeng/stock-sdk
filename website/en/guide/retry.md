@@ -1,241 +1,183 @@
 # Error Handling & Retry
 
-Stock SDK includes built-in error handling and automatic retry mechanisms to help you handle unstable network conditions.
+v2 throws **a single error type**: `SdkError`. Network failures, timeouts, HTTP 4xx/5xx, upstream empty / structured errors, invalid arguments / symbols, and circuit-breaker short-circuits are all normalized into an `SdkError` (or a subclass) carrying a `code`. You no longer need to distinguish bare `TypeError` / `DOMException`.
 
-## Default Behavior
+The error types and helpers are exported from the `stock-sdk/errors` subpath:
 
-SDK enables the following retry strategy by default:
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `maxRetries` | 3 | Maximum retry attempts |
-| `baseDelay` | 1000ms | Initial backoff delay |
-| `maxDelay` | 30000ms | Maximum backoff delay |
-| `backoffMultiplier` | 2 | Backoff multiplier |
-
-### Error Types That Trigger Retry
-
-| Error Type | Retry? |
-|------------|--------|
-| Request Timeout | ✅ Yes |
-| Network Error (DNS/Connection) | ✅ Yes |
-| HTTP 408 (Request Timeout) | ✅ Yes |
-| HTTP 429 (Too Many Requests) | ✅ Yes |
-| HTTP 500/502/503/504 (Server Errors) | ✅ Yes |
-| HTTP 400/401/403/404 (Client Errors) | ❌ No |
-
-## Exponential Backoff
-
-When a request fails, SDK uses **exponential backoff** to calculate wait time:
-
-```
-delay = baseDelay × (backoffMultiplier ^ attempt)
+```ts
+import { SdkError, getSdkErrorCode, isSdkError } from 'stock-sdk/errors'
 ```
 
-**Example** (default config):
+## SdkError
 
-| Attempt | Calculation | Wait Time |
-|---------|-------------|-----------|
-| 1st | 1000 × 2⁰ | ~1 second |
-| 2nd | 1000 × 2¹ | ~2 seconds |
-| 3rd | 1000 × 2² | ~4 seconds |
+The base class for every SDK error. Key fields:
 
-This strategy gives the server time to recover, avoiding continuous requests during overload.
+| Field | Type | Description |
+|---|---|---|
+| `code` | `SdkErrorCode` | Standard error code (table below) — **prefer this for branching** |
+| `message` | `string` | Human-readable description |
+| `provider` | `ProviderName?` | The data source that raised the error |
+| `url` | `string?` | The request URL that failed |
+| `status` | `number?` | HTTP status code, for HTTP errors |
+| `details` | `Record<string, unknown>?` | Extra context (e.g. `statusText` / `symbol` / `timeout`) |
+| `cause` | `unknown?` | The underlying error, if any |
 
-## Custom Retry Configuration
+```ts
+import { SdkError } from 'stock-sdk/errors'
 
-```typescript
-import { StockSDK } from 'stock-sdk';
-
-const sdk = new StockSDK({
-  timeout: 10000,
-  retry: {
-    maxRetries: 5,           // Max 5 retries
-    baseDelay: 500,          // Initial delay 500ms
-    maxDelay: 10000,         // Max delay 10 seconds
-    backoffMultiplier: 1.5,  // Backoff multiplier 1.5
+try {
+  const q = await sdk.quotes.cn(['600519'])
+} catch (e) {
+  if (e instanceof SdkError) {
+    console.error(e.code, e.message, e.provider, e.status)
   }
-});
+}
 ```
 
-## Disable Retry
+## Error codes
 
-In some cases, you may want to disable automatic retry:
+`SdkErrorCode` is a string-literal union covering every failure case in the request and contract layers:
 
-```typescript
-const sdk = new StockSDK({
-  retry: {
-    maxRetries: 0  // Disable retry
+| Code | Meaning | Retried by default? |
+|---|---|---|
+| `NETWORK_ERROR` | Network-layer failure (DNS / connection / bare `TypeError`) | Yes (`retryOnNetworkError`) |
+| `TIMEOUT` | Internal timeout (`timeout` reached) | Yes (`retryOnTimeout`) |
+| `ABORTED` | **Cancelled by an external `signal`** (distinct from timeout) | No |
+| `HTTP_ERROR` | HTTP non-2xx (other than 429) | If status is retryable (`retryableStatusCodes`) |
+| `RATE_LIMITED` | HTTP 429 (throttled upstream) | If 429 is in `retryableStatusCodes` (default: yes) |
+| `CIRCUIT_OPEN` | Circuit breaker open, request short-circuited | No |
+| `UPSTREAM_EMPTY` | Upstream returned **empty data** | No |
+| `UPSTREAM_ERROR` | Upstream returned a **structured error** (`code != 0` / with `msg`) | No |
+| `PARSE_ERROR` | Response could not be parsed | No |
+| `INVALID_SYMBOL` | A symbol / code could not be resolved | No |
+| `INVALID_ARGUMENT` | Invalid argument (range / type) | No |
+| `NOT_FOUND` | Resource does not exist | No |
+
+> v2 adds **two codes** over v1: `ABORTED` (external cancellation, distinct from the internal `TIMEOUT`) and `UPSTREAM_ERROR` (structured upstream error, distinct from the empty-data `UPSTREAM_EMPTY`).
+
+## Error subclasses
+
+`SdkError` has several semantic subclasses that set the matching `code` automatically. You can branch with either `instanceof` or `code`.
+
+| Subclass | `code` | When |
+|---|---|---|
+| `HttpError` | `HTTP_ERROR` / `RATE_LIMITED` (429) | HTTP non-2xx, carries `status` / `statusText` |
+| `UpstreamEmptyError` | `UPSTREAM_EMPTY` | Upstream returned empty data |
+| `UpstreamError` | `UPSTREAM_ERROR` | Upstream structured error |
+| `NotFoundError` | `NOT_FOUND` | Resource not found |
+| `InvalidArgumentError` | `INVALID_ARGUMENT` | Invalid argument |
+| `InvalidSymbolError` | `INVALID_SYMBOL` | Invalid symbol (`details.symbol` holds the raw input) |
+| `AbortedError` | `ABORTED` | Cancelled by an external signal |
+| `CircuitBreakerError` | `CIRCUIT_OPEN` | Circuit breaker open |
+
+```ts
+import { HttpError, isSdkError } from 'stock-sdk/errors'
+
+try {
+  await sdk.kline.cn('600519', { period: 'daily' })
+} catch (e) {
+  if (e instanceof HttpError) {
+    console.error(`HTTP ${e.status} ${e.statusText}`)
+  } else if (isSdkError(e)) {
+    console.error(e.code, e.message)
   }
-});
+}
 ```
 
-## Retry Callback
+## getSdkErrorCode
 
-Use `onRetry` callback to monitor retry events for logging or debugging:
+Reads the standard error code off any error, returning `SdkErrorCode | undefined`. It's more robust than `instanceof`: it recognizes `SdkError` and `HttpError`, reads `sdkCode` off network errors that were annotated with metadata, maps abort-shaped `DOMException`s to `TIMEOUT`, and falls back to `NETWORK_ERROR` for bare `TypeError`s.
 
-```typescript
+```ts
+import { getSdkErrorCode } from 'stock-sdk/errors'
+
+try {
+  await sdk.quotes.cn(['600519'])
+} catch (e) {
+  switch (getSdkErrorCode(e)) {
+    case 'RATE_LIMITED':
+      // throttled: back off and retry
+      break
+    case 'INVALID_SYMBOL':
+      // bad code: tell the user
+      break
+    case 'ABORTED':
+      // user cancelled: swallow silently
+      break
+    case undefined:
+      // not an SDK error (e.g. a bug in your own code)
+      throw e
+  }
+}
+```
+
+`isSdkError(e)` is a convenient type guard for `e instanceof SdkError`; pair it with `getSdkErrorCode` to cover "give me a code even if it isn't an SdkError".
+
+## Retry strategy
+
+Retries happen **automatically** in the request layer, controlled by the `retry` (`RetryOptions`) you pass when constructing `StockSDK`, using exponential backoff. The full field table and config examples live in [Request Governance · Retry](/en/guide/request-governance#retry).
+
+**Which errors are retried** (by default):
+
+- `NETWORK_ERROR` — when `retryOnNetworkError !== false`.
+- `TIMEOUT` — when `retryOnTimeout !== false`.
+- `HTTP_ERROR` / `RATE_LIMITED` — when the status matches `retryableStatusCodes` (default `[408, 429, 500, 502, 503, 504]`).
+
+**Which errors are not retried** (retrying is pointless and only burns budget):
+
+- `ABORTED` — the user cancelled; retrying defeats the intent.
+- `CIRCUIT_OPEN` — the breaker is open; wait for cooldown instead of pushing through.
+- `INVALID_SYMBOL` / `INVALID_ARGUMENT` / `NOT_FOUND` — argument / resource issues; the result won't change.
+- `PARSE_ERROR` / `UPSTREAM_EMPTY` / `UPSTREAM_ERROR` — upstream data issues; retrying is equally fruitless.
+
+Backoff is roughly `baseDelay × backoffMultiplier^(attempt-1)`, capped by `maxDelay`. Before each retry, both `RetryOptions.onRetry(attempt, error, delay)` and the client-level `hooks.onRetry(ctx, error, delay)` fire (see [Request Governance · hooks](/en/guide/request-governance#new-in-v2-request-lifecycle-hooks)).
+
+```ts
 const sdk = new StockSDK({
   retry: {
-    onRetry: (attempt, error, delay) => {
-      console.log(`Retry attempt ${attempt}`);
-      console.log(`Error: ${error.message}`);
-      console.log(`Waiting ${Math.round(delay)}ms before retry...`);
+    maxRetries: 4,
+    baseDelay: 500,
+    retryableStatusCodes: [429, 500, 502, 503, 504],
+    onRetry: (attempt, error, delay) =>
+      console.warn(`Retry #${attempt} in ${delay}ms; reason ${error.message}`),
+  },
+})
+```
+
+### Application-level backoff
+
+When the request layer exhausts its retries and still fails, it throws the last `SdkError` to the caller. If you want a longer backoff specifically for `RATE_LIMITED`, combine `getSdkErrorCode` with your own loop:
+
+```ts
+import { getSdkErrorCode } from 'stock-sdk/errors'
+
+async function withBackoff<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (getSdkErrorCode(e) === 'RATE_LIMITED' && i < tries - 1) {
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** i))
+        continue
+      }
+      throw e
     }
   }
-});
-```
-
-## Fine-grained Control
-
-### Retry Only on Specific Errors
-
-```typescript
-const sdk = new StockSDK({
-  retry: {
-    retryOnTimeout: true,       // Retry on timeout
-    retryOnNetworkError: false, // Don't retry on network error
-    retryableStatusCodes: [503, 504], // Only retry on these status codes
-  }
-});
-```
-
-## Provider-level Overrides
-
-Legacy global `timeout` / `retry` / `rateLimit` / `circuitBreaker` settings still act as the default policy.  
-The new `providerPolicies` option only overrides those defaults for a specific provider, so existing initialization code remains compatible.
-
-### Typical Use Cases
-
-- Keep Tencent on the default rate
-- Lower the request rate only for `eastmoney`
-- Enable more aggressive retry or circuit breaker rules for a single provider
-
-```typescript
-const sdk = new StockSDK({
-  retry: {
-    maxRetries: 2,
-    baseDelay: 500,
-  },
-  rateLimit: {
-    requestsPerSecond: 5,
-    maxBurst: 10,
-  },
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      retry: {
-        maxRetries: 5,
-        baseDelay: 800,
-      },
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-      circuitBreaker: {
-        failureThreshold: 3,
-        resetTimeout: 30000,
-      },
-    },
-  },
-});
-```
-
-### Available Provider Names
-
-- `tencent`
-- `eastmoney`
-- `sina`
-- `linkdiary`
-- `unknown`
-
-## Host Fallback & Retry Budget
-
-Some providers (e.g. `eastmoney`) ship with several mirror hosts. When the first
-host fails with a fallback-eligible error (network / timeout / 5xx, etc.), the
-SDK automatically switches to the next candidate host.
-
-To avoid the `maxRetries × hostCount` latency blow-up, the SDK applies the
-following strategy:
-
-- **First host**: uses the full `retry` budget (default up to 4 attempts:
-  `1 + maxRetries`).
-- **Subsequent fallback hosts**: each is tried only once (`maxRetries` is
-  forced to 0).
-
-The total request count is therefore roughly
-`(maxRetries + 1) + (candidateHosts - 1)`, which preserves disaster recovery
-while preventing long blocking. Unreachable hosts are also throttled by the
-circuit breaker and host health stats.
-
-## Error Handling
-
-### HttpError
-
-When server returns a non-2xx status code, SDK throws `HttpError`:
-
-```typescript
-import { StockSDK, HttpError } from 'stock-sdk';
-
-const sdk = new StockSDK();
-
-try {
-  const quotes = await sdk.getSimpleQuotes(['invalid_code']);
-} catch (error) {
-  if (error instanceof HttpError) {
-    console.log(`HTTP Error: ${error.status} ${error.statusText}`);
-  } else {
-    console.log(`Other Error: ${error.message}`);
-  }
+  throw new Error('unreachable')
 }
+
+const q = await withBackoff(() => sdk.quotes.cn(['600519']))
 ```
 
-### Timeout Error
+## Practical guidance
 
-Timeout errors appear as `DOMException` with `name` set to `AbortError`:
+- **Branch on `code`, not `message`**: the message text may change; `code` is the stable contract.
+- **Prefer `getSdkErrorCode`**: it covers edge cases `instanceof` misses (e.g. native errors that were annotated with metadata).
+- **Distinguish user cancellation from timeout**: `ABORTED` (external `signal`) ≠ `TIMEOUT` (internal timeout); the former should usually be swallowed.
+- **Empty vs error**: `UPSTREAM_EMPTY` means "queried fine but no data", `UPSTREAM_ERROR` means "upstream explicitly errored" — handle them differently.
 
-```typescript
-try {
-  const quotes = await sdk.getSimpleQuotes(['sh000001']);
-} catch (error) {
-  if (error instanceof DOMException && error.name === 'AbortError') {
-    console.log('Request timed out');
-  }
-}
-```
+> The v2 SDK is still being implemented: the error-code set, subclasses, and the behaviour of `getSdkErrorCode` / `isSdkError` are stable; the **exact classification of individual throw sites is subject to the final implementation**.
 
-### Standardized Error Codes
+## See also
 
-If you want consistent error classification without losing the original `TypeError` / `AbortError` / `HttpError` instance, use `getSdkErrorCode`:
-
-```typescript
-import { getSdkErrorCode, HttpError } from 'stock-sdk';
-
-try {
-  await sdk.getSimpleQuotes(['sh000001']);
-} catch (error) {
-  if (error instanceof HttpError) {
-    console.log(`HTTP Error: ${error.status}`);
-  }
-
-  console.log(getSdkErrorCode(error));
-  // Possible values: HTTP_ERROR / RATE_LIMITED / NETWORK_ERROR / TIMEOUT / CIRCUIT_OPEN ...
-}
-```
-
-The `onRetry` callback still receives the original error instance with standardized metadata attached, so existing error handling stays compatible.
-
-## Configuration Reference
-
-### RetryOptions
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `maxRetries` | `number` | `3` | Maximum retry attempts |
-| `baseDelay` | `number` | `1000` | Initial backoff delay (ms) |
-| `maxDelay` | `number` | `30000` | Maximum backoff delay (ms) |
-| `backoffMultiplier` | `number` | `2` | Backoff multiplier |
-| `retryableStatusCodes` | `number[]` | `[408, 429, 500, 502, 503, 504]` | HTTP status codes to retry |
-| `retryOnNetworkError` | `boolean` | `true` | Retry on network errors |
-| `retryOnTimeout` | `boolean` | `true` | Retry on timeout |
-| `onRetry` | `function` | - | Retry callback function |
+- [Request Governance](/en/guide/request-governance) — full config for timeout / retry / rate limiting / circuit breaking / host fallback / hooks.

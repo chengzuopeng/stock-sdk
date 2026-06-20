@@ -1,156 +1,150 @@
 # Quick Start
 
-This page covers the most common setup path. By default, create one `StockSDK` instance and call the APIs directly. If you need finer request control, apply provider-level policies.
+This page walks you through the v2 namespaced API with a few minimal examples. Make sure you've finished [Installation](/en/guide/installation) first.
 
-## Installation
+## Create an instance
 
-```bash
-npm install stock-sdk
-```
-
-## Create an Instance
+`StockSDK` is the single entry point; every namespace hangs off the instance:
 
 ```ts
-import { StockSDK } from 'stock-sdk';
+import { StockSDK } from 'stock-sdk'
 
-const sdk = new StockSDK();
+const sdk = new StockSDK()
 ```
 
-## Optional Configuration
+The constructor takes optional configuration (custom `fetch`, an external `AbortSignal`, request hooks, caching, etc.); omit it to use defaults. See [Request Governance](/en/guide/request-governance).
+
+## A 10-line demo
+
+Fetch a real-time A-share quote and print its price and change:
 
 ```ts
-const sdk = new StockSDK({
-  baseUrl: '/api/tencent',
-  timeout: 8000,
-  headers: {
-    'X-Request-Source': 'quotes-dashboard',
-  },
-  userAgent: 'quotes-dashboard/1.0',
-  retry: {
-    maxRetries: 3,
-    baseDelay: 800,
-  },
-  rateLimit: {
-    requestsPerSecond: 5,
-    maxBurst: 10,
-  },
-  rotateUserAgent: true,
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-      circuitBreaker: {
-        failureThreshold: 4,
-        resetTimeout: 45000,
-        halfOpenRequests: 1,
-      },
-    },
-  },
-});
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+
+const quotes = await sdk.quotes.cn(['sh600519'])
+const q = quotes[0]
+
+console.log(q.name)           // name
+console.log(q.price)          // last price (current runtime unit follows the data source)
+console.log(q.changePercent)  // change (percentage points, e.g. 5.2 means 5.2%)
 ```
 
-> Reuse the same instance inside your app whenever possible.
+> A symbol `string` is a first-class citizen — `'sh600519'` and `'600519'` are recognized; use `normalizeSymbol` from `stock-sdk/symbols` when you need explicit disambiguation. Returned fields follow the final implementation.
 
-## Fetch Real-time Quotes
+## Common usage
+
+### Real-time quotes across markets
 
 ```ts
-const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
-
-quotes.forEach((item) => {
-  console.log(`${item.name}: ${item.price} (${item.changePercent}%)`);
-});
+await sdk.quotes.cn(['sh600519', '000001'])  // A-shares
+await sdk.quotes.hk(['00700'])               // Hong Kong
+await sdk.quotes.us(['AAPL'])                // US
+await sdk.quotes.fund(['510300'])            // funds
 ```
 
-Code format notes:
-
-- A-share / index: `sh000001`, `sz000858`, `bj430047`
-- HK: `00700`
-- US quotes: `AAPL`, `MSFT`
-- US K-line: `105.AAPL`, `106.BABA`
-
-## Fetch K-line with Indicators
+### Historical K-lines
 
 ```ts
-const data = await sdk.getKlineWithIndicators('sz000858', {
-  startDate: '20240101',
-  endDate: '20241231',
-  indicators: {
-    ma: { periods: [5, 10, 20, 60] },
-    macd: true,
-    boll: true,
-    obv: { maPeriod: 20 },
-    sar: true,
-  },
-});
+// A-share daily K-line
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
 
-console.log(data[30].ma?.ma5);
-console.log(data[30].macd?.dif);
-console.log(data[30].obv?.obvMa);
-console.log(data[30].sar?.sar);
+// Minute K-lines / HK / US
+await sdk.kline.cnMinute('600519')
+await sdk.kline.hk('00700', { period: 'daily' })
+await sdk.kline.us('AAPL', { period: 'daily' })
 ```
 
-## Fetch Full-market Data
+> Exact K-line parameters (period, adjustment, count, date range, etc.) follow the implementation.
+
+### K-line with technical indicators
 
 ```ts
-const allQuotes = await sdk.getAllAShareQuotes({
-  batchSize: 300,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(`Batch progress: ${completed}/${total}`);
-  },
-});
-
-console.log(allQuotes.length);
+// Return K-lines with indicators directly
+const withInd = await sdk.kline.withIndicators('600519', {
+  indicators: { ma: [5, 20], macd: true },
+})
 ```
 
-## HK and US Markets
+You can also fetch raw K-lines first, then attach indicators with pure functions (no network call):
 
 ```ts
-const hkQuotes = await sdk.getHKQuotes(['00700', '09988']);
-const usQuotes = await sdk.getUSQuotes(['AAPL', 'MSFT']);
+import { addIndicators } from 'stock-sdk/indicators'
 
-const hkKlines = await sdk.getHKHistoryKline('00700', {
-  period: 'daily',
-  startDate: '20240101',
-});
-
-const usKlines = await sdk.getUSHistoryKline('105.MSFT', {
-  period: 'daily',
-  startDate: '20240101',
-});
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true, kdj: true })
 ```
 
-## Futures and Options
+### Detect buy/sell signals
 
 ```ts
-const futures = await sdk.getFuturesKline('RBM', {
-  period: 'daily',
-  startDate: '20250101',
-});
+import { addIndicators } from 'stock-sdk/indicators'
+import { calcSignals } from 'stock-sdk/signals'
 
-const optionSpot = await sdk.getIndexOptionSpot('io', 'io2504');
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true })
 
-console.log(futures[0]?.close);
-console.log(optionSpot.calls[0]?.symbol);
+const signals = calcSignals(enriched, {
+  ma: { fast: 5, slow: 20 },  // golden / death cross
+  macd: true,
+})
+// [{ type: 'ma_golden_cross', at, index, detail }, ...]
 ```
 
-## Dividend and Trading Calendar
+### Search instruments
 
 ```ts
-const dividends = await sdk.getDividendDetail('600519');
-const calendar = await sdk.getTradingCalendar();
-
-console.log(dividends[0]?.assignProgress);
-console.log(calendar[0]?.date, calendar[0]?.isOpen);
+const results = await sdk.search('Kweichow Moutai')
 ```
 
-## Next Steps
+### Trading calendar
 
-- [Request Governance](/en/guide/request-governance)
-- [Technical Indicators](/en/guide/indicators)
-- [Futures & Options](/en/guide/futures-options)
-- [Dividend & Calendar](/en/guide/dividend-calendar)
-- [API Overview](/en/api/)
+```ts
+await sdk.calendar.isTradingDay('2026-06-08')
+await sdk.calendar.nextTradingDay('2026-06-08')
+await sdk.calendar.marketStatus('CN')
+```
+
+### Boards and derivatives
+
+```ts
+await sdk.board.industry.list()             // industry board list
+await sdk.board.concept.constituents('半导体') // concept board constituents
+
+await sdk.options.etf.dailyKline('10004336') // ETF option daily K-line
+await sdk.futures.kline('rb2510')            // futures K-line
+```
+
+### Capital flow
+
+```ts
+await sdk.fundFlow.individual('600519')    // per-stock fund flow
+await sdk.northbound.summary()             // northbound capital summary
+await sdk.dragonTiger.detail('2026-06-06') // dragon-tiger list
+```
+
+## Error handling
+
+v2 only throws `SdkError`, carrying a stable `code` field so you can branch by type:
+
+```ts
+import { SdkError } from 'stock-sdk/errors'
+
+try {
+  await sdk.quotes.cn(['sh600519'])
+} catch (err) {
+  if (err instanceof SdkError) {
+    console.error(err.code, err.message) // e.g. 'TIMEOUT' / 'HTTP_ERROR'
+  }
+}
+```
+
+See [Errors & Retry](/en/guide/retry).
+
+## Next steps
+
+- [Symbols & Codes](/en/guide/symbols): tolerant parsing of `string` / `SymbolRef` and known ambiguities.
+- [Indicators & Signals](/en/guide/indicators): the full picture of indicator functions and the signal layer.
+- [API overview](/en/api/): the namespace map and full method tables.
+- [Migrate from v1](/en/guide/migration-v1-to-v2): method mapping and contract changes.

@@ -1,214 +1,79 @@
-# API Overview
+# API Reference · Namespace Map
 
-This page helps you quickly locate Stock SDK features and specific interfaces.
+v2 refactors v1's flat `sdk.getXxx()` into **domain-organized namespaces**. Every data-fetching capability lives under `sdk.<namespace>.<method>()`; pure-computation capabilities (indicators, signals, symbol parsing) are exported via subpaths, imported on demand and tree-shaking friendly.
 
-## SDK Initialization
+```ts
+import { StockSDK } from 'stock-sdk'
 
-```typescript
-import { StockSDK } from 'stock-sdk';
+const sdk = new StockSDK()
 
-const sdk = new StockSDK(options?);
+const quotes = await sdk.quotes.cn(['600519', '000001']) // namespaced call
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const k = await sdk.options.etf.dailyKline('10004336') // nested namespace
 ```
 
-### Configuration Options
+> A `string` symbol is a first-class input: `'sh600519'` / `'600519'` / `'00700'` / `'AAPL'` all work, resolved leniently by `normalizeSymbol`. When you need object hints, use `normalizeSymbol` from `stock-sdk/symbols` first. See [Symbols & Codes](/en/guide/symbols).
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `baseUrl` | `string` | `'https://qt.gtimg.cn'` | Tencent API endpoint (can use proxy) |
-| `timeout` | `number` | `30000` | Request timeout (ms) |
-| `retry` | `RetryOptions` | See below | Retry configuration |
-| `headers` | `Record<string, string>` | - | Custom request headers |
-| `userAgent` | `string` | - | Custom User-Agent (may be ignored in browsers) |
-| `rateLimit` | `RateLimiterOptions` | - | Rate limiting (prevent rate limit errors) |
-| `rotateUserAgent` | `boolean` | `false` | Enable UA rotation (Node.js only) |
-| `circuitBreaker` | `CircuitBreakerOptions` | - | Circuit breaker (pause on consecutive failures) |
-| `providerPolicies` | `Partial<Record<ProviderName, ProviderRequestPolicy>>` | - | Override timeout, retry, rate limit, circuit breaker, and headers per provider |
+## Quotes & Batch
 
-### Retry Options (RetryOptions)
+| Namespace | Purpose | Docs |
+|---|---|---|
+| `sdk.quotes` | Real-time quotes: A-share full/simple, HK, US, fund, fund flow (simple), large orders, intraday timeline | [quotes](/en/api/quotes) |
+| `sdk.codes` | Code lists per market: CN / US / HK / fund | [codes](/en/api/codes) |
+| `sdk.batch` | Whole-market batch quotes: CN / HK / US / by-codes / raw | [batch](/en/api/batch) |
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `maxRetries` | `number` | `3` | Maximum retry attempts |
-| `baseDelay` | `number` | `1000` | Initial backoff delay (ms) |
-| `maxDelay` | `number` | `30000` | Maximum backoff delay (ms) |
-| `backoffMultiplier` | `number` | `2` | Backoff multiplier |
-| `retryableStatusCodes` | `number[]` | `[408, 429, 500, 502, 503, 504]` | HTTP status codes to retry |
-| `retryOnNetworkError` | `boolean` | `true` | Retry on network errors |
-| `retryOnTimeout` | `boolean` | `true` | Retry on timeout |
-| `onRetry` | `function` | - | Retry callback `(attempt, error, delay) => void` |
+## K-line & Boards
 
-### Rate Limit Options (RateLimiterOptions)
+| Namespace | Purpose | Docs |
+|---|---|---|
+| `sdk.kline` | A/HK/US history K-line, minute K-line, K-line with indicators | [kline](/en/api/kline) |
+| `sdk.board.industry` · `sdk.board.concept` | Industry / concept boards: list, spot, constituents, kline, minute | [board](/en/api/board) |
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `requestsPerSecond` | `number` | `5` | Maximum requests per second |
-| `maxBurst` | `number` | `= requestsPerSecond` | Token bucket capacity (burst limit) |
+## Derivatives
 
-::: tip Recommendation
-Configure `requestsPerSecond: 3~5` to avoid triggering Eastmoney's rate limits.
-:::
+| Namespace | Purpose | Docs |
+|---|---|---|
+| `sdk.options` | Options: index (`index`) / ETF (`etf`) / commodity (`commodity`) / CFFEX (`cffex`) + options LHB (`lhb`) | [options](/en/api/options) |
+| `sdk.futures` | Futures: domestic/global K-line, inventory symbols and inventory data | [futures](/en/api/futures) |
 
-### Provider Overrides (ProviderRequestPolicy)
+## Capital Flow
 
-Global `timeout` / `retry` / `rateLimit` / `circuitBreaker` settings still work as the default policy.  
-`providerPolicies` only overrides those defaults for a specific provider, so existing initialization code remains compatible.
+| Namespace | Purpose | Docs |
+|---|---|---|
+| `sdk.fundFlow` | Fund flow (deep): individual / market / rank / sector rank / sector history | [fundFlow](/en/api/fund-flow) |
+| `sdk.northbound` | Stock Connect / northbound: minute / summary / holding rank / history / individual | [northbound](/en/api/northbound) |
+| `sdk.marketEvent` | Market events: limit-up pool / stock changes / board changes | [marketEvent](/en/api/market-event) |
+| `sdk.dragonTiger` | Dragon-Tiger list: detail / stock stats / institution / branch rank / seat detail | [dragonTiger](/en/api/dragon-tiger) |
+| `sdk.blockTrade` | Block trades: market stat / detail / daily stat | [blockTrade](/en/api/block-trade) |
+| `sdk.margin` | Margin trading: account info / target list | [margin](/en/api/margin) |
 
-```typescript
-interface ProviderRequestPolicy {
-  timeout?: number;
-  retry?: RetryOptions;
-  headers?: Record<string, string>;
-  userAgent?: string;
-  rateLimit?: RateLimiterOptions;
-  rotateUserAgent?: boolean;
-  circuitBreaker?: CircuitBreakerOptions;
-}
+## Funds & Utilities
+
+| Namespace | Purpose | Docs |
+|---|---|---|
+| `sdk.fund` | Mutual fund extensions: dividend list / NAV history / estimate / rank history | [fund](/en/api/fund) |
+| `sdk.calendar` | Trading calendar: is-trading-day / next / prev / market status | [calendar](/en/api/calendar) |
+| `sdk.reference` | Reference data: dividend detail / A-share trading calendar | [reference](/en/api/reference) |
+| `sdk.search(keyword)` | Stock search (top-level shortcut) | [search](/en/api/search) |
+
+## Pure computation · subpath exports
+
+Indicators, signals and symbol parsing are **pure functions, zero network**, with no dependency on a `StockSDK` instance. Import them from their own subpaths:
+
+```ts
+import { calcMACD, addIndicators } from 'stock-sdk/indicators'
+import { calcSignals } from 'stock-sdk/signals'
+import { normalizeSymbol } from 'stock-sdk/symbols'
 ```
 
-Built-in provider names:
+| Module | Import path | Purpose | Docs |
+|---|---|---|---|
+| Indicators | `stock-sdk/indicators` | 14 indicators: `calcMA` / `calcMACD` / `calcBOLL` / `calcKDJ` / `calcRSI` / `calcWR` / `calcBIAS` / `calcCCI` / `calcATR` / `calcOBV` / `calcROC` / `calcDMI` / `calcSAR` / `calcKC` + `addIndicators` | [indicators](/en/api/indicators) |
+| Signals | `stock-sdk/signals` | `calcSignals`: golden / death cross, overbought / oversold, etc. | [signals](/en/api/signals) |
+| Symbols | `stock-sdk/symbols` | `normalizeSymbol`, `SymbolRef` type: lenient symbol parsing | [Symbols & Codes](/en/guide/symbols) |
 
-- `tencent`
-- `eastmoney`
-- `sina`
-- `linkdiary`
-- `unknown`
+## Conventions
 
-### Circuit Breaker Options (CircuitBreakerOptions)
-
-::: warning Disabled by Default
-The circuit breaker is **disabled by default** and must be explicitly configured. Recommended for production environments to prevent cascade failures.
-:::
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `failureThreshold` | `number` | `5` | Number of consecutive failures to trigger open state |
-| `resetTimeout` | `number` | `30000` | Time in ms before transitioning to half-open |
-| `halfOpenRequests` | `number` | `1` | Number of probe requests allowed in half-open state |
-| `onStateChange` | `function` | - | State change callback `(from, to) => void` |
-
-**Circuit Breaker States:**
-- **CLOSED**: Normal state, all requests allowed
-- **OPEN**: Circuit is open, all requests rejected with `CircuitBreakerError`
-- **HALF_OPEN**: Allows limited probe requests to test if service recovered
-
-### Full Configuration Example
-
-```typescript
-const sdk = new StockSDK({
-  timeout: 10000,
-  headers: {
-    'X-Request-Source': 'my-app',
-  },
-  userAgent: 'my-stock-app/1.0',
-  
-  // Retry configuration
-  retry: {
-    maxRetries: 5,
-    baseDelay: 500,
-    onRetry: (attempt, error, delay) => {
-      console.log(`Retry ${attempt}, waiting ${delay}ms`);
-    }
-  },
-  
-  // Rate limiting (recommended)
-  rateLimit: {
-    requestsPerSecond: 5,
-    maxBurst: 10,
-  },
-  
-  // UA rotation (Node.js only)
-  rotateUserAgent: true,
-  
-  // Circuit breaker (optional, recommended for production)
-  circuitBreaker: {
-    failureThreshold: 5,
-    resetTimeout: 30000,
-    onStateChange: (from, to) => {
-      console.log(`Circuit breaker: ${from} -> ${to}`);
-    }
-  },
-
-  // Override strategy for a specific provider
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      retry: {
-        maxRetries: 5,
-        baseDelay: 800,
-      },
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-      circuitBreaker: {
-        failureThreshold: 3,
-        resetTimeout: 30000,
-      }
-    }
-  }
-});
-```
-
-> See [Error Handling & Retry](/en/guide/retry) for details.
-
-
-## Real-time Quotes
-
-- [A-Share Quotes](/en/api/quotes)
-- [HK Stock Quotes](/en/api/hk-quotes)
-- [US Stock Quotes](/en/api/us-quotes)
-- [Fund Quotes](/en/api/fund-quotes)
-- [Fund Extended (v1.10.0+)](/en/api/fund-extended)
-
-## K-Line Data
-
-- [History K-Line](/en/api/kline)
-- [Minute K-Line](/en/api/minute-kline)
-- [Timeline](/en/api/timeline)
-
-## Technical Indicators
-
-- [Indicators Overview](/en/api/indicators)
-- [MA](/en/api/indicator-ma)
-- [MACD](/en/api/indicator-macd)
-- [BOLL](/en/api/indicator-boll)
-- [KDJ](/en/api/indicator-kdj)
-- [RSI / WR](/en/api/indicator-rsi-wr)
-- [BIAS](/en/api/indicator-bias)
-- [CCI](/en/api/indicator-cci)
-- [ATR](/en/api/indicator-atr)
-- [OBV](/en/api/indicator-obv)
-- [ROC](/en/api/indicator-roc)
-- [DMI / ADX](/en/api/indicator-dmi)
-- [SAR](/en/api/indicator-sar)
-- [KC](/en/api/indicator-kc)
-
-## Industry Sectors
-
-- [Industry Sectors](/en/api/industry-board)
-
-## Concept Sectors
-
-- [Concept Sectors](/en/api/concept-board)
-
-## Batch & Extended
-
-- [Code Lists](/en/api/code-lists)
-- [Search](/en/api/search)
-- [Batch Query](/en/api/batch)
-- [Extended Data](/en/api/fund-flow) (Fund Flow, Trading Calendar, etc.)
-- [Dividend Details](/en/api/dividend)
-
-## Fund Flow (Deep)
-
-- [Individual / Market / Rank / Sector](/en/api/fund-flow-deep)
-- [Northbound / Stock Connect](/en/api/northbound)
-
-## Limit-Up & Dragon-Tiger
-
-- [Limit-Up Pool / Stock Changes](/en/api/market-event)
-- [Dragon-Tiger List](/en/api/dragon-tiger)
-
-## Other Data
-
-- [Block Trade / Margin Trading](/en/api/block-trade-margin)
+- **Method table → call example → return notes** is the shared layout of every API page.
+- Return values follow the v2 unified data contract: base fields `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`; the `raw` field is removed; `timestamp` is `number | null` (`null` when unparseable); percentages are percentage numbers (e.g. `5.2`). Amount / price / volume have unified target units, but in the current beta runtime values still follow each provider's raw convention. See [Migrate from v1](/en/guide/migration-v1-to-v2).
+- The v2 SDK is still being implemented: namespaces and method names are stable, but **exact parameters / return fields are subject to the final implementation**.

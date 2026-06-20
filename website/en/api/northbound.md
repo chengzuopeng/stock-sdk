@@ -1,147 +1,213 @@
-# Northbound / Stock Connect
+# northbound · Stock Connect / Northbound Flow
 
-Northbound (Shanghai-Connect + Shenzhen-Connect) and Southbound (HK Connect through Shanghai/Shenzhen) data: minute, summary, holding rank, history, individual.
+`sdk.northbound` provides Northbound (Shanghai + Shenzhen Connect) and Southbound (Hong Kong Connect) capital data: intraday minutes, summary, holding ranks, history and per-stock holdings (source: East Money open data center).
 
 ::: tip Browser-friendly
-All endpoints call Eastmoney public APIs directly with no CORS restrictions; usable from the browser.
+All endpoints hit East Money open data directly with no CORS restrictions, so they can be called straight from the browser.
 :::
 
-## getNorthboundMinute
+Most methods take a `direction` argument to select the flow direction: `'north'` (Northbound, default) / `'south'` (Southbound).
 
-Today's per-minute northbound / southbound flow data.
+## Methods
 
-### Signature
+| Method | Description |
+|---|---|
+| `northbound.minute(direction?)` | Intraday net inflow (one point per minute) |
+| `northbound.summary()` | Stock Connect market flow summary |
+| `northbound.holdingRank(opts?)` | Northbound per-stock holding ranking |
+| `northbound.history(direction?, opts?)` | Northbound / Southbound daily history |
+| `northbound.individual(symbol, opts?)` | Per-stock Northbound holding history |
 
-```typescript
-getNorthboundMinute(direction?: 'north' | 'south'): Promise<NorthboundMinuteItem[]>
-```
+> Exact parameters and return fields follow the final implementation; the field tables below reflect the current data contract. **Amount units follow each field's comment (`minute` is in units of 10k, others in yuan); v2 targets a unified "yuan" convention — follow the implementation.**
 
-### Return type
+---
 
-```typescript
-interface NorthboundMinuteItem {
-  date: string;
-  time: string;                       // HH:MM
-  shanghaiNetInflow: number | null;   // SH-Connect / HK(SH) net inflow (10k yuan)
-  shenzhenNetInflow: number | null;
-  totalNetInflow: number | null;
-}
-```
+## northbound.minute
 
-### Example
+Intraday Northbound / Southbound flow for the day (one point per minute).
 
-```typescript
-const north = await sdk.getNorthboundMinute('north');
+```ts
+import { StockSDK } from 'stock-sdk';
+
+const sdk = new StockSDK();
+
+const north = await sdk.northbound.minute('north');
 const last = north.at(-1);
-console.log(`${last?.date} ${last?.time} total: ${last?.totalNetInflow} (10k)`);
+console.log(`${last?.date} ${last?.time} total net inflow: ${last?.totalNetInflow} (10k)`);
 ```
 
----
+### Parameters
 
-## getNorthboundFlowSummary
+| Param | Type | Description |
+|---|---|---|
+| `direction` | `'north' \| 'south'` | Flow direction, defaults to `'north'` |
 
-Stock Connect market flow summary (north + south + HK(SH)/HK(SZ) breakdown).
+### Returns
 
-### Signature
+`NorthboundMinuteItem[]`:
 
-```typescript
-getNorthboundFlowSummary(): Promise<NorthboundFlowSummary[]>
-```
-
-### Return type
-
-```typescript
-interface NorthboundFlowSummary {
-  date: string;
-  type: string;
-  boardName: string;
-  direction: string;
-  status: string;
-  netBuyAmount: number | null;
-  netInflow: number | null;
-  remainAmount: number | null;
-  upCount: number | null;
-  flatCount: number | null;
-  downCount: number | null;
-  indexCode: string;
-  indexName: string;
-  indexChangePercent: number | null;
+```ts
+interface NorthboundMinuteItem {
+  date: string;                       // YYYY-MM-DD
+  time: string;                       // HH:MM
+  shanghaiNetInflow: number | null;   // Shanghai Connect net inflow (in 10k)
+  shenzhenNetInflow: number | null;   // Shenzhen Connect net inflow (in 10k)
+  totalNetInflow: number | null;      // total net inflow (in 10k)
 }
 ```
 
 ---
 
-## getNorthboundHoldingRank
+## northbound.summary
 
-Northbound / SH-Connect / SZ-Connect holding rank by stock.
+Stock Connect market flow summary (Northbound + Southbound, split by Shanghai / Shenzhen Connect). Typically returns 4 rows.
 
-### Signature
+```ts
+const summary = await sdk.northbound.summary();
+summary.forEach(s => {
+  console.log(`${s.boardName} (${s.direction}) net inflow: ${s.netInflow}`);
+});
+```
 
-```typescript
-getNorthboundHoldingRank(options?: {
-  market?: 'all' | 'shanghai' | 'shenzhen';   // default 'all'
-  period?: 'today' | '3day' | '5day' | '10day' | 'month' | 'quarter' | 'year';
-  date?: string;                              // YYYY-MM-DD
-}): Promise<NorthboundHoldingRankItem[]>
+### Returns
+
+`NorthboundFlowSummary[]`:
+
+```ts
+interface NorthboundFlowSummary {
+  date: string;                      // YYYY-MM-DD
+  type: string;                      // type id
+  boardName: string;                 // Shanghai / Shenzhen Connect / HK Connect (SH/SZ)
+  direction: string;                 // Northbound / Southbound
+  status: string;                    // trading status
+  netBuyAmount: number | null;       // net buy amount (currency main unit)
+  netInflow: number | null;          // net capital inflow
+  remainAmount: number | null;       // remaining daily quota
+  upCount: number | null;            // advancers
+  flatCount: number | null;          // unchanged
+  downCount: number | null;          // decliners
+  indexCode: string;                 // related index code
+  indexName: string;                 // related index name
+  indexChangePercent: number | null; // index change (percentage number)
+}
 ```
 
 ---
 
-## getNorthboundHistory
+## northbound.holdingRank
 
-Northbound / Southbound capital daily history.
+Northbound / Shanghai Connect / Shenzhen Connect per-stock holding ranking.
 
-### Signature
-
-```typescript
-getNorthboundHistory(
-  direction?: 'north' | 'south',
-  options?: { startDate?: string; endDate?: string }
-): Promise<NorthboundHistoryItem[]>
+```ts
+const rank = await sdk.northbound.holdingRank({ market: 'all', period: '5day' });
+rank.slice(0, 10).forEach((item, i) => {
+  console.log(`#${i + 1} ${item.name}(${item.code}) holding value: ${item.holdMarketValue}`);
+});
 ```
 
-### Return type
+### Parameters
 
-```typescript
+| Param | Type | Description |
+|---|---|---|
+| `options.market` | `'all' \| 'shanghai' \| 'shenzhen'` | Holding market, defaults to `'all'` |
+| `options.period` | `'today' \| '3day' \| '5day' \| '10day' \| 'month' \| 'quarter' \| 'year'` | Stat window |
+| `options.date` | `string` | `YYYY-MM-DD`, defaults to the latest trading day on the server |
+
+### Returns
+
+`NorthboundHoldingRankItem[]`:
+
+```ts
+interface NorthboundHoldingRankItem {
+  date: string;
+  code: string;
+  name: string;
+  close: number | null;                 // today's close
+  changePercent: number | null;         // today's change (percentage number)
+  holdShares: number | null;            // today's shares held
+  holdMarketValue: number | null;       // today's holding value (currency main unit)
+  holdRatioFloat: number | null;        // % of floating shares (percentage number)
+  holdRatioTotal: number | null;        // % of total shares (percentage number)
+  addShares: number | null;             // estimated added shares over the window
+  addMarketValue: number | null;        // estimated added value over the window
+  addMarketValuePercent: number | null; // estimated added-value growth (percentage number)
+  sector: string;                       // sector
+}
+```
+
+---
+
+## northbound.history
+
+Daily Northbound / Southbound capital history.
+
+```ts
+const history = await sdk.northbound.history('north', {
+  startDate: '2024-01-01',
+  endDate: '2024-12-31',
+});
+console.log(`fetched ${history.length} trading days`);
+```
+
+### Parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `direction` | `'north' \| 'south'` | Flow direction, defaults to `'north'` |
+| `options.startDate` | `string` | Start date `YYYY-MM-DD` |
+| `options.endDate` | `string` | End date `YYYY-MM-DD` |
+
+### Returns
+
+`NorthboundHistoryItem[]`:
+
+```ts
 interface NorthboundHistoryItem {
   date: string;
-  netBuyAmount: number | null;
-  buyAmount: number | null;
-  sellAmount: number | null;
-  accNetBuyAmount: number | null;
-  netInflow: number | null;
-  remainAmount: number | null;
-  topStockCode: string | null;
-  topStockName: string | null;
-  topStockChangePercent: number | null;
+  netBuyAmount: number | null;            // net buy amount
+  buyAmount: number | null;               // buy turnover
+  sellAmount: number | null;              // sell turnover
+  accNetBuyAmount: number | null;         // cumulative net buy amount
+  netInflow: number | null;               // net inflow for the day
+  remainAmount: number | null;            // remaining daily quota
+  topStockCode: string | null;            // leading stock code
+  topStockName: string | null;            // leading stock name
+  topStockChangePercent: number | null;   // leading stock change (percentage number)
 }
 ```
 
 ---
 
-## getNorthboundIndividual
+## northbound.individual
 
-Per-stock northbound holding history.
+Per-stock Northbound holding history.
 
-### Signature
-
-```typescript
-getNorthboundIndividual(
-  symbol: string,
-  options?: { startDate?: string; endDate?: string }
-): Promise<NorthboundIndividualItem[]>
+```ts
+const moutai = await sdk.northbound.individual('600519', { startDate: '2024-01-01' });
+const recent = moutai.slice(-5).map(i => `${i.date}: ${i.holdShares}`);
+console.log('last 5 days of Northbound holdings:\n' + recent.join('\n'));
 ```
 
-### Return type
+### Parameters
 
-```typescript
+| Param | Type | Description |
+|---|---|---|
+| `symbol` | `string` | Stock code |
+| `options.startDate` | `string` | Start date `YYYY-MM-DD` |
+| `options.endDate` | `string` | End date `YYYY-MM-DD` |
+
+### Returns
+
+`NorthboundIndividualItem[]`:
+
+```ts
 interface NorthboundIndividualItem {
   date: string;
-  holdShares: number | null;
-  holdMarketValue: number | null;
-  holdRatioFloat: number | null;
-  holdRatioTotal: number | null;
-  close: number | null;
-  changePercent: number | null;
+  holdShares: number | null;       // shares held
+  holdMarketValue: number | null;  // holding value (currency main unit)
+  holdRatioFloat: number | null;   // % of floating shares (percentage number)
+  holdRatioTotal: number | null;   // % of total shares (percentage number)
+  close: number | null;            // close price
+  changePercent: number | null;    // change (percentage number)
 }
 ```

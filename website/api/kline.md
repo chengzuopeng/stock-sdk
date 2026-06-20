@@ -1,246 +1,158 @@
-# 历史 K 线
+# kline · K 线与分时
 
-::: warning 复权默认值
-本页所有 K 线方法 (`getHistoryKline` / `getHKHistoryKline` / `getUSHistoryKline` /
-`getMinuteKline`) 的 `adjust` 参数**默认是 `'qfq'`(前复权)**。
+`sdk.kline` 提供 A 股 / 港股 / 美股的历史 K 线、分钟 K 线，以及带技术指标的 K 线。所有方法第一个参数都是符号字符串（由 `normalizeSymbol` 容错解析），第二个参数是可选的周期 / 复权 / 时间范围选项。
 
-不显式传 `adjust` 时返回的是已经被前复权调整过的价格;做回测、计算分红再投资收益请显式传 `'hfq'` 或 `''`。
-详见 [复权说明](/guide/dividend-adjustment)。
-:::
+```ts
+import { StockSDK } from 'stock-sdk'
 
-## getHistoryKline
+const sdk = new StockSDK()
 
-获取 A 股历史 K 线（日/周/月），数据来源：东方财富。
+// A 股日线（默认前复权）
+const daily = await sdk.kline.cn('600519')
 
-### 签名
-
-```typescript
-getHistoryKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    adjust?: '' | 'qfq' | 'hfq';
-    startDate?: string;
-    endDate?: string;
-  }
-): Promise<HistoryKline[]>
+// 美股分钟 K 线（15 分钟）
+const us15 = await sdk.kline.us('AAPL', { period: '15' })
 ```
 
-### 参数
+## 方法表
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `symbol` | `string` | - | 股票代码，如 `'000001'` 或 `'sz000001'` |
-| `period` | `string` | `'daily'` | K 线周期：`'daily'` / `'weekly'` / `'monthly'` |
-| `adjust` | `string` | `'qfq'` | 复权类型：`''`（不复权）/ `'qfq'`（前复权）/ `'hfq'`（后复权） |
-| `startDate` | `string` | - | 开始日期 `YYYYMMDD` |
-| `endDate` | `string` | - | 结束日期 `YYYYMMDD` |
+| 方法 | 说明 |
+|---|---|
+| `kline.cn(symbol, opts?)` | A 股历史 K 线（日 / 周 / 月） |
+| `kline.cnMinute(symbol, opts?)` | A 股分钟 K 线 / 分时（1 / 5 / 15 / 30 / 60 分钟） |
+| `kline.hk(symbol, opts?)` | 港股历史 K 线 |
+| `kline.hkMinute(symbol, opts?)` | 港股分钟 K 线 / 分时 |
+| `kline.us(symbol, opts?)` | 美股历史 K 线 |
+| `kline.usMinute(symbol, opts?)` | 美股分钟 K 线 / 分时 |
+| `kline.withIndicators(symbol, opts?)` | 历史 K 线 + 内置技术指标（MA / MACD / KDJ 等） |
 
-### 返回类型
+> 数据来源为东方财富。港股 / 美股 K 线仅含常规交易时段，不含盘前 / 盘后。
 
-```typescript
-interface HistoryKline {
-  date: string;               // 日期 YYYY-MM-DD
-  code: string;               // 股票代码
-  open: number | null;        // 开盘价
-  close: number | null;       // 收盘价
-  high: number | null;        // 最高价
-  low: number | null;         // 最低价
-  volume: number | null;      // 成交量
-  amount: number | null;      // 成交额
-  changePercent: number | null;  // 涨跌幅 %
-  change: number | null;         // 涨跌额
-  amplitude: number | null;      // 振幅 %
-  turnoverRate: number | null;   // 换手率 %
+## 参数概览
+
+历史 K 线（`cn` / `hk` / `us`）的选项形如：
+
+```ts
+interface HistoryKlineOptions {
+  /** K 线周期 @default 'daily' */
+  period?: 'daily' | 'weekly' | 'monthly'
+  /** 复权类型 @default 'qfq' */
+  adjust?: '' | 'qfq' | 'hfq'
+  /** 开始日期 YYYYMMDD */
+  startDate?: string
+  /** 结束日期 YYYYMMDD */
+  endDate?: string
 }
 ```
 
-### 示例
+分钟 K 线（`cnMinute` / `hkMinute` / `usMinute`）的选项形如：
 
-```typescript
-// 获取日线（默认前复权）
-const dailyKlines = await sdk.getHistoryKline('000001');
-
-// 获取周线，前复权，指定日期范围
-const weeklyKlines = await sdk.getHistoryKline('sz000858', {
-  period: 'weekly',
-  adjust: 'qfq',
-  startDate: '20240101',
-  endDate: '20241231',
-});
-
-weeklyKlines.forEach(k => {
-  console.log(`${k.date}: 开 ${k.open} 高 ${k.high} 低 ${k.low} 收 ${k.close}`);
-});
-```
-
----
-
-## getHKHistoryKline
-
-获取港股历史 K 线（日/周/月），数据来源：东方财富。
-
-### 签名
-
-```typescript
-getHKHistoryKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    adjust?: '' | 'qfq' | 'hfq';
-    startDate?: string;
-    endDate?: string;
-  }
-): Promise<HKHistoryKline[]>
-```
-
-### 参数
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `symbol` | `string` | 港股代码，5 位数字（如 `'00700'`、`'09988'`） |
-
-### 返回类型
-
-> **v1.9.1 起**：返回类型从原 `HKUSHistoryKline` 拆为更精确的 `HKHistoryKline`，
-> 带 `currency: 'HKD'` 与时区/时间戳元信息。原 `HKUSHistoryKline` 仍可用（已废弃，
-> 现在是 `HKHistoryKline | USHistoryKline` 的 union 别名），老代码无需立即迁移。
-
-```typescript
-interface HKHistoryKline {
-  date: string;               // 日期 YYYY-MM-DD (港股时区)
-  timestamp: number;          // UTC 毫秒时间戳；无法解析时为 NaN
-  tz: 'Asia/Hong_Kong';       // 时区
-  currency: 'HKD';            // 计价币种
-  lotSize: number | null;     // 港股每手股数（K 线接口暂不返回，固定 null）
-  code: string;               // 股票代码
-  name: string;               // 股票名称
-  open: number | null;        // 开盘价
-  close: number | null;       // 收盘价
-  high: number | null;        // 最高价
-  low: number | null;         // 最低价
-  volume: number | null;      // 成交量
-  amount: number | null;      // 成交额
-  changePercent: number | null;  // 涨跌幅 %
-  change: number | null;         // 涨跌额
-  amplitude: number | null;      // 振幅 %
-  turnoverRate: number | null;   // 换手率 %
+```ts
+interface MinuteKlineOptions {
+  /** 周期(分钟) @default '1' */
+  period?: '1' | '5' | '15' | '30' | '60'
+  /** 复权类型(仅 5/15/30/60 生效;1 分钟分时不复权) @default 'qfq' */
+  adjust?: '' | 'qfq' | 'hfq'
+  startDate?: string
+  endDate?: string
 }
 ```
 
-### 示例
+> 具体字段以实现为准。
 
-```typescript
-// 获取腾讯控股日 K 线
-const klines = await sdk.getHKHistoryKline('00700');
+### 周期（period）
 
-// 获取阿里巴巴周 K 线，前复权
-const weeklyKlines = await sdk.getHKHistoryKline('09988', {
+| 维度 | 取值 | 含义 |
+|---|---|---|
+| 历史 K 线 | `'daily'` / `'weekly'` / `'monthly'` | 日线（默认） / 周线 / 月线 |
+| 分钟 K 线 | `'1'` / `'5'` / `'15'` / `'30'` / `'60'` | 1（默认）/ 5 / 15 / 30 / 60 分钟 |
+
+分钟方法在 `period: '1'` 时返回**当日分时**结构（含 `avgPrice` 均价），`'5' | '15' | '30' | '60'` 时返回标准**分钟 K 线**结构（含 `amplitude` / `changePercent` / `turnoverRate`）。
+
+### 复权（adjust）
+
+| 取值 | 含义 | 适用场景 |
+|---|---|---|
+| `'qfq'` | 前复权（**默认**） | 以最新价为基准回调历史价格，适合看走势、画图 |
+| `'hfq'` | 后复权 | 固定历史价格、把分红送股摊到当下，适合**回测 / 长期收益率 / 复利**计算 |
+| `''` | 不复权 | 交易所原始价格 |
+
+> 做回测或收益率计算时，请**显式**传 `'hfq'` 或 `''`，不要依赖默认的前复权——更多见[复权说明](/guide/dividend-adjustment)。1 分钟分时不支持复权。
+
+## 调用示例
+
+```ts
+// A 股周线，后复权，限定时间范围
+const cnWeekly = await sdk.kline.cn('600519', {
   period: 'weekly',
-  adjust: 'qfq',
+  adjust: 'hfq',
   startDate: '20240101',
   endDate: '20241231',
-});
+})
 
-console.log(klines[0].name);   // 腾讯控股
-console.log(klines[0].close);  // 收盘价
+// A 股 5 分钟 K 线
+const cn5m = await sdk.kline.cnMinute('600519', { period: '5' })
+
+// A 股当日分时（period 默认 '1'）
+const cnTimeline = await sdk.kline.cnMinute('600519')
+
+// 港股日线（符号可写 '00700' / 'hk00700' / '00700.HK'）
+const hk = await sdk.kline.hk('00700')
+
+// 美股日线，不复权
+const us = await sdk.kline.us('AAPL', { adjust: '' })
+
+// 带指标的 K 线
+const withInd = await sdk.kline.withIndicators('600519', { period: 'daily' })
 ```
 
----
+## 返回说明
 
-## getUSHistoryKline
+历史 K 线返回一个数组，每一项为某周期内的一根 K 线，按时间升序排列。核心字段：
 
-获取美股历史 K 线（日/周/月），数据来源：东方财富。
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `date` | `string` | 日期 `YYYY-MM-DD`（市场本地时区） |
+| `timestamp` | `number \| null` | 当日 00:00 对应的 UTC 毫秒；无法解析为 `null` |
+| `tz` | `string` | 该日期所属市场时区，如 `Asia/Shanghai` |
+| `code` | `string` | 标的代码 |
+| `open` / `close` / `high` / `low` | `number \| null` | 开 / 收 / 高 / 低 |
+| `volume` / `amount` | `number \| null` | 成交量 / 成交额 |
+| `amplitude` / `changePercent` / `change` / `turnoverRate` | `number \| null` | 振幅% / 涨跌幅% / 涨跌额 / 换手率% |
 
-### 签名
+港股 / 美股历史 K 线额外带 `currency`（`'HKD'` / `'USD'`）与 `name`；港股另含 `lotSize`（K 线接口暂不返回，固定 `null`，每手股数请用 `sdk.quotes.hk`）。
 
-```typescript
-getUSHistoryKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    adjust?: '' | 'qfq' | 'hfq';
-    startDate?: string;
-    endDate?: string;
-  }
-): Promise<USHistoryKline[]>
+分钟 K 线（`'5'~'60'`）字段与历史 K 线类似，时间字段为 `time`（`YYYY-MM-DD HH:mm`）；当日分时（`'1'`）则为 `time` + `open/close/high/low` + `volume/amount` + `avgPrice`。
+
+> 百分比字段为百分数（如涨跌幅 `5.2` 表示 5.2%）；金额 / 价格 / 成交量有统一目标口径，但当前 beta 的运行值仍以各 provider 原始口径为准。`timestamp` 无效时为 `null`（不再使用 `NaN`）。**具体字段以实现为准。**
+
+## 带指标的 K 线
+
+`kline.withIndicators` 在历史 K 线基础上贴上内置技术指标（MA / MACD / BOLL / KDJ / RSI 等），返回 `KlineWithIndicators` 结构，省去自己拼接指标的步骤。
+
+```ts
+const klines = await sdk.kline.withIndicators('600519', {
+  period: 'daily',
+  adjust: 'hfq',
+})
 ```
 
-### 返回类型
+如果你已经拿到了 K 线数组，也可以用 subpath 导出的纯函数自行计算，互不依赖网络：
 
-```typescript
-interface USHistoryKline {
-  date: string;               // 日期 YYYY-MM-DD (美东时区)
-  timestamp: number;          // UTC 毫秒时间戳（自动处理夏令时切换）
-  tz: 'America/New_York';     // 时区
-  currency: 'USD';            // 计价币种
-  code: string;               // 股票代码
-  name: string;               // 股票名称
-  open: number | null;
-  close: number | null;
-  high: number | null;
-  low: number | null;
-  volume: number | null;
-  amount: number | null;
-  changePercent: number | null;
-  change: number | null;
-  amplitude: number | null;
-  turnoverRate: number | null;
-}
+```ts
+import { calcMACD, addIndicators } from 'stock-sdk/indicators'
+import { calcSignals } from 'stock-sdk/signals'
+
+const macd = calcMACD(klines)
+const enriched = addIndicators(klines, { ma: [5, 20], macd: true })
+const signals = calcSignals(enriched, { ma: { fast: 5, slow: 20 }, macd: true })
 ```
 
-### 参数
+详见 [indicators](/api/indicators) 与 [signals](/api/signals)。
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `symbol` | `string` | 美股代码，格式：`{market}.{ticker}`（如 `'105.MSFT'`、`'106.BABA'`） |
+## 相关
 
-### 市场代码
-
-| 代码 | 说明 | 示例 |
-|------|------|------|
-| `105` | 纳斯达克 | `105.AAPL`、`105.MSFT`、`105.TSLA` |
-| `106` | 纽交所 | `106.BABA` |
-| `107` | 美国其他 | `107.XXX` |
-
-### 示例
-
-```typescript
-// 获取微软日 K 线
-const klines = await sdk.getUSHistoryKline('105.MSFT');
-
-// 获取苹果周 K 线，前复权
-const weeklyKlines = await sdk.getUSHistoryKline('105.AAPL', {
-  period: 'weekly',
-  adjust: 'qfq',
-  startDate: '20240101',
-  endDate: '20241231',
-});
-
-console.log(klines[0].name);   // 微软
-console.log(klines[0].close);  // 收盘价
-
-// 获取阿里巴巴月 K 线
-const monthlyKlines = await sdk.getUSHistoryKline('106.BABA', {
-  period: 'monthly',
-});
-```
-
----
-
-## 复权说明
-
-| 类型 | 值 | 是否默认 | 说明 |
-|------|-----|--------|------|
-| 不复权 | `''` |  | 原始价格，可能存在跳空缺口 |
-| 前复权 | `'qfq'` | ✅ **默认** | 以最新价格为基准向前调整，适合技术分析 |
-| 后复权 | `'hfq'` |  | 以上市价格为基准向后调整，适合计算真实收益 |
-
-::: tip 复权选择建议
-- **技术分析**：使用前复权 `'qfq'`，图形连续性更好
-- **收益计算**：使用后复权 `'hfq'`，价格反映真实收益
-- **原始数据**：使用不复权 `''`，获取实际成交价格
-:::
-
-完整的复权选型与常见误区，请见 [复权说明](/guide/dividend-adjustment)。
-
+- [符号与代码规则](/guide/symbols) —— `string` / `SymbolRef` 与 `normalizeSymbol`
+- [复权说明](/guide/dividend-adjustment) —— qfq / hfq / 不复权口径
+- [quotes](/api/quotes) —— 实时行情
+- [board](/api/board) —— 板块 K 线

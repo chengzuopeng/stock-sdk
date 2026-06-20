@@ -9,8 +9,12 @@
  * - SSR 安全：setup 阶段只用静态 fallback 数据 + 空时间戳，保证服务端 / 客户端
  *   首屏渲染完全一致，不触发 hydration mismatch；真正的网络请求只在 onMounted 里发。
  * - 永不「看起来坏掉」：网络失败 / 行情接口异常时，保留 fallback 快照并标记为「示例」。
- * - 中国习惯「红涨绿跌」，与品牌珊瑚红天然契合（见 custom.css 的 --quote-up/down）。
+ * - 中国习惯「红涨绿跌」，与深红主题天然契合（见 custom.css 的 --quote-up/down）。
  * - 卡片在浅色主题下也是深色面板，制造 Bloomberg 终端式反差。
+ *
+ * 与 v1 版的差异：
+ * - 取数走 v2 命名空间 API：sdk.quotes.cnSimple(...)（返回字段与 v1 一致）
+ * - 生产环境 CDN 锁精确版本（stock-sdk latest 仍是 v1，裸引会拿到旧包）
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
@@ -27,7 +31,7 @@ interface Row {
 
 type Status = 'loading' | 'live' | 'demo'
 
-// 指数 + 蓝筹，一次 getSimpleQuotes 调用（腾讯源，CORS 开放，快且稳）
+// 指数 + 蓝筹，一次 quotes.cnSimple 调用（腾讯源，CORS 开放，快且稳）
 const SYMBOLS = ['sh000001', 'sz399001', 'sz399006', 'sh600519', 'sz000858', 'sh601318']
 
 // 首屏 / 失败时的静态快照（明确标记为「示例」，不冒充实时数据）
@@ -40,7 +44,7 @@ const FALLBACK: Row[] = [
   { code: 'sh601318', name: '中国平安', price: 54.3, change: 0.33, changePercent: 0.61 },
 ]
 
-const { lang } = useData()
+const { lang, theme } = useData()
 const isEn = computed(() => lang.value.toLowerCase().startsWith('en'))
 const t = computed(() =>
   isEn.value
@@ -81,7 +85,7 @@ function stampNow(): void {
   time.value = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-// ---- SDK 加载（与 Playground 同款双模式：dev 引本地 src，prod 走 unpkg）----
+// ---- SDK 加载（dev 引本地 src，prod 走 unpkg 并锁构建期精确版本）----
 let sdk: any = null
 let sdkLoading: Promise<any> | null = null
 
@@ -90,9 +94,10 @@ async function loadSDK(): Promise<any> {
   if (sdkLoading) return sdkLoading
   sdkLoading = (async () => {
     const isDev = import.meta.env.DEV
+    const version = (theme.value as any).sdkVersion as string
     const mod: any = isDev
       ? await import('stock-sdk-local')
-      : await import(/* @vite-ignore */ 'https://unpkg.com/stock-sdk/dist/index.js')
+      : await import(/* @vite-ignore */ `https://unpkg.com/stock-sdk@${version}/dist/index.js`)
     const StockSDK = mod.StockSDK || mod.default
     sdk = new StockSDK({ timeout: 8000, retry: { maxRetries: 1, baseDelay: 600 } })
     return sdk
@@ -105,7 +110,7 @@ let flashTimer: ReturnType<typeof setTimeout> | null = null
 async function refresh(): Promise<void> {
   try {
     const s = await loadSDK()
-    const quotes: any[] = await s.getSimpleQuotes(SYMBOLS)
+    const quotes: any[] = await s.quotes.cnSimple(SYMBOLS)
     if (!Array.isArray(quotes) || quotes.length === 0) throw new Error('empty')
 
     const prevByCode = new Map(rows.value.map((r) => [r.code, r]))
@@ -226,7 +231,7 @@ onUnmounted(() => {
   padding: 14px 16px 12px;
   border-radius: 16px;
   background:
-    radial-gradient(120% 80% at 0% 0%, rgba(248, 113, 113, 0.1) 0%, transparent 55%),
+    radial-gradient(120% 80% at 0% 0%, rgba(220, 38, 38, 0.12) 0%, transparent 55%),
     linear-gradient(180deg, var(--term-bg-2) 0%, var(--term-bg) 100%);
   border: 1px solid var(--term-border);
   box-shadow:
@@ -234,7 +239,7 @@ onUnmounted(() => {
     0 0 0 1px rgba(255, 255, 255, 0.02) inset,
     0 1px 0 rgba(255, 255, 255, 0.04) inset;
   color: var(--term-text);
-  font-family: var(--font-mono);
+  font-family: var(--vp-font-family-mono);
   overflow: hidden;
   isolation: isolate;
 }
@@ -376,7 +381,7 @@ onUnmounted(() => {
 }
 .trow__chg.up { color: var(--quote-up); }
 .trow__chg.down { color: var(--quote-down); }
-.trow__chg.flat { color: var(--term-text-dim); }
+.trow__chg.flat { color: var(--quote-flat); }
 
 /* 价格跳动闪烁 */
 .trow.flash-up { animation: flashUp 0.65s ease-out; }

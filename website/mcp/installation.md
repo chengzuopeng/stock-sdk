@@ -1,188 +1,93 @@
-# 安装与配置
+# MCP 安装配置
 
-## 安装 stock-sdk-mcp
+`stock-sdk` 的 MCP server 通过 **stdio** 与客户端通信，启动命令统一为 `stock-sdk mcp`。在各 AI 客户端里，只需把它配置成一个 stdio 类型的 MCP server 即可。
 
-### 方式一：npx 直接运行（推荐）
+下面以 `npx` 启动为例（无需预装，`-y` 跳过交互确认）：
 
-无需安装，在配置文件中直接使用 `npx`：
+```jsonc
+{
+  "command": "npx",
+  "args": ["-y", "stock-sdk", "mcp"]
+}
+```
+
+> 也可以先 `npm install -g stock-sdk`，再把 `command` 直接写成 `"stock-sdk"`、`args` 写成 `["mcp"]`，省去每次 `npx` 解析的开销。
+
+## Cursor
+
+在项目根目录或全局配置目录新建/编辑 `.cursor/mcp.json`：
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
-### 方式二：全局安装
+保存后在 Cursor 的 MCP 设置里启用 `stock-sdk`，即可在对话中调用行情工具。
 
-```bash
-npm install -g stock-sdk-mcp
-```
+## Claude Desktop
 
-安装后可直接运行 `stock-mcp` 命令。
+编辑 Claude Desktop 的配置文件：
 
-### 方式三：本地开发安装
-
-```bash
-git clone https://github.com/chengzuopeng/stock-sdk-mcp.git
-cd stock-sdk-mcp
-yarn install
-yarn build
-```
-
-## 环境要求
-
-- Node.js >= 18.0.0
-- 支持 macOS / Linux / Windows
-
-## AI 工具配置指南
-
-### Cursor IDE
-
-配置文件路径：`~/.cursor/mcp.json`
+- macOS：`~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows：`%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
-配置完成后重启 Cursor，即可在对话中使用股票查询能力。
+保存后**重启 Claude Desktop**，工具栏中应出现 `stock-sdk` 的工具图标。
 
-**试试看：**
+## Codex
 
+在 Codex 的 MCP 配置（TOML）中新增一个 server 条目：
+
+```toml
+[mcp_servers.stock-sdk]
+command = "npx"
+args = ["-y", "stock-sdk", "mcp"]
 ```
-帮我查询贵州茅台（600519）的实时行情
-```
 
----
+## Gemini
 
-### Claude Desktop
-
-配置文件路径：
-
-- **macOS**：`~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**：`%APPDATA%\Claude\claude_desktop_config.json`
+在 Gemini CLI 的 `settings.json` 中加入 `mcpServers`：
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
----
+## 验证连接
 
-### OpenClaw（MCP 网关 / AI 助手）
-
-[OpenClaw](https://github.com/openclaw/openclaw)（原 Clawdbot）是一个开源、支持 MCP 的 AI 助手，可加载外部 MCP Server。
-
-方式一：CLI 注册
+server 走 stdio，正常情况下由客户端拉起，无需手动运行。若要在终端手动确认它能起来：
 
 ```bash
-openclaw mcp add stock-sdk --command npx --arg -y --arg stock-sdk-mcp
-openclaw mcp doctor stock-sdk --probe   # 验证连通
+npx -y stock-sdk mcp
 ```
 
-方式二：直接编辑配置文件 `~/.openclaw/openclaw.json` 的 `mcp.servers`：
+进程会等待 stdin 输入 JSON-RPC 消息（如 `initialize`）。客户端连上后，可在对话里让模型「列出可用工具」来确认握手成功。
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "stock-sdk": {
-        "command": "npx",
-        "args": ["-y", "stock-sdk-mcp"]
-      }
-    }
-  }
-}
-```
+> 各客户端的配置文件路径、字段名可能随版本变化，以对应客户端的官方文档为准；本页只规定 `stock-sdk mcp` 这一启动入口。
 
-> 具体命令与配置以 [OpenClaw 官方文档](https://docs.openclaw.ai/cli/mcp) 为准。
+## 下一步
 
----
-
-### Antigravity（Gemini Pro in VS Code）
-
-配置文件路径：`~/.antigravity/mcp.json`
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
-```
-
----
-
-### Codex CLI（OpenAI）
-
-配置文件路径：`~/.codex/config.json`
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
-```
-
-使用示例：
-
-```bash
-codex "查询苹果公司的实时股价"
-codex "分析一下创业板指数最近的技术形态"
-```
-
----
-
-### Gemini CLI（Google）
-
-配置文件路径：`~/.gemini/settings.json`
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
-```
-
-使用示例：
-
-```bash
-gemini "今天 A 股有哪些涨停板概念比较热？"
-gemini "帮我获取腾讯控股的日 K 线并计算均线"
-```
-
-## 调试 MCP Server
-
-可以通过管道发送 JSON-RPC 消息来测试 MCP Server 是否正常工作：
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_quotes_by_query","arguments":{"queries":["茅台"]}}}' | npx -y stock-sdk-mcp
-```
+- [MCP 工具表](/mcp/tools)：连上后可用的工具一览。
+- [AI Skills](/mcp/skills)：把工具组合成技术分析 / 智能选股等高层技能。

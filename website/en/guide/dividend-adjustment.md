@@ -1,97 +1,76 @@
-# Dividend Adjustment (qfq / hfq)
+# Price Adjustment (qfq / hfq)
 
-> **TL;DR**: For `getHistoryKline` / `getMinuteKline` / `getHKHistoryKline` / `getUSHistoryKline`,
-> the `adjust` parameter **defaults to `'qfq'` (forward-adjusted / front-adjusted)**.
-> If you are running back-tests or computing dividend-reinvested returns,
-> always pass `'hfq'` or `''` explicitly.
+After dividends, bonus shares, or rights issues, a stock's price shows an "ex-rights / ex-dividend" gap. **Price adjustment** smooths historical prices to account for these events, keeping the K-line continuous both visually and computationally—otherwise moving averages, backtest returns, and the like get polluted by those price gaps.
 
-## Three adjustment types
+stock-sdk supports three adjustment modes on its K-line endpoints.
 
-| Value | Meaning | Price behavior | Typical use case |
-|-------|---------|----------------|------------------|
-| `''` | **Unadjusted** | Raw exchange-traded prices | Trade reconciliation, order-book analysis |
-| `'qfq'` | **Forward-adjusted (default)** | Anchored to the most recent corporate action; historical prices scaled down accordingly | Charting, technical indicators, trend analysis |
-| `'hfq'` | **Backward-adjusted** | Anchored to the IPO; dividends/splits compounded forward, prices grow over time | Total return, back-testing, compound returns |
+## The three modes
 
-## Why is `'qfq'` the default?
+| Mode | Meaning | Use case |
+|---|---|---|
+| `qfq` | **Forward adjustment**: anchored to the latest price, correcting historical prices backward | Charting, technical indicators, backtesting (**most common**) |
+| `hfq` | **Backward adjustment**: anchored to the earliest price, accumulating forward | Long-term cumulative return, true gains across multiple ex-rights events |
+| `none` | **No adjustment**: raw prices, gaps preserved | Reconstructing actual historical trade prices, reconciliation |
 
-Most financial websites and brokerage platforms display K-lines as forward-adjusted by default,
-so the price line has no visible gap on ex-dividend days and looks visually continuous.
+The intuitive difference:
 
-But **forward-adjusted "prices" are not the actual traded prices**:
-if a stock traded at 100 before a dividend in 2020 and 50 after,
-today's forward-adjusted history will report ~50 for that 2020 day.
-You cannot use that number to back-calculate "what I actually paid back then".
+- **Forward adjustment** keeps the "current price" true; historical prices are pushed down. The right edge of the chart matches today's price—the default in most trading software.
+- **Backward adjustment** keeps the "earliest price" true; prices grow over time. Good for measuring "how many times has it risen since listing".
+- **No adjustment** keeps both ends raw, with a visible gap on ex-rights dates.
 
-## Choosing per scenario
+## Forward adjustment by default
 
-### Scenario 1: Charting & technical indicators (MA / MACD / BOLL / etc.)
-
-**Use `'qfq'` (default).**
+stock-sdk's K-line endpoints **default to forward adjustment (`qfq`)**. Call them directly to get forward-adjusted daily K:
 
 ```ts
-const klines = await sdk.getHistoryKline('sh600519');
-// equivalent to:
-// const klines = await sdk.getHistoryKline('sh600519', { adjust: 'qfq' });
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+
+// Forward-adjusted by default
+const qfq = await sdk.kline.cn('600519')
+
+// Explicitly specify the adjustment mode
+const hfq = await sdk.kline.cn('600519', { adjust: 'hfq' })  // backward
+const raw = await sdk.kline.cn('600519', { adjust: 'none' }) // unadjusted
 ```
 
-Technical indicators are statistical transforms over price series and need a continuous, gap-free
-input. Forward adjustment delivers exactly that.
-
-### Scenario 2: Back-tests & long-horizon returns
-
-**Use `'hfq'`, explicitly.**
+HK and US K-lines work the same way:
 
 ```ts
-const klines = await sdk.getHistoryKline('sh600519', { adjust: 'hfq' });
-const totalReturn = (klines.at(-1)!.close! / klines[0].close! - 1) * 100;
-console.log(`${totalReturn.toFixed(2)}% cumulative return`);
+const hk = await sdk.kline.hk('00700', { adjust: 'qfq' })
+const us = await sdk.kline.us('AAPL', { adjust: 'hfq' })
 ```
 
-Under backward-adjusted prices, last-close / first-close is the true cumulative return
-(assuming dividends are reinvested). Forward-adjusted prices would understate the return
-because they strip away the dividend uplift.
-
-### Scenario 3: Trade reconciliation, historical cost lookup
-
-**Use `''` (unadjusted).**
-
-```ts
-const klines = await sdk.getHistoryKline('sh600519', { adjust: '' });
-const dayKline = klines.find(k => k.date === '2020-06-24');
-// dayKline.close is the actual close price as printed on that trading day
-```
-
-Only unadjusted prices match what your broker statement / historical position cost shows.
-
-## HK / US
-
-`getHKHistoryKline` / `getUSHistoryKline` also default to `adjust: 'qfq'`.
-The selection logic is identical to A-shares.
-
-## 1-minute timeline does not support adjustment
-
-`getMinuteKline(symbol)` (period='1' default) hits EastMoney's `trends2/get` endpoint
-which does not accept an adjustment parameter. The 5/15/30/60-minute K-lines hit
-`kline/get` and accept `adjust='qfq'/'hfq'/''` like the daily K-line.
-
-## Common pitfalls
-
-::: danger Never compute cumulative return from forward-adjusted data
-```ts
-// ❌ Wrong
-const klines = await sdk.getHistoryKline('sh600519'); // default qfq
-const totalReturn = klines.at(-1)!.close! / klines[0].close! - 1;
-// This excludes dividend yield and may understate the true return by 20-50%.
-```
+::: tip Parameters follow the implementation
+The exact parameter name (e.g. the value set for `adjust`) and its default follow the final implementation; this page assumes one of `qfq` / `hfq` / `none`, defaulting to `qfq`. Whether minute K-lines support adjustment likewise follows the implementation.
 :::
 
-::: danger Never use forward-adjusted prices to look up historical cost basis
-A forward-adjusted "historical price" has been scaled and does not equal the actual filled price.
-For historical cost, use `adjust: ''`.
-:::
+## Backtesting notes
 
-::: tip Different `adjust` values return different OHLCV
-This is not a bug — it is how price adjustment works. Pin the value you need
-explicitly so your downstream calculations stay reproducible.
-:::
+The adjustment mode directly determines whether your backtest is correct, so be deliberate:
+
+1. **Backtests generally use forward adjustment (`qfq`)**. Forward-adjusted K-lines are continuous and gap-free, so technical indicators (MAs, MACD, etc.) and entry/exit logic aren't disturbed by ex-rights gaps. Since K-line endpoints default to `qfq`, you usually need no extra config.
+
+2. **Don't run trend strategies on unadjusted data**. `none` has a large gap on ex-rights dates, which crossover and breakout strategies will misread as a "crash / surge", producing false signals.
+
+3. **Consider backward adjustment for long-term absolute returns**. If you care about "the true cumulative return of holding for N years", `hfq` folds dividend and bonus-share gains into the price, closer to actual holding return than forward adjustment—but `hfq` prices scale up over time and shouldn't be compared directly with the current price.
+
+4. **Keep training / backtest / live modes consistent**. Indicator calculation, signal detection, and backtesting should all use K-lines of the same adjustment mode, avoiding mismatches like "signals on forward-adjusted, returns on unadjusted".
+
+5. **Adjustment doesn't change volume units**. Adjustment only corrects price; `volume` is unaffected. For volume units, see the note in [Indicators & Signals](/en/guide/indicators).
+
+Feeding indicator-enriched, forward-adjusted K-lines straight into the backtest engine is the most common and safest combination:
+
+```ts
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+
+// Forward-adjusted by default + indicators attached, ready as backtest input
+const kline = await sdk.kline.withIndicators('600519', {
+  ma: [5, 20],
+  macd: true,
+})
+// Hand off to the backtest engine in stock-sdk/screener
+```

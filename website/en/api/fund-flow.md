@@ -1,133 +1,206 @@
-# Extended Data
+# fundFlow · Capital Flow (Deep)
 
-## getTradingCalendar
+`sdk.fundFlow` exposes capital-flow data across four dimensions — **individual stock / market / rank / sector** (source: East Money data center). It returns historical series, ranking boards and sector summaries, as opposed to `sdk.quotes.fundFlow`, which returns a single-day snapshot batched by code (Tencent, lightweight).
 
-Get A-share trading calendar, returning all trading days from 1990 to the future.
+::: tip Namespace distinction
+- `sdk.quotes.fundFlow(codes)` — **lightweight**, single-day capital-flow snapshot batched by code.
+- `sdk.fundFlow.*` — **deep** (this page): historical, ranking and sector dimensions.
+:::
 
-### Signature
+Capital-flow fields follow a uniform **main / super-large / large / medium / small** order structure. Each tier reports both a net amount (in the listing currency's main unit) and a net ratio (as a percentage number, e.g. `5.2` means 5.2%).
 
-```typescript
-getTradingCalendar(): Promise<string[]>
+## Methods
+
+| Method | Description |
+|---|---|
+| `fundFlow.individual(symbol, opts?)` | Per-stock capital-flow history (daily / weekly / monthly) |
+| `fundFlow.market()` | Market-wide capital-flow history (SSE + SZSE) |
+| `fundFlow.rank(opts?)` | Per-stock capital-flow ranking (by main net inflow) |
+| `fundFlow.sectorRank(opts?)` | Sector capital-flow ranking (industry / concept / region) |
+| `fundFlow.sectorHistory(symbol, opts?)` | Capital-flow history for a single sector |
+
+> Exact parameters and return fields follow the final implementation; the field tables below reflect the current data contract.
+
+---
+
+## fundFlow.individual
+
+Per-stock capital-flow history (daily / weekly / monthly bars).
+
+```ts
+import { StockSDK } from 'stock-sdk';
+
+const sdk = new StockSDK();
+
+const flow = await sdk.fundFlow.individual('600519', { period: 'daily' });
+const latest = flow.at(-1);
+console.log(`${latest?.date} main net inflow: ${latest?.mainNetInflow}`);
 ```
 
-### Return Type
+`symbol` accepts a bare string (e.g. `'sh600519'` / `'600519'`), resolved fault-tolerantly by `normalizeSymbol`.
 
-```typescript
-string[]  // Array of trading dates, e.g. ['1990-12-19', '1990-12-20', ...]
-```
+### Parameters
 
-### Example
+| Param | Type | Description |
+|---|---|---|
+| `symbol` | `string` | Stock code |
+| `options.period` | `'daily' \| 'weekly' \| 'monthly'` | Period, defaults to `'daily'` |
 
-```typescript
-const calendar = await sdk.getTradingCalendar();
+### Returns
 
-console.log(`Total ${calendar.length} trading days`);
-console.log(`First trading day: ${calendar[0]}`);  // 1990-12-19
-console.log(`Last trading day: ${calendar[calendar.length - 1]}`);
+`StockFundFlowDaily[]`, sorted by date ascending:
 
-// Check if a date is a trading day
-function isTradingDay(date: string): boolean {
-  return calendar.includes(date);
-}
-
-console.log(isTradingDay('2024-01-02'));  // true
-console.log(isTradingDay('2024-01-01'));  // false (New Year's Day)
-```
-
-### Use Cases
-
-```typescript
-// Get recent N trading days
-function getRecentTradingDays(n: number): string[] {
-  const today = new Date().toISOString().slice(0, 10);
-  const idx = calendar.findIndex(d => d >= today);
-  return calendar.slice(Math.max(0, idx - n), idx);
-}
-
-// Count trading days between two dates
-function countTradingDays(start: string, end: string): number {
-  return calendar.filter(d => d >= start && d <= end).length;
-}
-
-// Get next trading day
-function getNextTradingDay(date: string): string | undefined {
-  return calendar.find(d => d > date);
+```ts
+interface StockFundFlowDaily {
+  date: string;                          // YYYY-MM-DD
+  close: number | null;                  // close price
+  changePercent: number | null;          // change (percentage number)
+  mainNetInflow: number | null;          // main net inflow amount (currency main unit)
+  mainNetInflowPercent: number | null;   // main net inflow ratio (percentage number)
+  superLargeNetInflow: number | null;
+  superLargeNetInflowPercent: number | null;
+  largeNetInflow: number | null;
+  largeNetInflowPercent: number | null;
+  mediumNetInflow: number | null;
+  mediumNetInflowPercent: number | null;
+  smallNetInflow: number | null;
+  smallNetInflowPercent: number | null;
 }
 ```
 
 ---
 
-## getFundFlow
+## fundFlow.market
 
-Get capital flow data for stocks.
+Market-wide capital-flow history. Each record covers both the SSE Composite and SZSE Component indices.
 
-```typescript
-const flows = await sdk.getFundFlow(['sz000858', 'sh600519']);
+```ts
+const market = await sdk.fundFlow.market();
+const today = market.at(-1);
+console.log(`SSE ${today?.shClose} (${today?.shChangePercent}%)`);
+console.log(`main net inflow ${today?.mainNetInflow}`);
+```
+
+### Returns
+
+`MarketFundFlow[]`:
+
+```ts
+interface MarketFundFlow {
+  date: string;
+  shClose: number | null;          // SSE Composite close
+  shChangePercent: number | null;  // SSE Composite change (percentage number)
+  szClose: number | null;          // SZSE Component close
+  szChangePercent: number | null;  // SZSE Component change (percentage number)
+  mainNetInflow: number | null;
+  mainNetInflowPercent: number | null;
+  // super-large / large / medium / small follow the same structure (amount + ratio)
+}
+```
+
+---
+
+## fundFlow.rank
+
+Per-stock capital-flow ranking by main net inflow. `changePercent` and each tier's net inflow correspond to the chosen indicator window (e.g. `5day` returns 5-day figures).
+
+```ts
+const rank = await sdk.fundFlow.rank({ indicator: '5day' });
+rank.slice(0, 10).forEach((item, i) => {
+  console.log(`#${i + 1} ${item.name}(${item.code}) main net inflow ${item.mainNetInflow}`);
+});
 ```
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| codes | `string[]` | Yes | Stock codes |
+| Param | Type | Description |
+|---|---|---|
+| `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | Stat window, defaults to `'today'` |
 
-### Return Type
+### Returns
 
-```typescript
-interface FundFlowData {
-  code: string;            // Stock code
-  name: string;            // Stock name
-  mainNet: number;         // Main capital net inflow
-  mainNetRatio: number;    // Main capital net ratio (%)
-  superLargeNet: number;   // Super large order net
-  superLargeRatio: number; // Super large order ratio (%)
-  largeNet: number;        // Large order net
-  largeRatio: number;      // Large order ratio (%)
-  mediumNet: number;       // Medium order net
-  mediumRatio: number;     // Medium order ratio (%)
-  smallNet: number;        // Small order net
-  smallRatio: number;      // Small order ratio (%)
-}
-```
+`FundFlowRankItem[]`:
 
-## getPanelLargeOrder
-
-Get large order ratio from order book.
-
-```typescript
-const orders = await sdk.getPanelLargeOrder(['sz000858']);
-```
-
-### Return Type
-
-```typescript
-interface PanelLargeOrderData {
+```ts
+interface FundFlowRankItem {
   code: string;
   name: string;
-  buyLargeRatio: number;   // Buy side large order ratio
-  sellLargeRatio: number;  // Sell side large order ratio
+  price: number | null;                  // latest price
+  changePercent: number | null;          // change for the window (percentage number)
+  mainNetInflow: number | null;          // main net inflow amount
+  mainNetInflowPercent: number | null;
+  superLargeNetInflow: number | null;
+  superLargeNetInflowPercent: number | null;
+  largeNetInflow: number | null;
+  largeNetInflowPercent: number | null;
+  mediumNetInflow: number | null;
+  mediumNetInflowPercent: number | null;
+  smallNetInflow: number | null;
+  smallNetInflowPercent: number | null;
 }
 ```
 
-## Example
+---
 
-```typescript
-import { StockSDK } from 'stock-sdk';
+## fundFlow.sectorRank
 
-const sdk = new StockSDK();
+Sector capital-flow ranking across industry / concept / region dimensions.
 
-// Get fund flow
-const flows = await sdk.getFundFlow(['sz000858', 'sh600519']);
-flows.forEach(f => {
-  console.log(`${f.name}:`);
-  console.log(`  Main Net: ${f.mainNet} (${f.mainNetRatio}%)`);
-  console.log(`  Large Net: ${f.largeNet}`);
+```ts
+const sectors = await sdk.fundFlow.sectorRank({
+  indicator: 'today',
+  sectorType: 'industry',
 });
-
-// Get large order ratio
-const orders = await sdk.getPanelLargeOrder(['sz000858']);
-orders.forEach(o => {
-  console.log(`${o.name}: Buy ${o.buyLargeRatio}%, Sell ${o.sellLargeRatio}%`);
+sectors.slice(0, 5).forEach(s => {
+  console.log(`${s.name}: net inflow ${s.mainNetInflow}, top stock ${s.topStockName}`);
 });
 ```
 
+### Parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | Stat window, defaults to `'today'` |
+| `options.sectorType` | `'industry' \| 'concept' \| 'region'` | Sector dimension, defaults to `'industry'` |
+
+### Returns
+
+`SectorFundFlowItem[]`:
+
+```ts
+interface SectorFundFlowItem {
+  code: string;                  // sector code (East Money BK id, e.g. BK0475)
+  name: string;                  // sector name
+  changePercent: number | null;  // percentage number
+  mainNetInflow: number | null;  // main net inflow amount
+  mainNetInflowPercent: number | null;
+  superLargeNetInflow: number | null;
+  largeNetInflow: number | null;
+  mediumNetInflow: number | null;
+  smallNetInflow: number | null;
+  topStockName?: string;         // name of the top main-inflow stock
+  topStockCode?: string;         // code of the top main-inflow stock
+}
+```
+
+---
+
+## fundFlow.sectorHistory
+
+Capital-flow history for a single sector. `symbol` accepts a BK id (e.g. `BK0475`) or a prefixed East Money secid (e.g. `90.BK0475`).
+
+```ts
+const banking = await sdk.fundFlow.sectorHistory('BK0475');
+console.log(`banking sector history: ${banking.length} records`);
+```
+
+### Parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `symbol` | `string` | Sector code (BK id or East Money secid) |
+| `options.period` | `'daily' \| 'weekly' \| 'monthly'` | Period, defaults to `'daily'` |
+
+### Returns
+
+`StockFundFlowDaily[]`, identical in shape to [`fundFlow.individual`](#fundflow-individual) (here `close` / `changePercent` refer to the sector itself).

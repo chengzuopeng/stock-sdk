@@ -1,293 +1,184 @@
-# Futures
+# sdk.futures Futures
 
-## getFuturesKline
+The futures namespace provides domestic futures K-lines, global futures real-time quotes and K-lines, and futures inventory data. The primary data source is Eastmoney.
 
-Get domestic futures historical K-line (daily/weekly/monthly). Data source: Eastmoney.
+```ts
+import { StockSDK } from 'stock-sdk';
 
-Supports all varieties from SHFE, DCE, CZCE, INE, CFFEX, and GFEX exchanges.
+const sdk = new StockSDK();
 
-### Signature
+// Rebar continuous daily K-line
+const klines = await sdk.futures.kline('RBM');
 
-```typescript
-getFuturesKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    startDate?: string;
-    endDate?: string;
-  }
-): Promise<FuturesKline[]>
+// Global futures real-time quotes
+const global = await sdk.futures.globalSpot();
+
+// Futures inventory
+const inventory = await sdk.futures.inventory('rb');
 ```
 
-### Parameters
+## Method overview
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `symbol` | `string` | - | Contract code, e.g. `'rb2605'` (specific) or `'RBM'` (main continuous) |
-| `period` | `string` | `'daily'` | K-line period: `'daily'` / `'weekly'` / `'monthly'` |
-| `startDate` | `string` | - | Start date `YYYYMMDD` |
-| `endDate` | `string` | - | End date `YYYYMMDD` |
+| Method | Description |
+|--------|-------------|
+| `futures.kline(symbol, opts?)` | Domestic futures historical K-line (daily/weekly/monthly) |
+| `futures.globalSpot(opts?)` | Global futures real-time quotes |
+| `futures.globalKline(symbol, opts?)` | Global futures historical K-line (daily/weekly/monthly) |
+| `futures.inventorySymbols()` | List of futures inventory varieties |
+| `futures.inventory(symbol, opts?)` | Domestic futures inventory data |
+| `futures.comexInventory(symbol, opts?)` | COMEX gold / silver inventory data |
 
-### Symbol Format
+> v2 data contract: returned objects no longer carry a `raw` field; for time-bearing records `timestamp` is `number | null`; percentages are percentage numbers (e.g. `5.2`). **Note: futures `volume` is contract volume (lots / contracts), not "shares"; futures are quoted per exchange contract and the types have no `currency` field.** The field descriptions below are indicative — **the exact fields follow the implementation**.
 
-| Format | Description | Example |
-|--------|-------------|---------|
-| `variety + contract month` | Specific contract | `rb2605`, `IF2604`, `TA509` |
-| `variety + M` | Main continuous contract | `RBM`, `IFM`, `TAM`, `scM` |
+## `futures.kline(symbol, opts?)`
 
-### Return Type
+Fetch domestic futures historical K-lines (daily/weekly/monthly), covering all varieties on SHFE, DCE, CZCE, INE, CFFEX and GFEX.
 
-```typescript
-interface FuturesKline {
-  date: string;               // Date YYYY-MM-DD
-  code: string;               // Contract code
-  name: string;               // Contract name
-  open: number | null;        // Open price
-  close: number | null;       // Close price
-  high: number | null;        // High price
-  low: number | null;         // Low price
-  volume: number | null;      // Volume
-  amount: number | null;      // Turnover
-  amplitude: number | null;   // Amplitude %
-  changePercent: number | null;  // Change %
-  change: number | null;         // Change amount
-  turnoverRate: number | null;   // Turnover rate %
-  openInterest: number | null;   // Open interest
-}
-```
+```ts
+// Rebar continuous daily K-line
+const klines = await sdk.futures.kline('RBM');
 
-### Example
-
-```typescript
-// Get rebar main continuous daily K-line
-const klines = await sdk.getFuturesKline('RBM');
-
-// Get CSI 300 futures specific contract weekly K-line
-const weeklyKlines = await sdk.getFuturesKline('IF2604', {
+// CSI 300 futures specific-contract weekly K-line
+const weekly = await sdk.futures.kline('IF2604', {
   period: 'weekly',
   startDate: '20250101',
 });
 
-klines.forEach(k => {
+weekly.forEach(k => {
   console.log(`${k.date}: close ${k.close} OI ${k.openInterest}`);
 });
 ```
 
----
+**Parameters:**
 
-## getGlobalFuturesSpot
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `symbol` | `string` | - | Contract code, e.g. `'rb2605'` (specific contract) or `'RBM'` (continuous) |
+| `opts.period` | `'daily' \| 'weekly' \| 'monthly'` | `'daily'` | K-line period |
+| `opts.startDate` | `string` | - | Start date `YYYYMMDD` |
+| `opts.endDate` | `string` | - | End date `YYYYMMDD` |
 
-Get global futures real-time quotes (COMEX, NYMEX, CBOT, SGX, NYBOT, LME, MDEX, TOCOM, IPE). Data source: Eastmoney.
+**symbol format:**
 
-### Signature
+| Input form | Description | Example |
+|------------|-------------|---------|
+| variety + contract month | Specific contract | `rb2605`, `IF2604`, `TA509` |
+| variety + `M` | Main continuous contract | `RBM`, `IFM`, `TAM`, `scM` |
 
-```typescript
-getGlobalFuturesSpot(
-  options?: {
-    pageSize?: number;
-  }
-): Promise<GlobalFuturesQuote[]>
-```
+**Returns:** an array of K-lines, each with date, contract code/name, OHLC, volume/amount, amplitude, change/percent, turnover rate, open interest, etc.
 
-### Return Type
+## `futures.globalSpot(opts?)`
 
-```typescript
-interface GlobalFuturesQuote {
-  code: string;               // Contract code
-  name: string;               // Name
-  price: number | null;       // Latest price
-  change: number | null;      // Change amount
-  changePercent: number | null;  // Change %
-  open: number | null;        // Open
-  high: number | null;        // High
-  low: number | null;         // Low
-  prevSettle: number | null;  // Previous settlement price
-  volume: number | null;      // Volume
-  buyVolume: number | null;   // Buy volume
-  sellVolume: number | null;  // Sell volume
-  openInterest: number | null;   // Open interest
-}
-```
+Fetch global futures real-time quotes across COMEX, NYMEX, CBOT, SGX, NYBOT, LME, MDEX, TOCOM, IPE and more.
 
-### Example
-
-```typescript
-const quotes = await sdk.getGlobalFuturesSpot();
+```ts
+const quotes = await sdk.futures.globalSpot();
 quotes.forEach(q => {
   console.log(`${q.name} (${q.code}): ${q.price} ${q.changePercent}%`);
 });
 ```
 
----
+**Parameters:**
 
-## getGlobalFuturesKline
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `opts.pageSize` | `number` | Rows per response (optional) |
 
-Get global futures historical K-line (daily/weekly/monthly). Data source: Eastmoney.
+**Returns:** an array of real-time quotes, each with contract code, name, last price, change/percent, open, high, low, previous settlement price, volume, buy/sell volume and open interest.
 
-### Signature
+## `futures.globalKline(symbol, opts?)`
 
-```typescript
-getGlobalFuturesKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    startDate?: string;
-    endDate?: string;
-    marketCode?: number;
-  }
-): Promise<FuturesKline[]>
+Fetch global futures historical K-lines (daily/weekly/monthly).
+
+```ts
+// COMEX copper continuous daily K-line
+const klines = await sdk.futures.globalKline('HG00Y');
+
+// NYMEX crude oil weekly K-line
+const oil = await sdk.futures.globalKline('CL00Y', {
+  period: 'weekly',
+  startDate: '20250101',
+});
 ```
 
-### Parameters
+**Parameters:**
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `symbol` | `string` | - | Contract code, e.g. `'HG00Y'` (COMEX copper continuous) |
-| `period` | `string` | `'daily'` | K-line period |
-| `marketCode` | `number` | - | Eastmoney market code (for varieties not built-in) |
+| `opts.period` | `'daily' \| 'weekly' \| 'monthly'` | `'daily'` | K-line period |
+| `opts.startDate` | `string` | - | Start date `YYYYMMDD` |
+| `opts.endDate` | `string` | - | End date `YYYYMMDD` |
+| `opts.marketCode` | `number` | - | Eastmoney market code (for varieties not built in) |
 
-### Built-in Varieties
+**Built-in varieties (indicative):**
 
-| Exchange | Varieties | Market Code |
-|----------|-----------|-------------|
+| Market | Varieties | Market code |
+|--------|-----------|-------------|
 | COMEX | HG, GC, SI, QI, QO, MGC | 101 |
 | NYMEX | CL, NG, RB, HO, PA, PL | 102 |
 | CBOT | ZW, ZM, ZS, ZC, ZL, ZR, YM, NQ, ES | 103 |
 | NYBOT | SB, CT | 108 |
 | LME | LCPT, LZNT, LALT | 109 |
 
-### Example
+**Returns:** an array of K-lines with the same structure as `futures.kline`.
 
-```typescript
-// Get COMEX copper continuous daily K-line
-const klines = await sdk.getGlobalFuturesKline('HG00Y');
+## `futures.inventorySymbols()`
 
-// Get NYMEX crude oil weekly K-line
-const oilKlines = await sdk.getGlobalFuturesKline('CL00Y', {
-  period: 'weekly',
-  startDate: '20250101',
-});
-```
+Fetch the list of futures inventory varieties (Eastmoney data center), used to drive `futures.inventory`.
 
----
-
-## getFuturesInventorySymbols
-
-Get futures inventory symbol list. Data source: Eastmoney Data Center.
-
-### Signature
-
-```typescript
-getFuturesInventorySymbols(): Promise<FuturesInventorySymbol[]>
-```
-
-### Return Type
-
-```typescript
-interface FuturesInventorySymbol {
-  code: string;       // Variety code
-  name: string;       // Variety name
-  marketCode: string; // Market code
-}
-```
-
-### Example
-
-```typescript
-const symbols = await sdk.getFuturesInventorySymbols();
+```ts
+const symbols = await sdk.futures.inventorySymbols();
 symbols.forEach(s => {
   console.log(`${s.name} (${s.code})`);
 });
 ```
 
----
+**Returns:** an array of varieties, each with variety code, variety name and market code.
 
-## getFuturesInventory
+## `futures.inventory(symbol, opts?)`
 
-Get futures inventory data. Data source: Eastmoney Data Center.
+Fetch domestic futures inventory data (Eastmoney data center).
 
-### Signature
-
-```typescript
-getFuturesInventory(
-  symbol: string,
-  options?: {
-    startDate?: string;
-    pageSize?: number;
-  }
-): Promise<FuturesInventory[]>
-```
-
-### Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `symbol` | `string` | - | Variety code (from `getFuturesInventorySymbols`) |
-| `startDate` | `string` | `'2020-10-28'` | Start date `YYYY-MM-DD` |
-
-### Return Type
-
-```typescript
-interface FuturesInventory {
-  code: string;             // Variety code
-  date: string;             // Date
-  inventory: number | null; // Inventory
-  change: number | null;    // Change
-}
-```
-
-### Example
-
-```typescript
-const inventory = await sdk.getFuturesInventory('rb');
+```ts
+const inventory = await sdk.futures.inventory('rb');
 inventory.forEach(item => {
   console.log(`${item.date}: inventory ${item.inventory} change ${item.change}`);
 });
 ```
 
----
+**Parameters:**
 
-## getComexInventory
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `symbol` | `string` | - | Variety code (from `futures.inventorySymbols()`) |
+| `opts.startDate` | `string` | `'2020-10-28'` | Start date `YYYY-MM-DD` |
+| `opts.pageSize` | `number` | - | Rows per response (optional) |
 
-Get COMEX gold/silver inventory data. Data source: Eastmoney Data Center.
+**Returns:** an array of inventory records, each with variety code, date, inventory level and change.
 
-### Signature
+## `futures.comexInventory(symbol, opts?)`
 
-```typescript
-getComexInventory(
-  symbol: 'gold' | 'silver',
-  options?: {
-    pageSize?: number;
-  }
-): Promise<ComexInventory[]>
-```
+Fetch COMEX gold / silver inventory data (Eastmoney data center).
 
-### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | `string` | `'gold'` or `'silver'` |
-
-### Return Type
-
-```typescript
-interface ComexInventory {
-  date: string;                // Date
-  name: string;                // Variety name
-  storageTon: number | null;   // Storage (tons)
-  storageOunce: number | null; // Storage (ounces)
-}
-```
-
-### Example
-
-```typescript
-// Get COMEX gold inventory
-const goldInventory = await sdk.getComexInventory('gold');
-goldInventory.forEach(item => {
+```ts
+// COMEX gold inventory
+const gold = await sdk.futures.comexInventory('gold');
+gold.forEach(item => {
   console.log(`${item.date}: ${item.storageTon} tons`);
 });
 
-// Get COMEX silver inventory
-const silverInventory = await sdk.getComexInventory('silver');
+// COMEX silver inventory
+const silver = await sdk.futures.comexInventory('silver');
 ```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `symbol` | `'gold' \| 'silver'` | `'gold'` or `'silver'` |
+| `opts.pageSize` | `number` | Rows per response (optional) |
+
+**Returns:** an array of inventory records, each with date, variety name, inventory in tons and inventory in ounces.
+
+> v2 removes the `@deprecated` fields on the legacy `ComexInventory` (the `inventory` alias, the always-`null` `change`, and the old `name`); use the unified standard fields instead. The exact fields follow the implementation.

@@ -1,213 +1,79 @@
-# API 概览
+# API 参考 · 命名空间地图
 
-本页帮助你快速定位 Stock SDK 的功能模块和具体接口。
+v2 把 v1 扁平的 `sdk.getXxx()` 重构为**按领域组织的命名空间**。所有取数能力挂在 `sdk.<命名空间>.<方法>()` 下；纯计算能力（指标、信号、符号解析）通过 subpath 独立导出，按需引入、对 tree-shaking 友好。
 
-## SDK 初始化
+```ts
+import { StockSDK } from 'stock-sdk'
 
-```typescript
-import { StockSDK } from 'stock-sdk';
+const sdk = new StockSDK()
 
-const sdk = new StockSDK(options?);
+const quotes = await sdk.quotes.cn(['600519', '000001']) // 命名空间调用
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const k = await sdk.options.etf.dailyKline('10004336') // 二级命名空间
 ```
 
-### 配置参数
+> 符号入参 `string` 是一等公民：`'sh600519'` / `'600519'` / `'00700'` / `'AAPL'` 均可，由 `normalizeSymbol` 容错解析。需要对象 hint 时，请先使用 `stock-sdk/symbols` 的 `normalizeSymbol`。详见 [符号与代码规则](/guide/symbols)。
 
-| 参数 | 类型 | 默认值 | 说明 |
-|-----|------|-------|------|
-| `baseUrl` | `string` | `'https://qt.gtimg.cn'` | 腾讯行情请求地址（可替换为代理） |
-| `timeout` | `number` | `30000` | 请求超时时间（毫秒） |
-| `retry` | `RetryOptions` | 见下表 | 重试配置 |
-| `headers` | `Record<string, string>` | - | 自定义请求头 |
-| `userAgent` | `string` | - | 自定义 User-Agent（浏览器环境可能会被忽略） |
-| `rateLimit` | `RateLimiterOptions` | - | 限流配置（防止请求过快被频控） |
-| `rotateUserAgent` | `boolean` | `false` | 是否启用 UA 轮换（仅 Node.js 有效） |
-| `circuitBreaker` | `CircuitBreakerOptions` | - | 熔断器配置（连续失败时暂停请求） |
-| `providerPolicies` | `Partial<Record<ProviderName, ProviderRequestPolicy>>` | - | 为不同数据源覆盖超时、重试、限流、熔断和请求头策略 |
+## 行情与批量
 
-### 重试配置 (RetryOptions)
+| 命名空间 | 用途 | 文档 |
+|---|---|---|
+| `sdk.quotes` | 实时行情：A股全量/简要、港股、美股、基金、资金流(简版)、盘口大单、当日分时 | [quotes](/api/quotes) |
+| `sdk.codes` | 各市场代码列表：A股 / 美股 / 港股 / 基金 | [codes](/api/codes) |
+| `sdk.batch` | 全市场批量行情：A股 / 港股 / 美股 / 按代码批量 / 原始批量 | [batch](/api/batch) |
 
-| 参数 | 类型 | 默认值 | 说明 |
-|-----|------|-------|------|
-| `maxRetries` | `number` | `3` | 最大重试次数 |
-| `baseDelay` | `number` | `1000` | 初始退避延迟（毫秒） |
-| `maxDelay` | `number` | `30000` | 最大退避延迟（毫秒） |
-| `backoffMultiplier` | `number` | `2` | 退避系数 |
-| `retryableStatusCodes` | `number[]` | `[408, 429, 500, 502, 503, 504]` | 可重试的 HTTP 状态码 |
-| `retryOnNetworkError` | `boolean` | `true` | 网络错误时是否重试 |
-| `retryOnTimeout` | `boolean` | `true` | 超时时是否重试 |
-| `onRetry` | `function` | - | 重试回调 `(attempt, error, delay) => void` |
+## K 线与板块
 
-### 限流配置 (RateLimiterOptions)
+| 命名空间 | 用途 | 文档 |
+|---|---|---|
+| `sdk.kline` | A/HK/US 历史 K 线、分钟 K 线、带指标 K 线 | [kline](/api/kline) |
+| `sdk.board.industry` · `sdk.board.concept` | 行业 / 概念板块：列表、行情、成分股、K线、分时 | [board](/api/board) |
 
-| 参数 | 类型 | 默认值 | 说明 |
-|-----|------|-------|------|
-| `requestsPerSecond` | `number` | `5` | 每秒最大请求数 |
-| `maxBurst` | `number` | `= requestsPerSecond` | 令牌桶容量（允许的突发请求数） |
+## 衍生品
 
-::: tip 限流建议
-建议配置 `requestsPerSecond: 3~5`，避免触发东方财富的频率限制。
-:::
+| 命名空间 | 用途 | 文档 |
+|---|---|---|
+| `sdk.options` | 期权：股指(`index`) / ETF(`etf`) / 商品(`commodity`) / 中金所(`cffex`) + 期权龙虎榜(`lhb`) | [options](/api/options) |
+| `sdk.futures` | 期货：国内/全球 K 线、库存品种与库存数据 | [futures](/api/futures) |
 
-### Provider 策略覆盖 (ProviderRequestPolicy)
+## 资金面
 
-全局 `timeout` / `retry` / `rateLimit` / `circuitBreaker` 仍然是默认策略。  
-`providerPolicies` 只会在指定 provider 上覆盖这些默认值，不会影响旧代码的初始化方式。
+| 命名空间 | 用途 | 文档 |
+|---|---|---|
+| `sdk.fundFlow` | 资金流向(深度)：个股 / 大盘 / 排名 / 板块排名 / 板块历史 | [fundFlow](/api/fund-flow) |
+| `sdk.northbound` | 沪深港通 / 北向资金：分时 / 概览 / 持股排名 / 历史 / 个股 | [northbound](/api/northbound) |
+| `sdk.marketEvent` | 市场异动：涨停池 / 盘口异动 / 板块异动 | [marketEvent](/api/market-event) |
+| `sdk.dragonTiger` | 龙虎榜：明细 / 个股统计 / 机构 / 营业部排名 / 席位明细 | [dragonTiger](/api/dragon-tiger) |
+| `sdk.blockTrade` | 大宗交易：市场统计 / 明细 / 每日统计 | [blockTrade](/api/block-trade) |
+| `sdk.margin` | 融资融券：账户信息 / 标的列表 | [margin](/api/margin) |
 
-```typescript
-interface ProviderRequestPolicy {
-  timeout?: number;
-  retry?: RetryOptions;
-  headers?: Record<string, string>;
-  userAgent?: string;
-  rateLimit?: RateLimiterOptions;
-  rotateUserAgent?: boolean;
-  circuitBreaker?: CircuitBreakerOptions;
-}
+## 基金与工具
+
+| 命名空间 | 用途 | 文档 |
+|---|---|---|
+| `sdk.fund` | 公募基金扩展：分红列表 / 净值历史 / 估值 / 排名历史 | [fund](/api/fund) |
+| `sdk.calendar` | 交易日历：是否交易日 / 下一交易日 / 上一交易日 / 市场状态 | [calendar](/api/calendar) |
+| `sdk.reference` | 参考数据：分红明细 / A股交易日历 | [reference](/api/reference) |
+| `sdk.search(keyword)` | 股票搜索（顶层快捷方法） | [search](/api/search) |
+
+## 纯计算 · subpath 导出
+
+指标、信号、符号解析是**纯函数、零网络**，不依赖 `StockSDK` 实例，从各自 subpath 独立引入：
+
+```ts
+import { calcMACD, addIndicators } from 'stock-sdk/indicators'
+import { calcSignals } from 'stock-sdk/signals'
+import { normalizeSymbol } from 'stock-sdk/symbols'
 ```
 
-已内置的 provider 名称：
+| 模块 | 导入路径 | 用途 | 文档 |
+|---|---|---|---|
+| 指标 | `stock-sdk/indicators` | 14 个技术指标：`calcMA` / `calcMACD` / `calcBOLL` / `calcKDJ` / `calcRSI` / `calcWR` / `calcBIAS` / `calcCCI` / `calcATR` / `calcOBV` / `calcROC` / `calcDMI` / `calcSAR` / `calcKC` + `addIndicators` | [indicators](/api/indicators) |
+| 信号 | `stock-sdk/signals` | `calcSignals`：金叉 / 死叉 / 超买 / 超卖等事件识别 | [signals](/api/signals) |
+| 符号 | `stock-sdk/symbols` | `normalizeSymbol`、`SymbolRef` 类型：符号容错解析 | [符号与代码规则](/guide/symbols) |
 
-- `tencent`
-- `eastmoney`
-- `sina`
-- `linkdiary`
-- `unknown`
+## 约定
 
-### 熔断器配置 (CircuitBreakerOptions)
-
-::: warning 默认关闭
-熔断器 **默认关闭**，需要显式配置才会启用。建议在生产环境中开启，防止连续失败导致雪崩效应。
-:::
-
-| 参数 | 类型 | 默认值 | 说明 |
-|-----|------|-------|------|
-| `failureThreshold` | `number` | `5` | 连续失败多少次后触发熔断 |
-| `resetTimeout` | `number` | `30000` | 熔断持续时间（毫秒），之后进入半开状态 |
-| `halfOpenRequests` | `number` | `1` | 半开状态允许的探测请求数 |
-| `onStateChange` | `function` | - | 状态变化回调 `(from, to) => void` |
-
-**熔断器状态说明：**
-- **CLOSED**：正常状态，允许所有请求
-- **OPEN**：熔断状态，拒绝所有请求，抛出 `CircuitBreakerError`
-- **HALF_OPEN**：半开状态，允许少量请求探测服务是否恢复
-
-### 完整配置示例
-
-```typescript
-const sdk = new StockSDK({
-  timeout: 10000,
-  headers: {
-    'X-Request-Source': 'my-app',
-  },
-  userAgent: 'my-stock-app/1.0',
-  
-  // 重试配置
-  retry: {
-    maxRetries: 5,
-    baseDelay: 500,
-    onRetry: (attempt, error, delay) => {
-      console.log(`第 ${attempt} 次重试，等待 ${delay}ms`);
-    }
-  },
-  
-  // 限流配置（推荐开启）
-  rateLimit: {
-    requestsPerSecond: 5,
-    maxBurst: 10,
-  },
-  
-  // UA 轮换（仅 Node.js 有效）
-  rotateUserAgent: true,
-  
-  // 熔断器配置（可选，建议生产环境开启）
-  circuitBreaker: {
-    failureThreshold: 5,
-    resetTimeout: 30000,
-    onStateChange: (from, to) => {
-      console.log(`熔断器状态: ${from} -> ${to}`);
-    }
-  },
-
-  // 按 provider 覆盖策略
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      retry: {
-        maxRetries: 5,
-        baseDelay: 800,
-      },
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-      circuitBreaker: {
-        failureThreshold: 3,
-        resetTimeout: 30000,
-      }
-    }
-  }
-});
-```
-
-> 详细说明请参考 [错误处理与重试](/guide/retry)。
-
-
-## 实时行情
-
-- [A 股行情](/api/quotes)
-- [港股行情](/api/hk-quotes)
-- [美股行情](/api/us-quotes)
-- [基金行情](/api/fund-quotes)
-
-## K 线数据
-
-- [历史 K 线](/api/kline)
-- [分钟 K 线](/api/minute-kline)
-- [分时走势](/api/timeline)
-
-## 技术指标
-
-- [指标概览](/api/indicators)
-- [MA 均线](/api/indicator-ma)
-- [MACD](/api/indicator-macd)
-- [BOLL 布林带](/api/indicator-boll)
-- [KDJ](/api/indicator-kdj)
-- [RSI / WR](/api/indicator-rsi-wr)
-- [BIAS 乖离率](/api/indicator-bias)
-- [CCI 商品通道指数](/api/indicator-cci)
-- [ATR 平均真实波幅](/api/indicator-atr)
-- [OBV 能量潮](/api/indicator-obv)
-- [ROC 变动率](/api/indicator-roc)
-- [DMI / ADX 趋向指标](/api/indicator-dmi)
-- [SAR 抛物线转向](/api/indicator-sar)
-- [KC 肯特纳通道](/api/indicator-kc)
-
-## 行业板块
-
-- [行业板块](/api/industry-board)
-
-## 概念板块
-
-- [概念板块](/api/concept-board)
-
-## 批量与扩展
-
-- [代码列表](/api/code-lists)
-- [搜索](/api/search)
-- [批量查询](/api/batch)
-- [扩展数据](/api/fund-flow)（资金流向、交易日历等）
-- [分红派送](/api/dividend)
-
-## 资金流向（深度）
-
-- [个股 / 大盘 / 排名 / 板块](/api/fund-flow-deep)
-- [沪深港通 / 北向资金](/api/northbound)
-
-## 盘口与龙虎榜
-
-- [涨停板 / 盘口异动](/api/market-event)
-- [龙虎榜](/api/dragon-tiger)
-
-## 其他数据
-
-- [大宗交易 / 融资融券](/api/block-trade-margin)
+- **方法表 → 调用示例 → 返回说明** 是每个 API 页的统一结构。
+- 返回值遵循 v2 统一数据契约：基础字段 `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`；`raw` 字段已移除；`timestamp` 为 `number | null`（无法解析为 `null`）；百分比为百分数（如 `5.2`）。金额 / 价格 / 成交量有统一目标口径，但当前 beta 的运行值仍以各 provider 原始口径为准。详见 [统一数据契约](/guide/migration-v1-to-v2)。
+- v2 SDK 仍在实现中，命名空间与方法名稳定，**精确参数 / 返回字段以最终实现为准**。

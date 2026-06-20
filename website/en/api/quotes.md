@@ -1,98 +1,123 @@
-# A-Share Quotes
+# sdk.quotes · Real-time Quotes
 
-Get real-time quotes for A-Share stocks and indices.
+The `sdk.quotes` namespace provides real-time / snapshot quotes per market: A-share full and simple, HK, US, fund, plus fund flow (simple), large orders and intraday timeline.
 
-## getSimpleQuotes
+```ts
+import { StockSDK } from 'stock-sdk'
 
-Get simplified quote data.
-
-```typescript
-const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858']);
+const sdk = new StockSDK()
+const list = await sdk.quotes.cn(['600519', '000001'])
 ```
 
-### Parameters
+## Methods
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| codes | `string[]` | Yes | Stock codes with exchange prefix |
+| Method | Description |
+|---|---|
+| `quotes.cn(codes)` | A-share full quotes (five-level bid/ask, turnover rate, PE/PB, limit-up/down, etc.) |
+| `quotes.cnSimple(codes)` | A-share simple quotes (trimmed fields, cheaper) |
+| `quotes.hk(codes)` | HK quotes |
+| `quotes.us(codes)` | US quotes |
+| `quotes.fund(codes)` | Fund quotes (unit NAV / accumulated NAV) |
+| `quotes.fundFlow(codes)` | Fund flow (simple, Tencent source) |
+| `quotes.largeOrder(codes)` | Large orders |
+| `quotes.timeline(code)` | Intraday timeline |
 
-### Return Type
+> **`quotes.fundFlow` vs `sdk.fundFlow.*`**: the former is the simple fund flow (Tencent source, returned with the quote snapshot); the latter is the deep fund flow (Eastmoney source, with individual / market / rank / sector history). They differ in source and dimensions — see [fundFlow](/en/api/fund-flow).
 
-```typescript
-interface SimpleQuote {
-  code: string;        // Stock code
-  name: string;        // Stock name
-  price: number;       // Current price
-  change: number;      // Price change
-  changePercent: number; // Change percentage
-  volume: number;      // Trading volume
-  amount: number;      // Trading amount
-  high: number;        // Day high
-  low: number;         // Day low
-  open: number;        // Open price
-  prevClose: number;   // Previous close
-  time: string;        // Quote time
+## Examples
+
+### A-share quotes
+
+```ts
+// Input is an array of codes; symbol forms are lenient: bare / prefixed / secid
+const quotes = await sdk.quotes.cn(['600519', 'sh601318', '000001'])
+
+for (const q of quotes) {
+  console.log(q.name, q.price, q.changePercent)
 }
 ```
 
-## getFullQuotes
+### A-share simple quotes
 
-Get detailed quote data with more fields.
-
-```typescript
-const quotes = await sdk.getFullQuotes(['sz000858']);
+```ts
+// Fewer fields, cheaper — good for polling watchlists / market boards
+const simple = await sdk.quotes.cnSimple(['600519', '000858'])
 ```
 
-### Parameters
+### HK / US
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| codes | `string[]` | Yes | Stock codes with exchange prefix |
+```ts
+const hk = await sdk.quotes.hk(['00700', '09988']) // 5-digit → HK
+const us = await sdk.quotes.us(['AAPL', 'TSLA']) // pure letters → US
+```
 
-### Return Type
+### Fund
 
-```typescript
-interface FullQuote extends SimpleQuote {
-  turnoverRate: number;    // Turnover rate (%)
-  pe: number;              // P/E ratio
-  pb: number;              // P/B ratio
-  totalMarketCap: number;  // Total market cap
-  circulatingCap: number;  // Circulating market cap
-  amplitude: number;       // Amplitude (%)
-  // Buy/Sell orderbook
-  bid1: number; bid1Vol: number;
-  bid2: number; bid2Vol: number;
-  bid3: number; bid3Vol: number;
-  bid4: number; bid4Vol: number;
-  bid5: number; bid5Vol: number;
-  ask1: number; ask1Vol: number;
-  ask2: number; ask2Vol: number;
-  ask3: number; ask3Vol: number;
-  ask4: number; ask4Vol: number;
-  ask5: number; ask5Vol: number;
+```ts
+const fund = await sdk.quotes.fund(['161725'])
+console.log(fund[0].nav, fund[0].accNav) // unit NAV / accumulated NAV
+```
+
+### Large orders / intraday timeline
+
+```ts
+const orders = await sdk.quotes.largeOrder(['600519'])
+const timeline = await sdk.quotes.timeline('600519') // single code
+```
+
+## Return: the Quote discriminated union
+
+A-share / HK / US / fund quotes return a **union discriminated by `assetType`** named `Quote`. Narrow with `switch` first, then access market-specific fields:
+
+```ts
+const [q] = await sdk.quotes.cn(['600519'])
+
+switch (q.assetType) {
+  case 'stock':
+    console.log(q.bid, q.ask, q.turnoverRate, q.pe) // A-share specific
+    break
+  case 'fund':
+    console.log(q.nav, q.accNav) // fund specific
+    break
 }
 ```
 
-## Example
+### Base fields (shared by all quotes)
 
-```typescript
-import { StockSDK } from 'stock-sdk';
+| Field | Type | Description |
+|---|---|---|
+| `symbol` | `string` | Normalized standard symbol |
+| `code` | `string` | Bare code (no prefix, e.g. `600519`) |
+| `name` | `string` | Name |
+| `market` | `'CN' \| 'HK' \| 'US' \| 'GLOBAL'` | Trading region |
+| `assetType` | `'stock' \| 'fund' \| ...` | Asset type (union discriminant) |
+| `exchange` | `string` | Exchange (e.g. `SSE` / `HKEX` / `NASDAQ`) |
+| `currency` | `string` | ISO quote currency (`CNY` / `HKD` / `USD`); determines the unit of amounts / prices below |
+| `source` | `string` | Data source (`tencent` / `eastmoney` / `sina`) |
+| `time` | `string` | Raw time string (market timezone) |
+| `timestamp` | `number \| null` | UTC ms; `null` when unparseable |
+| `tz` | `MarketTz` | Market timezone |
 
-const sdk = new StockSDK();
+### Quote fields (stock-type)
 
-// Get simple quotes
-const simple = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
-simple.forEach(q => {
-  console.log(`${q.name}: ${q.price} (${q.changePercent}%)`);
-});
+| Field | Type | Description |
+|---|---|---|
+| `price` | `number` | Current price (current beta follows the provider's raw convention) |
+| `prevClose` / `open` / `high` / `low` | `number` | Prev close / open / high / low |
+| `change` | `number` | Change amount |
+| `changePercent` | `number` | Change percent (percentage number, e.g. `5.2`) |
+| `volume` | `number` | Volume (current beta follows the provider's raw convention) |
+| `amount` | `number` | Turnover (current beta follows the provider's raw convention) |
 
-// Get full quotes with orderbook
-const full = await sdk.getFullQuotes(['sz000858']);
-const quote = full[0];
-console.log(`${quote.name}`);
-console.log(`Price: ${quote.price}`);
-console.log(`P/E: ${quote.pe}`);
-console.log(`Market Cap: ${quote.totalMarketCap}`);
-console.log(`Bid1: ${quote.bid1} x ${quote.bid1Vol}`);
-```
+A-share (`StockQuote`) additionally carries five-level `bid` / `ask`, `turnoverRate`, `pe`, `pb`, `limitUp`, `limitDown`, etc.; HK carries `lotSize`; US carries `pe` / `pb`. Funds (`FundQuote`) carry `nav` / `accNav` / `change` / `changePercent`.
 
+::: tip Unit conventions
+- Percentages are **percentage numbers** (`5.2` means 5.2%, not `0.052`).
+- Amounts / prices target each market's **base quote currency** (CN = CNY / HK = HKD / US = USD), indicated by `currency`, with **no cross-currency conversion**.
+- Volume targets the **shares** unit.
+- The current beta has not completed per-source unit calibration, so runtime values still follow each provider's raw convention (for example, Tencent A-share volume is lots and turnover is in 10k CNY).
+- Invalid timestamps are `null` (no longer `NaN`).
+- The `raw` field is removed; for debugging raw payloads, use the provider-level `getXxxRaw()`.
+:::
+
+> Fields are subject to the implementation. The full field list is finalized along with `src/sdk/namespaces/quotesNs.ts` and the type definitions.

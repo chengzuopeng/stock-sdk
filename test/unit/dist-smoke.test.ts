@@ -43,7 +43,7 @@ const distStale =
   hasDist && statSync(join(DIST, 'index.cjs')).mtimeMs < maxTsMtimeMs(SRC);
 if (distStale) {
   console.warn(
-    '[dist-smoke] dist 过期(src 存在比 dist/index.cjs 更新的 .ts),已跳过;yarn build 后生效'
+    '[dist-smoke] dist 过期(src 存在比 dist/index.cjs 更新的 .ts),已跳过;pnpm build 后生效'
   );
 }
 
@@ -54,7 +54,7 @@ const NAMESPACES = [
 ] as const;
 
 describe.skipIf(!hasDist || distStale)(
-  `dist 产物冒烟(构建后运行)${distStale ? ' — dist 过期,yarn build 后生效' : ''}`,
+  `dist 产物冒烟(构建后运行)${distStale ? ' — dist 过期,pnpm build 后生效' : ''}`,
   () => {
   it('CJS: require 侧全部命名空间可访问、方法可调用', () => {
     const require_ = createRequire(__filename);

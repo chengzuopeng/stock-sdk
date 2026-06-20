@@ -1,247 +1,158 @@
-# History K-Line
+# kline · K-line & Intraday
 
-Get historical K-line (candlestick) data.
+`sdk.kline` provides historical K-lines, minute K-lines, and indicator-enriched K-lines for CN / HK / US markets. The first argument is always a symbol string (parsed leniently by `normalizeSymbol`); the second is an optional options object for period / adjustment / date range.
 
-::: warning Default adjustment
-All K-line methods on this page (`getHistoryKline` / `getHKHistoryKline` /
-`getUSHistoryKline` / `getMinuteKline`) **default `adjust` to `'qfq'`
-(forward-adjusted)**.
+```ts
+import { StockSDK } from 'stock-sdk'
 
-Without an explicit `adjust`, the returned prices have already been
-forward-adjusted; for back-tests or dividend-reinvested return calculations
-pass `'hfq'` or `''` explicitly.
-See [Dividend Adjustment](/en/guide/dividend-adjustment) for details.
-:::
+const sdk = new StockSDK()
 
-## getHistoryKline
+// CN daily K-line (forward-adjusted by default)
+const daily = await sdk.kline.cn('600519')
 
-```typescript
-const klines = await sdk.getHistoryKline('sz000858', {
+// US 15-minute K-line
+const us15 = await sdk.kline.us('AAPL', { period: '15' })
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `kline.cn(symbol, opts?)` | CN historical K-line (daily / weekly / monthly) |
+| `kline.cnMinute(symbol, opts?)` | CN minute K-line / intraday (1 / 5 / 15 / 30 / 60 min) |
+| `kline.hk(symbol, opts?)` | HK historical K-line |
+| `kline.hkMinute(symbol, opts?)` | HK minute K-line / intraday |
+| `kline.us(symbol, opts?)` | US historical K-line |
+| `kline.usMinute(symbol, opts?)` | US minute K-line / intraday |
+| `kline.withIndicators(symbol, opts?)` | Historical K-line + built-in indicators (MA / MACD / KDJ, etc.) |
+
+> Data is sourced from Eastmoney. HK / US K-lines cover regular trading hours only (no pre-/post-market).
+
+## Parameters
+
+Historical K-line options (`cn` / `hk` / `us`):
+
+```ts
+interface HistoryKlineOptions {
+  /** K-line period @default 'daily' */
+  period?: 'daily' | 'weekly' | 'monthly'
+  /** Adjustment type @default 'qfq' */
+  adjust?: '' | 'qfq' | 'hfq'
+  /** Start date YYYYMMDD */
+  startDate?: string
+  /** End date YYYYMMDD */
+  endDate?: string
+}
+```
+
+Minute K-line options (`cnMinute` / `hkMinute` / `usMinute`):
+
+```ts
+interface MinuteKlineOptions {
+  /** Period (minutes) @default '1' */
+  period?: '1' | '5' | '15' | '30' | '60'
+  /** Adjustment (only 5/15/30/60; 1-min intraday is never adjusted) @default 'qfq' */
+  adjust?: '' | 'qfq' | 'hfq'
+  startDate?: string
+  endDate?: string
+}
+```
+
+> Exact fields follow the final implementation.
+
+### Period
+
+| Scope | Values | Meaning |
+|---|---|---|
+| Historical | `'daily'` / `'weekly'` / `'monthly'` | Daily (default) / weekly / monthly |
+| Minute | `'1'` / `'5'` / `'15'` / `'30'` / `'60'` | 1 (default) / 5 / 15 / 30 / 60 minutes |
+
+With `period: '1'`, the minute methods return an **intraday** structure (with `avgPrice`); with `'5' | '15' | '30' | '60'` they return a standard **minute K-line** structure (with `amplitude` / `changePercent` / `turnoverRate`).
+
+### Adjustment
+
+| Value | Meaning | When to use |
+|---|---|---|
+| `'qfq'` | Forward-adjusted (**default**) | Past prices rebased to the latest price; best for charting and trend viewing |
+| `'hfq'` | Backward-adjusted | Past prices fixed, dividends/splits rolled forward; best for **backtesting / long-term return / compounding** |
+| `''` | Unadjusted | Raw exchange prices |
+
+> For backtesting or return calculations, **explicitly** pass `'hfq'` or `''` rather than relying on the forward-adjusted default — see [Adjustment](/en/guide/dividend-adjustment). The 1-minute intraday series is never adjusted.
+
+## Examples
+
+```ts
+// CN weekly, backward-adjusted, bounded date range
+const cnWeekly = await sdk.kline.cn('600519', {
+  period: 'weekly',
+  adjust: 'hfq',
+  startDate: '20240101',
+  endDate: '20241231',
+})
+
+// CN 5-minute K-line
+const cn5m = await sdk.kline.cnMinute('600519', { period: '5' })
+
+// CN intraday (period defaults to '1')
+const cnTimeline = await sdk.kline.cnMinute('600519')
+
+// HK daily (symbol may be '00700' / 'hk00700' / '00700.HK')
+const hk = await sdk.kline.hk('00700')
+
+// US daily, unadjusted
+const us = await sdk.kline.us('AAPL', { adjust: '' })
+
+// K-line with indicators
+const withInd = await sdk.kline.withIndicators('600519', { period: 'daily' })
+```
+
+## Return shape
+
+Historical K-line methods return an array, one item per bar, sorted ascending by time. Core fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `date` | `string` | Date `YYYY-MM-DD` (market local tz) |
+| `timestamp` | `number \| null` | UTC ms of 00:00 that day; `null` if unparseable |
+| `tz` | `string` | Market timezone, e.g. `Asia/Shanghai` |
+| `code` | `string` | Instrument code |
+| `open` / `close` / `high` / `low` | `number \| null` | OHLC |
+| `volume` / `amount` | `number \| null` | Volume / turnover |
+| `amplitude` / `changePercent` / `change` / `turnoverRate` | `number \| null` | Amplitude% / change% / change / turnover rate% |
+
+HK / US historical K-lines additionally carry `currency` (`'HKD'` / `'USD'`) and `name`; HK also carries `lotSize` (not returned by the K-line endpoint, fixed `null` — use `sdk.quotes.hk` for lot size).
+
+Minute K-lines (`'5'~'60'`) mirror historical fields but use a `time` field (`YYYY-MM-DD HH:mm`); the intraday series (`'1'`) carries `time` + OHLC + `volume/amount` + `avgPrice`.
+
+> Percentage fields are expressed as percentages (e.g. `5.2` means 5.2%). Amount / price / volume have unified target units, but in the current beta runtime values still follow each provider's raw convention. `timestamp` is `null` when invalid (no more `NaN`). **Exact fields follow the implementation.**
+
+## K-line with indicators
+
+`kline.withIndicators` attaches built-in technical indicators (MA / MACD / BOLL / KDJ / RSI, etc.) on top of the historical K-line, returning a `KlineWithIndicators` structure and saving you the wiring.
+
+```ts
+const klines = await sdk.kline.withIndicators('600519', {
   period: 'daily',
-  startDate: '20240101',
-  endDate: '20241231',
-  adjust: 'qfq',
-});
+  adjust: 'hfq',
+})
 ```
 
-### Parameters
+If you already have a K-line array, you can compute indicators with the pure functions from the subpath export — no network involved:
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| code | `string` | Yes | - | Stock code with exchange prefix |
-| options.period | `'daily' | 'weekly' | 'monthly'` | No | `'daily'` | K-line period |
-| options.startDate | `string` | No | - | Start date (YYYYMMDD) |
-| options.endDate | `string` | No | - | End date (YYYYMMDD) |
-| options.adjust | `'' | 'qfq' | 'hfq'` | No | `'qfq'` | Price adjustment |
+```ts
+import { calcMACD, addIndicators } from 'stock-sdk/indicators'
+import { calcSignals } from 'stock-sdk/signals'
 
-### Adjustment Types
-
-| Value | Description |
-|-------|-------------|
-| `''` | No adjustment (raw prices) |
-| `'qfq'` | Forward adjustment (recommended) |
-| `'hfq'` | Backward adjustment |
-
-### Return Type
-
-```typescript
-interface KlineData {
-  date: string;    // Date (YYYY-MM-DD)
-  open: number;    // Open price
-  close: number;   // Close price
-  high: number;    // High price
-  low: number;     // Low price
-  volume: number;  // Trading volume
-  amount: number;  // Trading amount
-  amplitude: number;      // Amplitude (%)
-  changePercent: number;  // Change percentage
-  change: number;         // Price change
-  turnoverRate: number;   // Turnover rate (%)
-}
+const macd = calcMACD(klines)
+const enriched = addIndicators(klines, { ma: [5, 20], macd: true })
+const signals = calcSignals(enriched, { ma: { fast: 5, slow: 20 }, macd: true })
 ```
 
-## Example
+See [indicators](/en/api/indicators) and [signals](/en/api/signals).
 
-```typescript
-import { StockSDK } from 'stock-sdk';
+## See also
 
-const sdk = new StockSDK();
-
-// Daily K-line with backward adjustment
-const daily = await sdk.getHistoryKline('sz000858', {
-  period: 'daily',
-  startDate: '20240101',
-  endDate: '20241231',
-  adjust: 'qfq',
-});
-
-daily.forEach(k => {
-  console.log(`${k.date}: O ${k.open} H ${k.high} L ${k.low} C ${k.close}`);
-});
-
-// Weekly K-line
-const weekly = await sdk.getHistoryKline('sz000858', {
-  period: 'weekly',
-  startDate: '20240101',
-});
-
-// Monthly K-line without adjustment
-const monthly = await sdk.getHistoryKline('sz000858', {
-  period: 'monthly',
-  adjust: '',
-});
-```
-
----
-
-## getHKHistoryKline
-
-Get HK stock history K-line (daily/weekly/monthly), data source: East Money.
-
-### Signature
-
-```typescript
-getHKHistoryKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    adjust?: '' | 'qfq' | 'hfq';
-    startDate?: string;
-    endDate?: string;
-  }
-): Promise<HKHistoryKline[]>
-```
-
-### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | `string` | HK stock code, 5 digits (e.g. `'00700'`, `'09988'`) |
-
-### Return Type
-
-> **Since v1.9.1**: the return type is split from the legacy `HKUSHistoryKline`
-> into a more precise `HKHistoryKline`, carrying `currency: 'HKD'` and
-> timezone / timestamp metadata. The legacy `HKUSHistoryKline` alias remains
-> usable (now `HKHistoryKline | USHistoryKline`); existing code does not need
-> to migrate immediately.
-
-```typescript
-interface HKHistoryKline {
-  date: string;               // Date YYYY-MM-DD (HK time)
-  timestamp: number;          // UTC milliseconds (NaN if unparseable)
-  tz: 'Asia/Hong_Kong';       // Timezone
-  currency: 'HKD';            // Pricing currency
-  lotSize: number | null;     // HK board lot size; not provided by the K-line endpoint, fixed null
-  code: string;               // Stock code
-  name: string;               // Stock name
-  open: number | null;
-  close: number | null;
-  high: number | null;
-  low: number | null;
-  volume: number | null;
-  amount: number | null;
-  changePercent: number | null;
-  change: number | null;
-  amplitude: number | null;
-  turnoverRate: number | null;
-}
-```
-
-### Example
-
-```typescript
-// Get Tencent Daily K-line
-const klines = await sdk.getHKHistoryKline('00700');
-
-// Get Alibaba Weekly K-line, forward adjusted
-const weeklyKlines = await sdk.getHKHistoryKline('09988', {
-  period: 'weekly',
-  adjust: 'qfq',
-  startDate: '20240101',
-  endDate: '20241231',
-});
-
-console.log(klines[0].name);   // Tencent
-console.log(klines[0].close);  // Close price
-```
-
----
-
-## getUSHistoryKline
-
-Get US stock history K-line (daily/weekly/monthly), data source: East Money.
-
-### Signature
-
-```typescript
-getUSHistoryKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    adjust?: '' | 'qfq' | 'hfq';
-    startDate?: string;
-    endDate?: string;
-  }
-): Promise<USHistoryKline[]>
-```
-
-### Return Type
-
-```typescript
-interface USHistoryKline {
-  date: string;               // Date YYYY-MM-DD (US Eastern time)
-  timestamp: number;          // UTC milliseconds (DST handled automatically)
-  tz: 'America/New_York';     // Timezone
-  currency: 'USD';            // Pricing currency
-  code: string;               // Stock code
-  name: string;               // Stock name
-  open: number | null;
-  close: number | null;
-  high: number | null;
-  low: number | null;
-  volume: number | null;
-  amount: number | null;
-  changePercent: number | null;
-  change: number | null;
-  amplitude: number | null;
-  turnoverRate: number | null;
-}
-```
-
-### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | `string` | US stock code, format: `{market}.{ticker}` (e.g. `'105.MSFT'`, `'106.BABA'`) |
-
-### Market Codes
-
-| Code | Description | Example |
-|------|-------------|---------|
-| `105` | NASDAQ | `105.AAPL`, `105.MSFT`, `105.TSLA` |
-| `106` | NYSE | `106.BABA` |
-| `107` | AMEX/Others | `107.XXX` |
-
-### Example
-
-```typescript
-// Get Microsoft Daily K-line
-const klines = await sdk.getUSHistoryKline('105.MSFT');
-
-// Get Apple Weekly K-line, forward adjusted
-const weeklyKlines = await sdk.getUSHistoryKline('105.AAPL', {
-  period: 'weekly',
-  adjust: 'qfq',
-  startDate: '20240101',
-  endDate: '20241231',
-});
-
-console.log(klines[0].name);   // Microsoft
-console.log(klines[0].close);  // Close price
-
-// Get Alibaba Monthly K-line
-const monthlyKlines = await sdk.getUSHistoryKline('106.BABA', {
-  period: 'monthly',
-});
-```
+- [Symbols & Codes](/en/guide/symbols) — `string` / `SymbolRef` and `normalizeSymbol`
+- [Adjustment](/en/guide/dividend-adjustment) — qfq / hfq / unadjusted
+- [quotes](/en/api/quotes) — real-time quotes
+- [board](/en/api/board) — board K-lines

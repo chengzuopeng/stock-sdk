@@ -1,95 +1,82 @@
-# Batch Query
+# sdk.batch · Batch Quotes
 
-Stock SDK provides full-market batch quotes, custom code-list batch quotes, and a low-level mixed raw query API.
+The `sdk.batch` namespace is for **whole-market or large-batch** quote fetching: pull a full A-share / HK / US market snapshot in one call, or fetch by a given set of codes. Compared with calling [quotes](/en/api/quotes) one by one, batch handles chunking and concurrency internally — ideal for screening, scanning and dashboards.
 
-::: tip Code Lists
-For market code lists, see [Code Lists](/en/api/code-lists).
+```ts
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+const all = await sdk.batch.cn()
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `batch.cn(opts?)` | Whole-market A-share batch quotes |
+| `batch.hk(opts?)` | Whole-market HK batch quotes |
+| `batch.us(opts?)` | Whole-market US batch quotes |
+| `batch.byCodes(codes, opts?)` | Batch quotes for given codes (cross-market inferred from symbols) |
+| `batch.raw(params)` | Raw batch endpoint (passes low-level params through, returns unmerged raw structure) |
+
+## Examples
+
+### Whole-market snapshot
+
+```ts
+// Pull the entire A-share market at once
+const all = await sdk.batch.cn()
+console.log(all.length) // thousands of rows
+
+// HK / US whole markets
+const hk = await sdk.batch.hk()
+const us = await sdk.batch.us()
+```
+
+### By codes
+
+```ts
+// Cross-market codes can be mixed; normalizeSymbol infers each market
+const quotes = await sdk.batch.byCodes(['600519', '00700', 'AAPL'])
+```
+
+### Progress callback
+
+Whole-market batches run chunked and concurrent; you can observe progress via options (exact params subject to the implementation):
+
+```ts
+const all = await sdk.batch.cn({
+  onProgress: ({ loaded, total }) => {
+    console.log(`${loaded}/${total}`)
+  },
+})
+```
+
+### Raw batch
+
+`batch.raw` passes low-level params through and returns the unmerged raw structure — an advanced escape hatch that bypasses the unified contract:
+
+```ts
+const raw = await sdk.batch.raw({ /* low-level params, subject to implementation */ })
+```
+
+## Return
+
+`batch.cn` / `batch.hk` / `batch.us` / `batch.byCodes` return an **array** of the [Quote discriminated union](/en/api/quotes#return-the-quote-discriminated-union), with the same fields as `sdk.quotes.*`: base fields `symbol` / `market` / `assetType` / `exchange` / `currency` / `timestamp` / `tz` / `source`, and quote fields `price` / `change` / `changePercent` / `volume` / `amount`, etc.
+
+```ts
+const all = await sdk.batch.cn()
+
+// Local screening over the whole market (or combine with stock-sdk/screener)
+const hot = all.filter(
+  (q) => q.assetType === 'stock' && q.changePercent > 5,
+)
+```
+
+::: tip Units & caching
+- Return values follow the v2 unified contract: percentages as percentage numbers, `timestamp` as `number | null`, and no `raw` field. Amount / price / volume have unified target units, but in the current beta runtime values still follow each provider's raw convention.
+- Whole-market snapshots pair well with a short-TTL cache to avoid repeated full pulls in a short window.
+- `batch.raw` returns the raw structure and is **not** merged into the unified contract; its fields follow the underlying endpoint.
 :::
 
-## getAllAShareQuotes
-
-```ts
-getAllAShareQuotes(options?: {
-  market?: AShareMarket;
-  batchSize?: number;
-  concurrency?: number;
-  onProgress?: (completed: number, total: number) => void;
-}): Promise<FullQuote[]>
-```
-
-Use it to fetch the entire A-share market with optional `market`, `batchSize`, `concurrency`, and `onProgress`.
-
-## getAllQuotesByCodes
-
-```ts
-getAllQuotesByCodes(
-  codes: string[],
-  options?: {
-    batchSize?: number;
-    concurrency?: number;
-    onProgress?: (completed: number, total: number) => void;
-  }
-): Promise<FullQuote[]>
-```
-
-### Returned Order
-
-The results are returned in the same order as the input `codes`, which makes it easier to align with a watchlist, table rows, or your own cache keys.
-
-```ts
-const codes = ['sz000858', 'sh600519', 'sh600000', 'sz000001'];
-const quotes = await sdk.getAllQuotesByCodes(codes, {
-  batchSize: 100,
-  concurrency: 2,
-});
-
-console.log(quotes.map((item) => item.code));
-// ['sz000858', 'sh600519', 'sh600000', 'sz000001']
-```
-
-## getAllHKShareQuotes
-
-```ts
-getAllHKShareQuotes(options?: {
-  batchSize?: number;
-  concurrency?: number;
-  onProgress?: (completed: number, total: number) => void;
-}): Promise<HKQuote[]>
-```
-
-## getAllUSShareQuotes
-
-```ts
-getAllUSShareQuotes(options?: {
-  batchSize?: number;
-  concurrency?: number;
-  onProgress?: (completed: number, total: number) => void;
-  market?: 'NASDAQ' | 'NYSE' | 'AMEX';
-}): Promise<USQuote[]>
-```
-
-## batchRaw
-
-```ts
-batchRaw(params: string): Promise<{ key: string; fields: string[] }[]>
-```
-
-`batchRaw` is the low-level mixed query API for advanced cases where you want to parse the raw fields yourself.
-
-```ts
-const raw = await sdk.batchRaw('sz000858,s_sh000001,jj000001');
-
-console.log(raw[0].key);
-console.log(raw[0].fields);
-```
-
-## Performance Tips
-
-- Reduce `concurrency` on unstable networks
-- Reduce `batchSize` when each request becomes too large
-- Use `providerPolicies` from [Request Governance](/en/guide/request-governance) for finer-grained control
-
-## Related Pages
-
-- [Code Lists](/en/api/code-lists)
-- [Request Governance](/en/guide/request-governance)
+> batch is often used as the input data source for `stock-sdk/screener`. Exact concurrency params, progress callback signature and raw structure are subject to the implementation.

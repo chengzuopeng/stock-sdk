@@ -6,7 +6,7 @@ import { gzipSync } from 'node:zlib';
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFilePath);
 const rootDir = path.resolve(currentDir, '..');
-const docsDir = process.env.DOCS_DIR || 'site-v2';
+const docsDir = process.env.DOCS_DIR || 'website';
 
 async function readJson(relativePath) {
   const absolutePath = path.join(rootDir, relativePath);
@@ -233,7 +233,7 @@ ${methodGroups}
 - [错误处理与重试](/guide/retry)
 - [请求治理](/guide/request-governance)
 - [期货与期权](/guide/futures-options)
-- [分红与交易日历](/guide/dividend-calendar)
+- [复权说明](/guide/dividend-adjustment)
 - [API 总览](/api/)`;
 }
 

@@ -1,109 +1,58 @@
-# MCP & AI Capabilities
+# MCP Overview
 
-## What is MCP?
+`stock-sdk` ships a built-in MCP (Model Context Protocol) server that starts with a single command. It exposes the SDK's read-only market-data capabilities to AI tools like Cursor / Claude Desktop / Codex / Gemini, letting the model fetch live quotes, K-lines, search results and more directly.
 
-**MCP (Model Context Protocol)** is an open protocol proposed by Anthropic for connecting AI models with external data sources and tools. Through MCP, AI assistants can securely access real-time data and call external services without hardcoding API calls.
-
-Stock SDK's companion MCP Server — [stock-sdk-mcp](https://www.npmjs.com/package/stock-sdk-mcp) — instantly gives your AI assistant professional stock market data capabilities.
-
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────┐
-│         AI Client (Cursor / Claude etc.)         │
-│                                                 │
-│  "Analyze TSLA's recent MACD trend"             │
-└────────────────────┬────────────────────────────┘
-                     │ MCP Protocol (JSON-RPC / stdio)
-                     ▼
-┌─────────────────────────────────────────────────┐
-│              stock-sdk-mcp Server               │
-│                                                 │
-│  69 Tools + 11 Resources + 6 Prompts + 5 Skills │
-│                                                 │
-│  ┌───────────────────────────────────────────┐  │
-│  │           stock-sdk (Core SDK)             │  │
-│  │  Quotes / K-line / Indicators / Futures .. │  │
-│  └───────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
+```bash
+stock-sdk mcp
 ```
 
-## Core Capabilities
+## One-command start
 
-### 69 MCP Tools
+The MCP server ships with the main package — no extra protocol library to install. The two common ways to launch it:
 
-Covering all core features of stock-sdk:
+```bash
+# Start once via npx (most common inside an AI client config)
+npx -y stock-sdk mcp
 
-- **Real-time Quotes**: A-shares / HK / US stocks / Funds (smart name search)
-- **K-line Data**: Daily / weekly / monthly K-line, minute K-line, K-line with technical indicators
-- **Sector Data**: Industry / concept sector quotes, constituents, K-line
-- **Capital**: Fund flow, northbound funds, Dragon-Tiger list, block trades, margin trading
-- **Futures / Options**: Domestic & global futures quotes/inventory, ETF / index / commodity options
-- **Compound Analysis**: Full stock analysis, comparison, screening, market overview, sector deep-dive
-- **Code Lists / Extended**: Full-market codes, trading calendar, dividends
-
-👉 [View full tool list](/en/mcp/tools)
-
-### 7 Resources + 4 Templates
-
-Static resources the AI can read directly (trading calendar, market code lists, sector lists) plus parameterized resource templates (single-stock quote / K-line, sector detail).
-
-👉 [View full resource list](/en/mcp/tools#resources)
-
-### 5 AI Skills
-
-Skills are **scenario-based wrappers** around the underlying Tools, using predefined Chain-of-Thought (CoT) to guide AI through professional analysis tasks:
-
-| Skill | Description |
-|-------|-------------|
-| Stock Technical Analyst | Deep K-line pattern and indicator analysis with buy/sell advice |
-| Smart Stock Screener | Filter 20,000+ stocks across markets by custom criteria |
-| Market Deep Overview | Panoramic scan of indices, sectors, concepts, and sentiment |
-| Portfolio Monitor | Real-time position tracking, anomaly detection, P&L calculation |
-| Smart Money Tracker | Northbound funds + Dragon-Tiger institutions + block trades + fund flow to track main-force capital |
-
-👉 [View Skills details](/en/mcp/skills)
-
-### 6 MCP Prompts
-
-Built-in preset prompts any MCP client can use directly: `stock-analyst` (technical analysis), `stock-screener` (screening), `market-overview`, `realtime-monitor` (watchlist), `smart-money-tracker`, `futures-overview`.
-
-## Supported AI Tools
-
-| AI Tool | Type | Status |
-|---------|------|--------|
-| [Cursor](https://cursor.sh) | IDE | ✅ Fully supported |
-| [Claude Desktop](https://claude.ai/download) | Desktop app | ✅ Fully supported |
-| [OpenClaw](https://github.com/openclaw/openclaw) | MCP Gateway / AI assistant | ✅ Fully supported |
-| [Antigravity](https://code.visualstudio.com/) | VS Code extension | ✅ Fully supported |
-| [Codex CLI](https://github.com/openai/codex) | Terminal tool | ✅ Fully supported |
-| [Gemini CLI](https://github.com/google/gemini-cli) | Terminal tool | ✅ Fully supported |
-
-👉 [View detailed setup guide](/en/mcp/installation)
-
-## Quick Start
-
-Just two steps to give your AI stock data capabilities:
-
-**Step 1**: Add to your AI tool's MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
+# Or install globally and call it directly
+npm install -g stock-sdk
+stock-sdk mcp
 ```
 
-**Step 2**: Restart your AI tool and start chatting:
+The server talks to the client over **stdio** (standard input/output) and listens on no network port. For per-client configuration, see [MCP Installation](/en/mcp/installation).
 
-```
-> Analyze Tencent's recent MACD trend. Is there a golden cross?
-> Find me the top 10 STAR Market stocks by gain today
-> What are the constituents of the AI concept sector?
-```
+## Design highlights
 
-The AI will automatically call stock-sdk-mcp tools to fetch real-time data and perform analysis.
+### Zero-dependency, hand-written protocol
+
+MCP is essentially **JSON-RPC 2.0 over newline-delimited (NDJSON) stdin/stdout**. `stock-sdk` does **not** pull in `@modelcontextprotocol/sdk`; instead it **hand-writes the minimal subset** of the protocol, preserving the main package's zero-runtime-dependency stance.
+
+The scope is deliberately nailed down to what a market-data scenario actually needs:
+
+- **Transport**: `stdio` only — no HTTP / SSE.
+- **Capability**: `tools` only — no resources / prompts / sampling.
+- **Methods handled**: `initialize` (handshake and capability negotiation), `notifications/initialized`, `ping`, `tools/list`, `tools/call`.
+
+Explicitly **out of scope**: HTTP / SSE transport, OAuth, sampling, progress / cancellation, resources / prompts subscriptions, and the client side. A "batch of read-only methods" scenario barely needs these advanced features — extend later or reassess switching to the official SDK if ever required.
+
+### No impact on bundle size or zero-dependency
+
+Both the CLI and MCP live behind a **separate entry** (`stock-sdk/mcp`), strictly one-way isolated from the main library:
+
+- When you `import { StockSDK } from 'stock-sdk'`, **not a single byte of MCP code enters your bundle**.
+- MCP itself has **zero third-party dependencies** — it neither lands in your bundle nor grows the main package's `node_modules`.
+- Only the compiled artifact `dist/mcp.*` ships in the npm package, adding slightly to the tarball.
+
+### Tools derived from read-only namespace methods
+
+Each tool the server exposes maps to a **read-only namespace method** of the SDK (e.g. `quotes` / `kline` / `search`). Every tool is an explicit declaration — `name`, `description`, a hand-written JSON Schema `inputSchema`, and an `invoke` that maps args explicitly onto the SDK call — collected into a single manifest as the single source of truth (SSOT), shared with the CLI. See the [MCP tool table](/en/mcp/tools).
+
+## Protocol version
+
+The server keeps a **supported-versions array** and negotiates during `initialize`, falling back to a version both sides support. It tracks the current MCP spec's stable version and stays backward-compatible with the previous stable one. Exact values follow the implementation and the current MCP spec.
+
+## Next steps
+
+- [MCP Installation](/en/mcp/installation): connect Cursor / Claude Desktop / Codex / Gemini.
+- [MCP Tool Table](/en/mcp/tools): the available tools at a glance.
+- [AI Skills](/en/mcp/skills): built-in skills like technical analysis, smart screening, market overview and live monitoring.

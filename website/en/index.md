@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Stock SDK
-  text: Stock Market SDK for Browser and Node.js
-  tagline: Zero dependencies, Lightweight distribution, and a single API for quotes, K-line, indicators, futures, options, and AI / MCP workflows
+  text: Stock market SDK for browser + Node.js
+  tagline: Zero-dependency and lightweight — quotes, K-line, indicators & signals, screener & backtest, plus a CLI and a built-in MCP server for AI.
   actions:
     - theme: brand
       text: Get Started
@@ -15,94 +15,55 @@ hero:
 
 features:
   - icon:
-      src: /icons/rocket.svg
-    title: Zero Dependencies
-    details: Pure TypeScript implementation with zero runtime dependencies and a lightweight distribution for browser and Node.js
+      src: /icons/boxes.svg
+      wrap: true
+    title: Namespaced API
+    details: sdk.quotes.cn() / sdk.kline.cn() / sdk.options.etf.dailyKline() — organized by domain, no more flat long method names.
   - icon:
-      src: /icons/globe.svg
-    title: Multi-market Coverage
-    details: Covers A-share, HK, US, mutual funds, domestic futures, global futures, and multiple option workflows
+      src: /icons/package.svg
+      wrap: true
+    title: Zero-dependency · Dual-runtime
+    details: Zero runtime dependencies, runs in the browser and Node.js 18+; ESM + CJS with subpath imports.
   - icon:
-      src: /icons/chart-bar.svg
-    title: From Quotes to Analysis
-    details: Real-time quotes, K-line, timeline, sector data, dividend details, trading calendar, and batch APIs
+      src: /icons/file-check.svg
+      wrap: true
+    title: Unified data contract
+    details: A unified Quote model with base fields (symbol / market / timestamp / tz) — consistent units and a discriminated union.
   - icon:
-      src: /icons/trending-up.svg
-    title: Built-in Indicators
-    details: Includes MA, MACD, BOLL, KDJ, RSI, WR, BIAS, CCI, ATR, OBV, ROC, DMI, SAR, and KC
+      src: /icons/activity.svg
+      wrap: true
+    title: Indicators & signals
+    details: 14 built-in indicators plus a signal layer (golden/death cross, overbought/oversold), imported on demand from stock-sdk/indicators and stock-sdk/signals.
   - icon:
-      src: /icons/brain.svg
-    title: AI / MCP Ready
-    details: Ships with a companion MCP Server for Cursor, Claude, Gemini, and other agent workflows
+      src: /icons/filter.svg
+      wrap: true
+    title: Screener & backtest
+    details: A declarative screener over market-wide quotes, boards and capital flow, plus a local, reproducible backtest engine.
   - icon:
-      src: /icons/coins.svg
-    title: Request Governance
-    details: Supports retry, rateLimit, circuitBreaker, and providerPolicies for provider-level request control
-  - icon:
-      src: /icons/code.svg
-    title: TypeScript
-    details: Complete typings and the same API shape across browser and Node.js use cases
+      src: /icons/terminal.svg
+      wrap: true
+    title: CLI & MCP
+    details: The stock-sdk CLI fetches quotes from your terminal; stock-sdk mcp starts a built-in MCP server for AI tools — neither affects the main package size or its zero-dependency footprint.
 ---
 
-<style>
-:root {
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #f87171 30%, #fb923c);
-}
+<div class="home-quick">
 
-.dark {
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #fca5a5 30%, #fdba74);
-}
-</style>
+<p class="home-quick-kicker">// QUICK START · market data in three lines</p>
 
-## Get Quotes in 10 Lines
+<div class="home-quick-grid">
 
-```ts
-import { StockSDK } from 'stock-sdk';
-
-const sdk = new StockSDK();
-const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
-
-quotes.forEach((item) => {
-  console.log(`${item.name}: ${item.price} (${item.changePercent}%)`);
-});
+```bash
+# install (zero-dependency, from ~10KB gzip)
+npm i stock-sdk
 ```
 
-## Apply Provider-level Governance
-
 ```ts
-const sdk = new StockSDK({
-  timeout: 8000,
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-    },
-    tencent: {
-      rateLimit: {
-        requestsPerSecond: 8,
-        maxBurst: 16,
-      },
-    },
-  },
-});
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+const [quote] = await sdk.quotes.cn(['600519']) // Kweichow Moutai
 ```
 
-## Good Fits
+</div>
 
-- Frontend quote dashboards and charting
-- Node.js scheduled jobs and trading-day workflows
-- Quant prototypes and indicator analysis
-- Futures, options, and dividend event dashboards
-- AI agents that need live market data through MCP
-
-## Continue Reading
-
-- [Quick Start](/en/guide/getting-started)
-- [Request Governance](/en/guide/request-governance)
-- [Futures & Options](/en/guide/futures-options)
-- [Dividend & Calendar](/en/guide/dividend-calendar)
-- [API Overview](/en/api/)
+</div>

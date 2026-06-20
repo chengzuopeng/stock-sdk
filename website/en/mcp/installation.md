@@ -1,188 +1,93 @@
-# Installation & Configuration
+# MCP Installation
 
-## Install stock-sdk-mcp
+`stock-sdk`'s MCP server talks to clients over **stdio**, and the launch command is always `stock-sdk mcp`. In each AI client you simply register it as a stdio-type MCP server.
 
-### Option 1: Run with npx (Recommended)
+The examples below launch via `npx` (no pre-install needed; `-y` skips the interactive prompt):
 
-No installation needed — use `npx` directly in the configuration file:
+```jsonc
+{
+  "command": "npx",
+  "args": ["-y", "stock-sdk", "mcp"]
+}
+```
+
+> You can also `npm install -g stock-sdk` first, then set `command` to `"stock-sdk"` and `args` to `["mcp"]`, saving the `npx` resolution cost on each start.
+
+## Cursor
+
+Create/edit `.cursor/mcp.json` in your project root (or the global config dir):
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
-### Option 2: Global Installation
+After saving, enable `stock-sdk` in Cursor's MCP settings to call the market-data tools in chat.
 
-```bash
-npm install -g stock-sdk-mcp
-```
+## Claude Desktop
 
-After installation, you can run the `stock-mcp` command directly.
+Edit the Claude Desktop config file:
 
-### Option 3: Local Development
-
-```bash
-git clone https://github.com/chengzuopeng/stock-sdk-mcp.git
-cd stock-sdk-mcp
-yarn install
-yarn build
-```
-
-## Requirements
-
-- Node.js >= 18.0.0
-- Supports macOS / Linux / Windows
-
-## AI Tool Configuration Guide
-
-### Cursor IDE
-
-Configuration file: `~/.cursor/mcp.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
-After configuration, restart Cursor to use stock query capabilities in conversations.
+After saving, **restart Claude Desktop**; the `stock-sdk` tool icon should appear in the toolbar.
 
-**Try it out:**
+## Codex
 
+Add a server entry to Codex's MCP config (TOML):
+
+```toml
+[mcp_servers.stock-sdk]
+command = "npx"
+args = ["-y", "stock-sdk", "mcp"]
 ```
-Get me the real-time quote for Kweichow Moutai (600519)
-```
 
----
+## Gemini
 
-### Claude Desktop
-
-Configuration file path:
-
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+Add `mcpServers` to the Gemini CLI `settings.json`:
 
 ```json
 {
   "mcpServers": {
     "stock-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
+      "args": ["-y", "stock-sdk", "mcp"]
     }
   }
 }
 ```
 
----
+## Verify the connection
 
-### OpenClaw (MCP Gateway / AI Assistant)
-
-[OpenClaw](https://github.com/openclaw/openclaw) (formerly Clawdbot) is an open-source, MCP-capable AI assistant that can load external MCP servers.
-
-Option 1: register via CLI
+The server uses stdio and is normally spawned by the client — no need to run it by hand. To manually confirm it starts in a terminal:
 
 ```bash
-openclaw mcp add stock-sdk --command npx --arg -y --arg stock-sdk-mcp
-openclaw mcp doctor stock-sdk --probe   # verify connectivity
+npx -y stock-sdk mcp
 ```
 
-Option 2: edit `~/.openclaw/openclaw.json` under `mcp.servers`:
+The process waits for JSON-RPC messages (such as `initialize`) on stdin. Once a client is connected, ask the model to "list available tools" to confirm the handshake succeeded.
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "stock-sdk": {
-        "command": "npx",
-        "args": ["-y", "stock-sdk-mcp"]
-      }
-    }
-  }
-}
-```
+> Config file paths and field names may vary across client versions — follow each client's official docs. This page only fixes the `stock-sdk mcp` launch entry.
 
-> Refer to the [OpenClaw docs](https://docs.openclaw.ai/cli/mcp) for the exact commands and configuration.
+## Next steps
 
----
-
-### Antigravity (Gemini Pro in VS Code)
-
-Configuration file: `~/.antigravity/mcp.json`
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
-```
-
----
-
-### Codex CLI (OpenAI)
-
-Configuration file: `~/.codex/config.json`
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
-```
-
-Usage examples:
-
-```bash
-codex "Get Apple's real-time stock price"
-codex "Analyze the ChiNext index recent technical pattern"
-```
-
----
-
-### Gemini CLI (Google)
-
-Configuration file: `~/.gemini/settings.json`
-
-```json
-{
-  "mcpServers": {
-    "stock-sdk": {
-      "command": "npx",
-      "args": ["-y", "stock-sdk-mcp"]
-    }
-  }
-}
-```
-
-Usage examples:
-
-```bash
-gemini "What are the hot limit-up concepts in A-shares today?"
-gemini "Get Tencent's daily K-line and calculate moving averages"
-```
-
-## Debug the MCP Server
-
-You can test the MCP Server by piping JSON-RPC messages:
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_quotes_by_query","arguments":{"queries":["AAPL"]}}}' | npx -y stock-sdk-mcp
-```
+- [MCP Tool Table](/en/mcp/tools): the tools available once connected.
+- [AI Skills](/en/mcp/skills): compose tools into higher-level skills like technical analysis and smart screening.

@@ -1,435 +1,591 @@
-/* Stock SDK - 高级主题定制与特效 */
+/**
+ * Stock SDK v2 — 「红盘」主题（Red Tape Terminal）
+ * ------------------------------------------------------------------
+ * 深红 × 鎏金的行情终端美学。红 = 涨 = 吉利，金 = 财富 —— 股票工具的本命配色。
+ * · 字体：Archivo(宽体工业 display) / Public Sans(body) / IBM Plex Mono(数据·代码·标签)
+ * · 色彩：深红 crimson 为主 + 鎏金 gold 锐利点缀；暖黑深色模式（stone 而非冷蓝黑）
+ * · 质感：固定漂移红金光晕(aura) + 细网格 + 极淡 grain 噪点
+ * · 签名：hero 底部一排全阳线红 K 蜡烛（每根都在涨）；代码窗"红·金·灰"圆点（无绿灯）
+ * · 动效：hero staggered reveal、nav 滚动进度线(红→金)、特性卡 hover 发光抬起
+ * 字体加载失败回退系统栈，不影响可用性；中文走系统黑体。
+ */
 
 /* ===== 0. 字体系统 ===== */
-/*
- * 设计方向："金融终端感 + 工程克制"。
- * - Latin / 标题：Sora（几何、现代、有 fintech 气质，替换 VitePress 默认的 Inter）
- * - 数字 / 代码 / 版本 / ticker：JetBrains Mono（工程信号，承担"数据"的字符个性）
- * - 中文：系统 PingFang / HarmonyOS（Sora 无 CJK 字形会自动回退，保持中文清爽）
- * Google Fonts 加载失败时回退到系统栈，不影响可用性。
- */
 :root {
-  --vp-font-family-base: 'Sora', -apple-system, BlinkMacSystemFont, 'PingFang SC',
-    'HarmonyOS Sans SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
-  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Menlo',
-    'Consolas', 'Liberation Mono', monospace;
-  /* display 别名：用于 hero / 标题，区别于 body */
-  --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'PingFang SC',
-    'HarmonyOS Sans SC', sans-serif;
-  --font-mono: var(--vp-font-family-mono);
+  --vp-font-family-base: 'Public Sans', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+  --vp-font-family-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo,
+    Consolas, 'Liberation Mono', monospace;
+  /* display：用于品牌 / 标题，区别于 body */
+  --font-display: 'Archivo', 'Public Sans', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
 }
 
-/* ===== 1. 基础变量与配色 ===== */
+/* ===== 1. 配色：深红主色 + 鎏金点缀 ===== */
 :root {
-  /* 品牌色 - 珊瑚红系列 */
-  --vp-c-brand-1: #f87171;
-  --vp-c-brand-2: #ef4444;
+  --vp-c-brand-1: #b91c1c;
+  --vp-c-brand-2: #991b1b;
   --vp-c-brand-3: #dc2626;
-  --vp-c-brand-soft: rgba(248, 113, 113, 0.14);
+  --vp-c-brand-soft: rgba(185, 28, 28, 0.10);
+  --vp-c-brand: var(--vp-c-brand-1);
 
-  /* 特效颜色 */
-  --glow-color: rgba(248, 113, 113, 0.3);
-  --accent-gradient: linear-gradient(135deg, #f87171 0%, #fb923c 100%);
+  /* 鎏金点缀：只用在关键强调（进度线终点、hover 线、信号灯） */
+  --rt-gold: #d97706;
+  --rt-gold-soft: rgba(217, 119, 6, 0.14);
 
-  /* 行情涨跌色：中国习惯「红涨绿跌」，与品牌珊瑚红天然契合 */
-  --quote-up: #f43f5e;
-  --quote-down: #10b981;
-  --quote-flat: #94a3b8;
+  /* 终端质感：网格 / 光晕 */
+  --rt-grid: rgba(185, 28, 28, 0.06);
+  --rt-glow: rgba(220, 38, 38, 0.18);
 
-  /* 背景网格 */
-  --bg-grid: rgba(0, 0, 0, 0.03);
+  /* Hero 渐变品牌名：深红 → 红 → 金（红金贯通） */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(96deg, #991b1b 0%, #dc2626 52%, #d97706 100%);
+  --vp-home-hero-image-background-image: radial-gradient(closest-side, rgba(220, 38, 38, 0.5), transparent);
+  --vp-home-hero-image-filter: blur(68px);
 
-  /* 终端卡片（LiveTicker）配色 —— 浅色主题下也是深色面板，制造 Bloomberg 终端反差 */
-  --term-bg: #0b0f17;
-  --term-bg-2: #0e1320;
-  --term-border: rgba(248, 113, 113, 0.22);
-  --term-grid: rgba(255, 255, 255, 0.035);
-  --term-text: #e6edf3;
-  --term-text-dim: #7d8aa0;
+  /* 按钮 */
+  --vp-button-brand-bg: var(--vp-c-brand-1);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-3);
+  --vp-button-brand-active-bg: var(--vp-c-brand-2);
+  --vp-button-brand-border: transparent;
+
+  /* 背景：暖纸白，不用冷灰 */
+  --vp-c-bg: #fdfcfb;
+  --vp-c-bg-alt: #f6f3f1;
+  --vp-c-bg-soft: #f8f5f3;
+
+  /* 导航：半透明底，配 backdrop blur 形成毛玻璃 */
+  --vp-nav-bg-color: rgba(253, 252, 251, 0.78);
 }
 
 .dark {
-  --vp-c-brand-1: #fca5a5;
-  --vp-c-brand-2: #f87171;
-  --vp-c-brand-3: #ef4444;
-  --glow-color: rgba(248, 113, 113, 0.15);
-  --bg-grid: rgba(255, 255, 255, 0.02);
+  --vp-c-brand-1: #f87171;
+  --vp-c-brand-2: #ef4444;
+  --vp-c-brand-3: #fca5a5;
+  --vp-c-brand-soft: rgba(248, 113, 113, 0.14);
+  --rt-gold: #fbbf24;
+  --rt-gold-soft: rgba(251, 191, 36, 0.15);
+  --rt-grid: rgba(248, 113, 113, 0.05);
+  --rt-glow: rgba(248, 113, 113, 0.14);
+  --vp-home-hero-name-background: linear-gradient(96deg, #f87171 0%, #fbbf24 100%);
 
-  --quote-up: #fb7185;
-  --quote-down: #34d399;
+  /* 深色：暖黑（stone 黑），红色在暖底上更润 */
+  --vp-c-bg: #0e0b0a;
+  --vp-c-bg-alt: #14100e;
+  --vp-c-bg-soft: #171210;
 
-  --term-bg: #090d14;
-  --term-bg-2: #0c111c;
-  --term-border: rgba(252, 165, 165, 0.18);
+  --vp-nav-bg-color: rgba(14, 11, 10, 0.72);
 }
 
-/* ===== 2. 全局动态背景 ===== */
-.VPHome {
-  position: relative;
-  background-image: 
-    radial-gradient(circle at 20% 20%, var(--glow-color) 0%, transparent 25%),
-    radial-gradient(circle at 80% 80%, var(--glow-color) 0%, transparent 25%),
-    linear-gradient(var(--bg-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-  background-attachment: fixed;
-  margin-bottom: 0 !important;
+/* ===== 2. 全局质感：红金光晕漂移(aura) + grain 噪点 ===== */
+@keyframes rt-aura-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, 20px, 0) scale(1.05); }
 }
-
-/* ===== 3. Hero 区域特效 ===== */
-.VPHero {
-  padding-top: 120px !important;
-}
-
-/* 标题渐变动画 */
-.VPHero .name {
-  background: var(--accent-gradient);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: shine 3s linear infinite;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-@keyframes shine {
-  to { background-position: 200% center; }
-}
-
-/* Hero 图片浮动与光晕 */
-.VPHero .image-bg {
-  background: var(--accent-gradient);
-  filter: blur(80px);
-  opacity: 0.4;
-  animation: pulse 4s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.4; }
-  50% { transform: scale(1.1); opacity: 0.6; }
-}
-
-.VPHero .image-container {
-  animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-20px) rotate(2deg); }
-}
-
-/* 按钮炫酷效果 */
-.VPHero .VPButton.brand {
-  background: var(--accent-gradient);
-  border: none;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s;
-}
-
-.VPHero .VPButton.brand::after {
+body::before {
   content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
-  transform: rotate(45deg);
-  transition: 0.5s;
-  left: -150%;
+  position: fixed;
+  left: -10%;
+  right: -10%;
+  top: -20%;
+  height: 72vh;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 54% at 16% 26%, var(--rt-glow), transparent 70%),
+    radial-gradient(34% 46% at 84% 12%, var(--rt-gold-soft), transparent 72%);
+  filter: blur(10px);
+  animation: rt-aura-drift 22s ease-in-out infinite alternate;
 }
 
-.VPHero .VPButton.brand:hover::after {
-  left: 150%;
-}
-
-/* ===== 首页浅色主题：特定元素白色背景 ===== */
-/* 搜索框白色背景 */
-.VPHome ~ .VPNav .VPNavBarSearch .DocSearch-Button,
-.VPHome ~ header .VPNavBarSearch .DocSearch-Button,
-body:has(.VPHome) .VPNavBarSearch .DocSearch-Button,
-body:has(.VPHome) .VPNavBarSearchButton {
-  background-color: #ffffff !important;
-}
-
-/* 在线体验、GitHub 按钮白色背景 */
-.VPHome .VPHero .VPButton.alt {
-  background-color: #ffffff !important;
-}
-
-/* 首页代码块白色背景 */
-.VPHome div[class*='language-'] {
-  background-color: #ffffff !important;
-}
-
-/* 深色主题下不应用白色背景 */
-.dark.VPHome .VPHero .VPButton.alt,
-.dark .VPHome .VPHero .VPButton.alt {
-  background-color: var(--vp-button-alt-bg) !important;
-}
-
-.dark.VPHome div[class*='language-'],
-.dark .VPHome div[class*='language-'] {
-  background-color: var(--vp-code-block-bg) !important;
-}
-
-.dark body:has(.VPHome) .VPNavBarSearch .DocSearch-Button,
-.dark body:has(.VPHome) .VPNavBarSearchButton {
-  background-color: var(--vp-c-bg-soft) !important;
-}
-
-/* ===== 4. Feature 卡片：按类别分色 + 序号 + 克制的 2D 抬升 ===== */
-/*
- * 旧版 7 张卡片图标同色（橙红方块），分类感丢失，且 rotateX/Y 3D 翻转
- * 在严肃的开发文档里偏过头。改为：
- *  - 每张卡片一个语义化 accent（--card-accent），图标 tile 与 hover 边框跟随
- *  - 右上角 mono 序号（01..07，CSS counter 自动生成）作为"规格表"细节
- *  - hover 仅做轻微上浮 + accent 边框，去掉 3D 旋转
- */
-.VPFeatures .items {
-  counter-reset: feat;
-}
-
-.VPFeature {
-  --card-accent: var(--vp-c-brand-2);
-  position: relative;
-  counter-increment: feat;
-  background: rgba(var(--vp-c-bg-soft-rgb), 0.6) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 18px !important;
-  overflow: hidden;
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.25s ease, border-color 0.25s ease !important;
-}
-
-/* 顶部 2px accent 条，hover 时点亮 */
-.VPFeature::after {
+body::after {
   content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--card-accent);
-  opacity: 0;
-  transition: opacity 0.25s ease;
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.02;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+.dark body::after { opacity: 0.032; }
 
-/* 右上角 mono 序号 */
-.VPFeature::before {
-  content: counter(feat, decimal-leading-zero);
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--vp-c-text-3);
-  opacity: 0.45;
-  transition: color 0.25s ease, opacity 0.25s ease;
-}
-
-.VPFeature:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 12px 28px -8px color-mix(in srgb, var(--card-accent) 38%, transparent);
-  border-color: color-mix(in srgb, var(--card-accent) 55%, var(--vp-c-divider)) !important;
-}
-
-.VPFeature:hover::after {
-  opacity: 1;
-}
-
-.VPFeature:hover::before {
-  color: var(--card-accent);
-  opacity: 1;
-}
-
-.VPFeature .icon {
-  background: color-mix(in srgb, var(--card-accent) 14%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--card-accent) 22%, transparent);
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 13px;
-  margin-bottom: 18px;
-  transition: transform 0.25s ease, background 0.25s ease;
-}
-
-.VPFeature:hover .icon {
-  transform: scale(1.06);
-  background: color-mix(in srgb, var(--card-accent) 20%, transparent) !important;
-}
-
-.VPFeature .title {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-/* 7 张卡片的语义化配色（顺序对应首页 features 数组） */
-.VPFeatures .items .item:nth-child(1) .VPFeature { --card-accent: #64748b; } /* 零依赖 — 中性 */
-.VPFeatures .items .item:nth-child(2) .VPFeature { --card-accent: #3b82f6; } /* 多市场 — 蓝 */
-.VPFeatures .items .item:nth-child(3) .VPFeature { --card-accent: #10b981; } /* 行情到分析 — 绿 */
-.VPFeatures .items .item:nth-child(4) .VPFeature { --card-accent: #f59e0b; } /* 指标 — 橙 */
-.VPFeatures .items .item:nth-child(5) .VPFeature { --card-accent: #8b5cf6; } /* AI/MCP — 紫 */
-.VPFeatures .items .item:nth-child(6) .VPFeature { --card-accent: #ef4444; } /* 请求治理 — 红 */
-.VPFeatures .items .item:nth-child(7) .VPFeature { --card-accent: #3178c6; } /* TypeScript — TS 蓝 */
-
-/* ===== 5. 内容区域：标题 marker ===== */
-/*
- * 旧版 h2 底部 4px 短下划线在长标题旁几乎看不见。
- * 改为标题左侧一根品牌渐变竖条 marker —— 始终可见、对齐清晰、更有"章节"分量，
- * 同时保留 VitePress 默认的全宽顶部分隔线。
- */
-.vp-doc h2 {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.vp-doc h2::before {
-  content: '';
-  flex-shrink: 0;
-  width: 4px;
-  height: 1.05em;
-  background: var(--accent-gradient);
-  border-radius: 3px;
-  box-shadow: 0 0 12px -2px var(--glow-color);
-}
-
-/* h2 标题中的链接：去掉下划线，保持加粗 */
-.vp-doc h2 a {
-  text-decoration: none !important;
-  border-bottom: none !important;
-  font-weight: 700;
-}
-
-.vp-doc h2 a:hover {
-  text-decoration: none !important;
-  border-bottom: none !important;
-}
-
-/* 代码块炫酷边框 */
-.vp-doc div[class*='language-'] {
-  border: 1px solid var(--vp-c-divider);
-}
-
-/* ===== 6. 其它 UI 优化 ===== */
-/* 滚动条定制 - 使用主题色 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(248, 113, 113, 0.3);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(248, 113, 113, 0.5);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(252, 165, 165, 0.25);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(252, 165, 165, 0.4);
-}
-
-/* 文字选中样式 - 使用主题色 */
+/* 文本选中：红 */
 ::selection {
-  background: rgba(248, 113, 113, 0.25);
-  color: inherit;
+  background: rgba(220, 38, 38, 0.22);
 }
-
-::-moz-selection {
-  background: rgba(248, 113, 113, 0.25);
-  color: inherit;
-}
-
 .dark ::selection {
-  background: rgba(252, 165, 165, 0.3);
-  color: inherit;
+  background: rgba(248, 113, 113, 0.30);
 }
 
-.dark ::-moz-selection {
-  background: rgba(252, 165, 165, 0.3);
-  color: inherit;
-}
-
-/* 入场动画 */
-.VPHero, .VPFeatures, .vp-doc {
-  animation: fadeInUp 0.8s ease-out both;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.VPFeature:nth-child(1) { animation-delay: 0.1s; }
-.VPFeature:nth-child(2) { animation-delay: 0.2s; }
-.VPFeature:nth-child(3) { animation-delay: 0.3s; }
-.VPFeature:nth-child(4) { animation-delay: 0.4s; }
-.VPFeature:nth-child(5) { animation-delay: 0.5s; }
-.VPFeature:nth-child(6) { animation-delay: 0.6s; }
-
-/* ===== 导航栏：确保主题切换和 GitHub 图标始终显示 ===== */
-.VPNavBarAppearance,
-.VPNavBarSocialLinks {
-  display: flex !important;
-}
-
-/* ============================================================
- * 7. 字体落地：display 字体应用到标题 / 品牌 / hero
- * ============================================================ */
-.VPNavBarTitle .title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.VPHero .name,
-.VPHero .text {
-  font-family: var(--font-display);
-}
-.VPHero .text {
-  letter-spacing: -0.02em;
-}
-
+/* ===== 3. Typography ===== */
 .vp-doc h1,
 .vp-doc h2,
 .vp-doc h3,
-.vp-doc h4 {
+.VPHero .name,
+.VPHero .text {
   font-family: var(--font-display);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
+}
+.vp-doc h1 { font-weight: 800; }
+.vp-doc h2 { font-weight: 700; padding-top: 22px; }
+.vp-doc h2::before {
+  /* 标题前的 mono 终端提示符,极淡 */
+  content: '›';
+  color: var(--vp-c-brand-1);
+  font-family: var(--vp-font-family-mono);
+  margin-right: 0.4em;
+  opacity: 0.55;
 }
 
-/* ============================================================
- * 8. Hero 右侧：用 LiveTicker 终端卡片替换浮动 logo
- *    - 关掉 container 的 float 漂浮（终端不应晃动）
- *    - 保留一团降低透明度的品牌光晕作为氛围
- *    - 容器改为自适应宽度、自动高度，承载非正方形的 ticker
- * ============================================================ */
+/* ===== 4. Hero：网格 + 光晕 + 全阳线红 K 蜡烛签名 ===== */
+.VPHome { position: relative; }
+/* hero 区:网格 + 红色光晕,顶部渐隐 */
+.VPHome::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 680px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 48% at 72% 8%, var(--rt-glow), transparent 70%),
+    linear-gradient(var(--rt-grid) 1px, transparent 1px) 0 0 / 100% 34px,
+    linear-gradient(90deg, var(--rt-grid) 1px, transparent 1px) 0 0 / 34px 100%;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+.VPHome .VPHero,
+.VPHome .VPFeatures { position: relative; z-index: 1; }
+
+/* 签名元素：hero 底部一排全阳线红 K 蜡烛（每一根都在涨）。
+   纯装饰，repeat-x 平铺，左右渐隐；reduce-motion 不受影响（静态）。 */
+.VPHero {
+  position: relative;
+  isolation: isolate;
+}
+.VPHero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 150px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='368' height='140' viewBox='0 0 368 140'%3E%3Cg fill='%23dc2626' stroke='%23dc2626' stroke-width='2'%3E%3Cline x1='12' y1='84' x2='12' y2='124'/%3E%3Crect x='8' y='92' width='8' height='26' stroke='none'/%3E%3Cline x1='48' y1='70' x2='48' y2='108'/%3E%3Crect x='44' y='78' width='8' height='24' stroke='none'/%3E%3Cline x1='84' y1='54' x2='84' y2='92'/%3E%3Crect x='80' y='64' width='8' height='22' stroke='none'/%3E%3Cline x1='120' y1='42' x2='120' y2='76'/%3E%3Crect x='116' y='50' width='8' height='20' stroke='none'/%3E%3Cline x1='156' y1='52' x2='156' y2='90'/%3E%3Crect x='152' y='60' width='8' height='24' stroke='none'/%3E%3Cline x1='192' y1='36' x2='192' y2='72'/%3E%3Crect x='188' y='44' width='8' height='22' stroke='none'/%3E%3Cline x1='228' y1='22' x2='228' y2='56'/%3E%3Crect x='224' y='30' width='8' height='20' stroke='none'/%3E%3Cline x1='264' y1='32' x2='264' y2='68'/%3E%3Crect x='260' y='40' width='8' height='22' stroke='none'/%3E%3Cline x1='300' y1='16' x2='300' y2='50'/%3E%3Crect x='296' y='24' width='8' height='20' stroke='none'/%3E%3Cline x1='336' y1='4' x2='336' y2='36'/%3E%3Crect x='332' y='12' width='8' height='18' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center bottom;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+.dark .VPHero::after { opacity: 0.20; }
+
+.VPHero .name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+.VPHero .text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  max-width: 660px;
+}
+.VPHero .tagline {
+  max-width: 560px;
+  color: var(--vp-c-text-2);
+  line-height: 1.7;
+}
+
+/* hero 入场:staggered reveal */
+@keyframes rt-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* name 是 background-clip:text 渐变文字 —— 绝不能加 transform/will-change 动画,
+   否则触发合成层会让 clip 渲染失效、文字变透明消失。用纯 opacity 淡入即可。 */
+@keyframes rt-fade { from { opacity: 0; } to { opacity: 1; } }
+.VPHero .name { animation: rt-fade 0.6s ease both; }
+.VPHero .text { animation: rt-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.07s both; }
+.VPHero .tagline { animation: rt-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s both; }
+.VPHero .actions { animation: rt-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.23s both; }
+
+/* 按钮:红金质感 —— brand 用站点签名「红→金」渐变（与 hero 标题渐变同语言）+ hover 金色微光扫过 */
+.VPButton {
+  border-radius: 9px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, border-color 0.2s;
+}
+.VPButton.brand {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #dc2626 0%, #d97706 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset, 0 10px 28px -14px rgba(220, 38, 38, 0.8);
+}
+.VPButton.brand::before {
+  /* hover 时一道金色斜光扫过 */
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -75%;
+  width: 50%;
+  background: linear-gradient(100deg, transparent, rgba(255, 224, 138, 0.32), transparent);
+  transform: skewX(-18deg);
+  transition: left 0.45s ease;
+  pointer-events: none;
+}
+.VPButton.brand:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+}
+.VPButton.brand:hover::before { left: 125%; }
+.VPButton.alt {
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+.VPButton.alt:hover {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+
+/* ===== 5. Features:mono 编号 + 每卡专属 accent（与 icon 同色）+ hover 发光抬起 ===== */
+.VPFeatures .items { counter-reset: rtfeat; }
+/* 选择器带 .VPHome .VPFeatures 前缀：VPFeature 自带 scoped 样式（[data-v] 属性选择器），
+   裸 .VPFeature 同特异性打平时会输给组件内联序，必须升一级才能稳定覆盖 background/border */
+.VPHome .VPFeatures .VPFeature {
+  /* 每张卡的主题色（缺省品牌红，nth-child 按 icon 颜色逐卡覆盖） */
+  --feat-accent: var(--vp-c-brand-1);
+  position: relative;
+  border-radius: 14px;
+  /* 透明底 + 细线描边：去掉大色块填充感，hover 才出现 accent 淡染 */
+  border: 1px solid var(--vp-c-divider);
+  background: transparent;
+  overflow: hidden;
+  transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1),
+    border-color 0.28s, box-shadow 0.28s, background-color 0.28s;
+  animation: rt-rise 0.5s ease both;
+}
+/* mono 编号 01–06 */
+.VPFeature::before {
+  counter-increment: rtfeat;
+  content: counter(rtfeat, decimal-leading-zero);
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--vp-c-text-3);
+  opacity: 0.55;
+  transition: color 0.28s, opacity 0.28s;
+}
+/* 顶部 accent 线(hover 展开，颜色随卡) */
+.VPFeature::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--feat-accent), var(--rt-gold));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.32s ease;
+}
+.VPHome .VPFeatures .VPFeature:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--feat-accent) 45%, var(--vp-c-divider));
+  background: color-mix(in srgb, var(--feat-accent) 4%, transparent);
+  box-shadow: 0 18px 40px -26px color-mix(in srgb, var(--feat-accent) 45%, transparent);
+}
+.VPFeature:hover::before { color: var(--feat-accent); opacity: 1; }
+.VPFeature:hover::after { transform: scaleX(1); }
+/* icon 裸放（不要底盒），适当放大；fit-content 防止 flex 拉伸导致水平居中 */
+.VPFeature .icon {
+  background: transparent !important;
+  border-radius: 0 !important;
+  width: fit-content !important;
+  height: auto !important;
+  margin-bottom: 14px;
+}
+.VPFeature .icon img {
+  width: 32px;
+  height: 32px;
+}
+/* 每卡 accent 与 public/icons/ 的 stroke 颜色一一对应 */
+.VPFeatures .items > div:nth-child(1) .VPFeature { --feat-accent: #dc2626; } /* 命名空间 API · 罗盘 */
+.VPFeatures .items > div:nth-child(2) .VPFeature { --feat-accent: #d97706; } /* 零依赖 · 包裹 */
+.VPFeatures .items > div:nth-child(3) .VPFeature { --feat-accent: #ea580c; } /* 数据契约 · 分层 */
+.VPFeatures .items > div:nth-child(4) .VPFeature { --feat-accent: #e11d48; } /* 指标信号 · 脉冲 */
+.VPFeatures .items > div:nth-child(5) .VPFeature { --feat-accent: #9333ea; } /* 选股回测 · 烧瓶 */
+.VPFeatures .items > div:nth-child(6) .VPFeature { --feat-accent: #2563eb; } /* CLI·MCP · 终端 */
+.VPFeature .title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.VPFeature .details {
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+/* features stagger(接 hero 之后入场)*/
+.VPFeatures .items > div:nth-child(1) .VPFeature { animation-delay: 0.30s; }
+.VPFeatures .items > div:nth-child(2) .VPFeature { animation-delay: 0.37s; }
+.VPFeatures .items > div:nth-child(3) .VPFeature { animation-delay: 0.44s; }
+.VPFeatures .items > div:nth-child(4) .VPFeature { animation-delay: 0.51s; }
+.VPFeatures .items > div:nth-child(5) .VPFeature { animation-delay: 0.58s; }
+.VPFeatures .items > div:nth-child(6) .VPFeature { animation-delay: 0.65s; }
+
+/* ===== 6. 首页 Quick Start 区(index.md 中 .home-quick) ===== */
+.VPHome .vp-doc .home-quick {
+  max-width: 1152px;
+  margin: 28px auto 80px;
+  padding: 0 24px;
+}
+@media (min-width: 640px) { .VPHome .vp-doc .home-quick { padding: 0 48px; } }
+@media (min-width: 960px) { .VPHome .vp-doc .home-quick { padding: 0 64px; } }
+
+.home-quick-kicker {
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  border-radius: 8px;
+  display: inline-block;
+  padding: 3px 10px;
+  margin: 0 0 14px;
+}
+.dark .home-quick-kicker { border-color: rgba(248, 113, 113, 0.32); }
+
+.home-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+@media (min-width: 768px) {
+  .home-quick-grid { grid-template-columns: 5fr 7fr; }
+}
+
+/* 代码窗:终端卡片化 + 红·金·灰 信号灯（股票站没有绿灯） */
+.home-quick [class*='language-'] {
+  margin: 0 !important;
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 10px 30px -18px rgba(0, 0, 0, 0.35);
+  height: 100%;
+}
+.home-quick [class*='language-'] pre {
+  padding-top: 38px !important;
+  padding-bottom: 22px;
+}
+.home-quick [class*='language-']::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--vp-c-brand-1);
+  box-shadow: 18px 0 0 0 var(--rt-gold), 36px 0 0 0 var(--vp-c-text-3);
+  z-index: 3;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* 浅色模式：代码窗走深色终端面板 —— 与 LiveTicker 同款「Bloomberg 终端反差」，
+   修掉浅底浅字的低对比，红·金·灰信号灯也只有在深色窗框上才成立。
+   shiki 双主题产物用 --shiki-dark 侧的着色。 */
+html:not(.dark) .home-quick [class*='language-'] {
+  background-color: #1c1917;
+  border-color: rgba(185, 28, 28, 0.28);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 16px 40px -24px rgba(28, 25, 23, 0.5);
+}
+html:not(.dark) .home-quick [class*='language-'] code {
+  color: #e7e5e4;
+}
+html:not(.dark) .home-quick [class*='language-'] code span {
+  color: var(--shiki-dark, inherit) !important;
+}
+html:not(.dark) .home-quick [class*='language-'] .lang {
+  color: rgba(231, 229, 228, 0.42);
+}
+html:not(.dark) .home-quick [class*='language-'] > button.copy {
+  --vp-code-copy-code-bg: #292524;
+  --vp-code-copy-code-hover-bg: #36302c;
+  --vp-code-copy-code-border-color: #44403c;
+}
+/* 深色窗上的灰点用固定灰，不跟随浅色文本变量 */
+html:not(.dark) .home-quick [class*='language-']::after {
+  box-shadow: 18px 0 0 0 var(--rt-gold), 36px 0 0 0 #57534e;
+}
+
+/* ===== 7. Nav:毛玻璃 + 滚动进度线(红→金) ===== */
+.VPNavBar:not(.home.top) {
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+}
+/* 滚动进度线：theme/index.ts 把滚动比例写入 --scroll-progress */
+.VPNavBar { position: relative; }
+.VPNavBar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--vp-c-brand-1), var(--rt-gold));
+  transform: scaleX(var(--scroll-progress, 0));
+  transform-origin: left;
+}
+
+.VPNavBarTitle .title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+/* nav 链接 hover 下划线动画 */
+.VPNavBarMenuLink {
+  position: relative;
+}
+.VPNavBarMenuLink::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vp-c-brand-1);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+.VPNavBarMenuLink:hover::after,
+.VPNavBarMenuLink.active::after { transform: scaleX(1); }
+
+/* 移动端 local nav 同样毛玻璃 */
+.VPLocalNav {
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+}
+
+/* nav 右侧三件套（语言 / 主题 / GitHub）收紧间距：
+   VP 默认在相邻控件的分隔伪元素两侧各给 8–16px，这里统一压到 4px。
+   选择器带 .VPNav 前缀以稳定压过 VPNavBar 的 scoped 样式。 */
+.VPNav .VPNavBar .menu + .translations::before,
+.VPNav .VPNavBar .menu + .appearance::before,
+.VPNav .VPNavBar .menu + .social-links::before,
+.VPNav .VPNavBar .translations + .appearance::before,
+.VPNav .VPNavBar .appearance + .social-links::before {
+  margin-right: 4px;
+  margin-left: 4px;
+}
+
+/* ===== 8. 内容:inline code / 链接 / 代码块 / 表格 / 容器 ===== */
+.vp-doc :not(pre) > code {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.84em;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 4px;
+}
+.vp-doc a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 0.2s;
+}
+.vp-doc div[class*='language-'] {
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+}
+/* 代码块语言标签:mono 终端感 */
+.vp-doc div[class*='language-']::before {
+  font-family: var(--vp-font-family-mono);
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+/* 表格表头:mono 大写小字,数据感 */
+.vp-doc table { font-size: 13.5px; }
+.vp-doc th {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+.vp-doc tr:hover td { background: var(--vp-c-brand-soft); }
+
+/* 自定义容器：圆角 + 细边 */
+.vp-doc .custom-block {
+  border-radius: 12px;
+}
+/* 引用块：红色左线 */
+.vp-doc blockquote {
+  border-left: 3px solid var(--vp-c-brand-1);
+  background: var(--vp-c-bg-soft);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 18px;
+}
+
+/* 右侧大纲当前位置标记：红→金 渐变条 */
+.VPDocAsideOutline .outline-marker {
+  background: linear-gradient(180deg, var(--vp-c-brand-1), var(--rt-gold));
+  border-radius: 2px;
+}
+
+/* ===== 9. 侧边栏 / 当前项 accent ===== */
+.VPSidebarItem.is-active > .item .text { font-weight: 600; }
+.VPSidebarItem.level-0 > .item > .text {
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+/* ===== 10. Hero 组件：HeroMeta 徽章 / LiveTicker 终端卡 / HeroLinks 次级链接 ===== */
+:root {
+  /* 行情涨跌色：中国习惯「红涨绿跌」，红涨与深红主题天然契合 */
+  --quote-up: #ef4444;
+  --quote-down: #10b981;
+  --quote-flat: #94a3b8;
+
+  /* 终端卡片（LiveTicker）配色 —— 浅色主题下也是深色面板，制造 Bloomberg 终端反差；
+     底色取暖黑（stone），与深色模式页面底一脉相承 */
+  --term-bg: #100d0b;
+  --term-bg-2: #161110;
+  --term-border: rgba(220, 38, 38, 0.26);
+  --term-grid: rgba(255, 255, 255, 0.035);
+  --term-text: #f0eae6;
+  --term-text-dim: #9a8f88;
+}
+.dark {
+  --quote-up: #f87171;
+  --quote-down: #34d399;
+
+  --term-bg: #0c0908;
+  --term-bg-2: #120e0c;
+  --term-border: rgba(248, 113, 113, 0.20);
+}
+
+/* Hero 右侧 image 槽位：承载非正方形的 ticker（关掉默认尺寸约束与位移） */
 .VPHero .image-container {
-  animation: none !important;
   width: 100%;
   max-width: 460px;
   height: auto;
@@ -440,6 +596,7 @@ body:has(.VPHome) .VPNavBarSearchButton {
     transform: translateX(-10px);
   }
 }
+/* 品牌光晕作氛围，压低透明度避免喧宾夺主 */
 .VPHero .image-bg {
   opacity: 0.26;
   filter: blur(96px);
@@ -448,22 +605,20 @@ body:has(.VPHome) .VPNavBarSearchButton {
   opacity: 0.34;
 }
 
-/* ============================================================
- * 9. Hero metadata 徽章行（HeroMeta.vue）
- * ============================================================ */
+/* HeroMeta 徽章行 —— 与上方 tagline 拉开呼吸空间 */
 .hero-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  margin: 4px 0 26px;
+  margin: 22px 0 26px;
 }
 .hero-meta__item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 11px;
-  font-family: var(--font-mono);
+  font-family: var(--vp-font-family-mono);
   font-size: 0.78rem;
   font-weight: 500;
   line-height: 1.4;
@@ -499,9 +654,7 @@ body:has(.VPHome) .VPNavBarSearchButton {
   }
 }
 
-/* ============================================================
- * 10. Hero 次级 inline 链接（主按钮下方）
- * ============================================================ */
+/* HeroLinks 次级 inline 链接（主按钮下方） */
 .hero-links {
   display: flex;
   flex-wrap: wrap;
@@ -512,7 +665,7 @@ body:has(.VPHome) .VPNavBarSearchButton {
 .hero-links a {
   position: relative;
   display: inline-block;
-  /* 关键：整条链接不换行，避免「AI / MCP 接入」被拆成多行 */
+  /* 关键：整条链接不换行，避免「MCP · AI 接入」被拆成多行 */
   white-space: nowrap;
   font-size: 0.86rem;
   font-weight: 500;
@@ -557,154 +710,13 @@ body:has(.VPHome) .VPNavBarSearchButton {
   }
 }
 
-/* ============================================================
- * 11. 表格列宽塌缩修复
- *    VitePress 默认 table 为 display:block + overflow-x:auto，
- *    会让"说明"列被挤成每个汉字一行的竖排。改为 display:table +
- *    width:100% 让浏览器正常分配列宽。对 2/3 列表格同样安全。
- * ============================================================ */
-.vp-doc table {
-  display: table;
-  width: 100%;
-  table-layout: auto;
-  margin: 18px 0;
-}
-.vp-doc th,
-.vp-doc td {
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-.vp-doc th:first-child,
-.vp-doc td:first-child {
-  white-space: nowrap;
-}
-.vp-doc thead th {
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  background: var(--vp-c-bg-soft);
-}
-.vp-doc td code {
-  font-size: 0.84em;
-}
-
-/* ============================================================
- * 12. 代码块：顶部 accent 渐变条 + 复制按钮常显
- * ============================================================ */
-.vp-doc div[class*='language-'] {
-  border-radius: 12px;
-  border: 1px solid var(--vp-c-divider);
-}
-.vp-doc div[class*='language-']::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent-gradient);
-  opacity: 0.9;
-  z-index: 2;
-  pointer-events: none;
-}
-/* 复制按钮：从 hover 才显现 → 常态半透明，hover 实心 */
-.vp-doc [class*='language-'] > button.copy {
-  opacity: 0.55;
-}
-.vp-doc [class*='language-']:hover > button.copy,
-.vp-doc [class*='language-'] > button.copy:focus,
-.vp-doc [class*='language-'] > button.copy:hover {
-  opacity: 1;
-}
-/* 语言标签用 mono，稍微下移给顶部 accent 条让位 */
-.vp-doc [class*='language-'] > span.lang {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-}
-/* 行号再淡一点，降低噪音 */
-.vp-doc [class*='language-'] .line-numbers-wrapper {
-  color: var(--vp-c-text-3);
-  opacity: 0.55;
-}
-
-/* ============================================================
- * 13. Changelog 版本时间线
- *    给 changelog.md 加 frontmatter `pageClass: changelog-page` 后生效。
- *    复用全局 h2 的 flex 布局，把左侧渐变竖条替换为时间线圆点。
- * ============================================================ */
-.changelog-page .vp-doc h2 {
-  border-top: 1px solid var(--vp-c-divider);
-  margin-top: 44px;
-  padding-top: 26px;
-}
-.changelog-page .vp-doc h2::before {
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: var(--vp-c-bg);
-  border: 3px solid var(--vp-c-brand-2);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--vp-c-brand-1) 12%, transparent),
-    0 0 16px -2px var(--glow-color);
-}
-/* 版本号本身用 mono，强化"发布记录"观感 */
-.changelog-page .vp-doc h2 {
-  font-family: var(--font-mono);
-  font-size: 1.45rem;
-  letter-spacing: -0.01em;
-}
-
-/* ============================================================
- * 14. 降级与无障碍：尊重 prefers-reduced-motion
- * ============================================================ */
+/* ===== 11. 无障碍:尊重 reduce-motion ===== */
 @media (prefers-reduced-motion: reduce) {
+  body::before { animation: none !important; }
   .VPHero .name,
-  .VPHero .image-bg,
-  .VPHero, .VPFeatures, .vp-doc,
-  .VPFeature {
-    animation: none !important;
-  }
-}
-
-/* ============================================================
- * 15. 导航栏：滚动后磨砂玻璃，替代割裂的纯白
- *    VitePress 机制：
- *      .VPNavBar.home.top        → 首页顶部，完全透明（保留）
- *      .VPNavBar:not(.home.top)  → 滚动态 / 文档页，原本填 --vp-nav-bg-color(纯白)
- *    改法：把导航底色降为半透明，并加 backdrop-filter，让背后的暖色渐变背景
- *    透上来形成磨砂玻璃，与整体配色协调；首页顶部仍保持透明不变。
- * ============================================================ */
-:root {
-  --vp-nav-bg-color: color-mix(in srgb, var(--vp-c-bg) 55%, transparent);
-}
-.dark {
-  --vp-nav-bg-color: color-mix(in srgb, var(--vp-c-bg) 48%, transparent);
-}
-
-/*
- * 统一让「整条导航栏」作为单一磨砂玻璃面（全宽），无论首页滚动还是文档页：
- *  - 强制 bar 承载半透明底色 + blur
- *  - 清掉 content-body 的重复底色，避免双层叠加出现色块
- */
-.VPNavBar:not(.home.top) {
-  background-color: var(--vp-nav-bg-color) !important;
-  /* 透明度更高，靠更强的 blur 维持文字可读性 */
-  backdrop-filter: blur(18px) saturate(185%);
-  -webkit-backdrop-filter: blur(18px) saturate(185%);
-  box-shadow: 0 4px 24px -16px rgba(15, 23, 42, 0.4);
-  transition: background-color 0.25s ease, box-shadow 0.25s ease;
-}
-.VPNavBar:not(.home.top) .content-body {
-  background-color: transparent !important;
-}
-/* 底部分隔线换成暖调细线，不再是生硬的灰线 */
-.VPNavBar:not(.home.top) .divider-line {
-  background-color: color-mix(in srgb, var(--vp-c-brand-1) 20%, var(--vp-c-divider)) !important;
-}
-
-/* 玻璃态导航上，搜索框不再强制纯白（否则在磨砂上像个突兀的白块） */
-body:has(.VPHome) .VPNavBar:not(.home.top) .VPNavBarSearch .DocSearch-Button,
-body:has(.VPHome) .VPNavBar:not(.home.top) .VPNavBarSearchButton {
-  background-color: color-mix(in srgb, var(--vp-c-bg) 42%, transparent) !important;
+  .VPHero .text,
+  .VPHero .tagline,
+  .VPHero .actions,
+  .VPFeature { animation: none !important; }
+  .VPButton.brand::before { display: none; }
 }

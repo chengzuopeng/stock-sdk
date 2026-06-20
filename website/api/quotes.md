@@ -1,151 +1,123 @@
-# A 股行情
+# sdk.quotes · 实时行情
 
-## getFullQuotes
+`sdk.quotes` 命名空间提供各市场的实时/快照行情：A 股全量与简要、港股、美股、基金，以及资金流(简版)、盘口大单、当日分时。
 
-获取 A 股/指数全量行情数据。
+```ts
+import { StockSDK } from 'stock-sdk'
 
-### 签名
-
-```typescript
-getFullQuotes(codes: string[]): Promise<FullQuote[]>
+const sdk = new StockSDK()
+const list = await sdk.quotes.cn(['600519', '000001'])
 ```
 
-### 参数
+## 方法表
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `codes` | `string[]` | 股票代码数组，如 `['sz000858', 'sh600519']` |
+| 方法 | 说明 |
+|---|---|
+| `quotes.cn(codes)` | A 股全量行情（含五档、换手率、PE/PB、涨跌停等专有字段） |
+| `quotes.cnSimple(codes)` | A 股简要行情（精简字段，开销更小） |
+| `quotes.hk(codes)` | 港股行情 |
+| `quotes.us(codes)` | 美股行情 |
+| `quotes.fund(codes)` | 基金行情（单位净值 / 累计净值） |
+| `quotes.fundFlow(codes)` | 资金流向（简版，腾讯源） |
+| `quotes.largeOrder(codes)` | 盘口大单 |
+| `quotes.timeline(code)` | 当日分时 |
 
-### 返回类型
+> **`quotes.fundFlow` vs `sdk.fundFlow.*`**：前者是简版资金流（腾讯源，随行情快照返回）；后者是深度资金流（东财源，含个股 / 大盘 / 排名 / 板块历史）。两者数据来源与维度不同，见 [fundFlow](/api/fund-flow)。
 
-```typescript
-interface FullQuote {
-  marketId: string;       // 市场标识
-  name: string;           // 名称
-  code: string;           // 股票代码
-  price: number;          // 最新价
-  prevClose: number;      // 昨收
-  open: number;           // 今开
-  high: number;           // 最高
-  low: number;            // 最低
-  volume: number;         // 成交量（手）
-  outerVolume: number;    // 外盘
-  innerVolume: number;    // 内盘
-  bid: { price: number; volume: number }[];  // 买一~买五
-  ask: { price: number; volume: number }[];  // 卖一~卖五
-  time: string;           // 时间戳 yyyyMMddHHmmss
-  change: number;         // 涨跌额
-  changePercent: number;  // 涨跌幅 %
-  volume2: number;        // 成交量（手，字段36）
-  amount: number;         // 成交额（万）
-  turnoverRate: number | null;   // 换手率 %
-  pe: number | null;             // 市盈率（TTM）
-  amplitude: number | null;      // 振幅 %
-  circulatingMarketCap: number | null; // 流通市值（亿）
-  totalMarketCap: number | null; // 总市值（亿）
-  pb: number | null;             // 市净率
-  limitUp: number | null;        // 涨停价
-  limitDown: number | null;      // 跌停价
-  volumeRatio: number | null;    // 量比
-  avgPrice: number | null;       // 均价
-  peStatic: number | null;       // 市盈率（静）
-  peDynamic: number | null;      // 市盈率（动）
-  high52w: number | null;        // 52周最高价
-  low52w: number | null;         // 52周最低价
-  circulatingShares: number | null; // 流通股本（股）
-  totalShares: number | null;    // 总股本（股）
-  raw: string[];                 // 原始字段数组（供扩展使用）
+## 调用示例
+
+### A 股行情
+
+```ts
+// 入参为代码数组，符号写法容错：裸码 / 带前缀 / secid 均可
+const quotes = await sdk.quotes.cn(['600519', 'sh601318', '000001'])
+
+for (const q of quotes) {
+  console.log(q.name, q.price, q.changePercent) // 贵州茅台 1680.5 1.23
 }
 ```
 
-::: tip 字段说明
-- `volume` 单位为 **手**（A 股 1 手 = 100 股），`amount` 单位为 **万**
-- 指数类标的部分字段可能为 `null` 或无意义，可按需忽略
-- `raw` 保存原始字段数组，适合自定义扩展解析
-:::
+### A 股简要行情
 
-### 示例
-
-```typescript
-const quotes = await sdk.getFullQuotes(['sz000858']);
-
-console.log(quotes[0].name);   // 五 粮 液
-console.log(quotes[0].price);  // 111.70
-console.log(quotes[0].changePercent);  // 2.35
-console.log(quotes[0].pe);     // 25.5
-console.log(quotes[0].totalMarketCap);  // 4500 (亿)
+```ts
+// 字段更少、开销更小，适合做大盘/自选列表轮询
+const simple = await sdk.quotes.cnSimple(['600519', '000858'])
 ```
 
----
+### 港股 / 美股
 
-## getSimpleQuotes
-
-获取简要行情（股票/指数）。
-
-### 签名
-
-```typescript
-getSimpleQuotes(codes: string[]): Promise<SimpleQuote[]>
+```ts
+const hk = await sdk.quotes.hk(['00700', '09988']) // 5 位数字识别为港股
+const us = await sdk.quotes.us(['AAPL', 'TSLA']) // 纯字母识别为美股
 ```
 
-### 参数
+### 基金
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `codes` | `string[]` | 代码数组，如 `['sz000858', 'sh000001']` |
+```ts
+const fund = await sdk.quotes.fund(['161725'])
+console.log(fund[0].nav, fund[0].accNav) // 单位净值 / 累计净值
+```
 
-### 返回类型
+### 盘口大单 / 当日分时
 
-```typescript
-interface SimpleQuote {
-  marketId: string;
-  name: string;
-  code: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  volume: number;
-  amount: number;
-  marketCap: number | null;
-  marketType: string;
-  raw: string[];
+```ts
+const orders = await sdk.quotes.largeOrder(['600519'])
+const timeline = await sdk.quotes.timeline('600519') // 单个代码
+```
+
+## 返回说明：Quote 可辨识联合
+
+A 股 / 港股 / 美股 / 基金行情返回**以 `assetType` 判别的联合类型** `Quote`。先用 `switch` 收窄，再访问各市场专有字段：
+
+```ts
+const [q] = await sdk.quotes.cn(['600519'])
+
+switch (q.assetType) {
+  case 'stock':
+    console.log(q.bid, q.ask, q.turnoverRate, q.pe) // A 股专有
+    break
+  case 'fund':
+    console.log(q.nav, q.accNav) // 基金专有
+    break
 }
 ```
 
-::: tip 字段说明
-- `volume` 单位为 **手**，`amount` 单位为 **万**（A 股）
-- `marketType` 常见值如 `GP-A`（A 股）、`ZS`（指数）
-- `raw` 为原始字段数组，便于扩展解析
+### 基础字段（所有行情共有）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `symbol` | `string` | 规范化标准符号 |
+| `code` | `string` | 纯代码（无前缀，如 `600519`） |
+| `name` | `string` | 名称 |
+| `market` | `'CN' \| 'HK' \| 'US' \| 'GLOBAL'` | 交易区域 |
+| `assetType` | `'stock' \| 'fund' \| ...` | 资产类型（联合判别字段） |
+| `exchange` | `string` | 交易所（如 `SSE` / `HKEX` / `NASDAQ`） |
+| `currency` | `string` | ISO 计价货币（`CNY` / `HKD` / `USD`），决定下方金额 / 价格单位 |
+| `source` | `string` | 数据来源（`tencent` / `eastmoney` / `sina`） |
+| `time` | `string` | 原始时间字符串（市场时区） |
+| `timestamp` | `number \| null` | UTC 毫秒；无法解析为 `null` |
+| `tz` | `MarketTz` | 市场时区 |
+
+### 行情字段（股票类）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `price` | `number` | 现价（当前 beta 以数据源原始口径为准） |
+| `prevClose` / `open` / `high` / `low` | `number` | 昨收 / 今开 / 最高 / 最低 |
+| `change` | `number` | 涨跌额 |
+| `changePercent` | `number` | 涨跌幅（百分数，如 `5.2`） |
+| `volume` | `number` | 成交量（当前 beta 以数据源原始口径为准） |
+| `amount` | `number` | 成交额（当前 beta 以数据源原始口径为准） |
+
+A 股（`StockQuote`）额外含五档 `bid` / `ask`、`turnoverRate`、`pe`、`pb`、`limitUp`、`limitDown` 等；港股含 `lotSize`；美股含 `pe` / `pb`。基金（`FundQuote`）则为 `nav` / `accNav` / `change` / `changePercent`。
+
+::: tip 口径约定
+- 百分比为**百分数**（`5.2` 表示 5.2%，非 `0.052`）。
+- 金额 / 价格目标口径为各市场**计价货币主单位**（A股=元 / 港股=港元 / 美股=美元），由 `currency` 标明，**不跨币种折算**。
+- 成交量目标口径为**股**。
+- 当前 beta 尚未完成逐源单位校准，运行值仍以各 provider 原始口径为准（例如腾讯 A 股成交量为手、成交额为万元）。
+- 无效时间用 `null` 表示（不再是 `NaN`）。
+- `raw` 字段已移除；如需调试原始报文，使用 provider 层的 `getXxxRaw()`。
 :::
 
-### 示例
-
-```typescript
-const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858']);
-
-quotes.forEach(q => {
-  console.log(`${q.name}: ${q.price} (${q.changePercent}%)`);
-});
-// 上证指数: 3200.00 (0.50%)
-// 五 粮 液: 150.00 (2.35%)
-```
-
----
-
-## 股票代码格式
-
-| 交易所 | 前缀 | 示例 |
-|--------|------|------|
-| 上海 | `sh` | `sh600519`（贵州茅台） |
-| 深圳 | `sz` | `sz000858`（五粮液） |
-| 北交所 | `bj` | `bj430047` |
-
-### 指数代码
-
-| 指数 | 代码 |
-|------|------|
-| 上证指数 | `sh000001` |
-| 深证成指 | `sz399001` |
-| 创业板指 | `sz399006` |
-| 沪深300 | `sh000300` |
-| 中证500 | `sh000905` |
+> 具体字段以实现为准。完整字段列表随 `src/sdk/namespaces/quotesNs.ts` 与各类型定义最终确定。

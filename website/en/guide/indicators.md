@@ -1,130 +1,166 @@
-# Technical Indicators
+# Indicators & Signals
 
-Stock SDK supports two indicator workflows:
-
-- Use `getKlineWithIndicators` to fetch K-line and indicators in one call
-- Use standalone functions such as `calcMA`, `calcMACD`, and `calcOBV`
-
-## One-stop K-line with Indicators
+The indicator and signal layers in stock-sdk are **pure computation, zero network**. You feed in a K-line series and get back structured indicator values or signal events—no requests are made. Both layers ship as separate subpath exports, so you import only what you need: people who use only indicators don't pull `RequestClient` and every provider into their bundle.
 
 ```ts
-const data = await sdk.getKlineWithIndicators('sz000001', {
-  startDate: '20240101',
-  endDate: '20241231',
-  indicators: {
-    ma: { periods: [5, 10, 20, 60] },
-    macd: true,
-    boll: true,
-    kdj: true,
-    rsi: { periods: [6, 12, 24] },
-    obv: { maPeriod: 20 },
-    roc: { period: 12, signalPeriod: 6 },
-    dmi: { period: 14, adxPeriod: 6 },
-    sar: true,
-    kc: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
-  },
-});
-
-console.log(data[30].ma?.ma5);
-console.log(data[30].obv?.obvMa);
-console.log(data[30].roc?.signal);
-console.log(data[30].dmi?.adx);
-console.log(data[30].sar?.sar);
-console.log(data[30].kc?.upper);
+import { calcMACD, addIndicators } from 'stock-sdk/indicators'
+import { calcSignals } from 'stock-sdk/signals'
 ```
 
-## Supported Indicators
+There are three layers:
 
-- `ma`
-- `macd`
-- `boll`
-- `kdj`
-- `rsi`
-- `wr`
-- `bias`
-- `cci`
-- `atr`
-- `obv`
-- `roc`
-- `dmi`
-- `sar`
-- `kc`
+- **Indicator functions** (`stock-sdk/indicators`)—14 `calc*` functions that take a numeric series or K-lines and return a structured indicator object.
+- **Batch enrichment** (`addIndicators` / `sdk.kline.withIndicators`)—compute several indicators at once and attach them to every bar.
+- **Signal layer** (`stock-sdk/signals`)—detect events like golden/death crosses and overbought/oversold conditions on top of indicator-enriched K-lines.
 
-## Standalone Calculation Functions
+## The 14 indicator functions
+
+All calculation functions are exported from `stock-sdk/indicators` and return **structured objects** (not bare arrays), so you can read each component directly.
+
+| Function | Description |
+|---|---|
+| `calcMA` | Simple moving average (multiple periods, e.g. 5 / 10 / 20 / 60) |
+| `calcMACD` | Moving Average Convergence Divergence; returns `dif` / `dea` / `macd` |
+| `calcBOLL` | Bollinger Bands; returns `mid` / `upper` / `lower` / `bandwidth` |
+| `calcKDJ` | Stochastic oscillator; returns `k` / `d` / `j` |
+| `calcRSI` | Relative Strength Index (configurable period) |
+| `calcWR` | Williams %R |
+| `calcBIAS` | Bias ratio |
+| `calcCCI` | Commodity Channel Index |
+| `calcATR` | Average True Range |
+| `calcOBV` | On-Balance Volume (depends on volume) |
+| `calcROC` | Rate of Change |
+| `calcDMI` | Directional Movement Index (incl. `+DI` / `-DI` / `ADX`) |
+| `calcSAR` | Parabolic SAR; returns the `sar` value and `trend` direction |
+| `calcKC` | Keltner Channel |
+
+::: tip Return fields
+The exact inputs and return fields of each function (period defaults, alignment, null placeholders) follow the final implementation. The examples below show typical usage; field names are authoritative in the implementation's JSDoc and type definitions.
+:::
+
+### Single-indicator calculation
 
 ```ts
-import {
-  calcMA,
-  calcMACD,
-  calcBOLL,
-  calcKDJ,
-  calcOBV,
-  calcROC,
-  calcDMI,
-  calcSAR,
-  calcKC,
-} from 'stock-sdk';
+import { calcMA, calcMACD, calcKDJ } from 'stock-sdk/indicators'
+import { StockSDK } from 'stock-sdk'
 
-const klines = await sdk.getHistoryKline('sz000001');
-const closes = klines.map((item) => item.close);
-const ohlc = klines.map((item) => ({
-  open: item.open,
-  high: item.high,
-  low: item.low,
-  close: item.close,
-  volume: item.volume,
-}));
+const sdk = new StockSDK()
+const kline = await sdk.kline.cn('600519') // forward-adjusted daily K by default
 
-const ma = calcMA(closes, { periods: [5, 10, 20], type: 'sma' });
-const macd = calcMACD(closes);
-const boll = calcBOLL(closes, { period: 20, stdDev: 2 });
-const kdj = calcKDJ(ohlc, { period: 9, kPeriod: 3, dPeriod: 3 });
-const obv = calcOBV(ohlc, { maPeriod: 20 });
-const roc = calcROC(ohlc, { period: 12, signalPeriod: 6 });
-const dmi = calcDMI(ohlc, { period: 14, adxPeriod: 6 });
-const sar = calcSAR(ohlc, { afStart: 0.02, afIncrement: 0.02, afMax: 0.2 });
-const kc = calcKC(ohlc, { emaPeriod: 20, atrPeriod: 10, multiplier: 2 });
+// Closing-price series
+const closes = kline.map(k => k.close)
 
-console.log(ma[20].ma20);
-console.log(macd[20].dif);
-console.log(kdj[20].k);
-console.log(obv[20].obvMa);
-console.log(roc[20].signal);
-console.log(dmi[20].adx);
-console.log(sar[20].sar);
-console.log(kc[20].upper);
+const ma = calcMA(closes, [5, 10, 20])   // multi-period MAs
+const macd = calcMACD(closes)            // { dif, dea, macd }
+const kdj = calcKDJ(kline)               // { k, d, j }, needs high/low/close
 ```
 
-## Using addIndicators
+OBV depends on volume, while CCI / ATR / DMI / SAR / KDJ / WR depend on high, low, and close—so you typically pass the whole K-line series and let the function pick the fields it needs. MA / MACD / RSI / BIAS / ROC only look at close, so a closing-price array suffices.
+
+::: warning Volume units
+Volume-dependent indicators like `calcOBV` produce numbers that depend on the `volume` units in your K-lines. v2's target unit is "shares", but unit conversion is deferred for now, so at runtime `volume` may still be in each provider's raw unit (e.g. "lots" for A-shares). Keep this in mind when comparing across markets or migrating v1 backtest results.
+:::
+
+## addIndicators: batch enrichment
+
+`addIndicators` computes several indicators at once and attaches them back to each bar, producing `KlineWithIndicators<T>`. Use it when you want everything in one pass.
 
 ```ts
-import { addIndicators } from 'stock-sdk';
+import { addIndicators } from 'stock-sdk/indicators'
 
-const klines = await sdk.getHistoryKline('sz000001');
-
-const withIndicators = addIndicators(klines, {
-  ma: { periods: [5, 10] },
+const enriched = addIndicators(kline, {
+  ma: [5, 10, 20],
   macd: true,
-  obv: { maPeriod: 20 },
-  roc: true,
-  dmi: true,
-  sar: true,
-  kc: true,
-});
+  boll: true,
+  kdj: true,
+  rsi: { period: 14 },
+})
 
-console.log(withIndicators[40].obv?.obv);
-console.log(withIndicators[40].roc?.roc);
-console.log(withIndicators[40].dmi?.pdi);
+// Each bar gains the corresponding indicator components on top of its original fields
+enriched.forEach(bar => {
+  console.log(bar.time, bar.close, bar.ma5, bar.macd?.dif, bar.kdj?.k)
+})
 ```
 
-## Notes
+The exact options and attached field names follow the implementation; internally it orchestrates the 14 `calc*` functions above.
 
-- Most indicators return `null` until there is enough history
-- `getKlineWithIndicators` automatically fetches extra lookback data when needed
-- `calcMA` accepts a close-price array, while most trend indicators accept `OHLCV[]`
-- Use `addIndicators` when you want to attach multiple indicators to the same K-line array
+## sdk.kline.withIndicators: fetch with indicators attached
 
-## Related Pages
+If you want to "fetch K-lines with indicators already on them", use `sdk.kline.withIndicators`—it fetches the K-lines inside the SDK and runs `addIndicators` for you, saving the manual two-step.
 
-- [Indicators API Overview](/en/api/indicators)
-- [Quick Start](/en/guide/getting-started)
+```ts
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+
+const kline = await sdk.kline.withIndicators('600519', {
+  ma: [5, 20],
+  macd: true,
+  boll: true,
+})
+// kline is already KlineWithIndicators, each bar carries indicator components
+```
+
+::: tip Fetching vs pure computation
+`sdk.kline.withIndicators` makes a request (it lives on the SDK main entry); `addIndicators` / `calc*` are pure functions and, when imported from `stock-sdk/indicators` alone, do not pull in the network layer. If you already have K-line data, prefer the pure functions to keep your bundle lean.
+:::
+
+## Signal layer: calcSignals
+
+The signal layer performs **event detection** on top of indicator-enriched K-lines, emitting a list of `Signal`s. It is likewise pure computation, exported from `stock-sdk/signals`.
+
+```ts
+import { calcSignals } from 'stock-sdk/signals'
+import { addIndicators } from 'stock-sdk/indicators'
+
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true, kdj: true })
+
+const signals = calcSignals(enriched, {
+  ma: { fast: 5, slow: 20 },   // MA golden / death cross
+  macd: true,                  // MACD golden / death cross
+  kdj: { overbought: 80, oversold: 20 },
+  rsi: { period: 14, overbought: 70, oversold: 30 },
+  boll: true,                  // break upper / lower band
+  sar: true,                   // SAR reversal
+})
+```
+
+### Signal types
+
+`calcSignals` recognizes events across the following categories:
+
+| Category | Signal | Trigger |
+|---|---|---|
+| MA | `ma_golden_cross` / `ma_death_cross` | Fast MA crosses above / below slow MA |
+| MACD | `macd_golden_cross` / `macd_death_cross` | `dif` crosses above / below `dea` |
+| KDJ | `kdj_golden_cross` / `kdj_death_cross` / `kdj_overbought` / `kdj_oversold` | K/D cross, `k` past threshold |
+| RSI | `rsi_overbought` / `rsi_oversold` | RSI past overbought / oversold threshold |
+| BOLL | `boll_break_upper` / `boll_break_lower` | Close breaks upper / lower band |
+| SAR | `sar_reversal_up` / `sar_reversal_down` | SAR trend direction flips |
+
+### Return shape
+
+Each `Signal` describes "which bar, what triggered, and which parameters":
+
+```ts
+interface Signal {
+  type: SignalType          // e.g. 'ma_golden_cross'
+  at: number                // timestamp of the triggering bar (always non-null)
+  index: number             // index of the triggering bar
+  detail?: Record<string, number> // e.g. { fast: 5, slow: 20 }
+}
+```
+
+::: warning timestamp consistency
+v2 narrows K-line `timestamp` to `number | null`, but `Signal.at` is always a `number`—`calcSignals` **skips bars whose `timestamp` is `null`** (no valid time anchor, no signal), keeping signals type-consistent with the time axis.
+:::
+
+The exact default thresholds, configurable options, and `detail` fields follow the implementation.
+
+## Which layer when
+
+- Need the raw values of one or two indicators → call the corresponding `calc*` directly.
+- Want a batch of indicators attached to K-lines for iteration → `addIndicators`, or `sdk.kline.withIndicators` to fetch-and-attach.
+- Want to detect **events** like golden/death crosses or overbought/oversold (for alerts, screener conditions, or backtest strategy inputs) → `calcSignals`.
+
+Signal-layer output feeds directly into the [screener](/en/api/signals) and backtest strategies, wiring "indicators → events → decisions" into a fully local, reproducible pipeline.

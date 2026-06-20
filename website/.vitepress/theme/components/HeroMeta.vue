@@ -3,7 +3,7 @@
  * HeroMeta —— Hero 标语下方、按钮上方的一行 metadata 徽章。
  *
  * 原则：不造假。
- * - 版本号来自构建期注入的 themeConfig.sdkVersion（真实）
+ * - 版本号来自构建期注入的 themeConfig.sdkVersion（真实，读自 package.json）
  * - 「MIT」「零依赖」是确定事实，静态展示
  * - Star 数 / npm 周下载量实时 fetch；拿不到就不显示该徽章（绝不编造数字）
  */

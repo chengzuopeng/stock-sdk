@@ -1,186 +1,76 @@
 # 浏览器使用
 
-Stock SDK 完全支持在浏览器环境中使用，无需任何额外配置。
+stock-sdk 是**浏览器 + Node.js 18+ 双端**的零依赖 SDK，同一套代码两端可用。但浏览器环境有它自己的约束——主要是跨域（CORS）与部分数据源的取数方式差异。本页讲清楚这些差异以及如何应对。
 
-## CDN 引入
+## 基本用法
 
-最简单的方式是通过 CDN 直接引入：
+浏览器里用法与 Node 一致，直接 `import` 即可（ESM）：
 
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Stock SDK Demo</title>
-</head>
-<body>
-  <div id="result"></div>
+```ts
+import { StockSDK } from 'stock-sdk'
 
-  <script type="module">
-    import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
-
-    const sdk = new StockSDK();
-    const quotes = await sdk.getFullQuotes(['sz000858', 'sh600519']);
-
-    document.getElementById('result').innerHTML = quotes.map(q => 
-      `<p>${q.name}: ${q.price} (${q.changePercent}%)</p>`
-    ).join('');
-  </script>
-</body>
-</html>
+const sdk = new StockSDK()
+const quotes = await sdk.quotes.cn(['600519', '000001'])
 ```
 
-## 构建工具集成
+主入口纯库、零运行时依赖，配合 subpath 导出（`stock-sdk/indicators`、`stock-sdk/signals`、`stock-sdk/symbols`），只用纯计算时 bundle 不会拖入网络层。
 
-### Vite
+## CORS：浏览器的核心约束
 
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite';
+行情数据来自第三方上游（腾讯 / 东财 / 新浪等）。这些接口**不一定为你的页面域名开放 CORS**，浏览器会因同源策略拦下跨域响应。这是浏览器环境与 Node 最大的区别——Node 端没有同源策略，直接请求即可。
 
-export default defineConfig({
-  // 无需特殊配置
-});
-```
+应对方式：
 
-```typescript
-// main.ts
-import { StockSDK } from 'stock-sdk';
+1. **走自建代理**：在你自己的后端 / 边缘函数转发请求，由服务端去取上游数据，再以同源方式返回给前端。这是生产环境最稳妥的做法。
 
-const sdk = new StockSDK();
-// ...
-```
+2. **注入自定义 `fetch`**：v2 请求层支持注入 `fetchImpl`，你可以把请求改道到自己的代理：
 
-### Webpack
+   ```ts
+   const sdk = new StockSDK({
+     fetchImpl: (url, init) => {
+       // 改写为自家代理地址
+       const proxied = `https://your-proxy.example.com/?u=${encodeURIComponent(String(url))}`
+       return fetch(proxied, init)
+     },
+   })
+   ```
 
-```javascript
-// webpack.config.js
-module.exports = {
-  // 无需特殊配置
-  resolve: {
-    extensions: ['.ts', '.js'],
-  },
-};
-```
+   `fetchImpl` 也可在单次调用通过 `GetOptions` 覆盖。详见[请求治理](/guide/request-governance)。
 
-## React 示例
+3. **对支持的源用 `<script>` 注入取数**：部分数据源天然以「JS 全局变量 / JSONP」形式提供数据，可绕过 CORS（见下）。
 
-```tsx
-import { useState, useEffect } from 'react';
-import { StockSDK, SimpleQuote } from 'stock-sdk';
+::: warning 不要硬刚 CORS
+浏览器端无法用前端代码「关闭」CORS。直接请求不开放跨域的接口必然失败，必须通过代理或下面的 `<script>` 注入方式取数。
+:::
 
-const sdk = new StockSDK();
+## `<script>` 注入式数据源
 
-function StockList() {
-  const [quotes, setQuotes] = useState<SimpleQuote[]>([]);
-  const [loading, setLoading] = useState(true);
+部分上游数据源（如新浪的部分行情、腾讯搜索 smartbox、基金估值 fundgz）以 **JSONP / 全局变量** 形式提供数据。这类源**不走标准 `fetch`**，而是浏览器端通过动态插入 `<script>` 标签、读取脚本执行后挂在 `window` 上的全局变量来取数——因为 `<script>` 加载不受同源策略限制，从而绕过 CORS。
 
-  useEffect(() => {
-    async function fetchQuotes() {
-      try {
-        const data = await sdk.getSimpleQuotes(['sh000001', 'sz000858']);
-        setQuotes(data);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchQuotes();
-  }, []);
+stock-sdk 内部封装了这套机制（`core/jsVars.ts` + `core/scriptMutex.ts`），对调用方透明：你照常调用对应方法即可，SDK 自动按当前环境选取正确的取数路径。
 
-  if (loading) return <div>加载中...</div>;
+- **浏览器端**：自动用 `<script>` 注入读取全局变量 / JSONP。
+- **Node 端**：这些源走普通 HTTP 取数后解析，无需 `<script>`。
 
-  return (
-    <ul>
-      {quotes.map(q => (
-        <li key={q.code}>
-          {q.name}: {q.price} ({q.changePercent}%)
-        </li>
-      ))}
-    </ul>
-  );
-}
+::: tip 错误处理
+`<script>` 注入路径不经过 `RequestClient`，但 v2 已对这些路径单独收编错误：脚本加载失败抛 `NETWORK_ERROR`，超时抛 `TIMEOUT`，都是统一的 `SdkError`。错误码与重试见[错误处理与重试](/guide/retry)。
+:::
 
-export default StockList;
-```
+## 双端差异一览
 
-## Vue 示例
+| 维度 | 浏览器 | Node.js 18+ |
+|---|---|---|
+| 同源策略 / CORS | 受限，需代理或 `<script>` 注入 | 无限制，直接请求 |
+| `<script>` 注入式源 | 用动态 `<script>` 读全局变量 | 走普通 HTTP 取数解析 |
+| 默认 `fetch` | 浏览器原生 `fetch` | Node 原生 `fetch`（18+ 内置） |
+| `AbortSignal.any` | 现代浏览器支持 | 18.17+ 支持，更低版本由 SDK 内置降级 |
+| CLI / MCP | 不涉及（Node-only） | `stock-sdk` 命令与 `stock-sdk mcp` |
 
-```vue
-<script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { StockSDK, SimpleQuote } from 'stock-sdk';
+SDK 在内部根据运行环境自动选择取数路径，**业务调用代码两端完全一致**——你不需要为浏览器写一套、为 Node 写另一套。
 
-const sdk = new StockSDK();
-const quotes = ref<SimpleQuote[]>([]);
-const loading = ref(true);
+## 实践建议
 
-onMounted(async () => {
-  try {
-    quotes.value = await sdk.getSimpleQuotes(['sh000001', 'sz000858']);
-  } finally {
-    loading.value = false;
-  }
-});
-</script>
-
-<template>
-  <div v-if="loading">加载中...</div>
-  <ul v-else>
-    <li v-for="q in quotes" :key="q.code">
-      {{ q.name }}: {{ q.price }} ({{ q.changePercent }}%)
-    </li>
-  </ul>
-</template>
-```
-
-## 注意事项
-
-### CORS 跨域
-
-SDK 调用的财经接口（腾讯、东方财富）通常允许跨域访问。如果遇到 CORS 问题，可以：
-
-1. 使用代理服务器转发请求
-2. 在开发环境配置 Vite/Webpack 代理
-
-```typescript
-// vite.config.ts
-export default defineConfig({
-  server: {
-    proxy: {
-      '/api/tencent': {
-        target: 'https://qt.gtimg.cn',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/tencent/, ''),
-      },
-    },
-  },
-});
-```
-
-然后在 SDK 中指定 `baseUrl`：
-
-```typescript
-import { StockSDK } from 'stock-sdk';
-
-const sdk = new StockSDK({
-  baseUrl: '/api/tencent',
-});
-```
-
-### GBK 编码
-
-SDK 使用原生 `TextDecoder` 解码 GBK 编码数据，所有现代浏览器都支持，无需额外 polyfill。
-
-### 请求频率
-
-建议控制请求频率，避免触发接口限制：
-
-```typescript
-// 使用批量查询减少请求次数
-const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
-
-// 而不是多次单独查询
-// ❌ 不推荐
-// const q1 = await sdk.getSimpleQuotes(['sh000001']);
-// const q2 = await sdk.getSimpleQuotes(['sz000858']);
-```
+- **生产环境优先用自建代理**，把上游请求收敛到服务端，既解决 CORS，也便于加缓存、限流与密钥保护。
+- **纯前端 Demo / 内网工具**可考虑 `<script>` 注入式源，或用公共代理（注意稳定性与合规）。
+- **按需 subpath 导入**：浏览器侧只用指标 / 信号 / 符号解析时，从 `stock-sdk/indicators` 等子入口引入，避免把请求层打进 bundle。
+- **统一注入 `fetchImpl`** 做代理改道、日志或 mock，详见[请求治理](/guide/request-governance)。

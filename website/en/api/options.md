@@ -1,228 +1,175 @@
-# Options Data
+# sdk.options Options
 
-Get real-time quotes, K-line, and minute data for CFFEX index options, SSE ETF options, and commodity options.
+The options namespace covers CFFEX index options, SSE ETF options, commodity options, the full CFFEX option quote list, and the option Dragon-Tiger list. It is organized into sub-namespaces:
 
-## CFFEX Index Options
-
-### getIndexOptionSpot
-
-Get CFFEX index option T-quotes (calls + puts).
+- `sdk.options.index` — CFFEX stock-index options
+- `sdk.options.etf` — SSE ETF options
+- `sdk.options.commodity` — commodity options
+- `sdk.options.cffex` — full CFFEX option quote list
+- `sdk.options.lhb` — option Dragon-Tiger list (top-level method)
 
 ```ts
-const spot = await sdk.getIndexOptionSpot('io', 'io2504');
-console.log(spot.calls); // Call contracts
-console.log(spot.puts);  // Put contracts
+import { StockSDK } from 'stock-sdk';
+
+const sdk = new StockSDK();
+
+const spot = await sdk.options.index.spot('io', 'io2504');
+const kline = await sdk.options.etf.dailyKline('10009633');
+const lhb = await sdk.options.lhb('510050', '2022-01-21');
+```
+
+## Method overview
+
+| Method | Description |
+|--------|-------------|
+| `options.index.spot(product, contract)` | CFFEX index-option T-quote (calls + puts) |
+| `options.index.kline(symbol)` | CFFEX index-option daily K-line |
+| `options.etf.months(cate)` | SSE ETF-option expiry months |
+| `options.etf.expireDay(cate, month)` | ETF-option expiry day and remaining days |
+| `options.etf.minute(code)` | ETF-option intraday minute quotes |
+| `options.etf.dailyKline(code)` | ETF-option historical daily K-line |
+| `options.etf.fiveDayMinute(code)` | ETF-option 5-day minute quotes |
+| `options.commodity.spot(variety, contract)` | Commodity-option T-quote |
+| `options.commodity.kline(symbol)` | Commodity-option daily K-line |
+| `options.cffex.quotes()` | Full list of real-time CFFEX option quotes |
+| `options.lhb(symbol, date)` | Option Dragon-Tiger list |
+
+> v2 data contract: returned objects no longer carry a `raw` field; for time-bearing records `timestamp` is `number | null` (`null` when it cannot be parsed); percentages are expressed as percentage numbers (e.g. `5.2`). The field descriptions below are indicative — **the exact fields follow the implementation**.
+
+## CFFEX index options — `options.index`
+
+### `options.index.spot(product, contract)`
+
+Fetch the CFFEX index-option T-quote, returning `calls` and `puts` contract lists.
+
+```ts
+const spot = await sdk.options.index.spot('io', 'io2504');
+console.log(spot.calls); // call contracts
+console.log(spot.puts);  // put contracts
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `product` | `'ho' \| 'io' \| 'mo'` | Product code: ho(SSE 50), io(CSI 300), mo(CSI 1000) |
+| `product` | `'ho' \| 'io' \| 'mo'` | Product code: `ho` (SSE 50), `io` (CSI 300), `mo` (CSI 1000) |
 | `contract` | `string` | Contract code, e.g. `'io2504'` |
 
-**Returns:** `OptionTQuoteResult`
+**Returns:** `{ calls, puts }`, where each element is a T-quote row (contract id, last price, bid/ask price and volume, open interest, change, strike price, etc.).
+
+### `options.index.kline(symbol)`
+
+Fetch the daily K-line of a CFFEX index-option contract.
 
 ```ts
-interface OptionTQuoteResult {
-  calls: OptionTQuote[];
-  puts: OptionTQuote[];
-}
-
-interface OptionTQuote {
-  symbol: string;        // Contract identifier
-  buyVolume: number | null;     // Bid volume
-  buyPrice: number | null;      // Bid price
-  price: number | null;         // Last price
-  askPrice: number | null;      // Ask price
-  askVolume: number | null;     // Ask volume
-  openInterest: number | null;  // Open interest
-  change: number | null;        // Price change
-  strikePrice: number | null;   // Strike price (null for puts)
-}
-```
-
-### getIndexOptionKline
-
-Get CFFEX index option contract daily K-line.
-
-```ts
-const klines = await sdk.getIndexOptionKline('io2504C3600');
+const klines = await sdk.options.index.kline('io2504C3600');
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `symbol` | `string` | Contract code (with call/put identifier), e.g. `'io2504C3600'` |
+| `symbol` | `string` | Contract code including the call (`C`) / put (`P`) marker, e.g. `'io2504C3600'` |
 
-**Returns:** `OptionKline[]`
+**Returns:** an array of daily K-lines, each with date, OHLC, volume, etc. (aligned with the unified K-line contract).
 
-```ts
-interface OptionKline {
-  date: string;    // Date YYYY-MM-DD
-  open: number | null;    // Open price
-  high: number | null;    // High price
-  low: number | null;     // Low price
-  close: number | null;   // Close price
-  volume: number | null;  // Volume
-}
-```
+## SSE ETF options — `options.etf`
 
-### getCFFEXOptionQuotes
+### `options.etf.months(cate)`
 
-Get all CFFEX option real-time quotes (Eastmoney data source).
+Fetch the list of expiry months for SSE ETF options.
 
 ```ts
-const quotes = await sdk.getCFFEXOptionQuotes();
-console.log(quotes[0].code); // 'MO2603-P-8200'
-```
-
-**Returns:** `CFFEXOptionQuote[]`
-
-```ts
-interface CFFEXOptionQuote {
-  code: string;           // Contract code
-  name: string;           // Contract name
-  price: number | null;          // Last price
-  change: number | null;         // Price change
-  changePercent: number | null;  // Change percent
-  volume: number | null;         // Volume
-  amount: number | null;         // Amount
-  openInterest: number | null;   // Open interest
-  strikePrice: number | null;    // Strike price
-  remainDays: number | null;     // Days to expiry
-  dailyChange: number | null;    // Daily change
-  prevSettle: number | null;     // Previous settlement
-  open: number | null;           // Open price
-}
-```
-
-## SSE ETF Options
-
-### getETFOptionMonths
-
-Get SSE ETF option expiration month list.
-
-```ts
-const info = await sdk.getETFOptionMonths('50ETF');
-console.log(info.months); // ['2026-03', '2026-04', '2026-06']
+const info = await sdk.options.etf.months('50ETF');
+console.log(info.months);  // ['2026-03', '2026-04', '2026-06']
+console.log(info.stockId); // underlying security code
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `cate` | `ETFOptionCate` | Category: `'50ETF'`, `'300ETF'`, `'500ETF'`, `'科创50'` |
+| `cate` | `'50ETF' \| '300ETF' \| '500ETF' \| '科创50'` | Option product name |
 
-**Returns:** `ETFOptionMonth`
+**Returns:** the expiry-month array, underlying security code, current product id, and the list of available products.
 
-```ts
-interface ETFOptionMonth {
-  months: string[];    // Expiration months
-  stockId: string;     // Underlying security code
-  cateId: string;      // Current category ID
-  cateList: string[];  // Available categories
-}
-```
+### `options.etf.expireDay(cate, month)`
 
-### getETFOptionExpireDay
-
-Get SSE ETF option expiration date and remaining days.
+Fetch the expiry day and remaining days for an SSE ETF option in a given month.
 
 ```ts
-const info = await sdk.getETFOptionExpireDay('50ETF', '2026-03');
-console.log(info.expireDay);      // '2026-03-25'
-console.log(info.remainderDays);  // 12
+const info = await sdk.options.etf.expireDay('50ETF', '2026-03');
+console.log(info.expireDay);     // '2026-03-25'
+console.log(info.remainderDays); // 12
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `cate` | `ETFOptionCate` | Category |
-| `month` | `string` | Expiration month `YYYY-MM` |
+| `cate` | `'50ETF' \| '300ETF' \| '500ETF' \| '科创50'` | Option product name |
+| `month` | `string` | Expiry month `YYYY-MM` |
 
-**Returns:** `ETFOptionExpireDay`
+**Returns:** the expiry day, remaining days, underlying security code and underlying name.
 
-```ts
-interface ETFOptionExpireDay {
-  expireDay: string;     // Expiration date
-  remainderDays: number; // Remaining days
-  stockId: string;       // Underlying security code
-  name: string;          // Underlying name
-}
-```
+### `options.etf.minute(code)`
 
-### getETFOptionMinute
-
-Get SSE ETF option intraday minute data.
+Fetch the intraday minute quotes for an SSE ETF option.
 
 ```ts
-const minutes = await sdk.getETFOptionMinute('10009633');
+const minutes = await sdk.options.etf.minute('10009633');
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `code` | `string` | Option code (numeric only) |
+| `code` | `string` | Option code (digits only), e.g. `'10009633'` |
 
-**Returns:** `OptionMinute[]`
+**Returns:** an array of minute quotes, each with time, price, volume, open interest and average price.
 
-```ts
-interface OptionMinute {
-  time: string;          // Time HH:mm:ss
-  date: string;          // Date YYYY-MM-DD
-  price: number | null;         // Price
-  volume: number | null;        // Volume
-  openInterest: number | null;  // Open interest
-  avgPrice: number | null;      // Average price
-}
-```
+### `options.etf.dailyKline(code)`
 
-### getETFOptionDailyKline
-
-Get SSE ETF option historical daily K-line.
+Fetch the historical daily K-line for an SSE ETF option.
 
 ```ts
-const klines = await sdk.getETFOptionDailyKline('10009633');
+const klines = await sdk.options.etf.dailyKline('10009633');
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `code` | `string` | Option code (numeric only) |
+| `code` | `string` | Option code (digits only) |
 
-**Returns:** `OptionKline[]`
+**Returns:** an array of daily K-lines (aligned with the unified K-line contract).
 
-### getETFOption5DayMinute
+### `options.etf.fiveDayMinute(code)`
 
-Get SSE ETF option 5-day minute data.
+Fetch 5-day minute quotes for an SSE ETF option.
 
 ```ts
-const minutes = await sdk.getETFOption5DayMinute('10009633');
+const minutes = await sdk.options.etf.fiveDayMinute('10009633');
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `code` | `string` | Option code (numeric only) |
+| `code` | `string` | Option code (digits only) |
 
-**Returns:** `OptionMinute[]`
+**Returns:** an array of minute quotes spanning 5 trading days, with the same fields as `options.etf.minute`.
 
-## Commodity Options
+## Commodity options — `options.commodity`
 
-### getCommodityOptionSpot
+### `options.commodity.spot(variety, contract)`
 
-Get commodity option T-quotes.
+Fetch a commodity-option T-quote, returning `calls` and `puts` contract lists.
 
 ```ts
-const spot = await sdk.getCommodityOptionSpot('au', 'au2506');
-console.log(spot.calls); // Call contracts
-console.log(spot.puts);  // Put contracts
+const spot = await sdk.options.commodity.spot('au', 'au2506');
+console.log(spot.calls); // call contracts
+console.log(spot.puts);  // put contracts
 ```
 
 **Parameters:**
@@ -232,39 +179,52 @@ console.log(spot.puts);  // Put contracts
 | `variety` | `string` | Variety code, e.g. `'au'`, `'cu'`, `'SR'`, `'m'` |
 | `contract` | `string` | Contract code, e.g. `'au2506'` |
 
-**Supported commodity option varieties:**
+**Supported commodity-option varieties (indicative):**
 
-SHFE: au (gold), ag (silver), cu (copper), al (aluminum), zn (zinc), ru (rubber)
-INE: sc (crude oil)
-DCE: m (soybean meal), c (corn), i (iron ore), p (palm oil), pp, l, v, pg, y, a, b, eg, eb
-CZCE: SR (sugar), CF (cotton), TA, MA, RM, OI, PK, PF, SA, UR
+- **SHFE**: au (gold), ag (silver), cu (copper), al (aluminum), zn (zinc), ru (rubber)
+- **INE**: sc (crude oil)
+- **DCE**: m (soybean meal), c (corn), i (iron ore), p (palm oil), pp, l, v, pg, y, a, b, eg, eb
+- **CZCE**: SR (sugar), CF (cotton), TA, MA, RM, OI, PK, PF, SA, UR
 
-**Returns:** `OptionTQuoteResult`
+**Returns:** `{ calls, puts }`, with the same structure as the index-option T-quote.
 
-### getCommodityOptionKline
+### `options.commodity.kline(symbol)`
 
-Get commodity option contract daily K-line.
+Fetch the daily K-line of a commodity-option contract.
 
 ```ts
-const klines = await sdk.getCommodityOptionKline('m2409C3200');
+const klines = await sdk.options.commodity.kline('m2409C3200');
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `symbol` | `string` | Contract code (with call/put identifier), e.g. `'m2409C3200'` |
+| `symbol` | `string` | Contract code including the call (`C`) / put (`P`) marker, e.g. `'m2409C3200'` |
 
-**Returns:** `OptionKline[]`
+**Returns:** an array of daily K-lines (aligned with the unified K-line contract).
 
-## Ranking Data
+## Full CFFEX options — `options.cffex`
 
-### getOptionLHB
+### `options.cffex.quotes()`
 
-Get option leaderboard.
+Fetch the full list of real-time CFFEX option quotes (Eastmoney data source).
 
 ```ts
-const lhb = await sdk.getOptionLHB('510050', '2022-01-21');
+const quotes = await sdk.options.cffex.quotes();
+console.log(quotes[0].code); // 'MO2603-P-8200'
+```
+
+**Returns:** an array of real-time quotes, each with contract code, name, last price, change/percent, volume/amount, open interest, strike price, remaining days, previous settlement price, etc.
+
+## Option Dragon-Tiger list — `options.lhb`
+
+### `options.lhb(symbol, date)`
+
+Fetch the option Dragon-Tiger list (top member seats by volume / open interest) for a given underlying and trading day.
+
+```ts
+const lhb = await sdk.options.lhb('510050', '2022-01-21');
 ```
 
 **Parameters:**
@@ -274,20 +234,6 @@ const lhb = await sdk.getOptionLHB('510050', '2022-01-21');
 | `symbol` | `string` | Underlying code, e.g. `'510050'`, `'510300'`, `'159919'` |
 | `date` | `string` | Trading date `YYYY-MM-DD` |
 
-**Returns:** `OptionLHBItem[]`
+**Returns:** an array of Dragon-Tiger entries, each with trade type, date, underlying code/name, member short name, rank, buy/sell volume, etc.
 
-```ts
-interface OptionLHBItem {
-  tradeType: string;   // Trade type
-  date: string;        // Trade date
-  symbol: string;      // Underlying code
-  targetName: string;  // Underlying name
-  memberName: string;  // Member abbreviation
-  rank: number;        // Rank
-  sellVolume: number | null;  // Sell volume
-  buyVolume: number | null;   // Buy volume
-  // ...more fields
-}
-```
-
-The return value also keeps legacy aliases such as `tradeDate`, `volume`, `amount`, `openInterest`, and `side` for backward compatibility.
+> v2 removes the `@deprecated` field aliases on the legacy `OptionLHBItem` (`tradeDate` / `volume` / `volumeChange`, plus old open-interest and amount aliases); use the unified standard fields instead. The exact fields follow the implementation.

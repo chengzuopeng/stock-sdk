@@ -334,7 +334,7 @@ export class StockSDK {
   }
 
   // ===== 顶层快捷方法(唯一保留;其余 v1 扁平方法已按 v2 单轨硬切移除,
-  // 迁移映射见 site-v2/guide/migration-v1-to-v2.md)=====
+  // 迁移映射见 website/guide/migration-v1-to-v2.md)=====
   /**
    * 模糊搜索股票/指数/基金等
    * @param keyword 关键词（代码 / 名称 / 拼音）

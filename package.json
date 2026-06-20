@@ -1,6 +1,6 @@
 {
   "name": "stock-sdk",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -16,12 +16,12 @@
     "test:integration": "RUN_INTEGRATION=1 vitest run",
     "test:integration:smoke": "RUN_INTEGRATION=1 vitest run test/integration/providers/tencent/quote.int.test.ts test/integration/providers/tencent/batch.int.test.ts test/integration/providers/tencent/tradeCalendar.int.test.ts test/integration/sdk/timeout.int.test.ts",
     "test:integration:full": "RUN_INTEGRATION=1 vitest run test/integration",
-    "docs:meta": "yarn build && node ./scripts/generate-doc-meta.js",
-    "docs:check": "DOCS_DIR=site-v2 yarn docs:meta && DOCS_DIR=site-v2 node ./scripts/check-doc-consistency.js",
-    "dev:v2": "vitepress dev site-v2",
-    "preview:v2": "vitepress preview site-v2",
-    "build:v2": "DOCS_DIR=site-v2 yarn docs:meta && DOCS_BASE=/ vitepress build site-v2",
-    "build:v2:pages": "DOCS_DIR=site-v2 yarn docs:meta && DOCS_BASE=/stock-sdk/ vitepress build site-v2",
+    "docs:meta": "pnpm build && node ./scripts/generate-doc-meta.js",
+    "docs:check": "pnpm docs:meta && node ./scripts/check-doc-consistency.js",
+    "dev": "vitepress dev website",
+    "preview": "vitepress preview website",
+    "build:docs": "pnpm docs:meta && DOCS_BASE=/ vitepress build website",
+    "build:pages": "pnpm docs:meta && DOCS_BASE=/stock-sdk/ vitepress build website",
     "prepare": "node ./scripts/install-git-hooks.js"
   },
   "exports": {
@@ -120,5 +120,5 @@
     "registry": "https://registry.npmjs.org/",
     "provenance": true
   },
-  "packageManager": "yarn@1.22.22"
+  "packageManager": "pnpm@10.34.4"
 }

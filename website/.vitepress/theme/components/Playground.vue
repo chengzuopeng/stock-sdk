@@ -1,23 +1,132 @@
 <script setup lang="ts">
+/**
+ * Playground v2 —— 在浏览器里直接调用 stock-sdk、即时查看返回结果。
+ *
+ * 架构（见 Playground TD 文档）：
+ * - 方法目录：src/spec/methods.ts（CLI/MCP 的 SSOT）经 ./playground/derive.ts 派生，
+ *   不再像 v1 那样手写 ~1900 行 method 清单
+ * - 执行：./playground/runner.ts 通用 argShape 组装（walker 复用 spec/resolve）
+ * - 代码示例：./playground/codegen.ts 由当前参数实时生成
+ * - 本组件只负责壳层 UI：侧边栏 / 搜索 / 市场芯片 / 表单 / 结果区 / 配置抽屉 / 深链
+ */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useData } from 'vitepress'
 import { Icon } from '@iconify/vue'
 import { codeToHtml } from 'shiki'
 
-// === 拆分到 ./playground/* 的方法元数据与执行逻辑 ===
 import { categories, marketChips } from './playground/categories'
-import { allMethods, methodsByName } from './playground/methods'
-import type { MethodSpec, CategoryKey, MarketKey } from './playground/types'
+import { playgroundMethods, methodsById } from './playground/derive'
+import { runMethod, findMissingRequired } from './playground/runner'
+import { buildCode } from './playground/codegen'
+import { DEFAULT_VALUES } from './playground/overrides'
+import type { PlaygroundMethod, MarketKey } from './playground/types'
 
-// VitePress 主题状态
-const { isDark } = useData()
+const { isDark, theme, lang } = useData()
+const isEn = computed(() => lang.value.toLowerCase().startsWith('en'))
 
-// 模板中沿用 `methodsConfig[name]` 的写法，这里把新结构 alias 过去
-const methodsConfig = methodsByName
+// ===== i18n（UI chrome 双语；方法描述来自 spec，Phase 1 为中文） =====
+const t = computed(() =>
+  isEn.value
+    ? {
+        apiMethods: 'API Methods',
+        searchPlaceholder: 'Search… (⌘K)',
+        filterByMarket: 'Filter by market',
+        noMatch: 'No matching methods',
+        viewCode: 'Show code',
+        hideCode: 'Hide code',
+        send: '🚀 Run',
+        sending: 'Running...',
+        clear: 'Clear',
+        hint: '⌘K search · ⌘↵ run',
+        result: 'Result',
+        success: '✓ OK',
+        failed: '✕ Failed',
+        duration: 'Time',
+        count: 'Count',
+        copy: '📋 Copy',
+        copied: '✅ Copied to clipboard',
+        copyFailed: '⚠️ Copy failed, select manually',
+        emptyResult: 'Click "Run" to start...',
+        loading: 'Loading...',
+        sdkFailed: 'Failed to load SDK. Check network and refresh.',
+        sdkNotReady: 'Error: SDK not loaded. Check network and refresh.',
+        missingRequired: (f: string) => `Error: required field "${f}" is empty`,
+        methodsNav: 'Methods',
+        sdkConfig: 'SDK Config',
+        sdkConfigTitle: 'SDK Runtime Config',
+        drawerHint:
+          'Click "Apply" to rebuild the SDK instance with the new config (persisted to localStorage). Great for demoing retry / rate-limit / circuit-breaker.',
+        general: 'General',
+        timeout: 'Timeout (ms)',
+        retry: 'Retry',
+        maxRetries: 'Max retries',
+        baseDelay: 'Base delay (ms)',
+        rateLimitTitle: 'Enable rateLimit',
+        rps: 'Requests / sec',
+        maxBurst: 'Bucket size',
+        cbTitle: 'Enable circuitBreaker',
+        failureThreshold: 'Failure threshold',
+        resetTimeout: 'Reset timeout (ms)',
+        resetDefault: 'Reset',
+        cancel: 'Cancel',
+        apply: 'Apply',
+        applied: '✅ SDK config applied, instance rebuilt',
+        applyFailed: '⚠️ SDK rebuild failed: ',
+        mounted: '💡 window.sdk is available in DevTools console',
+        truncated: (total: number, n: number) =>
+          `/* ⚠️ ${total} rows total; rendered first ${n} to keep the page responsive.\n   Full data: window.__playgroundLastResult */`,
+      }
+    : {
+        apiMethods: 'API 方法',
+        searchPlaceholder: '搜索方法… (⌘K)',
+        filterByMarket: '按市场过滤',
+        noMatch: '没有符合条件的方法',
+        viewCode: '查看示例',
+        hideCode: '隐藏代码',
+        send: '🚀 发送请求',
+        sending: '请求中...',
+        clear: '清空',
+        hint: '⌘K 搜索 · ⌘↵ 发送',
+        result: '返回结果',
+        success: '✓ 成功',
+        failed: '✕ 失败',
+        duration: '耗时',
+        count: '数量',
+        copy: '📋 复制',
+        copied: '✅ 已复制到剪贴板',
+        copyFailed: '⚠️ 复制失败，请手动选择复制',
+        emptyResult: '点击「发送请求」按钮开始测试...',
+        loading: '加载中...',
+        sdkFailed: '加载 SDK 失败，请检查网络连接或刷新页面重试',
+        sdkNotReady: '错误: SDK 未加载，请确保网络连接正常后刷新页面',
+        missingRequired: (f: string) => `错误: 必填参数 "${f}" 未填写`,
+        methodsNav: '方法',
+        sdkConfig: 'SDK 配置',
+        sdkConfigTitle: 'SDK 运行时配置',
+        drawerHint: '修改后点击「应用」会用新配置重建 SDK 实例并保存到 localStorage。适合演示重试 / 限流 / 熔断等高级特性。',
+        general: '通用',
+        timeout: '请求超时 (ms)',
+        retry: '重试 (retry)',
+        maxRetries: '最大重试次数',
+        baseDelay: '初始退避 (ms)',
+        rateLimitTitle: '启用限流 (rateLimit)',
+        rps: '每秒请求数',
+        maxBurst: '令牌桶容量',
+        cbTitle: '启用熔断器 (circuitBreaker)',
+        failureThreshold: '失败阈值',
+        resetTimeout: '熔断恢复时间 (ms)',
+        resetDefault: '重置默认',
+        cancel: '取消',
+        apply: '应用',
+        applied: '✅ SDK 配置已应用并重建实例',
+        applyFailed: '⚠️ SDK 重建失败: ',
+        mounted: '💡 已挂载 window.sdk，可在浏览器控制台直接调试 SDK',
+        truncated: (total: number, n: number) =>
+          `/* ⚠️ 共 ${total} 条数据，仅渲染前 ${n} 条以避免页面卡顿。\n   完整数据已挂载到 window.__playgroundLastResult */`,
+      }
+)
 
-// === 大结果集渲染保护 ===
-// 经验阈值：JSON.stringify 一个 5000+ 元素的对象数组并扔进 <pre> 会卡几秒。
-// 超过此阈值时只渲染前 N 项，完整数据存于 window 供控制台查看。
+// ===== 大结果集渲染保护 =====
 const MAX_RENDER_ITEMS = 200
 
 function formatResultForRender(data: unknown): string {
@@ -25,14 +134,10 @@ function formatResultForRender(data: unknown): string {
     return JSON.stringify(data, null, 2)
   }
   const head = data.slice(0, MAX_RENDER_ITEMS)
-  return (
-    JSON.stringify(head, null, 2) +
-    `\n\n/* ⚠️ 共 ${data.length} 条数据，仅渲染前 ${MAX_RENDER_ITEMS} 条以避免页面卡顿。\n` +
-    `   完整数据已挂载到 window.__playgroundLastResult，可在浏览器控制台访问。 */`
-  )
+  return JSON.stringify(head, null, 2) + '\n\n' + t.value.truncated(data.length, MAX_RENDER_ITEMS)
 }
 
-// === 代码示例高亮 ===
+// ===== 代码示例高亮 =====
 const highlightedCode = ref('')
 async function updateHighlightedCode(code: string) {
   try {
@@ -45,56 +150,39 @@ async function updateHighlightedCode(code: string) {
   }
 }
 
-/** 解析 spec.code（字符串或基于参数的函数） */
-function resolveCode(spec: MethodSpec, params: Record<string, string>): string {
-  return typeof spec.code === 'function' ? spec.code(params) : spec.code
-}
-
-// === 侧边栏方法搜索 + 按分类分组 ===
+// ===== 侧边栏：搜索 + 市场芯片 + 分类折叠 =====
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
-
-// === 市场过滤芯片 ===
-// null = 全部；其它 key 与 method.market 数组做交集判断
 const selectedMarket = ref<MarketKey | null>(null)
 
 function selectMarket(key: MarketKey | null) {
   selectedMarket.value = key
 }
 
-// === 分类折叠状态（localStorage 持久化） ===
-// 设计：localStorage 只存"用户手动展开"的分类集合。
-// 实际是否展开还要叠加两条隐式规则：
-//   1) 有任何过滤（搜索 / 市场芯片）时强制全部展开 —— 否则结果藏在折叠区里反而看不到
-//   2) currentMethod 所在分类强制展开 —— 防止刷新后看不到当前选中的方法
-const EXPANDED_STORAGE_KEY = 'stock-sdk-playground-expanded-v1'
+const EXPANDED_STORAGE_KEY = 'stock-sdk-playground-expanded-v2'
 
-function loadExpandedCategories(): Set<CategoryKey> {
+function loadExpandedCategories(): Set<string> {
   if (typeof localStorage === 'undefined') return new Set()
   try {
     const raw = localStorage.getItem(EXPANDED_STORAGE_KEY)
     if (!raw) return new Set()
-    const arr = JSON.parse(raw) as CategoryKey[]
-    return new Set(arr)
+    return new Set(JSON.parse(raw) as string[])
   } catch {
     return new Set()
   }
 }
 
-const expandedCategories = ref<Set<CategoryKey>>(loadExpandedCategories())
+const expandedCategories = ref<Set<string>>(loadExpandedCategories())
 
 function persistExpandedCategories() {
   try {
-    localStorage.setItem(
-      EXPANDED_STORAGE_KEY,
-      JSON.stringify(Array.from(expandedCategories.value))
-    )
+    localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(Array.from(expandedCategories.value)))
   } catch {
     /* 隐私模式可能写不进去，忽略 */
   }
 }
 
-function toggleCategory(key: CategoryKey) {
+function toggleCategory(key: string) {
   const next = new Set(expandedCategories.value)
   if (next.has(key)) next.delete(key)
   else next.add(key)
@@ -102,8 +190,7 @@ function toggleCategory(key: CategoryKey) {
   persistExpandedCategories()
 }
 
-/** 把某分类加入展开集合（如果尚未在）。用于"切换 method 时自动展开其所属分类"。 */
-function ensureCategoryExpanded(cat: CategoryKey | undefined) {
+function ensureCategoryExpanded(cat: string | undefined) {
   if (!cat || expandedCategories.value.has(cat)) return
   const next = new Set(expandedCategories.value)
   next.add(cat)
@@ -111,55 +198,31 @@ function ensureCategoryExpanded(cat: CategoryKey | undefined) {
   persistExpandedCategories()
 }
 
-/**
- * 当前分类是否展开。优先级：
- *   过滤激活（搜索 / 市场芯片） → 强制 true（否则结果藏在折叠区里）
- *   其它 → 取决于 expandedCategories（localStorage 持久化 + 切换 method 时自动 add）
- *
- * 注意：current method 所在分类不在这里强制 true —— 改用下面的 watcher 在
- * method 切换时把它 add 进 expandedCategories。这样用户仍可手动折叠当前分类
- * （否则点了 chevron 没反应，UX 很怪）。
- */
-function isCategoryOpen(key: CategoryKey): boolean {
+function isCategoryOpen(key: string): boolean {
   if (searchQuery.value.trim() || selectedMarket.value !== null) return true
   return expandedCategories.value.has(key)
 }
 
-/** 不带过滤的全量分组（按分类聚合 method 名） */
+/** 全量分组（保持 categories 顺序由模板控制，这里只聚合） */
 const methodsByCategory = computed(() => {
-  const grouped: Record<string, string[]> = {}
-  for (const [key, config] of Object.entries(methodsConfig)) {
-    if (!grouped[config.category]) grouped[config.category] = []
-    grouped[config.category].push(key)
+  const grouped: Record<string, PlaygroundMethod[]> = {}
+  for (const m of playgroundMethods) {
+    ;(grouped[m.category] ??= []).push(m)
   }
   return grouped
 })
 
-/**
- * 带过滤的分组（搜索 + 市场芯片），用于侧边栏渲染。
- * 两个过滤维度按 AND 组合：搜索匹配名/描述，市场匹配 method.market 数组（含 'all' 总是匹配）。
- */
+/** 搜索 + 市场过滤后的分组 */
 const filteredByCategory = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   const market = selectedMarket.value
   if (!q && !market) return methodsByCategory.value
 
-  const result: Record<string, string[]> = {}
-  for (const [cat, names] of Object.entries(methodsByCategory.value)) {
-    const matches = names.filter((name) => {
-      const m = methodsConfig[name]
-      if (!m) return false
-      // 关键词过滤
-      if (q && !(
-        m.name.toLowerCase().includes(q) ||
-        m.desc.toLowerCase().includes(q)
-      )) {
-        return false
-      }
-      // 市场过滤：方法的 market 数组中含选中市场 或 含 'all' 视为通用工具
-      if (market && !m.market?.some((x) => x === market || x === 'all')) {
-        return false
-      }
+  const result: Record<string, PlaygroundMethod[]> = {}
+  for (const [cat, methods] of Object.entries(methodsByCategory.value)) {
+    const matches = methods.filter((m) => {
+      if (q && !(m.id.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q))) return false
+      if (market && !m.market.some((x) => x === market || x === 'all')) return false
       return true
     })
     if (matches.length > 0) result[cat] = matches
@@ -167,14 +230,12 @@ const filteredByCategory = computed(() => {
   return result
 })
 
-/** 当前侧边栏中可见的方法总数（搜索时实时反馈） */
-const visibleMethodCount = computed(() => {
-  return Object.values(filteredByCategory.value).reduce((sum, arr) => sum + arr.length, 0)
-})
+const visibleMethodCount = computed(() =>
+  Object.values(filteredByCategory.value).reduce((sum, arr) => sum + arr.length, 0)
+)
+const totalMethodCount = playgroundMethods.length
 
-const totalMethodCount = allMethods.length
-
-// === SDK 运行时配置（抽屉编辑、localStorage 持久化） ===
+// ===== SDK 运行时配置（抽屉编辑、localStorage 持久化） =====
 interface SDKConfig {
   timeout: number
   retry: { maxRetries: number; baseDelay: number }
@@ -189,7 +250,7 @@ const DEFAULT_CONFIG: SDKConfig = {
   circuitBreaker: { enabled: false, failureThreshold: 5, resetTimeout: 30000 },
 }
 
-const CONFIG_STORAGE_KEY = 'stock-sdk-playground-config-v1'
+const CONFIG_STORAGE_KEY = 'stock-sdk-playground-config-v2'
 
 function loadStoredConfig(): SDKConfig {
   if (typeof localStorage === 'undefined') return structuredClone(DEFAULT_CONFIG)
@@ -197,7 +258,6 @@ function loadStoredConfig(): SDKConfig {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY)
     if (!raw) return structuredClone(DEFAULT_CONFIG)
     const parsed = JSON.parse(raw) as Partial<SDKConfig>
-    // 与默认值深合并，防止旧版本字段缺失
     return {
       timeout: parsed.timeout ?? DEFAULT_CONFIG.timeout,
       retry: { ...DEFAULT_CONFIG.retry, ...(parsed.retry ?? {}) },
@@ -211,7 +271,6 @@ function loadStoredConfig(): SDKConfig {
 
 const sdkConfig = ref<SDKConfig>(loadStoredConfig())
 
-/** 把 sdkConfig 转成 StockSDK 构造选项（按需省略未启用的部分） */
 function buildSDKOptions(cfg: SDKConfig): Record<string, unknown> {
   const opts: Record<string, unknown> = {
     timeout: cfg.timeout,
@@ -232,9 +291,7 @@ function buildSDKOptions(cfg: SDKConfig): Record<string, unknown> {
   return opts
 }
 
-/** 配置抽屉是否打开 */
 const configDrawerOpen = ref(false)
-/** 移动端侧边栏是否打开 */
 const sidebarOpen = ref(false)
 
 function closeAllDrawers() {
@@ -242,8 +299,8 @@ function closeAllDrawers() {
   sidebarOpen.value = false
 }
 
-// 状态
-const currentMethod = ref('getFullQuotes')
+// ===== 当前方法与表单状态 =====
+const currentMethodId = ref('quotes.cn')
 const paramValues = ref<Record<string, string>>({})
 const isLoading = ref(false)
 const result = ref('')
@@ -256,73 +313,67 @@ const sdkLoaded = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 
-// 当前方法配置
-const currentConfig = computed(() => methodsConfig[currentMethod.value])
+const currentMethod = computed<PlaygroundMethod | undefined>(() => methodsById[currentMethodId.value])
 
-// 当前参数实时渲染出的代码示例（resolveCode 处理静态 / 函数两种形式）
 const liveCode = computed(() => {
-  const spec = currentConfig.value
-  if (!spec) return ''
-  return resolveCode(spec, paramValues.value)
+  const m = currentMethod.value
+  if (!m) return ''
+  return buildCode(m, paramValues.value)
 })
 
-// 初始化参数
+/** 初始化参数：overrides 的演示默认值，没有则留空（空 = SDK 默认值落地） */
 function initParams() {
-  const config = currentConfig.value
+  const m = currentMethod.value
+  if (!m) return
+  const defaults = DEFAULT_VALUES[m.id] ?? {}
   const values: Record<string, string> = {}
-  config.params.forEach(param => {
-    values[param.key] = param.default
-  })
+  for (const f of m.fields) {
+    values[f.key] = defaults[f.key] ?? ''
+  }
   paramValues.value = values
 }
 
-// 切换方法
-function selectMethod(method: string) {
-  currentMethod.value = method
+function selectMethod(id: string) {
+  currentMethodId.value = id
   initParams()
   resultStatus.value = 'idle'
   result.value = ''
   showCode.value = false
-  // 移动端：选中方法后自动关闭抽屉，回到主内容
   sidebarOpen.value = false
 }
 
-// === 发送请求 ===
-// dispatcher 已下沉到每个 spec 的 run() 函数，这里只负责通用流程：
-// loading 开关、计时、错误处理、结果格式化（含大数据集截断）。
+// ===== 发送请求 =====
 async function fetchData() {
+  const m = currentMethod.value
+  if (!m) return
   if (!sdk.value) {
-    result.value = '错误: SDK 未加载，请确保网络连接正常后刷新页面'
+    result.value = t.value.sdkNotReady
     resultStatus.value = 'error'
     return
   }
 
-  const spec: MethodSpec | undefined = methodsByName[currentMethod.value]
-  if (!spec) {
-    result.value = `错误: 未知方法 "${currentMethod.value}"`
+  const missing = findMissingRequired(m, paramValues.value)
+  if (missing) {
+    result.value = t.value.missingRequired(missing)
     resultStatus.value = 'error'
     return
   }
 
   isLoading.value = true
   resultStatus.value = 'idle'
-  result.value = '加载中...'
+  result.value = t.value.loading
   const startTime = performance.now()
 
   try {
-    const data = await spec.run(sdk.value, paramValues.value, {
+    const data = await runMethod(sdk.value, m, paramValues.value, {
       onProgress: (msg) => {
         result.value = msg
       },
     })
 
-    const endTime = performance.now()
-    duration.value = Math.round(endTime - startTime)
-    resultCount.value = Array.isArray(data)
-      ? data.length
-      : ((data as any)?.data?.length || 1)
+    duration.value = Math.round(performance.now() - startTime)
+    resultCount.value = Array.isArray(data) ? data.length : ((data as any)?.data?.length || 1)
 
-    // 把完整数据挂到 window 供控制台调试，避免被截断后用户拿不到全量
     if (typeof window !== 'undefined') {
       ;(window as any).__playgroundLastResult = data
     }
@@ -330,41 +381,38 @@ async function fetchData() {
     result.value = formatResultForRender(data)
     resultStatus.value = 'success'
   } catch (error: any) {
-    const endTime = performance.now()
-    duration.value = Math.round(endTime - startTime)
-    result.value = `错误: ${error?.message ?? error}\n\n${error?.stack ?? ''}`
+    duration.value = Math.round(performance.now() - startTime)
+    result.value = `${isEn.value ? 'Error' : '错误'}: ${error?.message ?? error}\n\n${error?.stack ?? ''}`
     resultStatus.value = 'error'
   } finally {
     isLoading.value = false
   }
 }
 
-// 清空结果
 function clearResult() {
   result.value = ''
   resultStatus.value = 'idle'
 }
 
-// === SDK 加载与重建 ===
-// SDKClass 缓存避免每次 apply 配置都重新 fetch unpkg。
+// ===== SDK 加载（dev 本地 src / prod unpkg 锁精确版本） =====
 let cachedSDKClass: any = null
 
 async function loadSDKClass() {
   if (cachedSDKClass) return cachedSDKClass
   const isDev = import.meta.env.DEV
   if (isDev) {
-    // 本地开发：直接引用 src 源码
     const module = (await import('stock-sdk-local')) as any
     cachedSDKClass = module.StockSDK || module.default
   } else {
-    // 生产环境：从 unpkg 加载
-    const module = (await import('https://unpkg.com/stock-sdk/dist/index.js')) as any
+    // 锁精确版本（构建期注入的 themeConfig.sdkVersion），避免 @beta 浮动 tag
+    // 与构建期 bundle 的 spec 方法目录漂移（见 Playground TD 文档 §4.6）
+    const version = (theme.value as any).sdkVersion as string
+    const module = (await import(/* @vite-ignore */ `https://unpkg.com/stock-sdk@${version}/dist/index.js`)) as any
     cachedSDKClass = module.StockSDK
   }
   return cachedSDKClass
 }
 
-/** 用当前配置实例化 SDK 并挂载到 window.sdk */
 async function loadSDK() {
   const Cls = await loadSDKClass()
   const instance = new Cls(buildSDKOptions(sdkConfig.value))
@@ -372,49 +420,43 @@ async function loadSDK() {
   return instance
 }
 
-/** 应用 SDK 配置：保存到 localStorage + 重建 SDK 实例 */
 async function applyConfig() {
   try {
     localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(sdkConfig.value))
   } catch {
-    /* 隐私模式可能写不进去，无所谓，忽略 */
+    /* 忽略 */
   }
   try {
     sdk.value = await loadSDK()
-    toastMessage.value = '✅ SDK 配置已应用并重建实例'
+    toastMessage.value = t.value.applied
     showToast.value = true
     setTimeout(() => (showToast.value = false), 2500)
     configDrawerOpen.value = false
   } catch (err: any) {
-    toastMessage.value = `⚠️ SDK 重建失败: ${err?.message ?? err}`
+    toastMessage.value = `${t.value.applyFailed}${err?.message ?? err}`
     showToast.value = true
     setTimeout(() => (showToast.value = false), 4000)
   }
 }
 
-/** 重置配置为默认 */
 function resetConfig() {
   sdkConfig.value = structuredClone(DEFAULT_CONFIG)
 }
 
-// === URL 深度链接 ===
-// 格式：#methodName?key1=val1&key2=val2
-// - 切换方法 / 改参数时用 history.replaceState 同步，不污染浏览器后退栈
-// - onMounted 时解析 hash，把方法名和参数恢复到对应控件
-// - 空值参数会被滤除，保持 URL 简洁
+// ===== URL 深链：#quotes.cn?codes=sh600519 =====
 let suppressHashWrite = false
 
-function parseHash(): { method: string; values: Record<string, string> } | null {
+function parseHash(): { id: string; values: Record<string, string> } | null {
   if (typeof window === 'undefined') return null
   const hash = window.location.hash.replace(/^#/, '')
   if (!hash) return null
-  const [method, query = ''] = hash.split('?')
-  if (!method || !methodsByName[method]) return null
+  const [id, query = ''] = hash.split('?')
+  if (!id || !methodsById[id]) return null
   const values: Record<string, string> = {}
   new URLSearchParams(query).forEach((v, k) => {
     values[k] = v
   })
-  return { method, values }
+  return { id, values }
 }
 
 function writeHash() {
@@ -424,20 +466,18 @@ function writeHash() {
     if (v !== '' && v !== undefined && v !== null) params.set(k, String(v))
   }
   const query = params.toString()
-  const next = query ? `#${currentMethod.value}?${query}` : `#${currentMethod.value}`
+  const next = query ? `#${currentMethodId.value}?${query}` : `#${currentMethodId.value}`
   if (window.location.hash !== next) {
     window.history.replaceState(null, '', next)
   }
 }
 
 onMounted(async () => {
-  // 优先用 URL hash 恢复方法 / 参数；解析失败 fallback 到默认方法
   const fromHash = parseHash()
   if (fromHash) {
     suppressHashWrite = true
-    currentMethod.value = fromHash.method
+    currentMethodId.value = fromHash.id
     initParams()
-    // 用 hash 中的值覆盖默认参数
     for (const [k, v] of Object.entries(fromHash.values)) {
       if (k in paramValues.value) paramValues.value[k] = v
     }
@@ -446,89 +486,68 @@ onMounted(async () => {
     initParams()
   }
 
-  // 初始化展开状态：把当前 method 所在分类加入展开集合（如果还没在）。
-  // 见上面 watch(currentConfig.category) 的注释：刻意不在 watch 里用 immediate=true，
-  // 而是在这里 hash 解析完成后调一次，避免被默认 currentMethod 干扰。
-  ensureCategoryExpanded(currentConfig.value?.category)
+  ensureCategoryExpanded(currentMethod.value?.category)
 
   try {
-    // loadSDK 内部已经 attach 到 window.sdk
     sdk.value = await loadSDK()
     sdkLoaded.value = true
-    const isDev = import.meta.env.DEV
-    console.log(`🚀 Stock SDK Playground 已加载 (${isDev ? '本地开发模式' : '生产模式'})`)
+    console.log(`🚀 Stock SDK Playground 已加载 (${import.meta.env.DEV ? '本地开发模式' : '生产模式'})`)
     console.log('💡 提示: 可以在控制台使用 window.sdk 直接调用 SDK 方法')
 
-    // 显示 toast 提示
-    toastMessage.value = '💡 已挂载 window.sdk，可在浏览器控制台直接调试 SDK'
+    toastMessage.value = t.value.mounted
     showToast.value = true
     setTimeout(() => {
       showToast.value = false
     }, 5000)
   } catch (error) {
     console.error('加载 SDK 失败:', error)
-    result.value = '加载 SDK 失败，请检查网络连接或刷新页面重试'
+    result.value = t.value.sdkFailed
     resultStatus.value = 'error'
   }
 })
 
-// 代码示例随方法切换、参数改动、显隐切换实时高亮
+// 代码示例随方法 / 参数 / 显隐实时高亮
 watch(
   [liveCode, showCode],
   async ([code, visible]) => {
-    if (!visible || !currentConfig.value) return
-    const fullCode = `const sdk = new StockSDK();\n// ${currentConfig.value.desc}\n${code}`
+    if (!visible || !currentMethod.value) return
+    const fullCode = `// ${currentMethod.value.desc}\n${code}`
     await updateHighlightedCode(fullCode)
   },
   { immediate: true }
 )
 
-// 注意：原本这里有一个 `watch(currentMethod, () => initParams())`，
-// 它与 selectMethod() 的 initParams 调用重复，且会异步覆盖 onMounted 时
-// 从 URL hash 恢复的参数（如 #getHistoryKline?symbol=sh600519）。
-// 故移除：所有方法切换都走 selectMethod，已经处理了参数初始化。
-
-// 任意方法切换 / 参数改动 → 同步到 URL hash
+// 方法切换 / 参数改动 → 同步 URL hash
 watch(
-  [currentMethod, paramValues],
+  [currentMethodId, paramValues],
   () => writeHash(),
   { deep: true, flush: 'post' }
 )
 
-// 方法切换 → 自动把它所在分类加入展开集合。
-// 这里不直接 force-expand，而是把分类 add 进 expandedCategories 让其参与持久化，
-// 之后用户可以手动折叠它（即便它是 current method 所在分类）。
-//
-// 注意：不用 immediate=true。初始加载时 currentMethod 可能被 onMounted 里的 parseHash
-// 改写一次；用 immediate=true 会先以默认值 (getFullQuotes/quotes) 触发一次再以
-// hash 值触发一次，结果把不相关的 quotes 也展开了。改用 onMounted 里手动调一次。
+// 方法切换 → 自动展开所属分类（不用 immediate，初始由 onMounted 处理，避免 hash 恢复前误展开默认分类）
 watch(
-  () => currentConfig.value?.category,
+  () => currentMethod.value?.category,
   (cat) => ensureCategoryExpanded(cat)
 )
 
-// === 复制结果到剪贴板 ===
-// 优先使用挂在 window 上的完整数据（避免大结果集被截断），fallback 到当前显示的文本
+// ===== 复制结果 =====
 async function copyResult() {
   const fullData = (window as any).__playgroundLastResult
   const text = fullData !== undefined ? JSON.stringify(fullData, null, 2) : result.value
   if (!text) return
   try {
     await navigator.clipboard.writeText(text)
-    toastMessage.value = '✅ 已复制到剪贴板'
+    toastMessage.value = t.value.copied
     showToast.value = true
     setTimeout(() => (showToast.value = false), 2000)
   } catch {
-    toastMessage.value = '⚠️ 复制失败，请手动选择复制'
+    toastMessage.value = t.value.copyFailed
     showToast.value = true
     setTimeout(() => (showToast.value = false), 3000)
   }
 }
 
-// === 全局键盘快捷键 ===
-//   Cmd/Ctrl + K     → 聚焦侧边栏搜索框
-//   Cmd/Ctrl + Enter → 发送请求
-//   Escape           → 关闭已打开的抽屉（移动端 sidebar / SDK 配置）
+// ===== 快捷键 =====
 function onGlobalKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (sidebarOpen.value || configDrawerOpen.value)) {
     closeAllDrawers()
@@ -540,7 +559,6 @@ function onGlobalKeyDown(e: KeyboardEvent) {
 
   if (e.key === 'k' || e.key === 'K') {
     e.preventDefault()
-    // 桌面端：searchInput 已在 DOM；移动端：先打开抽屉再聚焦
     sidebarOpen.value = true
     nextTick(() => {
       searchInputRef.value?.focus()
@@ -574,30 +592,26 @@ onUnmounted(() => {
         {{ toastMessage }}
       </div>
     </Transition>
-    
-    <!-- 抽屉打开时的全屏遮罩（点击关闭） -->
+
+    <!-- 抽屉遮罩 -->
     <Transition name="fade">
-      <div
-        v-if="sidebarOpen || configDrawerOpen"
-        class="backdrop"
-        @click="closeAllDrawers"
-      ></div>
+      <div v-if="sidebarOpen || configDrawerOpen" class="backdrop" @click="closeAllDrawers"></div>
     </Transition>
 
     <div class="playground-body">
       <aside class="sidebar" :class="{ 'is-open': sidebarOpen }">
         <div class="sidebar-header">
           <span>
-            API 方法
+            {{ t.apiMethods }}
             <span class="method-count">
-              {{ searchQuery ? `${visibleMethodCount}/${totalMethodCount}` : totalMethodCount }}
+              {{ searchQuery || selectedMarket !== null ? `${visibleMethodCount}/${totalMethodCount}` : totalMethodCount }}
             </span>
           </span>
           <div class="sdk-status">
-            <span v-if="sdkLoaded" class="status-badge success" title="SDK 已就绪">
+            <span v-if="sdkLoaded" class="status-badge success" title="SDK Ready">
               <span class="dot"></span>
             </span>
-            <span v-else class="status-badge loading" title="加载中...">
+            <span v-else class="status-badge loading" title="Loading...">
               <span class="spinner"></span>
             </span>
           </div>
@@ -609,25 +623,23 @@ onUnmounted(() => {
             v-model="searchQuery"
             type="text"
             class="search-input"
-            placeholder="搜索方法… (⌘K)"
+            :placeholder="t.searchPlaceholder"
             spellcheck="false"
           />
           <button
             v-if="searchQuery"
             type="button"
             class="search-clear"
-            title="清除"
             @click="searchQuery = ''"
           >×</button>
         </div>
-        <div class="market-chips" role="tablist" aria-label="按市场过滤">
+        <div class="market-chips" role="tablist" :aria-label="t.filterByMarket">
           <button
             v-for="chip in marketChips"
             :key="chip.key ?? '_all'"
             type="button"
             class="market-chip"
             :class="{ active: selectedMarket === chip.key }"
-            :title="chip.key === null ? '显示全部方法' : `只看与「${chip.label}」相关的方法`"
             role="tab"
             :aria-selected="selectedMarket === chip.key"
             @click="selectMarket(chip.key)"
@@ -656,76 +668,80 @@ onUnmounted(() => {
             </button>
             <div v-show="isCategoryOpen(cat.key)" class="category-methods">
               <button
-                v-for="method in filteredByCategory[cat.key]"
-                :key="method"
+                v-for="m in filteredByCategory[cat.key]"
+                :key="m.id"
                 class="method-item"
-                :class="{ active: currentMethod === method }"
-                @click="selectMethod(method)"
+                :class="{ active: currentMethodId === m.id }"
+                @click="selectMethod(m.id)"
               >
-                <span class="method-name">{{ methodsConfig[method].name }}</span>
-                <span class="method-desc">{{ methodsConfig[method].desc }}</span>
+                <span class="method-name">{{ m.label }}</span>
+                <span class="method-desc">{{ m.desc }}</span>
               </button>
             </div>
           </div>
           <div v-if="(searchQuery || selectedMarket !== null) && visibleMethodCount === 0" class="search-empty">
-            没有符合条件的方法
+            {{ t.noMatch }}
           </div>
         </nav>
       </aside>
 
       <main class="main-content">
-        <!-- 主内容顶部工具条：移动端汉堡 + SDK 配置 -->
         <div class="main-toolbar">
-          <button
-            class="btn-icon mobile-only"
-            title="API 方法导航"
-            @click="sidebarOpen = true"
-          >
+          <button class="btn-icon mobile-only" @click="sidebarOpen = true">
             <Icon icon="lucide:menu" />
-            <span>方法</span>
+            <span>{{ t.methodsNav }}</span>
           </button>
           <div class="main-toolbar-spacer"></div>
-          <button
-            class="btn-icon"
-            title="编辑 SDK 运行时配置"
-            @click="configDrawerOpen = true"
-          >
+          <button class="btn-icon" @click="configDrawerOpen = true">
             <Icon icon="lucide:settings" />
-            <span>SDK 配置</span>
+            <span>{{ t.sdkConfig }}</span>
           </button>
         </div>
 
-        <div class="card params-card">
+        <div v-if="currentMethod" class="card params-card">
           <div class="card-header">
             <div class="method-info">
-              <h2>{{ currentConfig.name }}</h2>
-              <span class="method-desc">{{ currentConfig.desc }}</span>
+              <h2>{{ currentMethod.label }}</h2>
+              <span class="method-desc">{{ currentMethod.desc }}</span>
             </div>
             <button class="btn-toggle-code" :class="{ active: showCode }" @click="showCode = !showCode">
-              {{ showCode ? '隐藏代码' : '查看示例' }}
+              {{ showCode ? t.hideCode : t.viewCode }}
             </button>
           </div>
           <div class="card-body">
             <div class="params-grid">
-              <div v-for="param in currentConfig.params" :key="param.key" class="param-item">
-                <label class="param-label">
-                  {{ param.label }}
-                  <span v-if="param.required" class="required">*</span>
+              <div
+                v-for="field in currentMethod.fields"
+                :key="field.key"
+                class="param-item"
+                :class="{ 'param-item--checkbox': field.type === 'checkbox' }"
+              >
+                <label class="param-label" :title="field.desc">
+                  {{ field.label }}
+                  <span v-if="field.required" class="required">*</span>
                 </label>
                 <select
-                  v-if="param.type === 'select'"
-                  v-model="paramValues[param.key]"
+                  v-if="field.type === 'select'"
+                  v-model="paramValues[field.key]"
                   class="param-input"
                 >
-                  <option v-for="opt in param.options" :key="opt.value" :value="opt.value">
+                  <option v-for="opt in field.options" :key="opt.value" :value="opt.value">
                     {{ opt.label }}
                   </option>
                 </select>
+                <label v-else-if="field.type === 'checkbox'" class="param-checkbox">
+                  <input
+                    type="checkbox"
+                    :checked="paramValues[field.key] === 'true'"
+                    @change="paramValues[field.key] = ($event.target as HTMLInputElement).checked ? 'true' : ''"
+                  />
+                  <span class="param-checkbox__mark"></span>
+                </label>
                 <input
                   v-else
-                  :type="param.type"
-                  v-model="paramValues[param.key]"
-                  :placeholder="param.placeholder"
+                  :type="field.type === 'number' ? 'number' : 'text'"
+                  v-model="paramValues[field.key]"
+                  :placeholder="field.placeholder"
                   class="param-input"
                 />
               </div>
@@ -741,119 +757,93 @@ onUnmounted(() => {
               <button
                 class="btn primary"
                 :disabled="isLoading || !sdkLoaded"
-                title="发送请求 (⌘Enter)"
                 @click="fetchData"
               >
                 <span v-if="isLoading" class="btn-spinner"></span>
-                {{ isLoading ? '请求中...' : '🚀 发送请求' }}
+                {{ isLoading ? t.sending : t.send }}
               </button>
-              <button class="btn secondary" @click="clearResult">清空</button>
-              <span class="action-hint">⌘K 搜索 · ⌘↵ 发送</span>
+              <button class="btn secondary" @click="clearResult">{{ t.clear }}</button>
+              <span class="action-hint">{{ t.hint }}</span>
             </div>
           </div>
         </div>
 
         <div class="card result-card">
           <div class="card-header">
-            <h3>返回结果</h3>
+            <h3>{{ t.result }}</h3>
             <div class="result-meta">
               <template v-if="resultStatus !== 'idle'">
                 <span :class="['status-tag', resultStatus]">
-                  {{ resultStatus === 'success' ? '✓ 成功' : '✕ 失败' }}
+                  {{ resultStatus === 'success' ? t.success : t.failed }}
                 </span>
-                <span class="meta-item">耗时: <strong>{{ duration }}ms</strong></span>
+                <span class="meta-item">{{ t.duration }}: <strong>{{ duration }}ms</strong></span>
                 <span v-if="resultStatus === 'success'" class="meta-item">
-                  数量: <strong>{{ resultCount }}</strong>
+                  {{ t.count }}: <strong>{{ resultCount }}</strong>
                 </span>
               </template>
               <button
                 v-if="resultStatus === 'success' && result"
                 class="btn-copy"
-                title="复制完整结果到剪贴板"
                 @click="copyResult"
               >
-                📋 复制
+                {{ t.copy }}
               </button>
             </div>
           </div>
           <div class="card-body">
             <div :class="['result-box', resultStatus]">
-              <pre>{{ result || '点击「发送请求」按钮开始测试...' }}</pre>
+              <pre>{{ result || t.emptyResult }}</pre>
             </div>
           </div>
         </div>
       </main>
     </div>
 
-    <!-- SDK 配置抽屉（右侧滑入） -->
+    <!-- SDK 配置抽屉 -->
     <Transition name="slide-right">
       <aside v-if="configDrawerOpen" class="config-drawer" @click.stop>
         <div class="drawer-header">
           <h3>
             <Icon icon="lucide:settings" />
-            SDK 运行时配置
+            {{ t.sdkConfigTitle }}
           </h3>
-          <button class="btn-icon-only" title="关闭" @click="configDrawerOpen = false">
+          <button class="btn-icon-only" @click="configDrawerOpen = false">
             <Icon icon="lucide:x" />
           </button>
         </div>
 
         <div class="drawer-body">
-          <p class="drawer-hint">
-            修改后点击「应用」会用新配置重建 SDK 实例并保存到 localStorage。
-            适合演示重试 / 限流 / 熔断等高级特性。
-          </p>
+          <p class="drawer-hint">{{ t.drawerHint }}</p>
 
-          <!-- 通用 -->
           <fieldset class="cfg-section">
-            <legend>通用</legend>
+            <legend>{{ t.general }}</legend>
             <div class="cfg-row">
-              <label>请求超时 (ms)</label>
-              <input
-                type="number"
-                v-model.number="sdkConfig.timeout"
-                min="1000"
-                step="1000"
-                class="param-input"
-              />
+              <label>{{ t.timeout }}</label>
+              <input type="number" v-model.number="sdkConfig.timeout" min="1000" step="1000" class="param-input" />
             </div>
           </fieldset>
 
-          <!-- 重试 -->
           <fieldset class="cfg-section">
-            <legend>重试 (retry)</legend>
+            <legend>{{ t.retry }}</legend>
             <div class="cfg-row">
-              <label>最大重试次数</label>
-              <input
-                type="number"
-                v-model.number="sdkConfig.retry.maxRetries"
-                min="0"
-                max="10"
-                class="param-input"
-              />
+              <label>{{ t.maxRetries }}</label>
+              <input type="number" v-model.number="sdkConfig.retry.maxRetries" min="0" max="10" class="param-input" />
             </div>
             <div class="cfg-row">
-              <label>初始退避 (ms)</label>
-              <input
-                type="number"
-                v-model.number="sdkConfig.retry.baseDelay"
-                min="100"
-                step="100"
-                class="param-input"
-              />
+              <label>{{ t.baseDelay }}</label>
+              <input type="number" v-model.number="sdkConfig.retry.baseDelay" min="100" step="100" class="param-input" />
             </div>
           </fieldset>
 
-          <!-- 限流 -->
           <fieldset class="cfg-section">
             <legend>
               <label class="cfg-toggle">
                 <input type="checkbox" v-model="sdkConfig.rateLimit.enabled" />
-                启用限流 (rateLimit)
+                {{ t.rateLimitTitle }}
               </label>
             </legend>
             <div class="cfg-row" :class="{ disabled: !sdkConfig.rateLimit.enabled }">
-              <label>每秒请求数</label>
+              <label>{{ t.rps }}</label>
               <input
                 type="number"
                 v-model.number="sdkConfig.rateLimit.requestsPerSecond"
@@ -863,7 +853,7 @@ onUnmounted(() => {
               />
             </div>
             <div class="cfg-row" :class="{ disabled: !sdkConfig.rateLimit.enabled }">
-              <label>令牌桶容量</label>
+              <label>{{ t.maxBurst }}</label>
               <input
                 type="number"
                 v-model.number="sdkConfig.rateLimit.maxBurst"
@@ -874,16 +864,15 @@ onUnmounted(() => {
             </div>
           </fieldset>
 
-          <!-- 熔断器 -->
           <fieldset class="cfg-section">
             <legend>
               <label class="cfg-toggle">
                 <input type="checkbox" v-model="sdkConfig.circuitBreaker.enabled" />
-                启用熔断器 (circuitBreaker)
+                {{ t.cbTitle }}
               </label>
             </legend>
             <div class="cfg-row" :class="{ disabled: !sdkConfig.circuitBreaker.enabled }">
-              <label>失败阈值</label>
+              <label>{{ t.failureThreshold }}</label>
               <input
                 type="number"
                 v-model.number="sdkConfig.circuitBreaker.failureThreshold"
@@ -893,7 +882,7 @@ onUnmounted(() => {
               />
             </div>
             <div class="cfg-row" :class="{ disabled: !sdkConfig.circuitBreaker.enabled }">
-              <label>熔断恢复时间 (ms)</label>
+              <label>{{ t.resetTimeout }}</label>
               <input
                 type="number"
                 v-model.number="sdkConfig.circuitBreaker.resetTimeout"
@@ -907,10 +896,10 @@ onUnmounted(() => {
         </div>
 
         <div class="drawer-footer">
-          <button class="btn secondary" @click="resetConfig">重置默认</button>
+          <button class="btn secondary" @click="resetConfig">{{ t.resetDefault }}</button>
           <div class="footer-spacer"></div>
-          <button class="btn secondary" @click="configDrawerOpen = false">取消</button>
-          <button class="btn primary" @click="applyConfig">应用</button>
+          <button class="btn secondary" @click="configDrawerOpen = false">{{ t.cancel }}</button>
+          <button class="btn primary" @click="applyConfig">{{ t.apply }}</button>
         </div>
       </aside>
     </Transition>
@@ -919,46 +908,46 @@ onUnmounted(() => {
 
 <style scoped>
 .playground {
-  /* 浅色主题变量 - 红色主题 */
-  --pg-bg: #f8fafc;
+  /* 浅色主题变量 —— 红盘主题（深红 + 鎏金 + 暖底） */
+  --pg-bg: #faf8f7;
   --pg-surface: #ffffff;
-  --pg-surface-hover: #f1f5f9;
-  --pg-border: #e2e8f0;
-  --pg-text: #1e293b;
-  --pg-text-secondary: #64748b;
-  --pg-text-muted: #94a3b8;
-  --pg-accent: #f87171;
-  --pg-accent-hover: #ef4444;
-  --pg-accent-soft: rgba(248, 113, 113, 0.1);
-  --pg-success: #22c55e;
-  --pg-error: #ef4444;
-  --pg-code-bg: #1e293b;
-  --pg-code-text: #e2e8f0;
-  --pg-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --pg-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
+  --pg-surface-hover: #f3efed;
+  --pg-border: #e7e0dc;
+  --pg-text: #292524;
+  --pg-text-secondary: #6b6360;
+  --pg-text-muted: #a39c98;
+  --pg-accent: #b91c1c;
+  --pg-accent-hover: #dc2626;
+  --pg-accent-soft: rgba(185, 28, 28, 0.09);
+  --pg-success: #16a34a;
+  --pg-error: #dc2626;
+  --pg-code-bg: #1c1917;
+  --pg-code-text: #e7e5e4;
+  --pg-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --pg-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
 
   /* 固定高度，填满可视区域，不产生外部滚动 */
   height: calc(100vh - 64px);
   overflow: hidden;
   background: var(--pg-bg);
   color: var(--pg-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--vp-font-family-base);
 }
 
-/* 深色主题变量 */
+/* 深色主题变量（暖黑，与站点 .dark 一脉相承） */
 .playground.dark {
-  --pg-bg: #0f172a;
-  --pg-surface: #1e293b;
-  --pg-surface-hover: #334155;
-  --pg-border: #334155;
-  --pg-text: #f1f5f9;
-  --pg-text-secondary: #94a3b8;
-  --pg-text-muted: #64748b;
-  --pg-accent: #fca5a5;
-  --pg-accent-hover: #f87171;
-  --pg-accent-soft: rgba(252, 165, 165, 0.15);
-  --pg-code-bg: #0f172a;
-  --pg-code-text: #e2e8f0;
+  --pg-bg: #0e0b0a;
+  --pg-surface: #171210;
+  --pg-surface-hover: #221b18;
+  --pg-border: #2e2522;
+  --pg-text: #f0eae6;
+  --pg-text-secondary: #a39c98;
+  --pg-text-muted: #6b6360;
+  --pg-accent: #f87171;
+  --pg-accent-hover: #fca5a5;
+  --pg-accent-soft: rgba(248, 113, 113, 0.13);
+  --pg-code-bg: #0c0908;
+  --pg-code-text: #e7e5e4;
   --pg-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   --pg-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
 }
@@ -972,7 +961,7 @@ onUnmounted(() => {
 
 /* Sidebar */
 .sidebar {
-  width: 280px;
+  width: 300px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -983,15 +972,6 @@ onUnmounted(() => {
 
 .sidebar-header {
   flex-shrink: 0;
-}
-
-.method-nav {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-}
-
-.sidebar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1002,6 +982,13 @@ onUnmounted(() => {
   letter-spacing: 0.05em;
   color: var(--pg-text-muted);
   border-bottom: 1px solid var(--pg-border);
+  font-family: var(--vp-font-family-mono);
+}
+
+.method-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
 }
 
 .sdk-status {
@@ -1043,12 +1030,11 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-
 .category {
   margin-bottom: 4px;
 }
 
-/* === Category header（按钮式，可点击折叠 / 展开） === */
+/* Category header（可点击折叠 / 展开） */
 .category-header {
   display: flex;
   align-items: center;
@@ -1105,7 +1091,6 @@ onUnmounted(() => {
   background: var(--pg-surface-hover);
   color: var(--pg-text-muted);
   border-radius: 999px;
-  letter-spacing: 0;
 }
 .category-header:hover .category-count,
 .category:not(.collapsed) .category-count {
@@ -1119,7 +1104,7 @@ onUnmounted(() => {
   padding: 2px 0 8px;
 }
 
-/* === Method item — 两行卡片（方法名 + 一行描述） === */
+/* Method item —— 两行卡片（方法名 + 一行描述） */
 .method-item {
   display: flex;
   flex-direction: column;
@@ -1148,10 +1133,9 @@ onUnmounted(() => {
 .method-name {
   font-size: 0.82rem;
   font-weight: 500;
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-family: var(--vp-font-family-mono);
   color: var(--pg-text);
   line-height: 1.3;
-  /* 方法名通常不会超出，但保护一下 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1165,7 +1149,6 @@ onUnmounted(() => {
   font-size: 0.72rem;
   color: var(--pg-text-muted);
   line-height: 1.35;
-  /* 描述较长时截断成单行，省略号；hover 仍可看到 tooltip（title 属性可选） */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1177,7 +1160,7 @@ onUnmounted(() => {
 /* Main Content */
 .main-content {
   flex: 1;
-  min-height: 0; /* 允许 flex 子元素收缩，启用滚动 */
+  min-height: 0;
   padding: 24px;
   overflow-y: auto;
   background: var(--pg-bg);
@@ -1206,19 +1189,23 @@ onUnmounted(() => {
   font-size: 1rem;
   font-weight: 600;
 }
+.card-header h2 {
+  font-family: var(--vp-font-family-mono);
+}
 
 .method-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
-
-.method-desc {
+.method-info .method-desc {
   font-size: 0.875rem;
   color: var(--pg-text-secondary);
 }
 
 .btn-toggle-code {
+  flex-shrink: 0;
   padding: 6px 14px;
   font-size: 0.8rem;
   font-weight: 500;
@@ -1230,11 +1217,7 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.btn-toggle-code:hover {
-  background: var(--pg-accent);
-  color: white;
-}
-
+.btn-toggle-code:hover,
 .btn-toggle-code.active {
   background: var(--pg-accent);
   color: white;
@@ -1247,7 +1230,7 @@ onUnmounted(() => {
 /* Params */
 .params-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -1257,11 +1240,17 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 6px;
 }
+.param-item--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
 
 .param-label {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--pg-text-secondary);
+  font-family: var(--vp-font-family-mono);
 }
 
 .param-label .required {
@@ -1289,12 +1278,48 @@ onUnmounted(() => {
   color: var(--pg-text-muted);
 }
 
+/* checkbox（自绘，对齐红盘主题） */
+.param-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.param-checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.param-checkbox__mark {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--pg-border);
+  border-radius: 6px;
+  background: var(--pg-bg);
+  transition: all 0.15s;
+}
+.param-checkbox input:checked + .param-checkbox__mark {
+  background: var(--pg-accent);
+  border-color: var(--pg-accent);
+}
+.param-checkbox input:checked + .param-checkbox__mark::after {
+  content: '✓';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* Code Example Section */
 .code-example-section {
   margin-bottom: 24px;
   border-radius: 12px;
   overflow: hidden;
-  background: #1e293b;
+  background: #1c1917;
 }
 
 .shiki-wrapper {
@@ -1307,19 +1332,16 @@ onUnmounted(() => {
   padding: 16px 20px;
   border-radius: 12px;
   overflow-x: auto;
-  background: #1e293b !important;
+  background: #1c1917 !important;
 }
 
 .shiki-wrapper :deep(code) {
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-family: var(--vp-font-family-mono);
 }
 
-.dark .code-example-section {
-  background: #0f172a;
-}
-
+.dark .code-example-section,
 .dark .shiki-wrapper :deep(pre) {
-  background: #0f172a !important;
+  background: #0c0908 !important;
 }
 
 /* Expand Transition */
@@ -1339,7 +1361,7 @@ onUnmounted(() => {
 .expand-enter-to,
 .expand-leave-from {
   opacity: 1;
-  max-height: 500px;
+  max-height: 600px;
 }
 
 /* Action Bar */
@@ -1355,9 +1377,10 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: var(--pg-text-muted);
   user-select: none;
+  font-family: var(--vp-font-family-mono);
 }
 
-/* === 侧边栏：方法计数 + 搜索框 === */
+/* 侧边栏：方法计数 + 搜索框 */
 .method-count {
   display: inline-block;
   margin-left: 6px;
@@ -1438,7 +1461,7 @@ onUnmounted(() => {
   color: var(--pg-text-muted);
 }
 
-/* === 市场过滤芯片（搜索框下方一排可点击 pill） === */
+/* 市场过滤芯片 */
 .market-chips {
   flex-shrink: 0;
   display: flex;
@@ -1471,12 +1494,8 @@ onUnmounted(() => {
   border-color: var(--pg-accent);
   color: white;
 }
-.market-chip.active:hover {
-  /* 已选中时禁用 hover 反色，否则看起来像 disabled */
-  color: white;
-}
 
-/* === 复制按钮 === */
+/* 复制按钮 */
 .btn-copy {
   display: inline-flex;
   align-items: center;
@@ -1497,16 +1516,6 @@ onUnmounted(() => {
   border-color: var(--pg-accent);
 }
 
-/* === 日期输入框：浅色 / 深色统一 === */
-.param-input[type='date'] {
-  /* 让原生 date input 与文本框视觉一致 */
-  font-family: inherit;
-  color-scheme: light;
-}
-.playground.dark .param-input[type='date'] {
-  color-scheme: dark;
-}
-
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1522,14 +1531,14 @@ onUnmounted(() => {
 }
 
 .btn.primary {
-  background: linear-gradient(135deg, #f87171 0%, #fb923c 100%);
+  background: linear-gradient(135deg, #dc2626 0%, #d97706 100%);
   color: white;
-  box-shadow: 0 4px 14px rgba(248, 113, 113, 0.35);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
 }
 
 .btn.primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(248, 113, 113, 0.45);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.42);
 }
 
 .btn.primary:disabled {
@@ -1570,12 +1579,12 @@ onUnmounted(() => {
 }
 
 .status-tag.success {
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(22, 163, 74, 0.12);
   color: var(--pg-success);
 }
 
 .status-tag.error {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(220, 38, 38, 0.12);
   color: var(--pg-error);
 }
 
@@ -1598,7 +1607,7 @@ onUnmounted(() => {
 
 .result-box pre {
   margin: 0;
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-family: var(--vp-font-family-mono);
   font-size: 0.875rem;
   line-height: 1.6;
   color: var(--pg-code-text);
@@ -1615,7 +1624,7 @@ onUnmounted(() => {
 }
 
 .result-box.error pre {
-  color: var(--pg-error);
+  color: #fca5a5;
 }
 
 /* Responsive */
@@ -1633,7 +1642,6 @@ onUnmounted(() => {
   }
 
   .sidebar {
-    /* 桌面外的中等屏：sidebar 横铺顶部，限制高度避免占满整屏 */
     width: 100%;
     height: auto;
     max-height: 50vh;
@@ -1655,19 +1663,19 @@ onUnmounted(() => {
   }
 }
 
-/* Toast 样式 */
+/* Toast */
 .toast {
   position: fixed;
   top: 80px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.95) 0%, rgba(22, 163, 74, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(185, 28, 28, 0.96) 0%, rgba(217, 119, 6, 0.96) 100%);
   color: white;
   padding: 12px 24px;
   border-radius: 12px;
   font-size: 14px;
   font-weight: 500;
-  box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3), 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 32px rgba(185, 28, 28, 0.3), 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   cursor: pointer;
   backdrop-filter: blur(8px);
@@ -1679,7 +1687,6 @@ onUnmounted(() => {
   transform: translateX(-50%) scale(1.02);
 }
 
-/* Toast 动画 */
 .toast-enter-active {
   animation: toast-in 0.4s ease-out;
 }
@@ -1710,9 +1717,7 @@ onUnmounted(() => {
   }
 }
 
-/* ============================================================
- * 主内容工具条（含移动端汉堡 + SDK 配置入口）
- * ============================================================ */
+/* 主内容工具条 */
 .main-toolbar {
   display: flex;
   align-items: center;
@@ -1760,18 +1765,15 @@ onUnmounted(() => {
   color: var(--pg-text);
 }
 
-/* 移动端 only：默认隐藏 */
 .mobile-only {
   display: none;
 }
 
-/* ============================================================
- * 抽屉公用：背景遮罩
- * ============================================================ */
+/* 抽屉遮罩 */
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(14, 11, 10, 0.5);
   z-index: 50;
   cursor: pointer;
 }
@@ -1784,9 +1786,7 @@ onUnmounted(() => {
   transition: opacity 0.2s ease;
 }
 
-/* ============================================================
- * SDK 配置抽屉（右侧滑入）
- * ============================================================ */
+/* SDK 配置抽屉 */
 .config-drawer {
   position: fixed;
   top: 0;
@@ -1905,13 +1905,7 @@ onUnmounted(() => {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ============================================================
- * 移动端响应式（≤ 768px）
- *  - sidebar 变为全屏覆盖抽屉
- *  - main-content 全宽，padding 收紧
- *  - 卡片头部允许换行
- *  - 隐藏快捷键提示和动作 hint，避免拥挤
- * ============================================================ */
+/* 移动端（≤768px） */
 @media (max-width: 768px) {
   .mobile-only {
     display: inline-flex;
@@ -1922,12 +1916,14 @@ onUnmounted(() => {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 280px;
+    width: 300px;
     max-width: 85vw;
     z-index: 60;
     transform: translateX(-100%);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: var(--pg-shadow-lg);
+    max-height: none;
+    border-bottom: none;
   }
   .sidebar.is-open {
     transform: translateX(0);
@@ -1965,8 +1961,15 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .main-toolbar .btn-icon span {
-    /* 极窄屏只留图标 */
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-badge.success .dot,
+  .status-badge.loading .spinner,
+  .btn-spinner {
+    animation: none !important;
   }
 }
 </style>

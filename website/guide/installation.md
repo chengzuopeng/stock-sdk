@@ -1,6 +1,8 @@
 # 安装
 
-## 包管理器安装
+`stock-sdk` 零运行时依赖，可在**浏览器与 Node.js 18+** 双端使用，同时提供 ESM 与 CJS 产物。
+
+## 安装包
 
 ::: code-group
 
@@ -18,55 +20,83 @@ pnpm add stock-sdk
 
 :::
 
-## CDN 引入
+> 要求 Node.js >= 18。`stock-sdk` 没有任何运行时依赖，`npm install` 不会拉取第三方包。
 
-你也可以直接在浏览器中通过 CDN 使用：
+## 主入口导入
 
-```html
-<script type="module">
-  import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
+从主入口导入 `StockSDK` 类即可使用全部命名空间 API：
 
-  const sdk = new StockSDK();
-  const quotes = await sdk.getFullQuotes(['sz000858']);
-  console.log(quotes[0].name, quotes[0].price);
-</script>
+```ts
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+const quotes = await sdk.quotes.cn(['sh600519'])
 ```
 
-## 环境要求
+CommonJS 同样可用：
 
-- **Node.js**: >= 18.0.0（依赖原生 `fetch` / `AbortController` / `TextDecoder`）
-- **浏览器**: 所有现代浏览器（Chrome, Firefox, Safari, Edge）
-
-::: tip 关于 GBK 编码
-SDK 使用原生 `TextDecoder` 解码 GBK 编码数据，无需额外 polyfill。
-:::
-
-::: tip 旧版 Node.js
-若你需要在 Node 18 以下运行，请自行补齐 `fetch` 与 `TextDecoder` 的 polyfill（不作为官方支持范围）。
-:::
-
-## TypeScript 支持
-
-Stock SDK 使用 TypeScript 编写，提供完整的类型定义：
-
-```typescript
-import { StockSDK, FullQuote, HistoryKline } from 'stock-sdk';
-
-const sdk = new StockSDK();
-
-// 类型自动推断
-const quotes: FullQuote[] = await sdk.getFullQuotes(['sz000858']);
-const klines: HistoryKline[] = await sdk.getHistoryKline('sz000858');
+```js
+const { StockSDK } = require('stock-sdk')
 ```
 
-## 模块格式
+## 按需导入（subpath）
 
-SDK 同时提供 ESM 和 CommonJS 两种格式：
+纯计算能力通过 subpath 单独导出。只用指标、信号或符号解析时，**不会拖入请求层与全部 provider**，对 tree-shaking 友好：
 
-```javascript
-// ESM
-import { StockSDK } from 'stock-sdk';
+```ts
+// 技术指标计算函数
+import { calcMA, calcMACD, calcBOLL, addIndicators } from 'stock-sdk/indicators'
 
-// CommonJS
-const { StockSDK } = require('stock-sdk');
+// 信号识别（金叉 / 死叉 / 超买 / 超卖等）
+import { calcSignals } from 'stock-sdk/signals'
+
+// 符号解析
+import { normalizeSymbol } from 'stock-sdk/symbols'
+import type { SymbolRef } from 'stock-sdk/symbols'
 ```
+
+可用的 subpath 入口：
+
+| 入口 | 内容 |
+|---|---|
+| `stock-sdk` | 主库：`StockSDK` 与全部命名空间 API |
+| `stock-sdk/indicators` | 14 个技术指标计算函数 + `addIndicators` |
+| `stock-sdk/signals` | 信号识别 `calcSignals` |
+| `stock-sdk/symbols` | `normalizeSymbol`、`SymbolRef` 等符号类型 |
+| `stock-sdk/screener` | 选股器与回测引擎 |
+| `stock-sdk/cache` | 可注入的统一缓存层低层 API |
+| `stock-sdk/errors` | 统一错误类型 `SdkError` 与错误码 |
+
+> 每个 subpath 都在 `package.json` 的 `exports` 中声明，import / require / types 三件套齐全。
+
+## CLI
+
+主包自带命令行工具，无需额外安装即可在终端取数：
+
+```bash
+# 一次性运行
+npx stock-sdk quote sh600519
+
+# 或全局安装后使用 stock-sdk 命令
+npm install -g stock-sdk
+stock-sdk kline 600519 --period day
+```
+
+CLI 默认输出 JSON（管道友好），详见 [CLI 命令总览](/cli/)。
+
+## MCP
+
+启动内置 MCP server，供 Cursor / Claude / Codex 等 AI 工具接入：
+
+```bash
+stock-sdk mcp
+```
+
+MCP 协议为零依赖手写的最小实现（`stdio + tools`），开箱即用。各 AI 客户端的接入配置见 [MCP 安装配置](/mcp/installation)。
+
+> CLI 与 MCP 走独立入口，`import { StockSDK } from 'stock-sdk'` 时它们的代码**一字节都不会进用户 bundle**，主包始终保持零依赖。
+
+## 下一步
+
+- [快速开始](/guide/getting-started)：10 行命名空间 demo。
+- [符号与代码规则](/guide/symbols)：`string` 与 `SymbolRef` 的写法约定。

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Stock SDK
   text: 面向浏览器与 Node.js 的股票行情 SDK
-  tagline: 零依赖、轻量发布包，覆盖 A 股 / 港股 / 美股 / 基金 / 期货 / 期权、K 线、技术指标与 AI / MCP 接入
+  tagline: 零依赖、轻量发布包 —— 行情、K 线、技术指标与信号、选股回测，外加 CLI 与内置 MCP 接入 AI。
   actions:
     - theme: brand
       text: 快速开始
@@ -15,94 +15,55 @@ hero:
 
 features:
   - icon:
-      src: /icons/rocket.svg
-    title: 零依赖
-    details: 纯 TypeScript 实现，保持零依赖与轻量发布包，适合浏览器和 Node.js 直接接入
+      src: /icons/boxes.svg
+      wrap: true
+    title: 命名空间 API
+    details: sdk.quotes.cn() / sdk.kline.cn() / sdk.options.etf.dailyKline()，按领域组织，告别扁平长方法名。
   - icon:
-      src: /icons/globe.svg
-    title: 多市场覆盖
-    details: 支持 A 股、港股、美股、公募基金、国内期货、全球期货和多类期权接口
+      src: /icons/package.svg
+      wrap: true
+    title: 零依赖 · 双端
+    details: 运行时零依赖，浏览器与 Node.js 18+ 双端可用；ESM + CJS，支持 subpath 按需导入。
   - icon:
-      src: /icons/chart-bar.svg
-    title: 行情到分析
-    details: 提供实时行情、K 线、分时走势、板块数据、分红派送、交易日历与批量查询
+      src: /icons/file-check.svg
+      wrap: true
+    title: 统一数据契约
+    details: 统一 Quote 模型与基础字段（symbol / market / timestamp / tz），口径规整、类型可辨识。
   - icon:
-      src: /icons/trending-up.svg
-    title: 指标内置
-    details: 内置 MA、MACD、BOLL、KDJ、RSI、WR、BIAS、CCI、ATR、OBV、ROC、DMI、SAR、KC
+      src: /icons/activity.svg
+      wrap: true
+    title: 指标与信号
+    details: 14 个内置技术指标 + 信号层（金叉 / 死叉 / 超买 / 超卖），从 stock-sdk/indicators 与 stock-sdk/signals 按需引入。
   - icon:
-      src: /icons/brain.svg
-    title: AI / MCP 就绪
-    details: 配套 MCP Server，可接入 Cursor、Claude、Gemini 等 AI 工具，直接消费实时行情数据
+      src: /icons/filter.svg
+      wrap: true
+    title: 选股与回测
+    details: 基于全市场行情、板块、资金流的声明式选股器，以及本地回测引擎（纯计算、可复现）。
   - icon:
-      src: /icons/coins.svg
-    title: 请求治理
-    details: 支持 retry、rateLimit、circuitBreaker 和 providerPolicies，便于按数据源细分策略
-  - icon:
-      src: /icons/code.svg
-    title: TypeScript
-    details: 完整类型定义，浏览器与 Node.js 统一调用方式，适合前端看板和服务端任务
+      src: /icons/terminal.svg
+      wrap: true
+    title: CLI 与 MCP
+    details: stock-sdk 命令行直接取行情；stock-sdk mcp 一键启动内置 MCP 服务接入 AI 工具——均不影响主包体积与零依赖。
 ---
 
-<style>
-:root {
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #f87171 30%, #fb923c);
-}
+<div class="home-quick">
 
-.dark {
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #fca5a5 30%, #fdba74);
-}
-</style>
+<p class="home-quick-kicker">// QUICK START · 三行接入全市场行情</p>
 
-## 10 行代码获取股票行情
+<div class="home-quick-grid">
 
-```ts
-import { StockSDK } from 'stock-sdk';
-
-const sdk = new StockSDK();
-const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
-
-quotes.forEach((item) => {
-  console.log(`${item.name}: ${item.price} (${item.changePercent}%)`);
-});
+```bash
+# 安装（零依赖，~10KB gzip 起）
+npm i stock-sdk
 ```
 
-## 按数据源做请求治理
-
 ```ts
-const sdk = new StockSDK({
-  timeout: 8000,
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-    },
-    tencent: {
-      rateLimit: {
-        requestsPerSecond: 8,
-        maxBurst: 16,
-      },
-    },
-  },
-});
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+const [quote] = await sdk.quotes.cn(['600519']) // 贵州茅台实时行情
 ```
 
-## 适合的场景
+</div>
 
-- 前端行情看板和数据可视化
-- Node.js 定时抓取与交易日调度
-- 量化原型验证和指标分析
-- 期货、期权与分红事件驱动的数据面板
-- AI Agent / MCP 工具链里的实时报价能力
-
-## 继续阅读
-
-- [快速开始](/guide/getting-started)
-- [请求治理](/guide/request-governance)
-- [期货与期权](/guide/futures-options)
-- [分红与交易日历](/guide/dividend-calendar)
-- [API 总览](/api/)
+</div>

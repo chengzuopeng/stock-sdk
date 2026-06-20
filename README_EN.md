@@ -3,8 +3,8 @@
 [![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
-[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk-v2.linkdiary.cn/en/mcp/)
-[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk-v2.linkdiary.cn/en/mcp/)
+[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk.linkdiary.cn/en/mcp/)
+[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/en/mcp/)
 
 English | **[中文](./README.md)**
 
@@ -14,18 +14,18 @@ No Python. No backend service. Fetch real-time quotes and K-line data for **A-sh
 
 **✨ Zero dependencies, Lightweight distribution | 🌐 Browser + Node.js | 📦 ESM + CJS + subpaths | 🧠 Full TypeScript typings | 🖥️ CLI | 🤖 MCP**
 
-> 🧪 **v2.0.0 Beta**: v2 is an architectural leap (namespaced API, unified symbol model, `Quote` discriminated union, unified error system, CLI / MCP / subpath exports).
-> Install the beta: `npm i stock-sdk@beta`. Upgrading from v1? Read the [v1 → v2 migration guide](https://stock-sdk-v2.linkdiary.cn/en/guide/migration-v1-to-v2) first (**breaking changes, no compat aliases**).
+> ✨ **v2.0.0**: v2 is an architectural leap (namespaced API, unified symbol model, `Quote` discriminated union, unified error system, CLI / MCP / subpath exports).
+> Install: `npm i stock-sdk`. Upgrading from v1? Read the [v1 → v2 migration guide](https://stock-sdk.linkdiary.cn/en/guide/migration-v1-to-v2) first (**breaking changes, no compat aliases**).
 
-## 📖 Official docs (v2 Beta)
+## 📖 Official docs
 
-> ## 👉 https://stock-sdk-v2.linkdiary.cn/en/
+> ## 👉 https://stock-sdk.linkdiary.cn/en/
 >
-> **Temporary official site for the v2 Beta** — full API, namespace overview, CLI / MCP guides, the online Playground, and the v1 → v2 migration guide all live here. Start with the docs for the fastest onboarding.
+> Full API, namespace overview, CLI / MCP guides, the online Playground, and the v1 → v2 migration guide all live here. Start with the docs for the fastest onboarding.
 >
-> (v1 stable docs remain at https://stock-sdk.linkdiary.cn/en/)
+> ([v1 stable docs](https://v1.stock-sdk.linkdiary.cn/en/) are archived)
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Playground](https://stock-sdk-v2.linkdiary.cn/playground/)
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Playground](https://stock-sdk.linkdiary.cn/playground/)
 
 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/): A stock market dashboard demo built with stock-sdk. Feel free to try it.
 
@@ -75,11 +75,11 @@ If you're a frontend engineer, you may have encountered these problems:
 ## Installation
 
 ```bash
-# v2 Beta (namespaced API / CLI / MCP)
-npm install stock-sdk@beta
-
-# v1 stable
+# Latest (v2: namespaced API / CLI / MCP)
 npm install stock-sdk
+
+# v1 legacy (frozen, critical fixes only)
+npm install stock-sdk@legacy
 ```
 
 ## Quick start
@@ -154,7 +154,7 @@ Wire it into Cursor / Claude Desktop / Codex / Gemini, etc. (`mcpServers` config
 
 `STOCK_SDK_MCP_TOOLS=core|full|<comma-separated tool names>` controls the tool set (default `core`).
 
-👉 [Full MCP docs](https://stock-sdk-v2.linkdiary.cn/en/mcp/)
+👉 [Full MCP docs](https://stock-sdk.linkdiary.cn/en/mcp/)
 
 ---
 
@@ -259,7 +259,7 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 
 ## API overview (namespaces)
 
-💡 Full API in the [documentation](https://stock-sdk-v2.linkdiary.cn/en/api/). In v2, every method lives under a namespace:
+💡 Full API in the [documentation](https://stock-sdk.linkdiary.cn/en/api/). In v2, every method lives under a namespace:
 
 | Namespace | Representative methods |
 |---|---|
@@ -281,18 +281,18 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 | top-level | `sdk.search(keyword)` |
 
 > Indicator math moved from the main package to a subpath: `import { calcMACD } from 'stock-sdk/indicators'`.
-> Migrating from the v1 flat API? See the [v1 → v2 migration guide](https://stock-sdk-v2.linkdiary.cn/en/guide/migration-v1-to-v2) (with the full `sdk.getXxx()` → `sdk.<ns>.<method>()` mapping).
+> Migrating from the v1 flat API? See the [v1 → v2 migration guide](https://stock-sdk.linkdiary.cn/en/guide/migration-v1-to-v2) (with the full `sdk.getXxx()` → `sdk.<ns>.<method>()` mapping).
 
 ---
 
 ## Dev checks
 
 ```bash
-yarn typecheck
-yarn build
-yarn test
-yarn test:integration:smoke   # smoke integration (real network)
-yarn test:integration:full    # full integration regression
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm test:integration:smoke   # smoke integration (real network)
+pnpm test:integration:full    # full integration regression
 ```
 
 ---
@@ -303,7 +303,7 @@ yarn test:integration:full    # full integration regression
 
 ---
 
-🌐 [Website](https://stock-sdk-v2.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk-v2.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [Website](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground/) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

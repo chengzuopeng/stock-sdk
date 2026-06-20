@@ -1,8 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
+    <!-- 红盘主题：深红 → 红 → 鎏金，与首页 hero 标题渐变同源 -->
     <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#f87171;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#fb923c;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#991b1b;stop-opacity:1" />
+      <stop offset="55%" style="stop-color:#dc2626;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
     </linearGradient>
   </defs>
   <rect x="5" y="5" width="90" height="90" rx="12" fill="url(#grad1)"/>

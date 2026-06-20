@@ -1,283 +1,246 @@
-# Technical Indicators
+# indicators · Technical Indicators
 
-Get K-line data with built-in technical indicator calculations. Supports A-shares, HK stocks, and US stocks.
+The indicators are a set of **pure functions**: zero network, zero dependencies, isomorphic (browser + Node). Import them from the `stock-sdk/indicators` subpath so consumers who only need indicators don't pull `RequestClient` and every provider into their bundle.
 
-## getKlineWithIndicators
-
-One-stop API to get K-line with multiple indicators.
-
-```typescript
-const data = await sdk.getKlineWithIndicators('sz000858', {
-  period: 'daily',
-  startDate: '20240101',
-  endDate: '20241231',
-  indicators: {
-    ma: { periods: [5, 10, 20, 60] },
-    macd: true,
-    boll: true,
-    kdj: true,
-    rsi: { periods: [6, 12, 24] },
-    wr: true,
-    bias: { periods: [6, 12, 24] },
-    cci: true,
-    atr: true,
-    obv: { maPeriod: 20 },
-    roc: { period: 12, signalPeriod: 6 },
-    dmi: { period: 14 },
-    sar: true,
-    kc: { emaPeriod: 20, atrPeriod: 10, multiplier: 2 },
-  }
-});
+```ts
+import { calcMACD, addIndicators } from 'stock-sdk/indicators'
 ```
 
-### Parameters
+There are 14 `calc*` functions plus one `addIndicators` enricher. The input is a K-line series you already have (from `sdk.kline.cn(...)`, or any data of your own); the output is an array of **equal length** (the leading items are `null` where there isn't enough data), index-aligned with the input.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| symbol | `string` | Yes | Stock symbol |
-| options.market | `'A' \| 'HK' \| 'US'` | No | Market type. Auto-detected by default |
-| options.period | `'daily' \| 'weekly' \| 'monthly'` | No | K-line period |
-| options.startDate | `string` | No | Start date |
-| options.endDate | `string` | No | End date |
-| options.adjust | `'' \| 'qfq' \| 'hfq'` | No | Price adjustment |
-| options.indicators | `IndicatorOptions` | No | Indicators to calculate |
+## Input contract
 
-### Indicator Configuration
+Functions split into two groups by the data they need:
 
-```typescript
-interface IndicatorOptions {
-  ma?: MAOptions | boolean;        // Moving Average
-  macd?: MACDOptions | boolean;    // MACD
-  boll?: BOLLOptions | boolean;    // Bollinger Bands
-  kdj?: KDJOptions | boolean;      // KDJ
-  rsi?: RSIOptions | boolean;      // RSI
-  wr?: WROptions | boolean;        // Williams %R
-  bias?: BIASOptions | boolean;    // BIAS
-  cci?: CCIOptions | boolean;      // CCI
-  atr?: ATROptions | boolean;      // ATR
-  obv?: OBVOptions | boolean;      // On Balance Volume
-  roc?: ROCOptions | boolean;      // Rate of Change
-  dmi?: DMIOptions | boolean;      // Directional Movement Index
-  sar?: SAROptions | boolean;      // Parabolic SAR
-  kc?: KCOptions | boolean;        // Keltner Channel
+- **Close-only**: takes `(number | null)[]` (an array of closes) — `calcMA` / `calcMACD` / `calcBOLL` / `calcRSI` / `calcBIAS`.
+- **OHLCV**: takes `OHLCV[]` (open/high/low/close/volume) — `calcKDJ` / `calcWR` / `calcCCI` / `calcATR` / `calcOBV` / `calcROC` / `calcDMI` / `calcSAR` / `calcKC`.
+
+```ts
+interface OHLCV {
+  open: number | null
+  high: number | null
+  low: number | null
+  close: number | null
+  volume?: number | null
 }
 ```
 
-### Return Type
+> K-line objects already carry `open/high/low/close/volume`, so they can be fed directly to OHLCV functions; for close-only functions, take `klines.map(k => k.close)`.
 
-Each K-line record includes indicator values:
+## Methods
 
-```typescript
-interface KlineWithIndicators extends KlineData {
-  ma?: {
-    ma5?: number;
-    ma10?: number;
-    ma20?: number;
-    ma60?: number;
-    // ... dynamic based on periods
-  };
-  macd?: {
-    dif: number;
-    dea: number;
-    macd: number;
-  };
-  boll?: {
-    upper: number;
-    mid: number;
-    lower: number;
-  };
-  kdj?: {
-    k: number;
-    d: number;
-    j: number;
-  };
-  rsi?: {
-    rsi6?: number;
-    rsi12?: number;
-    rsi24?: number;
-  };
-  wr?: {
-    wr6: number;
-    wr10: number;
-  };
-  bias?: {
-    bias6?: number;
-    bias12?: number;
-    bias24?: number;
-  };
-  cci?: {
-    cci: number;
-  };
-  atr?: {
-    atr: number;
-  };
-  obv?: {
-    obv: number | null;
-    obvMa: number | null;
-  };
-  roc?: {
-    roc: number | null;
-    signal: number | null;
-  };
-  dmi?: {
-    pdi: number | null;
-    mdi: number | null;
-    adx: number | null;
-    adxr: number | null;
-  };
-  sar?: {
-    sar: number | null;
-    trend: 1 | -1 | null;
-    ep: number | null;
-    af: number | null;
-  };
-  kc?: {
-    mid: number | null;
-    upper: number | null;
-    lower: number | null;
-    width: number | null;
-  };
-}
+| Function | Description |
+|---|---|
+| `calcMA(closes, opts?)` | Moving averages (SMA / EMA / WMA, multi-period), returns `{ ma5, ma10, ... }` |
+| `calcMACD(closes, opts?)` | MACD, returns `{ dif, dea, macd }` |
+| `calcBOLL(closes, opts?)` | Bollinger Bands, returns `{ mid, upper, lower, bandwidth }` |
+| `calcKDJ(data, opts?)` | Stochastic oscillator, returns `{ k, d, j }` |
+| `calcRSI(closes, opts?)` | Relative Strength Index (multi-period), returns `{ rsi6, rsi12, ... }` |
+| `calcWR(data, opts?)` | Williams %R (multi-period), returns `{ wr6, wr10, ... }` |
+| `calcBIAS(closes, opts?)` | Bias ratio (multi-period), returns `{ bias6, bias12, ... }` |
+| `calcCCI(data, opts?)` | Commodity Channel Index, returns `{ cci }` |
+| `calcATR(data, opts?)` | Average True Range, returns `{ tr, atr }` |
+| `calcOBV(data, opts?)` | On-Balance Volume, returns `{ obv, obvMa }` |
+| `calcROC(data, opts?)` | Rate of Change, returns `{ roc, signal }` |
+| `calcDMI(data, opts?)` | Directional Movement Index, returns `{ pdi, mdi, adx, adxr }` |
+| `calcSAR(data, opts?)` | Parabolic SAR, returns `{ sar, trend, ep, af }` |
+| `calcKC(data, opts?)` | Keltner Channel, returns `{ mid, upper, lower, width }` |
+| `addIndicators(klines, opts?)` | Attach multiple indicators onto K-lines at once, returns `KlineWithIndicators[]` |
+
+> Each function takes optional options (periods, multipliers, etc.); omit them to use common defaults. Exact fields and defaults follow the implementation.
+
+## calcMA
+
+Moving averages. `type` is `'sma'` (default) / `'ema'` / `'wma'`, `periods` lists the windows to compute, and result keys look like `ma5`, `ma20`.
+
+```ts
+import { calcMA } from 'stock-sdk/indicators'
+
+const closes = klines.map(k => k.close)
+const ma = calcMA(closes, { periods: [5, 10, 20], type: 'sma' })
+// ma[last] => { ma5: 1712.3, ma10: 1698.1, ma20: 1675.4 }
 ```
 
-## Example
+## calcMACD
 
-```typescript
-import { StockSDK } from 'stock-sdk';
+MACD — fast line `dif`, slow line `dea`, and the histogram `macd`. Defaults: `short=12, long=26, signal=9`.
 
-const sdk = new StockSDK();
+```ts
+import { calcMACD } from 'stock-sdk/indicators'
 
-const data = await sdk.getKlineWithIndicators('sz000858', {
-  startDate: '20240101',
-  indicators: {
-    ma: { periods: [5, 10, 20] },
-    macd: true,
-    boll: true,
-    obv: true,
-    dmi: true,
-    kc: true,
-  }
-});
-
-data.forEach(k => {
-  console.log(`${k.date}: Close ${k.close}`);
-  console.log(`  MA: 5=${k.ma?.ma5}, 10=${k.ma?.ma10}, 20=${k.ma?.ma20}`);
-  console.log(`  MACD: DIF=${k.macd?.dif}, DEA=${k.macd?.dea}`);
-  console.log(`  BOLL: Upper=${k.boll?.upper}, Mid=${k.boll?.mid}`);
-  console.log(`  OBV=${k.obv?.obv}, ADX=${k.dmi?.adx}, KC Mid=${k.kc?.mid}`);
-});
+const macd = calcMACD(closes, { short: 12, long: 26, signal: 9 })
+// macd[last] => { dif: 3.2, dea: 1.8, macd: 2.8 }
 ```
 
----
+## calcBOLL
 
-## Supported Indicators
+Bollinger Bands — `mid`, `upper`, `lower`, and `bandwidth`. Defaults: `period=20, stdDev=2`.
 
-| Indicator | Method | Description |
-|-----------|--------|-------------|
-| [MA](/en/api/indicator-ma) | `calcMA` | Moving Average (SMA/EMA/WMA) |
-| [MACD](/en/api/indicator-macd) | `calcMACD` | Moving Average Convergence Divergence |
-| [BOLL](/en/api/indicator-boll) | `calcBOLL` | Bollinger Bands |
-| [KDJ](/en/api/indicator-kdj) | `calcKDJ` | Stochastic Oscillator |
-| [RSI](/en/api/indicator-rsi-wr) | `calcRSI` | Relative Strength Index |
-| [WR](/en/api/indicator-rsi-wr) | `calcWR` | Williams %R |
-| [BIAS](/en/api/indicator-bias) | `calcBIAS` | Bias Ratio |
-| [CCI](/en/api/indicator-cci) | `calcCCI` | Commodity Channel Index |
-| [ATR](/en/api/indicator-atr) | `calcATR` | Average True Range |
-| [OBV](/en/api/indicator-obv) | `calcOBV` | On Balance Volume |
-| [ROC](/en/api/indicator-roc) | `calcROC` | Rate of Change |
-| [DMI/ADX](/en/api/indicator-dmi) | `calcDMI` | Directional Movement Index |
-| [SAR](/en/api/indicator-sar) | `calcSAR` | Parabolic SAR |
-| [KC](/en/api/indicator-kc) | `calcKC` | Keltner Channel |
+```ts
+import { calcBOLL } from 'stock-sdk/indicators'
 
----
-
-## Standalone Functions
-
-All indicator functions can be imported independently:
-
-```typescript
-import {
-  calcMA,
-  calcSMA,
-  calcEMA,
-  calcWMA,
-  calcMACD,
-  calcBOLL,
-  calcKDJ,
-  calcRSI,
-  calcWR,
-  calcBIAS,
-  calcCCI,
-  calcATR,
-  // New indicators
-  calcOBV,
-  calcROC,
-  calcDMI,
-  calcSAR,
-  calcKC,
-  addIndicators,
-} from 'stock-sdk';
+const boll = calcBOLL(closes, { period: 20, stdDev: 2 })
+// boll[last] => { mid: 1700, upper: 1760, lower: 1640, bandwidth: 0.07 }
 ```
 
----
+## calcKDJ
 
-## New Indicator Examples
+Stochastic oscillator. Needs OHLCV (uses high / low / close). Defaults: `period=9, kPeriod=3, dPeriod=3`.
 
-### OBV - On Balance Volume
+```ts
+import { calcKDJ } from 'stock-sdk/indicators'
 
-```typescript
-import { calcOBV } from 'stock-sdk';
-
-const klines = await sdk.getHistoryKline('sz000001');
-const obv = calcOBV(klines, { maPeriod: 20 });
-console.log(obv[30].obv);    // OBV value
-console.log(obv[30].obvMa);  // OBV 20-day MA
+const kdj = calcKDJ(klines, { period: 9 })
+// kdj[last] => { k: 82.1, d: 75.6, j: 95.1 }
 ```
 
-### ROC - Rate of Change
+## calcRSI
 
-```typescript
-import { calcROC } from 'stock-sdk';
+Relative Strength Index, multi-period. Result keys look like `rsi6`, `rsi12`, `rsi24`; default `periods=[6, 12, 24]`.
 
-const klines = await sdk.getHistoryKline('sz000001');
-const roc = calcROC(klines, { period: 12, signalPeriod: 6 });
-console.log(roc[20].roc);     // ROC value
-console.log(roc[25].signal);  // Signal line
+```ts
+import { calcRSI } from 'stock-sdk/indicators'
+
+const rsi = calcRSI(closes, { periods: [6, 12, 24] })
+// rsi[last] => { rsi6: 71.2, rsi12: 64.8, rsi24: 58.3 }
 ```
 
-### DMI/ADX - Directional Movement Index
+## calcWR
 
-```typescript
-import { calcDMI } from 'stock-sdk';
+Williams %R (overbought/oversold), multi-period. Needs OHLCV; result keys look like `wr6`, `wr10`; default `periods=[6, 10]`.
 
-const klines = await sdk.getHistoryKline('sz000001');
-const dmi = calcDMI(klines, { period: 14 });
-console.log(dmi[30].pdi);  // +DI (upward)
-console.log(dmi[30].mdi);  // -DI (downward)
-console.log(dmi[30].adx);  // ADX (trend strength)
+```ts
+import { calcWR } from 'stock-sdk/indicators'
+
+const wr = calcWR(klines, { periods: [6, 10] })
+// wr[last] => { wr6: -12.4, wr10: -20.1 }
 ```
 
-### SAR - Parabolic SAR
+## calcBIAS
 
-```typescript
-import { calcSAR } from 'stock-sdk';
+Bias ratio, multi-period. Result keys look like `bias6`, `bias12`, `bias24`; default `periods=[6, 12, 24]`.
 
-const klines = await sdk.getHistoryKline('sz000001');
-const sar = calcSAR(klines);
-console.log(sar[30].sar);    // SAR value
-console.log(sar[30].trend);  // Trend: 1 = up, -1 = down
+```ts
+import { calcBIAS } from 'stock-sdk/indicators'
+
+const bias = calcBIAS(closes, { periods: [6, 12, 24] })
+// bias[last] => { bias6: 2.1, bias12: 3.4, bias24: 5.0 }
 ```
 
-### KC - Keltner Channel
+## calcCCI
 
-```typescript
-import { calcKC } from 'stock-sdk';
+Commodity Channel Index. Needs OHLCV; default `period=14`.
 
-const klines = await sdk.getHistoryKline('sz000001');
-const kc = calcKC(klines, { emaPeriod: 20, multiplier: 2 });
-console.log(kc[30].upper);  // Upper band
-console.log(kc[30].mid);    // Middle band
-console.log(kc[30].lower);  // Lower band
+```ts
+import { calcCCI } from 'stock-sdk/indicators'
+
+const cci = calcCCI(klines, { period: 14 })
+// cci[last] => { cci: 118.5 }
 ```
 
-See individual indicator documentation for more details.
+## calcATR
+
+Average True Range — true range `tr` and its average `atr`. Needs OHLCV; default `period=14`.
+
+```ts
+import { calcATR } from 'stock-sdk/indicators'
+
+const atr = calcATR(klines, { period: 14 })
+// atr[last] => { tr: 24.5, atr: 21.3 }
+```
+
+## calcOBV
+
+On-Balance Volume (price-volume) — `obv` and its moving average `obvMa`. Needs OHLCV with `volume`.
+
+```ts
+import { calcOBV } from 'stock-sdk/indicators'
+
+const obv = calcOBV(klines, { maPeriod: 30 })
+// obv[last] => { obv: 1.23e8, obvMa: 1.15e8 }
+```
+
+## calcROC
+
+Rate of Change — `roc` (percentage) and a signal line `signal`. Needs OHLCV; default `period=12`.
+
+```ts
+import { calcROC } from 'stock-sdk/indicators'
+
+const roc = calcROC(klines, { period: 12 })
+// roc[last] => { roc: 4.7, signal: 3.1 }
+```
+
+## calcDMI
+
+Directional Movement Index — `+DI`(`pdi`) / `-DI`(`mdi`) / `adx` / `adxr`. Needs OHLCV; default `period=14`.
+
+```ts
+import { calcDMI } from 'stock-sdk/indicators'
+
+const dmi = calcDMI(klines, { period: 14 })
+// dmi[last] => { pdi: 28.4, mdi: 14.1, adx: 32.7, adxr: 30.2 }
+```
+
+## calcSAR
+
+Parabolic SAR — the `sar` value, trend direction `trend` (`1` up / `-1` down), extreme point `ep`, and acceleration factor `af`. Needs OHLCV.
+
+```ts
+import { calcSAR } from 'stock-sdk/indicators'
+
+const sar = calcSAR(klines, { afStart: 0.02, afIncrement: 0.02, afMax: 0.2 })
+// sar[last] => { sar: 1655.0, trend: 1, ep: 1720.0, af: 0.1 }
+```
+
+## calcKC
+
+Keltner Channel (EMA + ATR based) — `mid` / `upper` / `lower` and channel `width`. Needs OHLCV.
+
+```ts
+import { calcKC } from 'stock-sdk/indicators'
+
+const kc = calcKC(klines, { emaPeriod: 20, atrPeriod: 10, multiplier: 2 })
+// kc[last] => { mid: 1700, upper: 1742, lower: 1658, width: 0.05 }
+```
+
+## addIndicators
+
+Compute several indicators and attach them back onto the K-lines in one pass, returning `KlineWithIndicators[]` — each bar gains optional `ma` / `macd` / `boll`, etc. on top of its original fields. More convenient than calling each `calc*` and aligning indices by hand; this is also what backs [`sdk.kline.withIndicators`](/en/api/kline).
+
+Each indicator slot accepts a `boolean` (enable with defaults) or its options object (custom params):
+
+```ts
+import { addIndicators } from 'stock-sdk/indicators'
+
+const klines = await sdk.kline.cn('600519', { adjust: 'hfq' })
+
+const enriched = addIndicators(klines, {
+  ma: { periods: [5, 20], type: 'sma' },
+  macd: true,                 // use defaults
+  boll: { period: 20 },
+  kdj: true,
+  rsi: { periods: [6, 12] },
+})
+
+const last = enriched.at(-1)!
+last.ma?.ma5     // moving average
+last.macd?.dif   // MACD fast line
+last.boll?.upper // Bollinger upper band
+last.kdj?.k      // KDJ
+```
+
+Supported slots and their options: `ma` / `macd` / `boll` / `kdj` / `rsi` / `wr` / `bias` / `cci` / `atr` / `obv` / `roc` / `dmi` / `sar` / `kc`; slots left off are `undefined`.
+
+## Return shape
+
+- Every `calc*` returns an array of **equal length** to the input; item `i` corresponds to bar `i`, and numeric fields are `null` where there isn't enough data.
+- Multi-period indicators (MA / RSI / WR / BIAS) return dynamic-keyed objects (e.g. `ma5` / `rsi12`); the keys vary with the `periods` you pass.
+- `addIndicators` attaches each indicator result as an optional property on the K-line, leaving the original fields untouched.
+- Pure computation: zero network, zero dependencies, isomorphic (browser + Node). **Exact fields follow the implementation.**
+
+## See also
+
+- [kline](/en/api/kline) — `kline.withIndicators` returns indicator-enriched K-lines directly
+- [signals](/en/api/signals) — detect golden / death crosses, overbought / oversold, etc. on top of indicators
+- [Indicators & signals guide](/en/guide/indicators)

@@ -1,156 +1,150 @@
 # 快速开始
 
-本页展示最常见的接入方式。默认情况下，直接创建 `StockSDK` 实例即可；如果你需要更细的请求治理，可以按 provider 定制策略。
-
-## 安装
-
-```bash
-npm install stock-sdk
-```
+本页用几段最小示例带你跑通 v2 的命名空间 API。开始前请先完成[安装](/guide/installation)。
 
 ## 创建实例
 
-```ts
-import { StockSDK } from 'stock-sdk';
-
-const sdk = new StockSDK();
-```
-
-## 可选配置
+`StockSDK` 是唯一入口，所有命名空间挂在实例上：
 
 ```ts
-const sdk = new StockSDK({
-  baseUrl: '/api/tencent',
-  timeout: 8000,
-  headers: {
-    'X-Request-Source': 'quotes-dashboard',
-  },
-  userAgent: 'quotes-dashboard/1.0',
-  retry: {
-    maxRetries: 3,
-    baseDelay: 800,
-  },
-  rateLimit: {
-    requestsPerSecond: 5,
-    maxBurst: 10,
-  },
-  rotateUserAgent: true,
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-      circuitBreaker: {
-        failureThreshold: 4,
-        resetTimeout: 45000,
-        halfOpenRequests: 1,
-      },
-    },
-  },
-});
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
 ```
 
-> 建议在应用内复用同一个实例。
+构造函数接受可选配置（自定义 `fetch`、外部 `AbortSignal`、请求 hooks、缓存等），不传则使用默认值。详见[请求治理](/guide/request-governance)。
 
-## 获取实时行情
+## 10 行 demo
+
+获取一只 A 股的实时行情，并打印价格与涨跌幅：
 
 ```ts
-const quotes = await sdk.getSimpleQuotes(['sh000001', 'sz000858', 'sh600519']);
+import { StockSDK } from 'stock-sdk'
 
-quotes.forEach((item) => {
-  console.log(`${item.name}: ${item.price} (${item.changePercent}%)`);
-});
+const sdk = new StockSDK()
+
+const quotes = await sdk.quotes.cn(['sh600519'])
+const q = quotes[0]
+
+console.log(q.name)           // 名称
+console.log(q.price)          // 现价（单位以数据源当前口径为准）
+console.log(q.changePercent)  // 涨跌幅（百分数，如 5.2 表示 5.2%）
 ```
 
-代码格式说明：
+> 符号 `string` 是一等公民，`'sh600519'` / `'600519'` 都能识别；需要消歧时可先用 `stock-sdk/symbols` 的 `normalizeSymbol`。返回字段以最终实现为准。
 
-- A 股 / 指数：`sh000001`、`sz000858`、`bj430047`
-- 港股：`00700`
-- 美股行情：`AAPL`、`MSFT`
-- 美股 K 线：`105.AAPL`、`106.BABA`
+## 常见用法
 
-## 获取 K 线和指标
+### 取多市场实时行情
 
 ```ts
-const data = await sdk.getKlineWithIndicators('sz000858', {
-  startDate: '20240101',
-  endDate: '20241231',
-  indicators: {
-    ma: { periods: [5, 10, 20, 60] },
-    macd: true,
-    boll: true,
-    obv: { maPeriod: 20 },
-    sar: true,
-  },
-});
-
-console.log(data[30].ma?.ma5);
-console.log(data[30].macd?.dif);
-console.log(data[30].obv?.obvMa);
-console.log(data[30].sar?.sar);
+await sdk.quotes.cn(['sh600519', '000001'])  // A 股
+await sdk.quotes.hk(['00700'])               // 港股
+await sdk.quotes.us(['AAPL'])                // 美股
+await sdk.quotes.fund(['510300'])            // 基金
 ```
 
-## 获取全市场数据
+### 历史 K 线
 
 ```ts
-const allQuotes = await sdk.getAllAShareQuotes({
-  batchSize: 300,
-  concurrency: 5,
-  onProgress: (completed, total) => {
-    console.log(`批次进度: ${completed}/${total}`);
-  },
-});
+// A 股日 K 线
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
 
-console.log(allQuotes.length);
+// 分钟 K 线 / 港股 / 美股
+await sdk.kline.cnMinute('600519')
+await sdk.kline.hk('00700', { period: 'daily' })
+await sdk.kline.us('AAPL', { period: 'daily' })
 ```
 
-## 港股和美股
+> K 线方法的具体参数（周期、复权、数量、日期范围等）以实现为准。
+
+### K 线 + 技术指标
 
 ```ts
-const hkQuotes = await sdk.getHKQuotes(['00700', '09988']);
-const usQuotes = await sdk.getUSQuotes(['AAPL', 'MSFT']);
-
-const hkKlines = await sdk.getHKHistoryKline('00700', {
-  period: 'daily',
-  startDate: '20240101',
-});
-
-const usKlines = await sdk.getUSHistoryKline('105.MSFT', {
-  period: 'daily',
-  startDate: '20240101',
-});
+// 直接返回带指标的 K 线
+const withInd = await sdk.kline.withIndicators('600519', {
+  indicators: { ma: [5, 20], macd: true },
+})
 ```
 
-## 期货和期权
+也可以先拿原始 K 线，再用纯计算函数贴指标（不发网络请求）：
 
 ```ts
-const futures = await sdk.getFuturesKline('RBM', {
-  period: 'daily',
-  startDate: '20250101',
-});
+import { addIndicators } from 'stock-sdk/indicators'
 
-const optionSpot = await sdk.getIndexOptionSpot('io', 'io2504');
-
-console.log(futures[0]?.close);
-console.log(optionSpot.calls[0]?.symbol);
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true, kdj: true })
 ```
 
-## 分红和交易日历
+### 识别买卖信号
 
 ```ts
-const dividends = await sdk.getDividendDetail('600519');
-const calendar = await sdk.getTradingCalendar();
+import { addIndicators } from 'stock-sdk/indicators'
+import { calcSignals } from 'stock-sdk/signals'
 
-console.log(dividends[0]?.assignProgress);
-console.log(calendar[0]?.date, calendar[0]?.isOpen);
+const kline = await sdk.kline.cn('600519', { period: 'daily' })
+const enriched = addIndicators(kline, { ma: [5, 20], macd: true })
+
+const signals = calcSignals(enriched, {
+  ma: { fast: 5, slow: 20 },  // 金叉 / 死叉
+  macd: true,
+})
+// [{ type: 'ma_golden_cross', at, index, detail }, ...]
 ```
+
+### 搜索标的
+
+```ts
+const results = await sdk.search('贵州茅台')
+```
+
+### 交易日历
+
+```ts
+await sdk.calendar.isTradingDay('2026-06-08')
+await sdk.calendar.nextTradingDay('2026-06-08')
+await sdk.calendar.marketStatus('CN')
+```
+
+### 板块与衍生品
+
+```ts
+await sdk.board.industry.list()            // 行业板块列表
+await sdk.board.concept.constituents('半导体') // 概念板块成分股
+
+await sdk.options.etf.dailyKline('10004336') // ETF 期权日 K
+await sdk.futures.kline('rb2510')            // 期货 K 线
+```
+
+### 资金面
+
+```ts
+await sdk.fundFlow.individual('600519')   // 个股资金流向
+await sdk.northbound.summary()            // 北向资金概况
+await sdk.dragonTiger.detail('2026-06-06') // 龙虎榜
+```
+
+## 错误处理
+
+v2 对外只抛 `SdkError`，带稳定的 `code` 字段，便于按类型分支处理：
+
+```ts
+import { SdkError } from 'stock-sdk/errors'
+
+try {
+  await sdk.quotes.cn(['sh600519'])
+} catch (err) {
+  if (err instanceof SdkError) {
+    console.error(err.code, err.message) // 如 'TIMEOUT' / 'HTTP_ERROR'
+  }
+}
+```
+
+详见[错误处理与重试](/guide/retry)。
 
 ## 下一步
 
-- [请求治理](/guide/request-governance)
-- [技术指标](/guide/indicators)
-- [期货与期权](/guide/futures-options)
-- [分红与交易日历](/guide/dividend-calendar)
-- [API 总览](/api/)
+- [符号与代码规则](/guide/symbols)：`string` 与 `SymbolRef` 的容错解析与已知歧义。
+- [技术指标与信号](/guide/indicators)：指标函数与信号层全貌。
+- [API 总览](/api/)：命名空间地图与完整方法表。
+- [从 v1 迁移](/guide/migration-v1-to-v2)：方法映射与契约变化。

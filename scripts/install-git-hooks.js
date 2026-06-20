@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 通过 `yarn install` / `npm install` 触发的 prepare 脚本：
+ * 通过 `pnpm install` / `npm install` 触发的 prepare 脚本：
  * 把 git hooks 路径指向项目根目录的 `.githooks/`，让所有协作者
  * 自动启用 pre-commit 等共享钩子。
  *

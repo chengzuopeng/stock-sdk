@@ -3,6 +3,7 @@ import { resolve } from 'path'
 import { readFileSync } from 'fs'
 import faroUploader from '@grafana/faro-rollup-plugin'
 
+// v2 文档站配置（VitePress，仓库唯一官方站）
 const base = process.env.DOCS_BASE || '/'
 
 // 构建期读取真实版本号，注入 themeConfig 供 HeroMeta 等组件使用（避免硬编码失真）
@@ -12,38 +13,8 @@ const sdkVersion = (
   }
 ).version
 
-// MCP 中文侧边栏配置
-const zhMcpSidebar = {
-  '/mcp/': [
-    {
-      text: 'MCP 与 AI 能力',
-      items: [
-        { text: '概述', link: '/mcp/' },
-        { text: '安装配置', link: '/mcp/installation' },
-        { text: '工具与资源', link: '/mcp/tools' },
-        { text: 'AI Skills 技能', link: '/mcp/skills' },
-      ],
-    },
-  ],
-}
-
-// MCP 英文侧边栏配置
-const enMcpSidebar = {
-  '/en/mcp/': [
-    {
-      text: 'MCP & AI',
-      items: [
-        { text: 'Overview', link: '/en/mcp/' },
-        { text: 'Installation', link: '/en/mcp/installation' },
-        { text: 'Tools & Resources', link: '/en/mcp/tools' },
-        { text: 'AI Skills', link: '/en/mcp/skills' },
-      ],
-    },
-  ],
-}
-
-// 中文侧边栏配置
-const zhSidebar = {
+// ---- 中文侧边栏 ----
+const zhGuideSidebar = {
   '/guide/': [
     {
       text: '开始',
@@ -54,128 +25,109 @@ const zhSidebar = {
       ],
     },
     {
-      text: '环境与部署',
+      text: '核心概念',
       items: [
-        { text: '浏览器使用', link: '/guide/browser' },
+        { text: '符号与代码规则', link: '/guide/symbols' },
+        { text: '从 v1 迁移', link: '/guide/migration-v1-to-v2' },
       ],
     },
     {
       text: '进阶',
       items: [
-        { text: '技术指标', link: '/guide/indicators' },
-        { text: '批量查询', link: '/guide/batch' },
-        { text: '错误处理与重试', link: '/guide/retry' },
         { text: '请求治理', link: '/guide/request-governance' },
+        { text: '错误处理与重试', link: '/guide/retry' },
+        { text: '技术指标与信号', link: '/guide/indicators' },
         { text: '期货与期权', link: '/guide/futures-options' },
-        { text: '分红与交易日历', link: '/guide/dividend-calendar' },
         { text: '复权说明 (qfq/hfq)', link: '/guide/dividend-adjustment' },
+        { text: '浏览器使用', link: '/guide/browser' },
       ],
     },
-    {
-      text: '更多',
-      items: [{ text: '更新日志', link: '/changelog' }],
-    },
+    { text: '更多', items: [{ text: '更新日志', link: '/changelog' }] },
   ],
+}
+
+const zhApiSidebar = {
   '/api/': [
+    { text: '总览', items: [{ text: '命名空间地图', link: '/api/' }] },
     {
-      text: 'API 总览',
-      items: [{ text: '概览', link: '/api' }],
-    },
-    {
-      text: '实时行情',
+      text: '行情与批量',
       items: [
-        { text: 'A 股行情', link: '/api/quotes' },
-        { text: '港股行情', link: '/api/hk-quotes' },
-        { text: '美股行情', link: '/api/us-quotes' },
-        { text: '基金行情', link: '/api/fund-quotes' },
-        { text: '基金扩展（v1.10.0+）', link: '/api/fund-extended' },
+        { text: 'quotes · 实时行情', link: '/api/quotes' },
+        { text: 'codes · 代码列表', link: '/api/codes' },
+        { text: 'batch · 批量行情', link: '/api/batch' },
       ],
     },
     {
-      text: 'K 线数据',
+      text: 'K 线与板块',
       items: [
-        { text: '历史 K 线', link: '/api/kline' },
-        { text: '分钟 K 线', link: '/api/minute-kline' },
-        { text: '分时走势', link: '/api/timeline' },
+        { text: 'kline · K线 / 分时', link: '/api/kline' },
+        { text: 'board · 行业 / 概念', link: '/api/board' },
       ],
     },
     {
-      text: '行业板块',
+      text: '衍生品',
       items: [
-        { text: '行业板块', link: '/api/industry-board' },
-        { text: '概念板块', link: '/api/concept-board' },
+        { text: 'options · 期权', link: '/api/options' },
+        { text: 'futures · 期货', link: '/api/futures' },
       ],
     },
     {
-      text: '技术指标',
+      text: '资金面',
       items: [
-        { text: '指标概览', link: '/api/indicators' },
-        { text: 'MA 均线', link: '/api/indicator-ma' },
-        { text: 'MACD', link: '/api/indicator-macd' },
-        { text: 'BOLL 布林带', link: '/api/indicator-boll' },
-        { text: 'KDJ', link: '/api/indicator-kdj' },
-        { text: 'RSI / WR', link: '/api/indicator-rsi-wr' },
-        { text: 'BIAS 乖离率', link: '/api/indicator-bias' },
-        { text: 'CCI 商品通道指数', link: '/api/indicator-cci' },
-        { text: 'ATR 平均真实波幅', link: '/api/indicator-atr' },
-        { text: 'OBV 能量潮', link: '/api/indicator-obv' },
-        { text: 'ROC 变动率', link: '/api/indicator-roc' },
-        { text: 'DMI/ADX 趋向指标', link: '/api/indicator-dmi' },
-        { text: 'SAR 抛物线转向', link: '/api/indicator-sar' },
-        { text: 'KC 肯特纳通道', link: '/api/indicator-kc' },
+        { text: 'fundFlow · 资金流向', link: '/api/fund-flow' },
+        { text: 'northbound · 北向资金', link: '/api/northbound' },
+        { text: 'marketEvent · 涨停 / 异动', link: '/api/market-event' },
+        { text: 'dragonTiger · 龙虎榜', link: '/api/dragon-tiger' },
+        { text: 'blockTrade · 大宗交易', link: '/api/block-trade' },
+        { text: 'margin · 融资融券', link: '/api/margin' },
       ],
     },
     {
-      text: '期货行情',
+      text: '基金与工具',
       items: [
-        { text: '期货行情', link: '/api/futures' },
+        { text: 'fund · 基金扩展', link: '/api/fund' },
+        { text: 'calendar · 交易日历', link: '/api/calendar' },
+        { text: 'reference · 分红 / 日历', link: '/api/reference' },
+        { text: 'search · 搜索', link: '/api/search' },
       ],
     },
     {
-      text: '期权数据',
+      text: '指标计算',
       items: [
-        { text: '期权数据', link: '/api/options' },
+        { text: 'indicators · 指标函数', link: '/api/indicators' },
+        { text: 'signals · 信号', link: '/api/signals' },
       ],
-    },
-    {
-      text: '批量与扩展',
-      items: [
-        { text: '代码列表', link: '/api/code-lists' },
-        { text: '搜索', link: '/api/search' },
-        { text: '批量查询', link: '/api/batch' },
-        { text: '资金流向', link: '/api/fund-flow' },
-        { text: '分红派送', link: '/api/dividend' },
-      ],
-    },
-    {
-      text: '资金流向（深度）',
-      items: [
-        { text: '个股 / 大盘 / 排名 / 板块', link: '/api/fund-flow-deep' },
-        { text: '沪深港通 / 北向资金', link: '/api/northbound' },
-      ],
-    },
-    {
-      text: '盘口与龙虎榜',
-      items: [
-        { text: '涨停板 / 盘口异动', link: '/api/market-event' },
-        { text: '龙虎榜', link: '/api/dragon-tiger' },
-      ],
-    },
-    {
-      text: '其他数据',
-      items: [
-        { text: '大宗交易 / 融资融券', link: '/api/block-trade-margin' },
-      ],
-    },
-    {
-      text: '更多',
-      items: [{ text: '更新日志', link: '/changelog' }],
     },
   ],
 }
 
-// 英文侧边栏配置
-const enSidebar = {
+const zhCliSidebar = {
+  '/cli/': [
+    {
+      text: 'CLI 命令行',
+      items: [
+        { text: '概览', link: '/cli/' },
+        { text: '命令清单', link: '/cli/commands' },
+      ],
+    },
+  ],
+}
+const zhMcpSidebar = {
+  '/mcp/': [
+    {
+      text: 'MCP 与 AI',
+      items: [
+        { text: '概述', link: '/mcp/' },
+        { text: '安装配置', link: '/mcp/installation' },
+        { text: '工具', link: '/mcp/tools' },
+        { text: 'AI Skills', link: '/mcp/skills' },
+      ],
+    },
+  ],
+}
+
+// ---- 英文侧边栏 ----
+const enGuideSidebar = {
   '/en/guide/': [
     {
       text: 'Getting Started',
@@ -186,122 +138,103 @@ const enSidebar = {
       ],
     },
     {
-      text: 'Environment',
+      text: 'Core Concepts',
       items: [
-        { text: 'Browser Usage', link: '/en/guide/browser' },
+        { text: 'Symbols & Codes', link: '/en/guide/symbols' },
+        { text: 'Migrate from v1', link: '/en/guide/migration-v1-to-v2' },
       ],
     },
     {
       text: 'Advanced',
       items: [
-        { text: 'Technical Indicators', link: '/en/guide/indicators' },
-        { text: 'Batch Query', link: '/en/guide/batch' },
-        { text: 'Error Handling & Retry', link: '/en/guide/retry' },
         { text: 'Request Governance', link: '/en/guide/request-governance' },
+        { text: 'Errors & Retry', link: '/en/guide/retry' },
+        { text: 'Indicators & Signals', link: '/en/guide/indicators' },
         { text: 'Futures & Options', link: '/en/guide/futures-options' },
-        { text: 'Dividend & Calendar', link: '/en/guide/dividend-calendar' },
-        { text: 'Dividend Adjustment (qfq/hfq)', link: '/en/guide/dividend-adjustment' },
+        { text: 'Adjustment (qfq/hfq)', link: '/en/guide/dividend-adjustment' },
+        { text: 'Browser Usage', link: '/en/guide/browser' },
+      ],
+    },
+    { text: 'More', items: [{ text: 'Changelog', link: '/en/changelog' }] },
+  ],
+}
+
+const enApiSidebar = {
+  '/en/api/': [
+    { text: 'Overview', items: [{ text: 'Namespace Map', link: '/en/api/' }] },
+    {
+      text: 'Quotes & Batch',
+      items: [
+        { text: 'quotes', link: '/en/api/quotes' },
+        { text: 'codes', link: '/en/api/codes' },
+        { text: 'batch', link: '/en/api/batch' },
       ],
     },
     {
-      text: 'More',
-      items: [{ text: 'Changelog', link: '/en/changelog' }],
+      text: 'K-line & Boards',
+      items: [
+        { text: 'kline', link: '/en/api/kline' },
+        { text: 'board', link: '/en/api/board' },
+      ],
+    },
+    {
+      text: 'Derivatives',
+      items: [
+        { text: 'options', link: '/en/api/options' },
+        { text: 'futures', link: '/en/api/futures' },
+      ],
+    },
+    {
+      text: 'Capital Flow',
+      items: [
+        { text: 'fundFlow', link: '/en/api/fund-flow' },
+        { text: 'northbound', link: '/en/api/northbound' },
+        { text: 'marketEvent', link: '/en/api/market-event' },
+        { text: 'dragonTiger', link: '/en/api/dragon-tiger' },
+        { text: 'blockTrade', link: '/en/api/block-trade' },
+        { text: 'margin', link: '/en/api/margin' },
+      ],
+    },
+    {
+      text: 'Funds & Utils',
+      items: [
+        { text: 'fund', link: '/en/api/fund' },
+        { text: 'calendar', link: '/en/api/calendar' },
+        { text: 'reference', link: '/en/api/reference' },
+        { text: 'search', link: '/en/api/search' },
+      ],
+    },
+    {
+      text: 'Indicators',
+      items: [
+        { text: 'indicators', link: '/en/api/indicators' },
+        { text: 'signals', link: '/en/api/signals' },
+      ],
     },
   ],
-  '/en/api/': [
+}
+
+const enCliSidebar = {
+  '/en/cli/': [
     {
-      text: 'API Overview',
-      items: [{ text: 'Overview', link: '/en/api' }],
-    },
-    {
-      text: 'Real-time Quotes',
+      text: 'CLI',
       items: [
-        { text: 'A-Share Quotes', link: '/en/api/quotes' },
-        { text: 'HK Stock Quotes', link: '/en/api/hk-quotes' },
-        { text: 'US Stock Quotes', link: '/en/api/us-quotes' },
-        { text: 'Fund Quotes', link: '/en/api/fund-quotes' },
-        { text: 'Fund Extended (v1.10.0+)', link: '/en/api/fund-extended' },
+        { text: 'Overview', link: '/en/cli/' },
+        { text: 'Command Reference', link: '/en/cli/commands' },
       ],
     },
+  ],
+}
+const enMcpSidebar = {
+  '/en/mcp/': [
     {
-      text: 'K-Line Data',
+      text: 'MCP & AI',
       items: [
-        { text: 'History K-Line', link: '/en/api/kline' },
-        { text: 'Minute K-Line', link: '/en/api/minute-kline' },
-        { text: 'Timeline', link: '/en/api/timeline' },
+        { text: 'Overview', link: '/en/mcp/' },
+        { text: 'Installation', link: '/en/mcp/installation' },
+        { text: 'Tools', link: '/en/mcp/tools' },
+        { text: 'AI Skills', link: '/en/mcp/skills' },
       ],
-    },
-    {
-      text: 'Industry Sectors',
-      items: [
-        { text: 'Industry Sectors', link: '/en/api/industry-board' },
-        { text: 'Concept Sectors', link: '/en/api/concept-board' },
-      ],
-    },
-    {
-      text: 'Technical Indicators',
-      items: [
-        { text: 'Indicators Overview', link: '/en/api/indicators' },
-        { text: 'MA', link: '/en/api/indicator-ma' },
-        { text: 'MACD', link: '/en/api/indicator-macd' },
-        { text: 'BOLL', link: '/en/api/indicator-boll' },
-        { text: 'KDJ', link: '/en/api/indicator-kdj' },
-        { text: 'RSI / WR', link: '/en/api/indicator-rsi-wr' },
-        { text: 'BIAS', link: '/en/api/indicator-bias' },
-        { text: 'CCI', link: '/en/api/indicator-cci' },
-        { text: 'ATR', link: '/en/api/indicator-atr' },
-        { text: 'OBV', link: '/en/api/indicator-obv' },
-        { text: 'ROC', link: '/en/api/indicator-roc' },
-        { text: 'DMI/ADX', link: '/en/api/indicator-dmi' },
-        { text: 'SAR', link: '/en/api/indicator-sar' },
-        { text: 'KC', link: '/en/api/indicator-kc' },
-      ],
-    },
-    {
-      text: 'Futures',
-      items: [
-        { text: 'Futures', link: '/en/api/futures' },
-      ],
-    },
-    {
-      text: 'Options',
-      items: [
-        { text: 'Options', link: '/en/api/options' },
-      ],
-    },
-    {
-      text: 'Batch & Extended',
-      items: [
-        { text: 'Code Lists', link: '/en/api/code-lists' },
-        { text: 'Search', link: '/en/api/search' },
-        { text: 'Batch Query', link: '/en/api/batch' },
-        { text: 'Fund Flow', link: '/en/api/fund-flow' },
-        { text: 'Dividend', link: '/en/api/dividend' },
-      ],
-    },
-    {
-      text: 'Fund Flow (Deep)',
-      items: [
-        { text: 'Individual / Market / Rank / Sector', link: '/en/api/fund-flow-deep' },
-        { text: 'Northbound / Stock Connect', link: '/en/api/northbound' },
-      ],
-    },
-    {
-      text: 'Limit-Up & Dragon-Tiger',
-      items: [
-        { text: 'Limit-Up Pool / Stock Changes', link: '/en/api/market-event' },
-        { text: 'Dragon-Tiger List', link: '/en/api/dragon-tiger' },
-      ],
-    },
-    {
-      text: 'Other Data',
-      items: [
-        { text: 'Block Trade / Margin Trading', link: '/en/api/block-trade-margin' },
-      ],
-    },
-    {
-      text: 'More',
-      items: [{ text: 'Changelog', link: '/en/changelog' }],
     },
   ],
 }
@@ -309,98 +242,65 @@ const enSidebar = {
 export default defineConfig({
   title: 'Stock SDK',
   description:
-    'Stock market SDK for browser and Node.js with quotes, K-line, indicators, futures, options, and AI / MCP integration',
-
-  base: base,
-  cleanUrls: true, // 去掉 URL 中的 .html 后缀
-
+    'v2 · 面向浏览器与 Node.js 的零依赖股票行情 SDK：命名空间 API、技术指标与信号、选股回测、CLI 与 MCP',
+  base,
+  cleanUrls: true,
+  // 骨架阶段：页面陆续补全，先容忍未建页面的死链
+  ignoreDeadLinks: true,
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
-    // 字体：Sora（标题/品牌 display）+ JetBrains Mono（数字/代码/版本）。
-    // display=swap，加载失败时回退到系统字体栈，不阻塞渲染。
+    // 字体：Archivo(宽体工业 display) + Public Sans(body) + IBM Plex Mono(数据/代码/标签)
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     [
       'link',
       {
         rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap',
+        href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap',
       },
     ],
-    ['meta', { name: 'theme-color', content: '#f87171' }],
+    // v2 主色：深红（红 = 涨 = 吉利；浅色模式 #b91c1c，深色模式亮红 #f87171）
+    ['meta', { name: 'theme-color', content: '#b91c1c' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'Stock SDK' }],
-    [
-      'meta',
-      {
-        property: 'og:title',
-        content: 'Stock SDK',
-      },
-    ],
-    [
-      'meta',
-      {
-        property: 'og:description',
-        content:
-          'Stock market SDK for browser and Node.js with quotes, K-line, indicators, futures, options, and AI / MCP integration',
-      },
-    ],
-    ['meta', { name: 'twitter:card', content: 'summary' }],
   ],
 
-  // 国际化配置
   locales: {
     root: {
       label: '简体中文',
       lang: 'zh-CN',
       title: 'Stock SDK',
       description:
-        '面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成',
+        'v2 · 面向浏览器与 Node.js 的零依赖股票行情 SDK：命名空间 API、技术指标与信号、选股回测、CLI 与 MCP',
       themeConfig: {
         nav: [
           { text: '指南', link: '/guide/getting-started' },
           { text: 'API', link: '/api/' },
-          { text: 'MCP / AI', link: '/mcp/' },
-          { text: 'Playground', link: '/playground' },
-          { text: 'Demo', link: 'https://chengzuopeng.github.io/stock-dashboard/' },
-          { text: '更新日志', link: '/changelog' },
-        ],
-        sidebar: { ...zhSidebar, ...zhMcpSidebar },
-        outline: {
-          level: [2, 3],
-          label: '页面导航',
-        },
-        docFooter: {
-          prev: '上一页',
-          next: '下一页',
-        },
-        lastUpdated: {
-          text: '最后更新于',
-        },
-        editLink: {
-          pattern: 'https://github.com/chengzuopeng/stock-sdk/edit/main/website/:path',
-          text: '在 GitHub 上编辑此页',
-        },
-        search: {
-          provider: 'local',
-          options: {
-            translations: {
-              button: {
-                buttonText: '搜索文档',
-                buttonAriaLabel: '搜索文档',
+          { text: 'CLI', link: '/cli/' },
+          { text: 'MCP · AI', link: '/mcp/' },
+          { text: '演练场', link: '/playground/' },
+          // 版本下拉：导航展示 latest 版本号，hover 出更新日志与 v1 文档外链
+          {
+            text: `v${sdkVersion}`,
+            items: [
+              { items: [{ text: '更新日志', link: '/changelog' }] },
+              {
+                items: [
+                  { text: '从 v1 迁移', link: '/guide/migration-v1-to-v2' },
+                  { text: 'v1 文档', link: 'https://v1.stock-sdk.linkdiary.cn', target: '_blank' },
+                ],
               },
-              modal: {
-                noResultsText: '无法找到相关结果',
-                resetButtonTitle: '清除查询条件',
-                footer: {
-                  selectText: '选择',
-                  navigateText: '切换',
-                  closeText: '关闭',
-                },
-              },
-            },
+            ],
           },
+        ],
+        sidebar: {
+          ...zhGuideSidebar,
+          ...zhApiSidebar,
+          ...zhCliSidebar,
+          ...zhMcpSidebar,
         },
+        outline: { level: [2, 3], label: '页面导航' },
+        docFooter: { prev: '上一页', next: '下一页' },
       },
     },
     en: {
@@ -409,36 +309,50 @@ export default defineConfig({
       link: '/en/',
       title: 'Stock SDK',
       description:
-        'Stock market SDK for browser and Node.js with quotes, K-line, indicators, futures, options, and AI / MCP integration',
+        'v2 · Zero-dependency stock market SDK for browser and Node.js: namespaced API, indicators & signals, screener & backtest, CLI and MCP',
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/guide/getting-started' },
           { text: 'API', link: '/en/api/' },
-          { text: 'MCP / AI', link: '/en/mcp/' },
-          { text: 'Playground', link: '/en/playground' },
-          { text: 'Demo', link: 'https://chengzuopeng.github.io/stock-dashboard/' },
-          { text: 'Changelog', link: '/en/changelog' },
+          { text: 'CLI', link: '/en/cli/' },
+          { text: 'MCP · AI', link: '/en/mcp/' },
+          { text: 'Playground', link: '/en/playground/' },
+          {
+            text: `v${sdkVersion}`,
+            items: [
+              { items: [{ text: 'Changelog', link: '/en/changelog' }] },
+              {
+                items: [
+                  { text: 'Migrate from v1', link: '/en/guide/migration-v1-to-v2' },
+                  { text: 'v1 Docs', link: 'https://v1.stock-sdk.linkdiary.cn', target: '_blank' },
+                ],
+              },
+            ],
+          },
         ],
-        sidebar: { ...enSidebar, ...enMcpSidebar },
-        outline: {
-          level: [2, 3],
-          label: 'On this page',
+        sidebar: {
+          ...enGuideSidebar,
+          ...enApiSidebar,
+          ...enCliSidebar,
+          ...enMcpSidebar,
         },
-        docFooter: {
-          prev: 'Previous',
-          next: 'Next',
-        },
-        lastUpdated: {
-          text: 'Last updated',
-        },
+        outline: { level: [2, 3], label: 'On this page' },
+        docFooter: { prev: 'Previous', next: 'Next' },
         editLink: {
-          pattern: 'https://github.com/chengzuopeng/stock-sdk/edit/main/website/:path',
+          pattern:
+            'https://github.com/chengzuopeng/stock-sdk/edit/master/website/:path',
           text: 'Edit this page on GitHub',
         },
+        lastUpdated: { text: 'Last updated' },
       },
     },
   },
 
+  // 顶层启用 git 最后更新时间采集(VitePress 仅认顶层此开关)
+  lastUpdated: true,
+
+  // 顶层 themeConfig:跨 locale 共享的配置(search / editLink / lastUpdated 文案)
+  // 必须放顶层 —— VitePress 构建期只读顶层 themeConfig 决定本地搜索与更新时间。
   themeConfig: {
     logo: '/logo.svg',
 
@@ -448,31 +362,20 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/chengzuopeng/stock-sdk' },
     ],
-
-    footer: {
-      message: 'Released under the ISC License.',
-      copyright: 'Copyright © 2025 chengzuopeng',
+    search: { provider: 'local' },
+    editLink: {
+      pattern:
+        'https://github.com/chengzuopeng/stock-sdk/edit/master/website/:path',
+      text: '在 GitHub 上编辑此页',
     },
-
-    search: {
-      provider: 'local',
-    },
-  },
-
-  // Markdown 配置
-  markdown: {
-    lineNumbers: true,
-    theme: {
-      light: 'github-light',
-      dark: 'github-dark',
-    },
+    lastUpdated: { text: '最后更新于' },
   },
 
   // Vite 配置
   vite: {
     resolve: {
       alias: {
-        // 开发模式下将 'stock-sdk-local' 指向本地 src 目录
+        // 开发模式下将 'stock-sdk-local' 指向本地 src 目录（LiveTicker dogfooding 用）
         'stock-sdk-local': resolve(__dirname, '../../src'),
       },
     },
@@ -481,35 +384,25 @@ export default defineConfig({
         // 允许访问上级目录（用于引用 src）
         allow: ['../..'],
       },
-      // 本地开发反向代理:把 /api/llm/* 转发到本地运行的 api-worker(文档问答 agent)。
-      // ⚠️ 只代理 /api/llm,绝不能用 /api —— 因为本站的 API 文档页就在 /api/* 路径下
-      //    (如 /api/kline、/api/quotes),用 /api 会把文档页也代理走导致 404。
-      // 默认指向 localhost:8788(EdgeOne `edgeone pages dev` 默认端口);
-      // 端口不同可用环境变量覆盖:API_WORKER_ORIGIN=http://localhost:8790 yarn dev
-      // 注:agent 已改为 SSE(普通 HTTP 流式响应),无需 ws: true。
-      proxy: {
-        '/api/llm': {
-          target: process.env.API_WORKER_ORIGIN || 'http://localhost:8788',
-          changeOrigin: true,
-        },
-      },
     },
+    // 生产构建出 sourcemap，配合 faroUploader 上传后线上错误可映射回源码
     build: {
       sourcemap: true,
     },
     plugins: [
+      // Faro sourcemap 上传：仅当 CI 注入了 GRAFANA_SOURCEMAP_TOKEN 时启用
       ...(process.env.GRAFANA_SOURCEMAP_TOKEN
         ? [
-          faroUploader({
-            appName: 'stock-sdk-docs',
-            endpoint: 'https://faro-api-prod-ap-southeast-1.grafana.net/faro/api/v1',
-            appId: '972',
-            stackId: '1494323',
-            verbose: true,
-            apiKey: process.env.GRAFANA_SOURCEMAP_TOKEN,
-            gzipContents: true,
-          }),
-        ]
+            faroUploader({
+              appName: 'stock-sdk-docs-v2',
+              endpoint: 'https://faro-api-prod-ap-southeast-1.grafana.net/faro/api/v1',
+              appId: '1168',
+              stackId: '1494323',
+              verbose: true,
+              apiKey: process.env.GRAFANA_SOURCEMAP_TOKEN,
+              gzipContents: true,
+            }),
+          ]
         : []),
     ],
   },

@@ -1,235 +1,183 @@
 # 错误处理与重试
 
-Stock SDK 内置了完善的错误处理和自动重试机制，帮助你应对网络不稳定场景。
+v2 对外只抛**一种错误类型**：`SdkError`。无论是网络故障、超时、HTTP 4xx/5xx、上游空数据 / 结构化错误、参数 / 符号非法，还是被熔断器短路，都会被归一化成带 `code` 的 `SdkError`（或其子类）。你不再需要去识别裸 `TypeError` / `DOMException`。
 
-## 默认行为
+错误相关的类型与工具从 `stock-sdk/errors` subpath 导出：
 
-SDK 默认启用以下重试策略：
-
-| 配置项 | 默认值 | 说明 |
-|-------|-------|------|
-| `maxRetries` | 3 | 最大重试次数 |
-| `baseDelay` | 1000ms | 初始退避延迟 |
-| `maxDelay` | 30000ms | 最大退避延迟 |
-| `backoffMultiplier` | 2 | 退避系数 |
-
-### 自动重试的错误类型
-
-| 错误类型 | 是否重试 |
-|---------|---------|
-| 请求超时 | ✅ 重试 |
-| 网络错误（DNS/连接失败） | ✅ 重试 |
-| HTTP 408 (Request Timeout) | ✅ 重试 |
-| HTTP 429 (Too Many Requests) | ✅ 重试 |
-| HTTP 500/502/503/504 (服务器错误) | ✅ 重试 |
-| HTTP 400/401/403/404 (客户端错误) | ❌ 不重试 |
-
-## 指数退避
-
-当请求失败时，SDK 使用**指数退避**策略计算等待时间：
-
-```
-等待时间 = baseDelay × (backoffMultiplier ^ 重试次数)
+```ts
+import { SdkError, getSdkErrorCode, isSdkError } from 'stock-sdk/errors'
 ```
 
-**示例**（默认配置）：
+## SdkError
 
-| 重试次数 | 计算 | 等待时间 |
-|---------|------|---------|
-| 第 1 次 | 1000 × 2⁰ | ~1 秒 |
-| 第 2 次 | 1000 × 2¹ | ~2 秒 |
-| 第 3 次 | 1000 × 2² | ~4 秒 |
+所有 SDK 错误的基类。关键字段：
 
-这种策略给服务器恢复时间，避免在服务器过载时持续发送请求。
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `code` | `SdkErrorCode` | 标准错误码（见下表），**分支判断的首选** |
+| `message` | `string` | 人类可读的描述 |
+| `provider` | `ProviderName?` | 触发错误的数据源 |
+| `url` | `string?` | 出错的请求 URL |
+| `status` | `number?` | HTTP 错误时的状态码 |
+| `details` | `Record<string, unknown>?` | 附加上下文（如 `statusText` / `symbol` / `timeout`） |
+| `cause` | `unknown?` | 原始底层错误（如有） |
 
-## 自定义重试配置
+```ts
+import { SdkError } from 'stock-sdk/errors'
 
-```typescript
-import { StockSDK } from 'stock-sdk';
-
-const sdk = new StockSDK({
-  timeout: 10000,
-  retry: {
-    maxRetries: 5,           // 最多重试 5 次
-    baseDelay: 500,          // 初始延迟 500ms
-    maxDelay: 10000,         // 最大延迟 10 秒
-    backoffMultiplier: 1.5,  // 退避系数 1.5
+try {
+  const q = await sdk.quotes.cn(['600519'])
+} catch (e) {
+  if (e instanceof SdkError) {
+    console.error(e.code, e.message, e.provider, e.status)
   }
-});
+}
 ```
 
-## 禁用重试
+## 错误码
 
-某些场景下你可能希望禁用自动重试：
+`SdkErrorCode` 是一个字符串字面量联合，覆盖请求层与契约层的全部失败场景：
 
-```typescript
-const sdk = new StockSDK({
-  retry: {
-    maxRetries: 0  // 禁用重试
+| 错误码 | 含义 | 是否默认可重试 |
+|---|---|---|
+| `NETWORK_ERROR` | 网络层失败（DNS / 连接 / 裸 `TypeError`） | 是（`retryOnNetworkError`） |
+| `TIMEOUT` | 内部超时（达到 `timeout`） | 是（`retryOnTimeout`） |
+| `ABORTED` | **被外部 `signal` 主动取消**（区别于超时） | 否 |
+| `HTTP_ERROR` | HTTP 非 2xx（非 429） | 视状态码（`retryableStatusCodes`） |
+| `RATE_LIMITED` | HTTP 429（被上游频控） | 视是否在 `retryableStatusCodes`（默认含 429） |
+| `CIRCUIT_OPEN` | 熔断器打开，请求被短路 | 否 |
+| `UPSTREAM_EMPTY` | 上游返回**空数据** | 否 |
+| `UPSTREAM_ERROR` | 上游返回**结构化错误**（`code != 0` / 带 `msg`） | 否 |
+| `PARSE_ERROR` | 响应解析失败 | 否 |
+| `INVALID_SYMBOL` | 标的 / 代码无法解析 | 否 |
+| `INVALID_ARGUMENT` | 参数非法（范围 / 类型） | 否 |
+| `NOT_FOUND` | 资源不存在 | 否 |
+
+> v2 相对 v1 **新增两个码**：`ABORTED`（外部取消，区别于内部超时 `TIMEOUT`）与 `UPSTREAM_ERROR`（上游结构化错误，区别于空数据 `UPSTREAM_EMPTY`）。
+
+## 错误子类
+
+`SdkError` 有若干语义化子类，构造时自动带上对应 `code`。用 `instanceof` 或 `code` 判断皆可。
+
+| 子类 | `code` | 场景 |
+|---|---|---|
+| `HttpError` | `HTTP_ERROR` / `RATE_LIMITED`（429） | HTTP 非 2xx，带 `status` / `statusText` |
+| `UpstreamEmptyError` | `UPSTREAM_EMPTY` | 上游返回空数据 |
+| `UpstreamError` | `UPSTREAM_ERROR` | 上游结构化错误 |
+| `NotFoundError` | `NOT_FOUND` | 资源不存在 |
+| `InvalidArgumentError` | `INVALID_ARGUMENT` | 参数非法 |
+| `InvalidSymbolError` | `INVALID_SYMBOL` | 标的非法（`details.symbol` 带原始入参） |
+| `AbortedError` | `ABORTED` | 外部 signal 取消 |
+| `CircuitBreakerError` | `CIRCUIT_OPEN` | 熔断打开 |
+
+```ts
+import { HttpError, isSdkError } from 'stock-sdk/errors'
+
+try {
+  await sdk.kline.cn('600519', { period: 'daily' })
+} catch (e) {
+  if (e instanceof HttpError) {
+    console.error(`HTTP ${e.status} ${e.statusText}`)
+  } else if (isSdkError(e)) {
+    console.error(e.code, e.message)
   }
-});
+}
 ```
 
-## 重试回调
+## getSdkErrorCode
 
-通过 `onRetry` 回调监听重试事件，用于日志记录或调试：
+读取任意错误上的标准错误码，返回 `SdkErrorCode | undefined`。比 `instanceof` 更鲁棒：它能识别 `SdkError`、`HttpError`，也能从被附加了元数据的网络错误中读出 `sdkCode`，并把 abort 形态的 `DOMException` 归为 `TIMEOUT`、裸 `TypeError` 兜底为 `NETWORK_ERROR`。
 
-```typescript
+```ts
+import { getSdkErrorCode } from 'stock-sdk/errors'
+
+try {
+  await sdk.quotes.cn(['600519'])
+} catch (e) {
+  switch (getSdkErrorCode(e)) {
+    case 'RATE_LIMITED':
+      // 被频控：退避后再试
+      break
+    case 'INVALID_SYMBOL':
+      // 代码写错了，提示用户
+      break
+    case 'ABORTED':
+      // 用户主动取消，静默处理
+      break
+    case undefined:
+      // 非 SDK 错误（如业务代码自身的 bug）
+      throw e
+  }
+}
+```
+
+`isSdkError(e)` 是 `e instanceof SdkError` 的便捷类型守卫，配合 `getSdkErrorCode` 覆盖「即便不是 SdkError 也想拿到码」的场景。
+
+## 重试策略
+
+重试在请求层**自动**进行，由构造 `StockSDK` 时的 `retry`（`RetryOptions`）控制，采用指数退避。完整字段表与配置示例见 [请求治理 · 重试](/guide/request-governance#重试)。
+
+**哪些错误会被重试**（默认）：
+
+- `NETWORK_ERROR` —— 当 `retryOnNetworkError !== false`。
+- `TIMEOUT` —— 当 `retryOnTimeout !== false`。
+- `HTTP_ERROR` / `RATE_LIMITED` —— 当状态码命中 `retryableStatusCodes`（默认 `[408, 429, 500, 502, 503, 504]`）。
+
+**不会重试**的错误（重试无意义，重试只会浪费配额）：
+
+- `ABORTED` —— 用户主动取消，重试违背意图。
+- `CIRCUIT_OPEN` —— 熔断已打开，等冷却而非硬冲。
+- `INVALID_SYMBOL` / `INVALID_ARGUMENT` / `NOT_FOUND` —— 参数 / 资源问题，重试结果不变。
+- `PARSE_ERROR` / `UPSTREAM_EMPTY` / `UPSTREAM_ERROR` —— 上游数据问题，重试同样无效。
+
+退避时间约为 `baseDelay × backoffMultiplier^(attempt-1)`，并受 `maxDelay` 截顶。每次重试前会触发 `RetryOptions.onRetry(attempt, error, delay)` 以及 client 级 `hooks.onRetry(ctx, error, delay)`（详见 [请求治理 · hooks](/guide/request-governance#v2-新增-请求生命周期-hooks)）。
+
+```ts
 const sdk = new StockSDK({
   retry: {
-    onRetry: (attempt, error, delay) => {
-      console.log(`第 ${attempt} 次重试`);
-      console.log(`错误: ${error.message}`);
-      console.log(`等待 ${Math.round(delay)}ms 后重试...`);
+    maxRetries: 4,
+    baseDelay: 500,
+    retryableStatusCodes: [429, 500, 502, 503, 504],
+    onRetry: (attempt, error, delay) =>
+      console.warn(`重试 #${attempt}，${delay}ms 后；原因 ${error.message}`),
+  },
+})
+```
+
+### 应用层的退避补充
+
+请求层重试用尽后仍失败，会把最后一个 `SdkError` 抛给调用方。若你想在应用层针对 `RATE_LIMITED` 做更长的退避，可结合 `getSdkErrorCode` 自行处理：
+
+```ts
+import { getSdkErrorCode } from 'stock-sdk/errors'
+
+async function withBackoff<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (getSdkErrorCode(e) === 'RATE_LIMITED' && i < tries - 1) {
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** i))
+        continue
+      }
+      throw e
     }
   }
-});
-```
-
-## 细粒度控制
-
-### 仅对特定错误重试
-
-```typescript
-const sdk = new StockSDK({
-  retry: {
-    retryOnTimeout: true,      // 超时时重试
-    retryOnNetworkError: false, // 网络错误不重试
-    retryableStatusCodes: [503, 504], // 只对这些状态码重试
-  }
-});
-```
-
-## Provider 级策略覆盖
-
-旧的全局 `timeout` / `retry` / `rateLimit` / `circuitBreaker` 配置仍然会作为默认策略生效。  
-新增的 `providerPolicies` 只是在指定 provider 上覆盖默认值，因此不会破坏已有初始化代码。
-
-### 适用场景
-
-- 腾讯接口保持默认速率
-- 对 `eastmoney` 单独降低请求频率
-- 仅对某个 provider 开启更激进的重试或熔断
-
-```typescript
-const sdk = new StockSDK({
-  retry: {
-    maxRetries: 2,
-    baseDelay: 500,
-  },
-  rateLimit: {
-    requestsPerSecond: 5,
-    maxBurst: 10,
-  },
-  providerPolicies: {
-    eastmoney: {
-      timeout: 12000,
-      retry: {
-        maxRetries: 5,
-        baseDelay: 800,
-      },
-      rateLimit: {
-        requestsPerSecond: 3,
-        maxBurst: 3,
-      },
-      circuitBreaker: {
-        failureThreshold: 3,
-        resetTimeout: 30000,
-      },
-    },
-  },
-});
-```
-
-### 可用 provider 名称
-
-- `tencent`
-- `eastmoney`
-- `sina`
-- `linkdiary`
-- `unknown`
-
-## Host Fallback 与重试预算
-
-部分 provider（如 `eastmoney`）内置了多组镜像 host。当首个 host 触发可
-fallback 的错误（网络错误 / 超时 / 5xx 等）时，SDK 会自动切换到下一个候选 host。
-
-为了避免「`maxRetries` × host 数」造成的延迟倍乘，SDK 采用以下策略：
-
-- **首个 host**：使用配置中的完整 `retry` 预算（默认最多 4 次：1 + `maxRetries`）。
-- **后续 fallback host**：每个仅尝试 1 次（`maxRetries` 强制为 0）。
-
-因此最多请求次数 ≈ `(maxRetries + 1) + (候选 host 数 - 1)`，在保留容灾能力的同时
-避免长时间阻塞。host 不可达时也会被熔断器与 host 健康统计联合限制。
-
-## 错误处理
-
-### HttpError
-
-当服务器返回非 2xx 状态码时，SDK 抛出 `HttpError`：
-
-```typescript
-import { StockSDK, HttpError } from 'stock-sdk';
-
-const sdk = new StockSDK();
-
-try {
-  const quotes = await sdk.getSimpleQuotes(['invalid_code']);
-} catch (error) {
-  if (error instanceof HttpError) {
-    console.log(`HTTP 错误: ${error.status} ${error.statusText}`);
-  } else {
-    console.log(`其他错误: ${error.message}`);
-  }
+  throw new Error('unreachable')
 }
+
+const q = await withBackoff(() => sdk.quotes.cn(['600519']))
 ```
 
-### 超时错误
+## 错误处理实践
 
-超时错误表现为 `DOMException`，`name` 为 `AbortError`：
+- **按 `code` 分支，而非 `message`**：`message` 文案可能变化，`code` 是稳定契约。
+- **首选 `getSdkErrorCode`**：覆盖 `instanceof` 漏判的边角（如被附加元数据的原生错误）。
+- **区分用户取消与超时**：`ABORTED`（外部 `signal`）≠ `TIMEOUT`（内部超时），前者通常应静默。
+- **空数据 vs 错误**：`UPSTREAM_EMPTY` 表示「查到了但没数据」，`UPSTREAM_ERROR` 表示「上游明确报错」，二者处理策略不同。
 
-```typescript
-try {
-  const quotes = await sdk.getSimpleQuotes(['sh000001']);
-} catch (error) {
-  if (error instanceof DOMException && error.name === 'AbortError') {
-    console.log('请求超时');
-  }
-}
-```
+> v2 SDK 仍在实现中：错误码集合、子类与 `getSdkErrorCode` / `isSdkError` 行为稳定；**个别 throw 点的精确归类以最终实现为准**。
 
-### 标准化错误码
+## 相关阅读
 
-如果你需要统一分类错误，但又不想失去原始 `TypeError` / `AbortError` / `HttpError` 实例，可以使用 `getSdkErrorCode`：
-
-```typescript
-import { getSdkErrorCode, HttpError } from 'stock-sdk';
-
-try {
-  await sdk.getSimpleQuotes(['sh000001']);
-} catch (error) {
-  if (error instanceof HttpError) {
-    console.log(`HTTP 错误: ${error.status}`);
-  }
-
-  console.log(getSdkErrorCode(error));
-  // 可能返回：HTTP_ERROR / RATE_LIMITED / NETWORK_ERROR / TIMEOUT / CIRCUIT_OPEN ...
-}
-```
-
-`onRetry` 回调收到的仍然是原始错误实例，只是附加了标准化元数据，因此旧的错误处理代码不需要改。
-
-## 配置参考
-
-### RetryOptions
-
-| 属性 | 类型 | 默认值 | 说明 |
-|-----|------|-------|------|
-| `maxRetries` | `number` | `3` | 最大重试次数 |
-| `baseDelay` | `number` | `1000` | 初始退避延迟（毫秒） |
-| `maxDelay` | `number` | `30000` | 最大退避延迟（毫秒） |
-| `backoffMultiplier` | `number` | `2` | 退避系数 |
-| `retryableStatusCodes` | `number[]` | `[408, 429, 500, 502, 503, 504]` | 可重试的 HTTP 状态码 |
-| `retryOnNetworkError` | `boolean` | `true` | 是否在网络错误时重试 |
-| `retryOnTimeout` | `boolean` | `true` | 是否在超时时重试 |
-| `onRetry` | `function` | - | 重试回调函数 |
+- [请求治理](/guide/request-governance) —— 超时 / 重试 / 限流 / 熔断 / host fallback / hooks 的完整配置。

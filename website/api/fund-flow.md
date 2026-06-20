@@ -1,219 +1,206 @@
-# 扩展数据
+# fundFlow · 资金流向（深度）
 
-## getTradingCalendar
+`sdk.fundFlow` 提供**个股 / 大盘 / 排名 / 板块**四个维度的资金流向数据（数据源：东方财富数据中心）。返回的是历史序列、排名榜与板块汇总，区别于 `sdk.quotes.fundFlow`（腾讯简版、按代码批量返回单日资金流）。
 
-获取 A 股交易日历，返回从 1990 年至未来的所有交易日列表。
+::: tip 命名空间区分
+- `sdk.quotes.fundFlow(codes)` —— **简版**，按代码批量返回当日资金流快照。
+- `sdk.fundFlow.*` —— **深度版**，本页内容，提供历史、排名与板块维度。
+:::
 
-### 签名
+资金流字段统一采用「**主力 / 超大单 / 大单 / 中单 / 小单**」五档结构，每档同时给出净额（计价货币主单位）与净占比（百分数，如 `5.2` 表示 5.2%）。
 
-```typescript
-getTradingCalendar(): Promise<string[]>
+## 方法一览
+
+| 方法 | 说明 |
+|---|---|
+| `fundFlow.individual(symbol, opts?)` | 个股资金流历史（日 / 周 / 月线） |
+| `fundFlow.market()` | 大盘资金流历史（上证 + 深证） |
+| `fundFlow.rank(opts?)` | 个股资金流排名（按主力净流入排序） |
+| `fundFlow.sectorRank(opts?)` | 板块资金流排名（行业 / 概念 / 地域） |
+| `fundFlow.sectorHistory(symbol, opts?)` | 单个板块的历史资金流 |
+
+> 具体参数与返回字段以最终实现为准；下方字段表反映当前数据契约。
+
+---
+
+## fundFlow.individual
+
+获取个股的资金流历史（日 / 周 / 月线）。
+
+```ts
+import { StockSDK } from 'stock-sdk';
+
+const sdk = new StockSDK();
+
+const flow = await sdk.fundFlow.individual('600519', { period: 'daily' });
+const latest = flow.at(-1);
+console.log(`${latest?.date} 主力净流入: ${latest?.mainNetInflow} 元`);
 ```
 
-### 返回类型
+`symbol` 传裸字符串（如 `'sh600519'` / `'600519'`），由 `normalizeSymbol` 容错解析。
 
-```typescript
-string[]  // 交易日期数组，格式如 ['1990-12-19', '1990-12-20', ...]
-```
+### 参数
 
-### 示例
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `symbol` | `string` | 股票代码 |
+| `options.period` | `'daily' \| 'weekly' \| 'monthly'` | 周期，默认 `'daily'` |
 
-```typescript
-const calendar = await sdk.getTradingCalendar();
+### 返回说明
 
-console.log(`共有 ${calendar.length} 个交易日`);
-console.log(`第一个交易日: ${calendar[0]}`);  // 1990-12-19
-console.log(`最后一个交易日: ${calendar[calendar.length - 1]}`);
+返回 `StockFundFlowDaily[]`，按日期升序排列：
 
-// 判断某天是否为交易日
-function isTradingDay(date: string): boolean {
-  return calendar.includes(date);
-}
-
-console.log(isTradingDay('2024-01-02'));  // true
-console.log(isTradingDay('2024-01-01'));  // false (元旦)
-```
-
-### 应用场景
-
-```typescript
-// 获取最近 N 个交易日
-function getRecentTradingDays(n: number): string[] {
-  const today = new Date().toISOString().slice(0, 10);
-  const idx = calendar.findIndex(d => d >= today);
-  return calendar.slice(Math.max(0, idx - n), idx);
-}
-
-// 计算两个日期之间的交易日数量
-function countTradingDays(start: string, end: string): number {
-  return calendar.filter(d => d >= start && d <= end).length;
-}
-
-// 获取下一个交易日
-function getNextTradingDay(date: string): string | undefined {
-  return calendar.find(d => d > date);
+```ts
+interface StockFundFlowDaily {
+  date: string;                          // YYYY-MM-DD
+  close: number | null;                  // 收盘价
+  changePercent: number | null;          // 涨跌幅（百分数）
+  mainNetInflow: number | null;          // 主力净流入-净额（元）
+  mainNetInflowPercent: number | null;   // 主力净流入-净占比（百分数）
+  superLargeNetInflow: number | null;    // 超大单净流入-净额
+  superLargeNetInflowPercent: number | null;
+  largeNetInflow: number | null;         // 大单净流入-净额
+  largeNetInflowPercent: number | null;
+  mediumNetInflow: number | null;        // 中单净流入-净额
+  mediumNetInflowPercent: number | null;
+  smallNetInflow: number | null;         // 小单净流入-净额
+  smallNetInflowPercent: number | null;
 }
 ```
 
 ---
 
-## getFundFlow
+## fundFlow.market
 
-获取股票的资金流向数据。
+获取大盘资金流历史，同一条记录同时包含上证指数与深证成指。
 
-### 签名
-
-```typescript
-getFundFlow(codes: string[]): Promise<FundFlow[]>
+```ts
+const market = await sdk.fundFlow.market();
+const today = market.at(-1);
+console.log(`上证 ${today?.shClose} (${today?.shChangePercent}%)`);
+console.log(`主力净流入 ${today?.mainNetInflow} 元`);
 ```
 
-### 参数
+### 返回说明
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `codes` | `string[]` | 股票代码数组，如 `['sz000858']` |
+返回 `MarketFundFlow[]`：
 
-### 返回类型
-
-```typescript
-interface FundFlow {
-  code: string;           // 股票代码
-  name: string;           // 股票名称
-  mainInflow: number;     // 主力流入（万）
-  mainOutflow: number;    // 主力流出（万）
-  mainNet: number;        // 主力净流入（万）
-  mainNetRatio: number;   // 主力净流入占比 %
-  retailInflow: number;   // 散户流入（万）
-  retailOutflow: number;  // 散户流出（万）
-  retailNet: number;      // 散户净流入（万）
-  retailNetRatio: number; // 散户净流入占比 %
-  totalFlow: number;      // 总资金流（万）
-  date: string;           // 日期
-  raw: string[];          // 原始字段数组
+```ts
+interface MarketFundFlow {
+  date: string;
+  shClose: number | null;          // 上证指数收盘价
+  shChangePercent: number | null;  // 上证指数涨跌幅（百分数）
+  szClose: number | null;          // 深证成指收盘价
+  szChangePercent: number | null;  // 深证成指涨跌幅（百分数）
+  mainNetInflow: number | null;
+  mainNetInflowPercent: number | null;
+  // 超大单 / 大单 / 中单 / 小单 同 individual 结构（净额 + 净占比）
 }
 ```
 
-::: tip 单位说明
-资金流向数值的单位以数据源返回为准，通常为“万”。如需更精细的单位，请结合 `raw` 字段自行换算。
-:::
+---
 
-### 示例
+## fundFlow.rank
 
-```typescript
-const flows = await sdk.getFundFlow(['sz000858', 'sh600519']);
+按主力净流入排序的个股资金流排名。`changePercent` 与各档净流入对应所选周期（例如 `5day` 即 5 日数据）。
 
-flows.forEach(f => {
-  console.log(`${f.name} (${f.code})`);
-  console.log(`  主力流入: ${f.mainInflow} 万`);
-  console.log(`  主力流出: ${f.mainOutflow} 万`);
-  console.log(`  主力净流入: ${f.mainNet} 万 (${f.mainNetRatio}%)`);
-  console.log(`  散户净流入: ${f.retailNet} 万 (${f.retailNetRatio}%)`);
+```ts
+const rank = await sdk.fundFlow.rank({ indicator: '5day' });
+rank.slice(0, 10).forEach((item, i) => {
+  console.log(`#${i + 1} ${item.name}(${item.code}) 主力净流入 ${item.mainNetInflow} 元`);
 });
 ```
 
+### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | 统计周期，默认 `'today'` |
+
+### 返回说明
+
+返回 `FundFlowRankItem[]`：
+
+```ts
+interface FundFlowRankItem {
+  code: string;
+  name: string;
+  price: number | null;                  // 最新价
+  changePercent: number | null;          // 对应周期涨跌幅（百分数）
+  mainNetInflow: number | null;          // 主力净流入-净额（元）
+  mainNetInflowPercent: number | null;
+  superLargeNetInflow: number | null;
+  superLargeNetInflowPercent: number | null;
+  largeNetInflow: number | null;
+  largeNetInflowPercent: number | null;
+  mediumNetInflow: number | null;
+  mediumNetInflowPercent: number | null;
+  smallNetInflow: number | null;
+  smallNetInflowPercent: number | null;
+}
+```
+
 ---
 
-## getPanelLargeOrder
+## fundFlow.sectorRank
 
-获取盘口大单占比数据。
+板块资金流排名，支持行业 / 概念 / 地域三种维度。
 
-### 签名
-
-```typescript
-getPanelLargeOrder(codes: string[]): Promise<PanelLargeOrder[]>
+```ts
+const sectors = await sdk.fundFlow.sectorRank({
+  indicator: 'today',
+  sectorType: 'industry',
+});
+sectors.slice(0, 5).forEach(s => {
+  console.log(`${s.name}: 净流入 ${s.mainNetInflow} 元，领涨 ${s.topStockName}`);
+});
 ```
 
 ### 参数
 
 | 参数 | 类型 | 说明 |
-|------|------|------|
-| `codes` | `string[]` | 股票代码数组，如 `['sz000858']` |
+|---|---|---|
+| `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | 统计周期，默认 `'today'` |
+| `options.sectorType` | `'industry' \| 'concept' \| 'region'` | 板块维度，默认 `'industry'` |
 
-### 返回类型
+### 返回说明
 
-```typescript
-interface PanelLargeOrder {
-  buyLargeRatio: number;   // 买盘大单占比 %
-  buySmallRatio: number;   // 买盘小单占比 %
-  sellLargeRatio: number;  // 卖盘大单占比 %
-  sellSmallRatio: number;  // 卖盘小单占比 %
-  raw: string[];           // 原始字段数组
-}
-```
+返回 `SectorFundFlowItem[]`：
 
-### 示例
-
-```typescript
-const orders = await sdk.getPanelLargeOrder(['sz000858']);
-
-const order = orders[0];
-console.log(`买盘大单占比: ${order.buyLargeRatio}%`);
-console.log(`买盘小单占比: ${order.buySmallRatio}%`);
-console.log(`卖盘大单占比: ${order.sellLargeRatio}%`);
-console.log(`卖盘小单占比: ${order.sellSmallRatio}%`);
-```
-
----
-
-## 数据解读
-
-### 资金流向分析
-
-| 指标 | 含义 | 应用 |
-|------|------|------|
-| 主力净流入 > 0 | 大资金买入 | 看多信号 |
-| 主力净流入 < 0 | 大资金卖出 | 看空信号 |
-| 主力净流入占比 | 相对总成交额的比例 | 资金意愿强度 |
-| 散户净流入 | 散户资金动向 | 反向参考 |
-
-### 大单占比分析
-
-```typescript
-// 分析买卖力量对比
-function analyzeLargeOrders(order: PanelLargeOrder) {
-  const buyPower = order.buyLargeRatio;
-  const sellPower = order.sellLargeRatio;
-  
-  if (buyPower > sellPower * 1.5) {
-    return 'strong_buy';  // 买盘占优
-  } else if (sellPower > buyPower * 1.5) {
-    return 'strong_sell'; // 卖盘占优
-  } else {
-    return 'balanced';    // 买卖均衡
-  }
+```ts
+interface SectorFundFlowItem {
+  code: string;                  // 板块代码（东方财富 BK 编号，如 BK0475）
+  name: string;                  // 板块名称
+  changePercent: number | null;  // 百分数
+  mainNetInflow: number | null;  // 主力净流入-净额（元）
+  mainNetInflowPercent: number | null;
+  superLargeNetInflow: number | null;
+  largeNetInflow: number | null;
+  mediumNetInflow: number | null;
+  smallNetInflow: number | null;
+  topStockName?: string;         // 主力净流入最大股名称
+  topStockCode?: string;         // 主力净流入最大股代码
 }
 ```
 
 ---
 
-## 使用注意
+## fundFlow.sectorHistory
 
-1. **时效性**：资金流向数据为实时数据，建议在交易时间内获取
-2. **数据质量**：资金流向基于成交数据计算，不同平台算法可能略有差异
-3. **综合判断**：资金流向仅供参考，需结合其他指标综合分析
+获取单个板块的历史资金流。`symbol` 接受 BK 编号（如 `BK0475`）或带前缀的东财 secid（如 `90.BK0475`）。
 
-```typescript
-// 综合分析示例
-async function analyzeStock(code: string) {
-  const [quotes, flows, orders] = await Promise.all([
-    sdk.getFullQuotes([code]),
-    sdk.getFundFlow([code]),
-    sdk.getPanelLargeOrder([code])
-  ]);
-  
-  const quote = quotes[0];
-  const flow = flows[0];
-  const order = orders[0];
-  
-  return {
-    code,
-    name: quote.name,
-    price: quote.price,
-    changePercent: quote.changePercent,
-    mainNet: flow.mainNet,
-    mainNetRatio: flow.mainNetRatio,
-    buyLargeRatio: order.buyLargeRatio,
-    sellLargeRatio: order.sellLargeRatio,
-  };
-}
+```ts
+const banking = await sdk.fundFlow.sectorHistory('BK0475');
+console.log(`银行板块历史数据 ${banking.length} 条`);
 ```
+
+### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `symbol` | `string` | 板块代码（BK 编号或东财 secid） |
+| `options.period` | `'daily' \| 'weekly' \| 'monthly'` | 周期，默认 `'daily'` |
+
+### 返回说明
+
+返回 `StockFundFlowDaily[]`，结构与 [`fundFlow.individual`](#fundflow-individual) 一致（此处 `close` / `changePercent` 对应板块本身）。

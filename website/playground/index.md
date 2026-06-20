@@ -1,13 +1,13 @@
 ---
 layout: page
-title: Playground
+title: 演练场
 ---
 
 <script setup>
 import Playground from '../.vitepress/theme/components/Playground.vue'
 import { onMounted, onUnmounted } from 'vue'
 
-// 动态添加 body 类名，用于限定样式作用范围
+// 动态添加 body 类名，用于限定页面级样式作用范围
 onMounted(() => {
   document.body.classList.add('playground-page')
 })
@@ -20,9 +20,9 @@ onUnmounted(() => {
 <Playground />
 
 <style>
-/* ===== Playground 页面专属样式（使用 body.playground-page 限定作用范围） ===== */
+/* ===== Playground 页面专属样式（body.playground-page 限定作用范围） ===== */
 
-/* 隐藏默认的页面标题和导航 */
+/* 全宽展示，去掉文档页内边距 */
 body.playground-page .VPDoc {
   padding: 0 !important;
 }
@@ -35,7 +35,6 @@ body.playground-page .VPDoc .content {
   padding: 0 !important;
 }
 
-/* 全宽展示 */
 body.playground-page .vp-doc {
   padding: 0 !important;
 }
@@ -61,10 +60,7 @@ body.playground-page .VPNavBar .container {
 }
 
 /* 隐藏页面底部 footer */
-body.playground-page .VPFooter {
-  display: none !important;
-}
-
+body.playground-page .VPFooter,
 body.playground-page footer {
   display: none !important;
 }

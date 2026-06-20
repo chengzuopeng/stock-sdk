@@ -1,135 +1,171 @@
-# Limit-Up Pool / Stock Changes
+# marketEvent · Limit-Up Pools / Intraday Changes
 
-Six limit-up stock pools, 22 stock change types and board change details. Source: Eastmoney push2ex endpoints.
+`sdk.marketEvent` provides 6 limit-up stock pools, 22 intraday change types and sector-change details (source: East Money push2ex).
 
-## getZTPool
+## Methods
 
-Six pools available via the `type` parameter:
+| Method | Description |
+|---|---|
+| `marketEvent.ztPool(type?, date?)` | Limit-up themed stock pools (6 pools) |
+| `marketEvent.stockChanges(type?)` | Per-stock intraday changes (22 change types) |
+| `marketEvent.boardChanges()` | Sector-change details for the day |
 
-| `type` | Description |
-|--------|-------------|
-| `'zt'`        | Limit-up pool (default) |
-| `'yesterday'` | Yesterday's limit-up |
-| `'strong'`    | Strong stocks (60-day high or multiple recent limit-ups) |
-| `'sub_new'`   | Sub-new stocks (listed within 1 year, broke straight limit-up) |
-| `'broken'`    | Broken-board pool (touched limit-up, not currently sealed) |
-| `'dt'`        | Limit-down pool |
+> Exact parameters and return fields follow the final implementation; the field tables below reflect the current data contract.
 
-### Signature
+---
 
-```typescript
-getZTPool(type?: ZTPoolType, date?: string): Promise<ZTPoolItem[]>
+## marketEvent.ztPool
+
+Fetch limit-up themed stock-pool data — 6 pools in total. Some fields are only populated for specific pools (e.g. `continuousBoardCount` only for the limit-up pool, `sealAmount` only for the limit-down pool).
+
+```ts
+import { StockSDK } from 'stock-sdk';
+
+const sdk = new StockSDK();
+
+// Today's limit-up pool
+const ztPool = await sdk.marketEvent.ztPool('zt');
+console.log(`${ztPool.length} stocks hit the limit up today`);
+
+// Filter for 3+ consecutive boards
+ztPool
+  .filter(s => (s.continuousBoardCount ?? 0) >= 3)
+  .forEach(s => console.log(`${s.name}(${s.code}) ${s.continuousBoardCount} boards - ${s.industry}`));
+
+// Limit-down pool for a specific date
+const dtPool = await sdk.marketEvent.ztPool('dt', '20240115');
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `type` | `ZTPoolType` | Default `'zt'` |
-| `date` | `string` | `YYYYMMDD` or `YYYY-MM-DD`; default = today |
+### Parameters
 
-### Return type
+| Param | Type | Description |
+|---|---|---|
+| `type` | `ZTPoolType` | Pool type, defaults to `'zt'` (see below) |
+| `date` | `string` | `YYYYMMDD` or `YYYY-MM-DD`, defaults to today |
 
-```typescript
+#### Pool type `ZTPoolType`
+
+| Value | Description |
+|---|---|
+| `'zt'` | Limit-up pool (default) |
+| `'yesterday'` | Yesterday's limit-up pool |
+| `'strong'` | Strong pool (60-day highs / repeat limit-ups) |
+| `'sub_new'` | Sub-new pool (first broken one-word board within 1 year of listing) |
+| `'broken'` | Broken-board pool (touched limit but did not seal) |
+| `'dt'` | Limit-down pool |
+
+### Returns
+
+`ZTPoolItem[]` (uniform fields; some are `null` depending on the pool):
+
+```ts
 interface ZTPoolItem {
   code: string;
   name: string;
-  price: number | null;                  // Already / 1000 scaled
-  changePercent: number | null;
-  limitPrice: number | null;
-  amount: number | null;
-  floatMarketValue: number | null;
-  totalMarketValue: number | null;
-  turnoverRate: number | null;
-  continuousBoardCount: number | null;   // 'zt' pool only
-  firstBoardTime: string | null;         // HH:MM:SS
-  lastBoardTime: string | null;
-  boardAmount: number | null;            // Sealed amount (limit-up pool)
-  sealAmount: number | null;             // Sealed order amount (limit-down pool)
-  failedCount: number | null;            // Broken-board count
-  industry: string;
-  ztStatistics: string;                  // '3/5' = 3 limit-ups in 5 days
-  amplitude: number | null;
-  speed: number | null;
+  price: number | null;                  // latest price
+  changePercent: number | null;          // change (percentage number)
+  limitPrice: number | null;             // limit price (some pools)
+  amount: number | null;                 // turnover (currency main unit)
+  floatMarketValue: number | null;       // floating market value
+  totalMarketValue: number | null;       // total market value
+  turnoverRate: number | null;           // turnover rate (percentage number)
+  continuousBoardCount: number | null;   // consecutive boards (limit-up pool only)
+  firstBoardTime: string | null;         // first seal time HHMMSS (limit-up / broken pools)
+  lastBoardTime: string | null;          // last seal time HHMMSS (limit-up pool)
+  boardAmount: number | null;            // sealing funds (limit-up pool)
+  sealAmount: number | null;             // sealing funds (limit-down pool)
+  failedCount: number | null;            // number of board breaks
+  industry: string;                      // industry
+  ztStatistics: string;                  // limit-up stats (e.g. '3/5' = 3 limit-ups in 5 days)
+  amplitude: number | null;              // amplitude (percentage number, some pools)
+  speed: number | null;                  // change speed (some pools)
 }
-```
-
-### Example
-
-```typescript
-const ztPool = await sdk.getZTPool('zt');
-console.log(`Limit-up today: ${ztPool.length}`);
-
-const strong = ztPool.filter(s => (s.continuousBoardCount ?? 0) >= 3);
-strong.forEach(s => {
-  console.log(
-    `${s.name}(${s.code}) ${s.continuousBoardCount}-day streak - ${s.industry}`
-  );
-});
 ```
 
 ---
 
-## getStockChanges
+## marketEvent.stockChanges
 
-Per-stock intraday changes across 22 categories.
+Per-stock intraday changes — 22 change types in total.
 
-### Signature
+```ts
+// Monitor large buys
+const largeBuys = await sdk.marketEvent.stockChanges('large_buy');
+largeBuys.slice(0, 10).forEach(c => {
+  console.log(`${c.time} ${c.name}(${c.code}) ${c.changeTypeLabel} ${c.info}`);
+});
 
-```typescript
-getStockChanges(type?: StockChangeType): Promise<StockChangeItem[]>
+// Monitor limit-up seals
+const sealUp = await sdk.marketEvent.stockChanges('limit_up_seal');
+console.log(`currently sealed at limit up: ${sealUp.length}`);
 ```
 
-### Change types
+### Parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `type` | `StockChangeType` | Change type, defaults to `'large_buy'` (see below) |
+
+#### Change type `StockChangeType`
 
 | Type | Label | Type | Label |
-|------|-------|------|-------|
-| `rocket_launch` | 火箭发射 | `large_sell` | 大笔卖出 |
-| `quick_rebound` | 快速反弹 | `accelerate_down` | 加速下跌 |
-| `large_buy` | 大笔买入 (default) | `high_dive` | 高台跳水 |
-| `limit_up_seal` | 封涨停板 | `limit_down_seal` | 封跌停板 |
-| `limit_down_open` | 打开跌停板 | `limit_up_open` | 打开涨停板 |
-| `big_buy_order` | 有大买盘 | `big_sell_order` | 有大卖盘 |
-| `auction_up` | 竞价上涨 | `auction_down` | 竞价下跌 |
-| `high_open_5d` | 高开 5 日线 | `low_open_5d` | 低开 5 日线 |
-| `gap_up` | 向上缺口 | `gap_down` | 向下缺口 |
-| `high_60d` | 60 日新高 | `low_60d` | 60 日新低 |
-| `surge_60d` | 60 日大幅上涨 | `drop_60d` | 60 日大幅下跌 |
+|---|---|---|---|
+| `rocket_launch` | Rocket launch | `large_sell` | Large sell |
+| `quick_rebound` | Quick rebound | `accelerate_down` | Accelerating down |
+| `large_buy` | Large buy (default) | `high_dive` | High dive |
+| `limit_up_seal` | Sealed limit up | `limit_down_seal` | Sealed limit down |
+| `limit_down_open` | Opened limit down | `limit_up_open` | Opened limit up |
+| `big_buy_order` | Big buy order | `big_sell_order` | Big sell order |
+| `auction_up` | Auction up | `auction_down` | Auction down |
+| `high_open_5d` | High open 5-day | `low_open_5d` | Low open 5-day |
+| `gap_up` | Gap up | `gap_down` | Gap down |
+| `high_60d` | 60-day high | `low_60d` | 60-day low |
+| `surge_60d` | 60-day surge | `drop_60d` | 60-day drop |
 
-### Return type
+### Returns
 
-```typescript
+`StockChangeItem[]`:
+
+```ts
 interface StockChangeItem {
-  time: string;                  // HH:MM:SS
+  time: string;                  // event time HH:MM:SS
   code: string;
   name: string;
-  changeType: StockChangeType;
-  changeTypeLabel: string;       // Chinese label
-  info: string;
+  changeType: StockChangeType;   // change type
+  changeTypeLabel: string;       // change-type label
+  info: string;                  // extra info (from the upstream API)
 }
 ```
 
 ---
 
-## getBoardChanges
+## marketEvent.boardChanges
 
-Daily board change details.
+Sector-change details for the day, including the change-type distribution and the most active stock.
 
-### Signature
-
-```typescript
-getBoardChanges(): Promise<BoardChangeItem[]>
+```ts
+const boards = await sdk.marketEvent.boardChanges();
+boards
+  .sort((a, b) => (b.totalChangeCount ?? 0) - (a.totalChangeCount ?? 0))
+  .slice(0, 5)
+  .forEach(b => {
+    console.log(`${b.name}: ${b.totalChangeCount} changes, top ${b.topStockName} (${b.topStockDirection})`);
+  });
 ```
 
-### Return type
+### Returns
 
-```typescript
+`BoardChangeItem[]`:
+
+```ts
 interface BoardChangeItem {
-  name: string;
-  changePercent: number | null;
-  mainNetInflow: number | null;
-  totalChangeCount: number | null;
-  topStockCode: string;
-  topStockName: string;
-  topStockDirection: string;                  // 'large buy' / 'large sell'
-  changeTypeDistribution: Record<string, number>;
+  name: string;                              // sector name
+  changePercent: number | null;             // change (percentage number)
+  mainNetInflow: number | null;             // main net inflow (currency main unit)
+  totalChangeCount: number | null;          // total number of changes
+  topStockCode: string;                     // most active stock code
+  topStockName: string;                     // most active stock name
+  topStockDirection: string;                // 'large buy' | 'large sell'
+  changeTypeDistribution: Record<string, number>; // change-type distribution (type code -> count)
 }
 ```

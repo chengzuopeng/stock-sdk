@@ -5,7 +5,7 @@
 ## 项目定位
 
 - 包名：`stock-sdk`
-- 当前版本：`2.0.0-beta.1`
+- 当前版本：`2.0.0`
 - 定位：面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成
 - 核心卖点：零依赖 | Browser + Node.js | 轻量发布包 | 完整 TypeScript 类型
 
@@ -172,6 +172,5 @@
 - [错误处理与重试](/guide/retry)
 - [请求治理](/guide/request-governance)
 - [期货与期权](/guide/futures-options)
-- [分红与交易日历](/guide/dividend-calendar)
+- [复权说明](/guide/dividend-adjustment)
 - [API 总览](/api/)
-

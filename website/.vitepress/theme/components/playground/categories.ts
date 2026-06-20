@@ -1,42 +1,31 @@
+/**
+ * 分类（= v2 命名空间）与市场芯片的展示配置。
+ *
+ * 顺序与 API 文档侧边栏一致：行情 → 代码 → 批量 → K线 → 板块 → 衍生品 → 资金面 → 工具。
+ * 颜色取暖色系（红盘主题），辅以少量中性色区分。
+ */
 import type { CategorySpec, MarketChipSpec } from './types';
 
-/**
- * Playground 侧边栏分类定义。
- * 顺序即侧边栏展示顺序。
- *
- * v1.10.x 改版：把原本一桶 27 个方法的 `extended` 拆成 5 个细分类
- * （fundFlow / northbound / marketEvent / dragonTiger / blockTradeMargin），
- * 剩下的 `extended` 只承载真正杂项（交易日历、单股资金流概览 4 个）。
- */
 export const categories: CategorySpec[] = [
-  // 行情 & K 线 & 指标
-  { key: 'quotes', label: '实时行情', icon: 'lucide:bar-chart-3', color: '#3b82f6' },
-  { key: 'kline', label: 'K 线数据', icon: 'lucide:line-chart', color: '#22c55e' },
-  { key: 'indicator', label: '技术指标', icon: 'lucide:trending-up', color: '#f59e0b' },
-
-  // 资金 & 异动 & 龙虎榜（A 股深度数据）
-  { key: 'fundFlow', label: '资金流向', icon: 'lucide:wallet', color: '#14b8a6' },
-  { key: 'northbound', label: '沪深港通', icon: 'lucide:arrow-left-right', color: '#6366f1' },
-  { key: 'marketEvent', label: '涨停异动', icon: 'lucide:siren', color: '#f43f5e' },
-  { key: 'dragonTiger', label: '龙虎榜', icon: 'lucide:trophy', color: '#facc15' },
-  { key: 'blockTradeMargin', label: '大宗融资', icon: 'lucide:package', color: '#84cc16' },
-
-  // 跨市场数据类别
-  { key: 'board', label: '板块数据', icon: 'lucide:layout-grid', color: '#06b6d4' },
-  { key: 'fund', label: '公募基金', icon: 'lucide:landmark', color: '#0ea5e9' },
-  { key: 'futures', label: '期货行情', icon: 'lucide:flame', color: '#f97316' },
-  { key: 'options', label: '期权数据', icon: 'lucide:target', color: '#d946ef' },
-
-  // 工具类
-  { key: 'batch', label: '批量查询', icon: 'lucide:layers', color: '#8b5cf6' },
-  { key: 'search', label: '搜索', icon: 'lucide:search', color: '#ec4899' },
-  { key: 'extended', label: '其它工具', icon: 'lucide:wrench', color: '#ef4444' },
+  { key: 'quotes', label: '实时行情', icon: 'lucide:zap', color: '#dc2626' },
+  { key: 'codes', label: '代码列表', icon: 'lucide:list-ordered', color: '#a16207' },
+  { key: 'batch', label: '批量行情', icon: 'lucide:layers', color: '#ea580c' },
+  { key: 'kline', label: 'K 线', icon: 'lucide:candlestick-chart', color: '#b91c1c' },
+  { key: 'board', label: '行业 / 概念板块', icon: 'lucide:layout-grid', color: '#c2410c' },
+  { key: 'options', label: '期权', icon: 'lucide:diamond', color: '#9333ea' },
+  { key: 'futures', label: '期货', icon: 'lucide:flame', color: '#d97706' },
+  { key: 'fundFlow', label: '资金流向', icon: 'lucide:arrow-left-right', color: '#0d9488' },
+  { key: 'northbound', label: '北向资金', icon: 'lucide:train-front', color: '#2563eb' },
+  { key: 'marketEvent', label: '涨停 / 异动', icon: 'lucide:siren', color: '#e11d48' },
+  { key: 'dragonTiger', label: '龙虎榜', icon: 'lucide:trophy', color: '#ca8a04' },
+  { key: 'blockTrade', label: '大宗交易', icon: 'lucide:boxes', color: '#7c3aed' },
+  { key: 'margin', label: '融资融券', icon: 'lucide:scale', color: '#0891b2' },
+  { key: 'fund', label: '基金', icon: 'lucide:piggy-bank', color: '#db2777' },
+  { key: 'calendar', label: '交易日历', icon: 'lucide:calendar-days', color: '#65a30d' },
+  { key: 'reference', label: '参考数据', icon: 'lucide:book-open', color: '#64748b' },
+  { key: 'search', label: '搜索', icon: 'lucide:search', color: '#475569' },
 ];
 
-/**
- * 市场过滤芯片（侧边栏顶部，搜索框下方）。
- * 顺序：先"全部"，再按使用频率排（A 股优先），最后是"通用"兜底。
- */
 export const marketChips: MarketChipSpec[] = [
   { key: null, label: '全部' },
   { key: 'a', label: 'A 股' },
@@ -46,5 +35,4 @@ export const marketChips: MarketChipSpec[] = [
   { key: 'futures', label: '期货' },
   { key: 'options', label: '期权' },
   { key: 'board', label: '板块' },
-  { key: 'all', label: '通用' },
 ];

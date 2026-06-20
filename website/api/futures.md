@@ -1,152 +1,117 @@
-# 期货行情
+# sdk.futures 期货
 
-## getFuturesKline
+期货命名空间提供国内期货 K 线、全球期货实时行情与 K 线，以及期货库存数据。数据来源主要为东方财富。
 
-获取国内期货历史 K 线（日/周/月），数据来源：东方财富。
+```ts
+import { StockSDK } from 'stock-sdk';
 
-支持上期所(SHFE)、大商所(DCE)、郑商所(CZCE)、上期能源(INE)、中金所(CFFEX)、广期所(GFEX)全部品种。
+const sdk = new StockSDK();
 
-### 签名
+// 螺纹钢主连日 K
+const klines = await sdk.futures.kline('RBM');
 
-```typescript
-getFuturesKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    startDate?: string;
-    endDate?: string;
-  }
-): Promise<FuturesKline[]>
+// 全球期货实时行情
+const global = await sdk.futures.globalSpot();
+
+// 期货库存
+const inventory = await sdk.futures.inventory('rb');
 ```
 
-### 参数
+## 方法表
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `symbol` | `string` | - | 合约代码，如 `'rb2605'`（具体合约）或 `'RBM'`（主连） |
-| `period` | `string` | `'daily'` | K 线周期：`'daily'` / `'weekly'` / `'monthly'` |
-| `startDate` | `string` | - | 开始日期 `YYYYMMDD` |
-| `endDate` | `string` | - | 结束日期 `YYYYMMDD` |
+| 方法 | 说明 |
+|------|------|
+| `futures.kline(symbol, opts?)` | 国内期货历史 K 线（日/周/月） |
+| `futures.globalSpot(opts?)` | 全球期货实时行情 |
+| `futures.globalKline(symbol, opts?)` | 全球期货历史 K 线（日/周/月） |
+| `futures.inventorySymbols()` | 期货库存品种列表 |
+| `futures.inventory(symbol, opts?)` | 国内期货库存数据 |
+| `futures.comexInventory(symbol, opts?)` | COMEX 黄金 / 白银库存数据 |
 
-### symbol 格式
+> v2 数据契约：返回对象不含 `raw` 字段；带时间的字段 `timestamp` 为 `number | null`；百分比为百分数（如 `5.2`）。**注意：期货 `volume` 为成交量（手 / 合约），并非"股"；期货按交易所合约报价计价，类型不含 `currency` 字段。** 下方字段为常见结构示意，**具体字段以实现为准**。
 
-| 输入格式 | 说明 | 示例 |
-|----------|------|------|
-| `品种 + 合约月份` | 具体合约 | `rb2605`、`IF2604`、`TA509` |
-| `品种 + M` | 主力连续合约 | `RBM`、`IFM`、`TAM`、`scM` |
+## `futures.kline(symbol, opts?)`
 
-### 返回类型
+获取国内期货历史 K 线（日/周/月），支持上期所（SHFE）、大商所（DCE）、郑商所（CZCE）、上期能源（INE）、中金所（CFFEX）、广期所（GFEX）全部品种。
 
-```typescript
-interface FuturesKline {
-  date: string;               // 日期 YYYY-MM-DD
-  code: string;               // 合约代码
-  name: string;               // 合约名称
-  open: number | null;        // 开盘价
-  close: number | null;       // 收盘价
-  high: number | null;        // 最高价
-  low: number | null;         // 最低价
-  volume: number | null;      // 成交量
-  amount: number | null;      // 成交额
-  amplitude: number | null;   // 振幅 %
-  changePercent: number | null;  // 涨跌幅 %
-  change: number | null;         // 涨跌额
-  turnoverRate: number | null;   // 换手率 %
-  openInterest: number | null;   // 持仓量
-}
-```
+```ts
+// 螺纹钢主连日 K
+const klines = await sdk.futures.kline('RBM');
 
-### 示例
-
-```typescript
-// 获取螺纹钢主连日 K
-const klines = await sdk.getFuturesKline('RBM');
-
-// 获取沪深300期货具体合约周 K
-const weeklyKlines = await sdk.getFuturesKline('IF2604', {
+// 沪深 300 期货具体合约周 K
+const weekly = await sdk.futures.kline('IF2604', {
   period: 'weekly',
   startDate: '20250101',
 });
 
-klines.forEach(k => {
+weekly.forEach(k => {
   console.log(`${k.date}: 收 ${k.close} 持仓 ${k.openInterest}`);
 });
 ```
 
----
+**参数：**
 
-## getGlobalFuturesSpot
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `symbol` | `string` | - | 合约代码，如 `'rb2605'`（具体合约）或 `'RBM'`（主连） |
+| `opts.period` | `'daily' \| 'weekly' \| 'monthly'` | `'daily'` | K 线周期 |
+| `opts.startDate` | `string` | - | 开始日期 `YYYYMMDD` |
+| `opts.endDate` | `string` | - | 结束日期 `YYYYMMDD` |
 
-获取全球期货实时行情（COMEX、NYMEX、CBOT、SGX、NYBOT、LME、MDEX、TOCOM、IPE），数据来源：东方财富。
+**symbol 格式：**
 
-### 签名
+| 输入格式 | 说明 | 示例 |
+|----------|------|------|
+| 品种 + 合约月份 | 具体合约 | `rb2605`、`IF2604`、`TA509` |
+| 品种 + `M` | 主力连续合约 | `RBM`、`IFM`、`TAM`、`scM` |
 
-```typescript
-getGlobalFuturesSpot(
-  options?: {
-    pageSize?: number;
-  }
-): Promise<GlobalFuturesQuote[]>
-```
+**返回说明：** K 线数组，每根含日期、合约代码/名称、开高低收、成交量/额、振幅、涨跌额/幅、换手率、持仓量等字段。
 
-### 返回类型
+## `futures.globalSpot(opts?)`
 
-```typescript
-interface GlobalFuturesQuote {
-  code: string;               // 合约代码
-  name: string;               // 名称
-  price: number | null;       // 最新价
-  change: number | null;      // 涨跌额
-  changePercent: number | null;  // 涨跌幅 %
-  open: number | null;        // 今开
-  high: number | null;        // 最高
-  low: number | null;         // 最低
-  prevSettle: number | null;  // 昨结算价
-  volume: number | null;      // 成交量
-  buyVolume: number | null;   // 买盘量
-  sellVolume: number | null;  // 卖盘量
-  openInterest: number | null;   // 持仓量
-}
-```
+获取全球期货实时行情，覆盖 COMEX、NYMEX、CBOT、SGX、NYBOT、LME、MDEX、TOCOM、IPE 等交易所。
 
-### 示例
-
-```typescript
-const quotes = await sdk.getGlobalFuturesSpot();
+```ts
+const quotes = await sdk.futures.globalSpot();
 quotes.forEach(q => {
   console.log(`${q.name} (${q.code}): ${q.price} ${q.changePercent}%`);
 });
 ```
 
----
+**参数：**
 
-## getGlobalFuturesKline
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `opts.pageSize` | `number` | 单次返回条数（可选） |
 
-获取全球期货历史 K 线（日/周/月），数据来源：东方财富。
+**返回说明：** 实时行情数组，每条含合约代码、名称、最新价、涨跌额/幅、今开、最高、最低、昨结算价、成交量、买/卖盘量、持仓量等字段。
 
-### 签名
+## `futures.globalKline(symbol, opts?)`
 
-```typescript
-getGlobalFuturesKline(
-  symbol: string,
-  options?: {
-    period?: 'daily' | 'weekly' | 'monthly';
-    startDate?: string;
-    endDate?: string;
-    marketCode?: number;
-  }
-): Promise<FuturesKline[]>
+获取全球期货历史 K 线（日/周/月）。
+
+```ts
+// COMEX 铜连续日 K
+const klines = await sdk.futures.globalKline('HG00Y');
+
+// 纽约原油周 K
+const oil = await sdk.futures.globalKline('CL00Y', {
+  period: 'weekly',
+  startDate: '20250101',
+});
 ```
 
-### 参数
+**参数：**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `symbol` | `string` | - | 合约代码，如 `'HG00Y'`（COMEX铜连续） |
-| `period` | `string` | `'daily'` | K 线周期 |
-| `marketCode` | `number` | - | 东方财富市场代码（用于未内置的品种） |
+| `symbol` | `string` | - | 合约代码，如 `'HG00Y'`（COMEX 铜连续） |
+| `opts.period` | `'daily' \| 'weekly' \| 'monthly'` | `'daily'` | K 线周期 |
+| `opts.startDate` | `string` | - | 开始日期 `YYYYMMDD` |
+| `opts.endDate` | `string` | - | 结束日期 `YYYYMMDD` |
+| `opts.marketCode` | `number` | - | 东方财富市场代码（用于未内置的品种） |
 
-### 内置品种
+**内置品种（示意）：**
 
 | 市场 | 品种 | 市场代码 |
 |------|------|----------|
@@ -156,138 +121,64 @@ getGlobalFuturesKline(
 | NYBOT | SB, CT | 108 |
 | LME | LCPT, LZNT, LALT | 109 |
 
-### 示例
+**返回说明：** K 线数组，结构同 `futures.kline`。
 
-```typescript
-// 获取 COMEX 铜连续日 K
-const klines = await sdk.getGlobalFuturesKline('HG00Y');
+## `futures.inventorySymbols()`
 
-// 获取纽约原油周 K
-const oilKlines = await sdk.getGlobalFuturesKline('CL00Y', {
-  period: 'weekly',
-  startDate: '20250101',
-});
-```
+获取期货库存品种列表（东方财富数据中心），用于驱动 `futures.inventory`。
 
----
-
-## getFuturesInventorySymbols
-
-获取期货库存品种列表，数据来源：东方财富数据中心。
-
-### 签名
-
-```typescript
-getFuturesInventorySymbols(): Promise<FuturesInventorySymbol[]>
-```
-
-### 返回类型
-
-```typescript
-interface FuturesInventorySymbol {
-  code: string;       // 品种代码
-  name: string;       // 品种名称
-  marketCode: string; // 市场代码
-}
-```
-
-### 示例
-
-```typescript
-const symbols = await sdk.getFuturesInventorySymbols();
+```ts
+const symbols = await sdk.futures.inventorySymbols();
 symbols.forEach(s => {
   console.log(`${s.name} (${s.code})`);
 });
 ```
 
----
+**返回说明：** 品种数组，每条含品种代码、品种名称与市场代码。
 
-## getFuturesInventory
+## `futures.inventory(symbol, opts?)`
 
-获取期货库存数据，数据来源：东方财富数据中心。
+获取国内期货库存数据（东方财富数据中心）。
 
-### 签名
-
-```typescript
-getFuturesInventory(
-  symbol: string,
-  options?: {
-    startDate?: string;
-    pageSize?: number;
-  }
-): Promise<FuturesInventory[]>
-```
-
-### 参数
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `symbol` | `string` | - | 品种代码（从 `getFuturesInventorySymbols` 获取） |
-| `startDate` | `string` | `'2020-10-28'` | 开始日期 `YYYY-MM-DD` |
-
-### 返回类型
-
-```typescript
-interface FuturesInventory {
-  code: string;             // 品种代码
-  date: string;             // 日期
-  inventory: number | null; // 库存量
-  change: number | null;    // 增减
-}
-```
-
-### 示例
-
-```typescript
-const inventory = await sdk.getFuturesInventory('rb');
+```ts
+const inventory = await sdk.futures.inventory('rb');
 inventory.forEach(item => {
   console.log(`${item.date}: 库存 ${item.inventory} 增减 ${item.change}`);
 });
 ```
 
----
+**参数：**
 
-## getComexInventory
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `symbol` | `string` | - | 品种代码（从 `futures.inventorySymbols()` 获取） |
+| `opts.startDate` | `string` | `'2020-10-28'` | 开始日期 `YYYY-MM-DD` |
+| `opts.pageSize` | `number` | - | 单次返回条数（可选） |
 
-获取 COMEX 黄金/白银库存数据，数据来源：东方财富数据中心。
+**返回说明：** 库存数组，每条含品种代码、日期、库存量、增减量。
 
-### 签名
+## `futures.comexInventory(symbol, opts?)`
 
-```typescript
-getComexInventory(
-  symbol: 'gold' | 'silver',
-  options?: {
-    pageSize?: number;
-  }
-): Promise<ComexInventory[]>
-```
+获取 COMEX 黄金 / 白银库存数据（东方财富数据中心）。
 
-### 参数
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `symbol` | `string` | `'gold'`（黄金）或 `'silver'`（白银） |
-
-### 返回类型
-
-```typescript
-interface ComexInventory {
-  date: string;                // 日期
-  name: string;                // 品种名称
-  storageTon: number | null;   // 库存量（吨）
-  storageOunce: number | null; // 库存量（盎司）
-}
-```
-
-### 示例
-
-```typescript
-// 获取 COMEX 黄金库存
-const goldInventory = await sdk.getComexInventory('gold');
-goldInventory.forEach(item => {
+```ts
+// COMEX 黄金库存
+const gold = await sdk.futures.comexInventory('gold');
+gold.forEach(item => {
   console.log(`${item.date}: ${item.storageTon} 吨`);
 });
 
-// 获取 COMEX 白银库存
-const silverInventory = await sdk.getComexInventory('silver');
+// COMEX 白银库存
+const silver = await sdk.futures.comexInventory('silver');
 ```
+
+**参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `symbol` | `'gold' \| 'silver'` | `'gold'`（黄金）或 `'silver'`（白银） |
+| `opts.pageSize` | `number` | 单次返回条数（可选） |
+
+**返回说明：** 库存数组，每条含日期、品种名称、库存量（吨）、库存量（盎司）。
+
+> v2 已移除旧版 `ComexInventory` 上的 `@deprecated` 字段（如 `inventory` 别名、恒为 `null` 的 `change` 与旧 `name`）；请改用统一后的标准字段。具体字段以实现为准。

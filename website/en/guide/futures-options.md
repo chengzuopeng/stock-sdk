@@ -1,94 +1,111 @@
 # Futures & Options
 
-Stock SDK already covers domestic futures, global futures, and several option workflows. This guide turns those APIs into task-oriented usage patterns.
+stock-sdk exposes futures and options data under two namespaces: `sdk.futures` and `sdk.options`. This page gives an overview; per-method parameters and return shapes live in the API chapters [futures](/en/api/futures) and [options](/en/api/options).
 
-## Futures
+::: tip Symbol input
+Futures and options follow the same convention: `string` is the first-class input, with an optional `SymbolRef`. `normalizeSymbol` tolerantly parses forms like `rb2510`, `RBM` (continuous main contract), and `CFFEX.IF2412`. See [Symbols & Codes](/en/guide/symbols).
+:::
 
-### Daily Domestic Futures Analysis
+## Futures: sdk.futures
 
-```ts
-const rbMain = await sdk.getFuturesKline('RBM', {
-  period: 'daily',
-  startDate: '20250101',
-});
+`sdk.futures` covers domestic futures K-lines, global (overseas) futures quotes / K-lines, and exchange inventory data.
 
-const ifWeekly = await sdk.getFuturesKline('IF2604', {
-  period: 'weekly',
-  startDate: '20250101',
-});
-```
+| Method | Description |
+|---|---|
+| `futures.kline(symbol, opts)` | Domestic futures historical K-line |
+| `futures.globalSpot(symbol)` | Global futures real-time quote (COMEX / NYMEX / CBOT / LME, etc.) |
+| `futures.globalKline(symbol, opts)` | Global futures historical K-line |
+| `futures.inventorySymbols()` | List of futures varieties with inventory data |
+| `futures.inventory(symbol)` | Inventory data for a given variety |
+| `futures.comexInventory(symbol)` | COMEX gold / silver inventory, etc. |
 
-Common use cases:
+::: tip market vs exchange
+Domestic futures have `market: 'CN'` and are distinguished by `exchange` (`SHFE` / `DCE` / `CZCE` / `INE` / `CFFEX` / `GFEX`); overseas futures have `market: 'GLOBAL'`, distinguished by `exchange` (`COMEX` / `NYMEX` / `CBOT` / `LME`, etc.).
+:::
 
-- Trend tracking for main continuous contracts
-- Backtesting or charting for a specific contract
-
-### Global Futures Monitoring
-
-```ts
-const globalSpot = await sdk.getGlobalFuturesSpot();
-const copper = await sdk.getGlobalFuturesKline('HG00Y', {
-  period: 'daily',
-  startDate: '20250101',
-});
-```
-
-`getGlobalFuturesSpot` works well for intraday dashboards, while `getGlobalFuturesKline` is better for historical analysis and indicators.
-
-## Options
-
-### CFFEX Index Options
+### Examples
 
 ```ts
-const ioTQuote = await sdk.getIndexOptionSpot('io', 'io2504');
-const ioKline = await sdk.getIndexOptionKline('io2504C3600');
+import { StockSDK } from 'stock-sdk'
+
+const sdk = new StockSDK()
+
+// Domestic futures K-line: rebar steel 2510 contract
+const rbKline = await sdk.futures.kline('rb2510', { period: 'daily' })
+
+// Global futures real-time quote
+const comexGold = await sdk.futures.globalSpot('GC') // COMEX gold (illustrative)
+
+// Global futures K-line
+const wtiKline = await sdk.futures.globalKline('CL', { period: 'daily' })
+
+// Inventory: list available varieties first, then fetch specific inventory
+const symbols = await sdk.futures.inventorySymbols()
+const inv = await sdk.futures.inventory('rb')
+
+// COMEX inventory
+const comexInv = await sdk.futures.comexInventory('AU')
 ```
 
-`getIndexOptionSpot` returns T-quotes, which are useful for strike distribution, volatility studies, and expiry screening.
+Exact parameters (period, range, adjustment, etc.) and return fields follow the implementation.
 
-### SSE ETF Options
+## Options: sdk.options
+
+`sdk.options` splits by underlying category into four sub-namespaces—`index` (index options), `etf` (ETF options), `commodity` (commodity options), `cffex` (CFFEX options)—plus a top-level `options.lhb` (options dragon-tiger list).
+
+| Sub-namespace | Methods | Description |
+|---|---|---|
+| `options.index` | `spot` / `kline` | Index option real-time quote / K-line |
+| `options.etf` | `months` / `expireDay` / `minute` / `dailyKline` / `fiveDayMinute` | ETF options: contract months / expiry / intraday / daily K / five-day intraday |
+| `options.commodity` | `spot` / `kline` | Commodity option real-time quote / K-line |
+| `options.cffex` | `quotes` | CFFEX option quotes |
+| `options` (top-level) | `lhb(symbol, date)` | Options dragon-tiger list |
+
+### Index options
 
 ```ts
-const monthInfo = await sdk.getETFOptionMonths('50ETF');
-const expireInfo = await sdk.getETFOptionExpireDay('50ETF', monthInfo.months[0]);
-const minuteData = await sdk.getETFOptionMinute('10009633');
+// Index option real-time quote and K-line
+const idxSpot = await sdk.options.index.spot('IO2412')   // illustrative
+const idxKline = await sdk.options.index.kline('IO2412')
 ```
 
-Recommended flow:
+### ETF options
 
-- Call `getETFOptionMonths` to fetch available expiries
-- Call `getETFOptionExpireDay` to fetch the exact expiry date and remaining days
-- Call `getETFOptionMinute` or `getETFOptionDailyKline` for intraday or daily prices
-
-### Commodity Options
+A typical ETF-options flow is "list months → get expiry → fetch quotes / K-line":
 
 ```ts
-const auSpot = await sdk.getCommodityOptionSpot('au', 'au2506');
-const mKline = await sdk.getCommodityOptionKline('m2409C3200');
+// 1. Tradable months for an ETF option
+const months = await sdk.options.etf.months('10004336')
+
+// 2. Expiry day for a given month
+const expire = await sdk.options.etf.expireDay('10004336')
+
+// 3. Market data
+const minute = await sdk.options.etf.minute('10004336')        // intraday
+const dailyK = await sdk.options.etf.dailyKline('10004336')    // daily K
+const fiveDay = await sdk.options.etf.fiveDayMinute('10004336') // five-day intraday
 ```
 
-## Workflow Examples
+### Commodity and CFFEX options
 
-### 1. Domestic Futures Dashboard
+```ts
+// Commodity options
+const cmdSpot = await sdk.options.commodity.spot('m2501')  // illustrative
+const cmdKline = await sdk.options.commodity.kline('m2501')
 
-- Use `getFuturesKline` for main continuous K-line
-- Use `getFuturesInventorySymbols` and `getFuturesInventory` for inventory overlays
-- Apply `calcMA`, `calcMACD`, and `calcATR` on top of futures data
+// CFFEX option quotes
+const cffex = await sdk.options.cffex.quotes('IF')
 
-### 2. ETF Option Expiry Screening
+// Options dragon-tiger list (top-level method)
+const lhb = await sdk.options.lhb('10004336', '2025-06-06')
+```
 
-- Start with `getETFOptionMonths`
-- Add `getETFOptionExpireDay`
-- Filter strategies based on remaining days and minute-level prices
+Exact inputs (contract code / month / date format) and return fields follow the implementation—see the [options](/en/api/options) API chapter and `src/sdk/namespaces/*`.
 
-### 3. Index Option T-Quote Monitoring
+## Data contract notes
 
-- Fetch calls and puts with `getIndexOptionSpot`
-- Aggregate strike-level volume, open interest, and spread data
-- Fetch historical movement with `getIndexOptionKline` when needed
+Futures and options follow v2's unified data contract too:
 
-## Related APIs
-
-- [Futures API](/en/api/futures)
-- [Options API](/en/api/options)
-- [Technical Indicators](/en/guide/indicators)
+- Any time-bearing record carries `timestamp` (`number | null`, invalid is `null` rather than `NaN`) and `tz`.
+- No more `raw` fields; if you need raw upstream data, use the provider-layer debug functions.
+- Amounts / prices are in their quoting unit, with no cross-currency conversion; **stock / fund / option types carry a `currency` field (CNY/HKD/USD), while futures are quoted per exchange contract and have no `currency` field**.
