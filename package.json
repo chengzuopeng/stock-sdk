@@ -16,12 +16,12 @@
     "test:integration": "RUN_INTEGRATION=1 vitest run",
     "test:integration:smoke": "RUN_INTEGRATION=1 vitest run test/integration/providers/tencent/quote.int.test.ts test/integration/providers/tencent/batch.int.test.ts test/integration/providers/tencent/tradeCalendar.int.test.ts test/integration/sdk/timeout.int.test.ts",
     "test:integration:full": "RUN_INTEGRATION=1 vitest run test/integration",
-    "docs:meta": "yarn build && node ./scripts/generate-doc-meta.js",
-    "docs:check": "yarn docs:meta && node ./scripts/check-doc-consistency.js",
+    "docs:meta": "pnpm build && node ./scripts/generate-doc-meta.js",
+    "docs:check": "pnpm docs:meta && node ./scripts/check-doc-consistency.js",
     "dev": "vitepress dev website",
     "preview": "vitepress preview website",
-    "build:docs": "yarn docs:meta && DOCS_BASE=/ vitepress build website",
-    "build:pages": "yarn docs:meta && DOCS_BASE=/stock-sdk/ vitepress build website",
+    "build:docs": "pnpm docs:meta && DOCS_BASE=/ vitepress build website",
+    "build:pages": "pnpm docs:meta && DOCS_BASE=/stock-sdk/ vitepress build website",
     "prepare": "node ./scripts/install-git-hooks.js"
   },
   "exports": {
@@ -120,5 +120,5 @@
     "registry": "https://registry.npmjs.org/",
     "provenance": true
   },
-  "packageManager": "yarn@1.22.22"
+  "packageManager": "pnpm@10.34.4"
 }

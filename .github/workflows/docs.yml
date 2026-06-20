@@ -9,7 +9,7 @@ on:
       - 'scripts/**'
       - 'docs-meta/**'
       - 'package.json'
-      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
       - 'tsconfig.json'
       - 'tsup.config.ts'
       - '.github/workflows/docs.yml'
@@ -36,20 +36,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
+          cache: pnpm
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build with VitePress
-        run: yarn build:pages
+        run: pnpm build:pages
         env:
           GRAFANA_SOURCEMAP_TOKEN: ${{ secrets.GRAFANA_SOURCEMAP_TOKEN }}
 

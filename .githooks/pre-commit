@@ -6,7 +6,7 @@
 # 避免文档/测试单独提交时被拖慢（build 约 3s）。
 #
 # 自动行为：
-#   1. 跑 `yarn docs:meta` 重新生成 summary.md（及 gitignored 的 sdk-meta.json）
+#   1. 跑 `pnpm docs:meta` 重新生成 summary.md（及 gitignored 的 sdk-meta.json）
 #   2. 如果 summary.md 与暂存区不一致，自动 git add，避免 commit 后 docs:check 仍然失败
 #   3. 任何步骤失败都会中止提交，并打印恢复指引
 #
@@ -30,14 +30,14 @@ echo "[pre-commit] src/ 或 docs-meta/sdk.json 有变更，正在同步 website/
 
 # 如果项目还没装依赖，跳过并提示
 if [ ! -d node_modules ]; then
-  echo "[pre-commit] node_modules 未安装，跳过 docs sync。请先 yarn install。"
+  echo "[pre-commit] node_modules 未安装，跳过 docs sync。请先 pnpm install。"
   exit 0
 fi
 
 # 运行 docs:meta（输出走 stderr，不污染 stdout）
-if ! yarn --silent docs:meta >/dev/null 2>&1; then
-  echo "[pre-commit] yarn docs:meta 失败，提交已中止。" >&2
-  echo "[pre-commit] 请手动运行 yarn docs:meta 排查问题。" >&2
+if ! pnpm docs:meta >/dev/null 2>&1; then
+  echo "[pre-commit] pnpm docs:meta 失败，提交已中止。" >&2
+  echo "[pre-commit] 请手动运行 pnpm docs:meta 排查问题。" >&2
   exit 1
 fi
 

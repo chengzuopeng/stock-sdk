@@ -288,11 +288,11 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 ## 开发校验
 
 ```bash
-yarn typecheck
-yarn build
-yarn test
-yarn test:integration:smoke   # 冒烟集成（真实网络）
-yarn test:integration:full    # 全量集成回归
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm test:integration:smoke   # 冒烟集成（真实网络）
+pnpm test:integration:full    # 全量集成回归
 ```
 
 ---

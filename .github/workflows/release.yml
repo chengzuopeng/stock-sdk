@@ -31,11 +31,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
+          cache: pnpm
           registry-url: 'https://registry.npmjs.org'
 
       # Trusted Publishing 需要 npm >= 11.5.0；Node 20 自带的是 npm 10.x，需升级
@@ -43,16 +46,16 @@ jobs:
         run: npm install -g npm@latest
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck, test & build
         run: |
-          yarn typecheck
-          yarn build
-          yarn test
+          pnpm typecheck
+          pnpm build
+          pnpm test
 
       # provenance 由 package.json 的 publishConfig.provenance: true 自动开启；
-      # 用 npm publish（yarn 1.x 的 publish 不支持 provenance）。
+      # 安装/构建用 pnpm，发布仍用 npm publish（走 npm 的 provenance 链路）。
       # dist-tag：prerelease 版本（含 -beta/-rc/-alpha）发到对应 tag，避免被标成 latest 顶掉
       # 稳定版——用户用 `npm i stock-sdk@beta` 安装，`npm i stock-sdk` 仍取 latest 稳定版。
       - name: Publish to npm

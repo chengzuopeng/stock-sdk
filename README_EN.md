@@ -288,11 +288,11 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 ## Dev checks
 
 ```bash
-yarn typecheck
-yarn build
-yarn test
-yarn test:integration:smoke   # smoke integration (real network)
-yarn test:integration:full    # full integration regression
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm test:integration:smoke   # smoke integration (real network)
+pnpm test:integration:full    # full integration regression
 ```
 
 ---

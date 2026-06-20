@@ -214,7 +214,7 @@ export async function getQuotes(codes: string[]): Promise<Quote[]> {
 ### 1. 确保构建成功
 
 ```bash
-yarn build
+pnpm build
 ```
 
 - 构建必须无错误通过
@@ -223,7 +223,7 @@ yarn build
 ### 2. 补充测试并确保通过
 
 ```bash
-yarn test
+pnpm test
 ```
 
 - 为新增或修改功能编写对应测试
@@ -233,7 +233,7 @@ yarn test
 - 测试文件命名：单元测试 `*.test.ts`，集成测试 `*.int.test.ts`
 
 ```bash
-yarn test:integration
+pnpm test:integration
 ```
 
 - 涉及真实接口行为、provider 适配、线上数据兼容性时，应运行集成测试
@@ -257,13 +257,13 @@ yarn test:integration
 如果修改了文档结构、导航或新增了文档页面，建议执行：
 
 ```bash
-yarn docs:check
+pnpm docs:check
 ```
 
 必要时执行：
 
 ```bash
-yarn build:docs
+pnpm build:docs
 ```
 
 ### 6. 更新 Playground（如适用）
@@ -279,9 +279,9 @@ Playground 已组件化，且**从 `src/spec/methods.ts` 派生**（与 CLI / MC
 ## 检查清单总结
 
 ```text
-□ yarn build 成功
-□ yarn test 通过
-□ yarn test:integration 通过（如有相关修改）
+□ pnpm build 成功
+□ pnpm test 通过
+□ pnpm test:integration 通过（如有相关修改）
 □ README.md 已更新
 □ README_EN.md 已更新
 □ website/ 中文文档已更新
@@ -294,19 +294,19 @@ Playground 已组件化，且**从 `src/spec/methods.ts` 派生**（与 CLI / MC
 
 ```bash
 # 构建
-yarn build
+pnpm build
 
 # 测试
-yarn test
-yarn test:unit
-yarn test:integration
+pnpm test
+pnpm test:unit
+pnpm test:integration
 
 # 文档
-yarn dev
-yarn docs:meta
-yarn docs:check
-yarn build:docs
-yarn build:pages
+pnpm dev
+pnpm docs:meta
+pnpm docs:check
+pnpm build:docs
+pnpm build:pages
 ```
 
 ## SDK 主要 API

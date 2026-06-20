@@ -119,7 +119,7 @@ const expectedSummary = `${renderSummaryMarkdown(docsMeta, generatedMeta)}\n`;
 const summaryPath = `${docsDir}/summary.md`;
 const actualSummary = await readText(summaryPath);
 if (actualSummary !== expectedSummary) {
-  errors.push(`${summaryPath} is out of date. Run \`yarn docs:meta\`.`);
+  errors.push(`${summaryPath} is out of date. Run \`pnpm docs:meta\`.`);
 }
 
 // 注：v1 的「每文件必含-token」覆盖规格（docExpectations.requiredTokensByFile）

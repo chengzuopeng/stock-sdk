@@ -5,8 +5,8 @@
 ## 激活方式
 
 ```bash
-# 自动（推荐）：yarn install 时会通过 prepare 脚本自动激活
-yarn install
+# 自动（推荐）：pnpm install 时会通过 prepare 脚本自动激活
+pnpm install
 
 # 手动：
 git config core.hooksPath .githooks
@@ -16,7 +16,7 @@ git config core.hooksPath .githooks
 
 | Hook | 作用 |
 |------|------|
-| `pre-commit` | 当暂存区包含 `src/` 或 `docs-meta/sdk.json` 改动时，自动跑 `yarn docs:meta` 并重新暂存 `website/summary.md` 与 `website/.generated/sdk-meta.json`，避免 CI `docs:check` 失败 |
+| `pre-commit` | 当暂存区包含 `src/` 或 `docs-meta/sdk.json` 改动时，自动跑 `pnpm docs:meta` 并重新暂存 `website/summary.md` 与 `website/.generated/sdk-meta.json`，避免 CI `docs:check` 失败 |
 
 ## 跳过 hook
 
