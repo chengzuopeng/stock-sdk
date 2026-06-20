@@ -3,8 +3,8 @@
 [![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
-[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk-v2.linkdiary.cn/mcp/)
-[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk-v2.linkdiary.cn/mcp/)
+[![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk.linkdiary.cn/mcp/)
+[![AI Ready](https://img.shields.io/badge/AI-Ready-orange)](https://stock-sdk.linkdiary.cn/mcp/)
 
 **[English](./README_EN.md)** | 中文
 
@@ -14,18 +14,18 @@
 
 **✨ 零依赖、轻量发布包 | 🌐 Browser + Node.js | 📦 ESM + CJS + subpath | 🧠 完整 TypeScript 类型 | 🖥️ CLI | 🤖 MCP**
 
-> 🧪 **v2.0.0 Beta**：v2 是一次架构跃迁（命名空间 API、统一符号模型、`Quote` 可辨识联合、统一错误体系、CLI / MCP / subpath 导出）。
-> 安装 beta：`npm i stock-sdk@beta`。从 v1 升级请先读 [v1 → v2 迁移指南](https://stock-sdk-v2.linkdiary.cn/guide/migration-v1-to-v2)（**破坏性变更，无兼容别名**）。
+> ✨ **v2.0.0**：v2 是一次架构跃迁（命名空间 API、统一符号模型、`Quote` 可辨识联合、统一错误体系、CLI / MCP / subpath 导出）。
+> 安装：`npm i stock-sdk`。从 v1 升级请先读 [v1 → v2 迁移指南](https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2)（**破坏性变更，无兼容别名**）。
 
-## 📖 官网文档（v2 Beta）
+## 📖 官网文档
 
-> ## 👉 https://stock-sdk-v2.linkdiary.cn
+> ## 👉 https://stock-sdk.linkdiary.cn
 >
-> **v2 Beta 的临时官网** —— 完整 API、命名空间总览、CLI / MCP 指南、在线 Playground、v1 → v2 迁移文档全部在这里。先看官网再上手最快。
+> 完整 API、命名空间总览、CLI / MCP 指南、在线 Playground、v1 → v2 迁移文档全部在这里。先看官网再上手最快。
 >
-> （v1 稳定版文档仍在 https://stock-sdk.linkdiary.cn）
+> （[v1 稳定版文档](https://v1.stock-sdk.linkdiary.cn) 已归档）
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线 Playground](https://stock-sdk-v2.linkdiary.cn/playground/)
+📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线 Playground](https://stock-sdk.linkdiary.cn/playground/)
 
 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/)：基于 stock-sdk 搭建的股票数据大盘演示站点，欢迎体验。
 
@@ -75,11 +75,11 @@
 ## 安装
 
 ```bash
-# v2 Beta（命名空间 API / CLI / MCP）
-npm install stock-sdk@beta
-
-# v1 稳定版
+# 最新版（v2：命名空间 API / CLI / MCP）
 npm install stock-sdk
+
+# v1 旧版（已封存，仅维护 critical 修复）
+npm install stock-sdk@legacy
 ```
 
 ## 快速开始
@@ -154,7 +154,7 @@ npx stock-sdk mcp
 
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集范围（默认 `core`）。
 
-👉 [完整 MCP 文档](https://stock-sdk-v2.linkdiary.cn/mcp/)
+👉 [完整 MCP 文档](https://stock-sdk.linkdiary.cn/mcp/)
 
 ---
 
@@ -259,7 +259,7 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 
 ## API 概览（命名空间）
 
-💡 完整 API 见 [官方文档](https://stock-sdk-v2.linkdiary.cn/api/)。v2 全部方法挂在命名空间下：
+💡 完整 API 见 [官方文档](https://stock-sdk.linkdiary.cn/api/)。v2 全部方法挂在命名空间下：
 
 | 命名空间 | 代表方法 |
 |---|---|
@@ -281,7 +281,7 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 | 顶层 | `sdk.search(keyword)` |
 
 > 指标计算从主包改为 subpath：`import { calcMACD } from 'stock-sdk/indicators'`。
-> 从 v1 扁平 API 迁移？见 [v1 → v2 迁移指南](https://stock-sdk-v2.linkdiary.cn/guide/migration-v1-to-v2)（含完整 `sdk.getXxx()` → `sdk.<ns>.<method>()` 映射表）。
+> 从 v1 扁平 API 迁移？见 [v1 → v2 迁移指南](https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2)（含完整 `sdk.getXxx()` → `sdk.<ns>.<method>()` 映射表）。
 
 ---
 
@@ -303,7 +303,7 @@ yarn test:integration:full    # 全量集成回归
 
 ---
 
-🌐 [官网](https://stock-sdk-v2.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk-v2.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [官网](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 
