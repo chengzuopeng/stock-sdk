@@ -25,7 +25,7 @@ const cn = await sdk.codes.cn()
 ```ts
 // Full A-share code list
 const cn = await sdk.codes.cn()
-console.log(cn.length, cn[0]) // { code, name, ... }
+console.log(cn.length, cn[0]) // e.g. "sh600000" (with { simple: true } → "600000")
 
 // US / HK / fund
 const us = await sdk.codes.us()
@@ -39,7 +39,7 @@ A code list is often the input to [batch](/en/api/batch) or [quotes](/en/api/quo
 
 ```ts
 const cn = await sdk.codes.cn()
-const top100 = cn.slice(0, 100).map((it) => it.code)
+const top100 = cn.slice(0, 100) // already an array of code strings, use directly
 const quotes = await sdk.quotes.cnSimple(top100)
 ```
 
@@ -56,12 +56,17 @@ const cn = await sdk.codes.cn() // first fetch, then cache hits
 
 ## Return
 
-Each method returns an **array of code items**, each carrying at least the code, name and basic identity fields:
+Each method returns an **array of code strings** (`string[]`) — each item is a symbol's code, **not an object**. Codes carry their exchange prefix by default; for A-shares / US you can pass `{ simple: true }` to strip it:
 
-| Field | Type | Description |
-|---|---|---|
-| `code` | `string` | Bare code (no prefix) |
-| `name` | `string` | Name |
-| `market` | `Market` | Owning market |
+```ts
+await sdk.codes.cn()                  // ["sh600000", "sz000001", "bj430047", ...]
+await sdk.codes.cn({ simple: true })  // ["600000", "000001", "430047", ...]
+await sdk.codes.cn({ market: 'kc' })  // STAR Market only
+```
 
-> Exact fields (whether `exchange` / `pinyin` / listing status are included, etc.) are subject to the implementation, finalized along with `src/sdk/namespaces` and the corresponding type definitions.
+| Option | Type | Applies to | Description |
+|---|---|---|---|
+| `simple` | `boolean` | `codes.cn` / `codes.us` | Strip the exchange prefix (A-share `sh`/`sz`/`bj`), default `false` |
+| `market` | `AShareMarket` / `USMarket` | `codes.cn` / `codes.us` | Filter by sub-market (e.g. A-share `kc` STAR, `cy` ChiNext); `codes.hk` / `codes.fund` take no options |
+
+> The returned code strings can be fed directly into [batch](/en/api/batch) / [quotes](/en/api/quotes).

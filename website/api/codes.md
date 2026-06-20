@@ -25,7 +25,7 @@ const cn = await sdk.codes.cn()
 ```ts
 // A 股全量代码
 const cn = await sdk.codes.cn()
-console.log(cn.length, cn[0]) // { code, name, ... }
+console.log(cn.length, cn[0]) // 例如 "sh600000"（{ simple: true } 时去前缀为 "600000"）
 
 // 美股 / 港股 / 基金
 const us = await sdk.codes.us()
@@ -39,7 +39,7 @@ const fund = await sdk.codes.fund()
 
 ```ts
 const cn = await sdk.codes.cn()
-const top100 = cn.slice(0, 100).map((it) => it.code)
+const top100 = cn.slice(0, 100) // 已是代码字符串数组，可直接作为输入
 const quotes = await sdk.quotes.cnSimple(top100)
 ```
 
@@ -56,12 +56,17 @@ const cn = await sdk.codes.cn() // 首次拉取，后续命中缓存
 
 ## 返回说明
 
-每个方法返回**代码项数组**，每项至少包含代码与名称等基础标识字段：
+每个方法返回**代码字符串数组**（`string[]`），每项是一只标的的代码，**不是对象**。默认带交易所前缀，A 股 / 美股可传 `{ simple: true }` 去前缀：
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `code` | `string` | 纯代码（无前缀） |
-| `name` | `string` | 名称 |
-| `market` | `Market` | 所属市场 |
+```ts
+await sdk.codes.cn()                  // ["sh600000", "sz000001", "bj430047", ...]
+await sdk.codes.cn({ simple: true })  // ["600000", "000001", "430047", ...]
+await sdk.codes.cn({ market: 'kc' })  // 仅科创板
+```
 
-> 具体字段（如是否含 `exchange` / `pinyin` / 上市状态等）以实现为准，随 `src/sdk/namespaces` 与对应类型定义最终确定。
+| 选项 | 类型 | 适用 | 说明 |
+|---|---|---|---|
+| `simple` | `boolean` | `codes.cn` / `codes.us` | 是否去掉交易所前缀（A 股 `sh`/`sz`/`bj`），默认 `false` |
+| `market` | `AShareMarket` / `USMarket` | `codes.cn` / `codes.us` | 按子市场筛选（如 A 股 `kc` 科创、`cy` 创业）；`codes.hk` / `codes.fund` 无选项 |
+
+> 返回的代码字符串可直接作为 [batch](/api/batch) / [quotes](/api/quotes) 的输入。
