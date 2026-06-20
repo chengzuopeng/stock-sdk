@@ -52,7 +52,9 @@ const Layout = defineComponent({
 export default {
   extends: DefaultTheme,
   Layout,
-  enhanceApp() {
-    initFaro()
+  enhanceApp({ siteData }) {
+    // 用站点真实版本号（config.ts 注入的 themeConfig.sdkVersion = package.json version）
+    // 标记 Faro release，避免硬编码版本随发版漂移。
+    initFaro((siteData.value.themeConfig as { sdkVersion?: string }).sdkVersion)
   },
 }
