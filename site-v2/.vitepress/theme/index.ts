@@ -3,6 +3,7 @@ import { defineComponent, h, onMounted, onBeforeUnmount } from 'vue'
 import HeroMeta from './components/HeroMeta.vue'
 import HeroLinks from './components/HeroLinks.vue'
 import LiveTicker from './components/LiveTicker.vue'
+import { initFaro } from './faro'
 import './custom.css'
 
 // v2 主题：基于 VitePress 默认主题，差异化样式集中在 custom.css。
@@ -51,4 +52,7 @@ const Layout = defineComponent({
 export default {
   extends: DefaultTheme,
   Layout,
+  enhanceApp() {
+    initFaro()
+  },
 }

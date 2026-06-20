@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
+import faroUploader from '@grafana/faro-rollup-plugin'
 
 // v2 文档站配置（site-v2，与 website/ 的 v1 站平级独立）
 const base = process.env.DOCS_BASE || '/'
@@ -282,8 +283,13 @@ export default defineConfig({
           {
             text: `v${sdkVersion}`,
             items: [
-              { text: '更新日志', link: '/changelog' },
-              { text: 'v1 文档', link: 'https://v1.stock-sdk.linkdiary.cn', target: '_blank' },
+              { items: [{ text: '更新日志', link: '/changelog' }] },
+              {
+                items: [
+                  { text: '从 v1 迁移', link: '/guide/migration-v1-to-v2' },
+                  { text: 'v1 文档', link: 'https://v1.stock-sdk.linkdiary.cn', target: '_blank' },
+                ],
+              },
             ],
           },
         ],
@@ -314,8 +320,13 @@ export default defineConfig({
           {
             text: `v${sdkVersion}`,
             items: [
-              { text: 'Changelog', link: '/en/changelog' },
-              { text: 'v1 Docs', link: 'https://v1.stock-sdk.linkdiary.cn', target: '_blank' },
+              { items: [{ text: 'Changelog', link: '/en/changelog' }] },
+              {
+                items: [
+                  { text: 'Migrate from v1', link: '/en/guide/migration-v1-to-v2' },
+                  { text: 'v1 Docs', link: 'https://v1.stock-sdk.linkdiary.cn', target: '_blank' },
+                ],
+              },
             ],
           },
         ],
@@ -374,5 +385,25 @@ export default defineConfig({
         allow: ['../..'],
       },
     },
+    // 生产构建出 sourcemap，配合 faroUploader 上传后线上错误可映射回源码
+    build: {
+      sourcemap: true,
+    },
+    plugins: [
+      // Faro sourcemap 上传：仅当 CI 注入了 GRAFANA_SOURCEMAP_TOKEN 时启用
+      ...(process.env.GRAFANA_SOURCEMAP_TOKEN
+        ? [
+            faroUploader({
+              appName: 'stock-sdk-docs-v2',
+              endpoint: 'https://faro-api-prod-ap-southeast-1.grafana.net/faro/api/v1',
+              appId: '1168',
+              stackId: '1494323',
+              verbose: true,
+              apiKey: process.env.GRAFANA_SOURCEMAP_TOKEN,
+              gzipContents: true,
+            }),
+          ]
+        : []),
+    ],
   },
 })
