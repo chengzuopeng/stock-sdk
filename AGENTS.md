@@ -268,11 +268,11 @@ yarn build:docs
 
 ### 6. 更新 Playground（如适用）
 
-Playground 已组件化，**不再是手写 md**。新增方法演示：
+Playground 已组件化，且**从 `src/spec/methods.ts` 派生**（与 CLI / MCP 同源，是 spec 的第三个派生端），不再手写每个方法。新增方法演示：
 
-1. 在 `website/.vitepress/theme/components/playground/methods/<分类>.ts` 中按 `MethodSpec` 加一项，需含 `category`、`market`、`params`、`code`、`run`。
-2. 新分类要在同目录 `categories.ts` 注册（含图标 / 颜色），并确保被 `methods/index.ts` 聚合导入。
-3. 类型见 `types.ts`（`CategoryKey` / `MarketKey` / `MethodSpec`）。
+1. 在 `src/spec/methods.ts` 增 / 改 `MethodSpec`（CLI / MCP / Playground 三端共用）；Playground 经 `website/.vitepress/theme/components/playground/derive.ts` 自动派生表单与示例，无需手写方法文件。
+2. 需要微调展示时改同目录 `overrides.ts`（`EXCLUDED_IDS` 排除、`MARKET_OVERRIDES` 市场归类、`PLACEHOLDER_OVERRIDES` 占位）。
+3. 分类在同目录 `categories.ts` 注册（含图标 / 颜色）；类型见 `types.ts`（`MarketKey` / `PlaygroundMethod` / `FormField`）。
 
 中英文 Playground 共用同一套组件，无需维护两份方法列表。
 
