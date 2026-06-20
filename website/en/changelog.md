@@ -6,6 +6,19 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. The latest v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.0.0
+
+> Released: 2026-06-17
+>
+> v2.0.0 is the first stable release of v2, rolling up all the work since the beta. For the detailed changes and breaking-change notes see the `v2.0.0-beta.1` entry below; upgrading from v1? Read the [v1 → v2 migration guide](/en/guide/migration-v1-to-v2) first.
+
+### Since beta.1
+
+- The docs site now owns the primary domain `stock-sdk.linkdiary.cn`; v1 docs are archived at [v1.stock-sdk.linkdiary.cn](https://v1.stock-sdk.linkdiary.cn)
+- Wired up a dedicated Grafana Faro monitoring collect channel (app: `stock-sdk-docs-v2`) with sourcemap upload on production builds
+- Homepage red theme + live-quote Hero + full Playground rebuild
+- npm dist-tags: `latest` of `stock-sdk` now points to v2.0.0; the v1 stable line stays installable as `stock-sdk@legacy` (1.10.1)
+
 ## v2.0.0-beta.1
 
 > This release rolls up the v2 stabilization work currently ahead of `origin/feature-v2`: the namespace-only API is now in place, request / time / symbol / provider correctness is tightened, CLI and MCP share one method-spec source, and the v2 docs site plus Playground are filled in.

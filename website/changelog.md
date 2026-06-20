@@ -6,6 +6,19 @@ pageClass: changelog-page
 
 本页记录 Stock SDK 的版本更新历史。最新的 v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
 
+## v2.0.0
+
+> 发布时间：2026-06-17
+>
+> v2.0.0 是 v2 的首个稳定版本，汇总了 beta 阶段以来的所有改动。详尽变更与破坏性说明见下方 `v2.0.0-beta.1` 条目；从 v1 升级请先阅读 [v1 → v2 迁移指南](/guide/migration-v1-to-v2)。
+
+### 自 beta.1 以来
+
+- 文档站接管主域 `stock-sdk.linkdiary.cn`；v1 文档归档至 [v1.stock-sdk.linkdiary.cn](https://v1.stock-sdk.linkdiary.cn)
+- 接入 Grafana Faro 监控独立 collect 通道（app: `stock-sdk-docs-v2`），生产构建上传 sourcemap
+- 首页红盘主题 + 实时行情 Hero + 完整 Playground 重做
+- npm dist-tag：`stock-sdk` 的 `latest` 指向 v2.0.0；v1 稳定版以 `stock-sdk@legacy`（1.10.1）继续可装
+
 ## v2.0.0-beta.1
 
 > 本版汇总当前 `feature-v2` 尚未推送到远端的 v2 稳定化工作：完成命名空间单轨 API，修复多处请求 / 时间 / 符号 / provider 正确性问题，统一 CLI 与 MCP 的方法描述来源，并补齐 v2 文档站与 Playground。
