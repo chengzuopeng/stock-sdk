@@ -32,12 +32,16 @@ function read(rel: string): string {
 
 /** 从一个 index.ts 抽取对外导出的标识符名（覆盖 export {a,b}/function/const/class/type 各形态）。 */
 function extractExports(rel: string): string[] {
-  const src = read(rel);
+  // 先剥离行 / 块注释：否则 export { ... } 块内的注释会混进 part，
+  // 使校验失败、对应导出被静默丢弃（也顺带屏蔽注释里出现的假 export）。
+  const src = read(rel).replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
   const names = new Set<string>();
   // export { a, b as c, type d } from '...'  /  export { ... }
   for (const m of src.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)) {
     for (const part of m[1].split(',')) {
-      const name = part.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0].trim();
+      // `b as c` 对外导出的是别名 c（as 之后）；无别名时退回本名。
+      const parts = part.trim().replace(/^type\s+/, '').split(/\s+as\s+/);
+      const name = (parts[1] || parts[0]).trim();
       if (/^[A-Za-z_$][\w$]*$/.test(name)) names.add(name);
     }
   }
