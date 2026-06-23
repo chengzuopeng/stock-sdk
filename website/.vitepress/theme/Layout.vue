@@ -8,6 +8,7 @@
  *   - home-hero-actions-after → 次级 inline 链接（API / MCP / GitHub）
  *
  * 全站插槽：
+ *   - layout-top    → V2Banner（顶部「升级到 v2」提示条，可关闭，每个页面都有）
  *   - layout-bottom → ChatBot（右下角悬浮文档问答助手，每个页面都有）
  */
 import DefaultTheme from 'vitepress/theme'
@@ -15,7 +16,9 @@ import { useData, withBase } from 'vitepress'
 import { computed } from 'vue'
 import LiveTicker from './components/LiveTicker.vue'
 import HeroMeta from './components/HeroMeta.vue'
-import ChatBot from './components/chat/ChatBot.vue'
+import V2Banner from './components/V2Banner.vue'
+// 暂时关闭全站悬浮 AI 问答助手入口；恢复时取消本行与下方 layout-bottom 插槽的注释即可
+// import ChatBot from './components/chat/ChatBot.vue'
 
 const { Layout } = DefaultTheme
 const { lang } = useData()
@@ -48,6 +51,11 @@ function href(l: HeroLink): string {
 
 <template>
   <Layout>
+    <!-- 全站顶部「升级到 v2」提示条（可关闭） -->
+    <template #layout-top>
+      <V2Banner />
+    </template>
+
     <template #home-hero-info-after>
       <HeroMeta />
     </template>
@@ -69,9 +77,12 @@ function href(l: HeroLink): string {
       </div>
     </template>
 
-    <!-- 全站悬浮文档问答助手 -->
+    <!-- 全站悬浮文档问答助手（暂时关闭，恢复时取消注释并放开上方 import） -->
+    <!--
     <template #layout-bottom>
       <ChatBot />
     </template>
+    -->
+
   </Layout>
 </template>
