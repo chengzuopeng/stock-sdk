@@ -217,7 +217,7 @@ stock-sdk dragonTiger detail --start 20240101 --end 20240131
 | `dragonTiger`（5） | `detail` · `stockStats` · `institution` · `branchRank` · `seatDetail` |
 | `blockTrade`（3） | `marketStat` · `detail` · `dailyStat` |
 | `margin`（2） | `accountInfo` · `targetList` |
-| `fund`（4） | `dividendList` · `navHistory` · `estimate` · `rankHistory` |
+| `fund`（5） | `dividendList` · `navHistory` · `estimate` · `rankHistory` · `profile` |
 | `calendar`（4） | `isTradingDay` · `nextTradingDay` · `prevTradingDay` · `marketStatus` |
 | `reference`（2） | `dividendDetail` · `tradingCalendar` |
 | 顶层 | `search <keyword>` |

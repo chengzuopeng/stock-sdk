@@ -12,6 +12,7 @@
 | `sdk.fund.navHistory(code)` | 单只基金完整历史净值（单位净值 + 累计净值） |
 | `sdk.fund.estimate(code)` | 当日盘中实时估值 + 最新已结算净值 |
 | `sdk.fund.rankHistory(code)` | 同类排名走势（近三月排名 + 百分位） |
+| `sdk.fund.profile(code)` | 基金深度资料（重仓股 / 资产配置 / 基金经理 / 业绩评价等，一次返回） |
 
 > 符号入参遵循 v2 统一约定：基金代码为纯数字字符串（如 `'110011'`）。具体字段以实现为准。
 
@@ -222,10 +223,121 @@ interface FundRankPoint {
 }
 ```
 
+## sdk.fund.profile
+
+一次请求获取基金深度资料（东方财富 pingzhongdata 全量字段）：前十大重仓股、前五大债券、季度资产配置、每日股票仓位测算、基金经理、业绩评价、持有人结构、规模变动、申购赎回、阶段收益率、同类基金等。
+
+数据源与 `navHistory` / `rankHistory` 相同（同一份 pingzhongdata 文件，不同字段）。适合搭一个「基金详情页」所需的大部分静态资料。
+
+> 字段随基金类型与上游数据完整度可能为空：数组字段缺数据时为 `[]`，对象字段（`performance` / `sameType`）缺数据时为 `null`，标量缺失时为 `null` 或 `0`（占比类）。
+
+### 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `code` | `string` | 是 | 基金代码（纯数字，如 `'000001'`） |
+
+### 调用示例
+
+```ts
+const p = await sdk.fund.profile('000001');
+
+console.log(`${p.name}  重仓股 ${p.holdings.length} 只`);
+// 重仓股代码可拼接东财 secid：`${marketId}.${code}`
+p.holdings.forEach((h) => console.log(`${h.marketId}.${h.code}`));
+
+// 基金经理（含星级与能力评分）
+p.managers.forEach((m) => {
+  console.log(`${m.name}  ★${m.star}  ${m.workTime}  ${m.fundSize}`);
+  if (m.power) console.log(`  综合评分 ${m.power.overall}`);
+});
+
+// 最新一期资产配置
+const a = p.assetAllocation.at(-1);
+if (a) console.log(`股票 ${a.stockRatio}% / 债券 ${a.bondRatio}% / 现金 ${a.cashRatio}%`);
+
+// 业绩评价综合分
+console.log('综合评分', p.performance?.overall);
+
+// 阶段收益率
+console.log(p.stageReturns); // { oneMonth, threeMonth, sixMonth, oneYear }
+```
+
+### 返回说明
+
+返回 `FundProfile`，数组字段缺数据为 `[]`、对象字段缺数据为 `null`：
+
+```ts
+interface FundProfile {
+  code: string;
+  name: string | null;
+  sourceRate: number | null;        // 原申购费率（%）
+  rate: number | null;              // 现申购费率（%）
+  minSubscription: number | null;   // 最小申购金额（元）
+  holdings: FundHolding[];          // 前十大重仓股
+  bondHoldings: FundBondHolding[];  // 前五大债券持仓
+  assetAllocation: FundAssetAllocation[]; // 季度资产配置
+  positions: FundPositionPoint[];   // 每日股票仓位测算
+  managers: FundManager[];          // 基金经理
+  performance: FundPerformanceEvaluation | null; // 业绩评价
+  holderStructure: FundHolderStructure[];        // 持有人结构
+  scaleChanges: FundScaleChange[];  // 规模变动
+  buySedemption: FundBuySedemption[]; // 申购赎回
+  stageReturns: FundStageReturns;   // 阶段收益率
+  sameType: FundSameType | null;    // 同类基金
+}
+
+interface FundHolding {
+  code: string;      // 股票代码（纯数字，如 "600519"）
+  marketId: string;  // 新市场号（"0"=深圳, "1"=上海），拼 secid 用
+}
+
+interface FundManager {
+  id: string;
+  name: string;
+  avatarUrl: string | null;  // 头像 URL
+  star: number | null;       // 星级（0–5）
+  workTime: string | null;   // 任职年限描述，如 "14年又192天"（上游原文）
+  fundSize: string | null;   // 在管规模描述，如 "78.91亿(4只基金)"（上游原文）
+  power: FundPerformanceEvaluation | null; // 能力评分（结构同业绩评价）
+}
+
+interface FundPerformanceEvaluation {
+  overall: number;        // 综合评分
+  categories: string[];   // 评价维度
+  scores: number[];       // 各维度得分
+  descriptions: string[]; // 各维度描述
+}
+
+interface FundAssetAllocation {
+  date: string;        // 报告期 YYYY-MM-DD
+  timestamp: number | null; // UTC 毫秒；日期无法解析为 null
+  stockRatio: number;  // 股票占净比（%）
+  bondRatio: number;   // 债券占净比（%）
+  cashRatio: number;   // 现金占净比（%）
+  otherRatio: number;  // 其他占净比（%）；上游不提供时为 0
+  netAsset: number;    // 净资产（亿元）
+}
+
+interface FundStageReturns {
+  oneMonth: number | null;   // 近一月（%）
+  threeMonth: number | null; // 近三月（%）
+  sixMonth: number | null;   // 近六月（%）
+  oneYear: number | null;    // 近一年（%）
+}
+
+// 同类基金：上游按多个维度各取一组，groups 外层为分组、内层为该组基金
+interface FundSameType {
+  groups: Array<Array<{ code: string; name: string; value: number | null }>>;
+}
+```
+
+其余子类型（`FundBondHolding` / `FundPositionPoint` / `FundHolderStructure` / `FundScaleChange` / `FundBuySedemption`）字段含义见类型定义，结构与上表同构。
+
 ## 注意事项
 
-1. **数据源**：分红走 `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`；历史净值 / 同类排名走 `fund.eastmoney.com/pingzhongdata/{code}.js`；实时估值走 `fundgz.1234567.com.cn/js/{code}.js`。
-2. **同基金同接口**：`navHistory` 与 `rankHistory` 实际下载同一份 pingzhongdata 文件（约 600KB）。如同时需要两类数据，建议合并调用或借助缓存层。
+1. **数据源**：分红走 `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`；历史净值 / 同类排名 / 深度资料走 `fund.eastmoney.com/pingzhongdata/{code}.js`；实时估值走 `fundgz.1234567.com.cn/js/{code}.js`。
+2. **同基金同接口**：`navHistory` / `rankHistory` / `profile` 实际下载同一份 pingzhongdata 文件（约 600KB），只是取不同字段。如同时需要多类数据，建议借助缓存层避免重复下载。
 3. **浏览器端串行**：浏览器端这些接口通过 `<script>` 注入加载（数据源无 CORS 头），SDK 内部用脚本互斥锁兜底并发覆盖，因此 `Promise.all([...])` 在浏览器端实际是串行的。Node 端不受此限制。
 4. **请求治理差异**：Node 端这些方法已接入 `RequestClient`（`retry` / `providerPolicies` 生效）；浏览器端 `<script>` 注入路径不走 `fetch`，`headers` / `rateLimit` / `circuitBreaker` 不生效，`timeout` 通过内部参数生效。详见 [请求治理](../guide/request-governance.md)。
 5. **场内 ETF 行情**：场内 ETF（如 510050、159919）的实时行情与 K 线请走 [`sdk.quotes.cn()`](./quotes.md) / [`sdk.kline.cn()`](./kline.md) 等股票接口，不走本命名空间。

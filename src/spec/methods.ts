@@ -1118,7 +1118,7 @@ export const METHOD_SPECS: MethodSpec[] = [
     positional: [{ name: 'date' }],
     mcp: false,
   },
-  // ===== fund (4) =====
+  // ===== fund (5) =====
   {
     path: ['fund', 'dividendList'],
     toolName: 'get_fund_dividend_list',
@@ -1160,6 +1160,19 @@ export const METHOD_SPECS: MethodSpec[] = [
       '适合画「该基金在同类里的相对表现」折线图。数据源同 get_fund_nav_history。',
     argShape: 'positional',
     positional: [CODE_REQ('基金代码，纯数字，如 110011')],
+  },
+  {
+    path: ['fund', 'profile'],
+    toolName: 'get_fund_profile',
+    summary: '基金深度资料',
+    mcpDesc:
+      '一次请求获取基金深度资料（东方财富 pingzhongdata 全量字段）：前十大重仓股、' +
+      '前五大债券、季度资产配置、每日股票仓位测算、基金经理（含星级与能力评分）、' +
+      '业绩评价、持有人结构、规模变动、申购赎回、阶段收益率（近1月/3月/6月/1年）、' +
+      '同类基金等。字段随基金类型与数据完整度可能为空。与 navHistory / rankHistory ' +
+      '同源（同一份 pingzhongdata 文件，约 600KB），建议应用层缓存。',
+    argShape: 'positional',
+    positional: [CODE_REQ('基金代码，纯数字，如 000001')],
   },
   // ===== calendar (4) =====
   {

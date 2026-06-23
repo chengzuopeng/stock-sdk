@@ -248,8 +248,70 @@ function extractVar(text: string, name: string): unknown {
   try {
     return JSON.parse(literal);
   } catch {
-    return undefined;
+    // 兜底：部分数据源用单引号字符串字面量（非严格 JSON），如东财
+    // pingzhongdata 的 swithSameType `[['001480_..._472.06', ...]]`。
+    // 浏览器端 <script> 注入本就能拿到真实 JS 值，这里把 Node 端对齐：
+    // 做一次引号感知的单引号→双引号归一后重试，仍失败才放弃。
+    try {
+      return JSON.parse(normalizeJsStringQuotes(literal));
+    } catch {
+      return undefined;
+    }
   }
+}
+
+/**
+ * 将 JS 字面量里的单引号字符串归一为双引号字符串，输出严格 JSON 文本。
+ *
+ * 引号感知：只把单引号字符串的「定界符」转成双引号，双引号字符串原样保留；
+ * 单引号字符串内部的 `"` 转义为 `\"`，`\'` 还原为裸 `'`（JSON 双引号串里单引号
+ * 无需转义），其余反斜杠转义对照拷贝。
+ *
+ * 仅用于 `JSON.parse` 失败后的兜底，**不处理**「无引号对象键」等其它非 JSON 形态——
+ * 那类输入归一后仍会 parse 失败，由调用方按 `undefined` 处理。
+ */
+function normalizeJsStringQuotes(literal: string): string {
+  let out = '';
+  let inStr: '"' | "'" | null = null;
+  for (let i = 0; i < literal.length; i++) {
+    const ch = literal[i];
+    if (inStr === '"') {
+      out += ch;
+      if (ch === '\\' && i + 1 < literal.length) {
+        out += literal[++i]; // 转义对原样拷贝
+      } else if (ch === '"') {
+        inStr = null;
+      }
+      continue;
+    }
+    if (inStr === "'") {
+      if (ch === '\\' && i + 1 < literal.length) {
+        const next = literal[++i];
+        out += next === "'" ? "'" : '\\' + next;
+        continue;
+      }
+      if (ch === "'") {
+        out += '"';
+        inStr = null;
+        continue;
+      }
+      out += ch === '"' ? '\\"' : ch;
+      continue;
+    }
+    // 字符串外
+    if (ch === '"') {
+      inStr = '"';
+      out += ch;
+      continue;
+    }
+    if (ch === "'") {
+      inStr = "'";
+      out += '"';
+      continue;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 function escapeRegExp(str: string): string {

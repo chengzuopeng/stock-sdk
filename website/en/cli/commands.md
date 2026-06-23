@@ -217,7 +217,7 @@ The table below covers all **84** namespaced methods (plus top-level `search`). 
 | `dragonTiger` (5) | `detail` · `stockStats` · `institution` · `branchRank` · `seatDetail` |
 | `blockTrade` (3) | `marketStat` · `detail` · `dailyStat` |
 | `margin` (2) | `accountInfo` · `targetList` |
-| `fund` (4) | `dividendList` · `navHistory` · `estimate` · `rankHistory` |
+| `fund` (5) | `dividendList` · `navHistory` · `estimate` · `rankHistory` · `profile` |
 | `calendar` (4) | `isTradingDay` · `nextTradingDay` · `prevTradingDay` · `marketStatus` |
 | `reference` (2) | `dividendDetail` · `tradingCalendar` |
 | top-level | `search <keyword>` |

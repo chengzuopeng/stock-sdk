@@ -25,6 +25,7 @@ export {
 
 // 公募基金扩展（v1.10.0+）：作为顶层 export 与 TradingCalendarService 对齐
 export { FundService } from './sdk/index';
+export type { FundProfile } from './types';
 
 // 导出类型
 export * from './types';

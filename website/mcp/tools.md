@@ -23,7 +23,7 @@
 | 融资融券 | `sdk.margin.accountInfo` / `targetList` | 两融账户信息与标的 |
 | 期权 | `sdk.options.index.*` / `etf.*` / `commodity.*` / `cffex.*` / `lhb` | 股指 / ETF / 商品 / 中金所期权 |
 | 期货 | `sdk.futures.kline` / `globalSpot` / `globalKline` / `inventory` | 国内/全球期货行情与库存 |
-| 基金扩展 | `sdk.fund.dividendList` / `navHistory` / `estimate` / `rankHistory` | 公募基金分红 / 净值 / 估值 / 排名 |
+| 基金扩展 | `sdk.fund.dividendList` / `navHistory` / `estimate` / `rankHistory` / `profile` | 公募基金分红 / 净值 / 估值 / 排名 / 深度资料 |
 | 交易日历 | `sdk.calendar.isTradingDay` / `nextTradingDay` / `marketStatus` | 交易日判断与市场状态 |
 | 参考数据 | `sdk.reference.dividendDetail` / `tradingCalendar` | 分红明细 / A 股交易日历 |
 | 搜索 | `sdk.search(keyword)` | 按关键词搜索股票 / 基金 |

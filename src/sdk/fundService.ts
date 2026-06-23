@@ -10,6 +10,7 @@ import type {
   FundDividendListResult,
   FundEstimate,
   FundNavHistory,
+  FundProfile,
   FundRankHistory,
 } from '../types';
 import type { RequestClient } from '../core';
@@ -40,5 +41,17 @@ export class FundService extends BaseService {
   /** 获取基金同类排名走势（每日近三月排名 + 百分位） */
   getFundRankHistory(code: string): Promise<FundRankHistory> {
     return eastmoney.getFundRankHistory(this.client, code);
+  }
+
+  /**
+   * 获取基金深度资料（一次请求返回全量字段）。
+   *
+   * 包含：前十大重仓股、资产配置、仓位测算、基金经理、业绩评价、
+   * 持有人结构、规模变动、申购赎回、阶段收益率、同类基金等。
+   *
+   * @param code 基金代码（纯数字，如 `'000001'`）
+   */
+  getFundProfile(code: string): Promise<FundProfile> {
+    return eastmoney.getFundProfile(this.client, code);
   }
 }

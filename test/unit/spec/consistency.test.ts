@@ -44,11 +44,11 @@ function sharedParams(spec: MethodSpec): ParamSpec[] {
 }
 
 describe('spec 完整性与两端规模', () => {
-  it('85 个方法 spec；79 个 MCP 工具（6 个 CLI-only：batch.raw/blockTrade×3/margin×2）', () => {
-    expect(METHOD_SPECS.length).toBe(85);
-    expect(MCP_SPECS.length).toBe(79);
-    expect(TOOLS.length).toBe(79);
-    expect(NAMESPACE_COMMANDS.length).toBe(85);
+  it('86 个方法 spec；80 个 MCP 工具（6 个 CLI-only：batch.raw/blockTrade×3/margin×2）', () => {
+    expect(METHOD_SPECS.length).toBe(86);
+    expect(MCP_SPECS.length).toBe(80);
+    expect(TOOLS.length).toBe(80);
+    expect(NAMESPACE_COMMANDS.length).toBe(86);
   });
 
   it('工具名唯一且与 spec 的 toolName 一一对应，tier 归属一致', () => {

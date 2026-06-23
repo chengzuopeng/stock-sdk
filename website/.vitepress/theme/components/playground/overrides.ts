@@ -82,6 +82,7 @@ export const DEFAULT_VALUES: Record<string, Record<string, string>> = {
   'fund.navHistory': { code: '110011' },
   'fund.estimate': { code: '005827' },
   'fund.rankHistory': { code: '110011' },
+  'fund.profile': { code: '000001' },
   // ===== reference / search =====
   'reference.dividendDetail': { symbol: '600519' },
   search: { keyword: '茅台' },
