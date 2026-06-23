@@ -4,25 +4,27 @@
 > 单一事实源）与 `src/types` 自动生成，目的是让 AI 工具**一次性读取** stock-sdk 的全部
 > 命名空间方法、参数与返回数据结构。**请勿手改本文件**——改 spec / types 后重新生成。
 >
-> 版本：v2.0.0 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
+> 版本：v2.1.0 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
 
 ## 这是什么
 
 stock-sdk 是一个**零依赖**的股票行情 SDK，浏览器 + Node.js 18+ 双端可用，覆盖
 A 股 / 港股 / 美股 / 公募基金 / 期货 / 期权。API 采用**命名空间**模型，并自带 CLI 与
-内置 MCP server。本文件分三部分：命名空间方法清单、纯计算 subpath 导出、数据结构类型定义。
+内置 MCP server。本文件分四部分：速览、命名空间方法清单、纯计算 subpath 导出、数据结构类型定义。
 
 ## 用法
 
 ```ts
 import { StockSDK } from 'stock-sdk';
 
-const sdk = new StockSDK(/* options?: RequestClientOptions（timeout / retry / rateLimit /
-  circuitBreaker / providerPolicies / fetchImpl / signal 等，详见下方类型定义） */);
+const sdk = new StockSDK(/* options?: RequestClientOptions — 见第三节 src/core/request.ts */);
 
 // 命名空间方法：sdk.<namespace>.<method>(...)
-const quotes = await sdk.quotes.cn(['600519']);        // A 股实时行情
+const quotes = await sdk.quotes.cn(['600519']);        // A 股实时行情（codes 为 string[]）
 const kline  = await sdk.kline.cn('600519', { period: 'weekly', adjust: 'hfq' });
+const withInd = await sdk.kline.withIndicators('600519', {
+  indicators: { ma: { periods: [5, 10, 20] }, macd: {} },
+});
 
 // 顶层方法
 const hits = await sdk.search('茅台');
@@ -30,152 +32,220 @@ const hits = await sdk.search('茅台');
 // 纯计算 subpath（无需实例化、不发请求）
 import { calcMACD } from 'stock-sdk/indicators';
 import { normalizeSymbol } from 'stock-sdk/symbols';
+import { calcSignals } from 'stock-sdk/signals';
+import { screen, backtest } from 'stock-sdk/screener';
 ```
 
 符号入参：`string` 一等公民，`'600519'` / `'sh600519'` / `'00700'` 均可（由
 `normalizeSymbol` 统一归一）。错误：对外只抛 `SdkError`，带统一 `code`（见 errors 部分）。
 时间无效值为 `null`（非 NaN）。
 
+## 速览（非 API 清单）
+
+### 安装与模块格式
+
+- 最新版：`npm i stock-sdk`（当前 v2.1.0）
+- v1 旧版（已封存）：`npm i stock-sdk@legacy`
+- **ESM + CommonJS** 双格式；主包 `import { StockSDK } from 'stock-sdk'`
+- 纯计算 subpath：`stock-sdk/{indicators,signals,symbols,screener,cache,errors,mcp}`（tree-shake 友好，不拖入全部 provider）
+- v1 → v2 **破坏性变更**，无兼容别名：https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2
+
+### 命令行（CLI）
+
+```bash
+npx stock-sdk quote 600519 00700 AAPL      # 按代码自动识别市场
+npx stock-sdk kline 600519 --period weekly --limit 30
+npx stock-sdk indicators 600519 --ma 5,10,20 --macd
+npx stock-sdk search 茅台
+npx stock-sdk quotes cn sh600519 sz000001   # 任意命名空间方法直达
+```
+
+默认 JSON；可加 `--format table|csv`、`--pretty`、`--limit N`（输出层裁剪，不影响 SDK 返回值）。
+
+### MCP（AI 工具集成）
+
+```bash
+npx stock-sdk mcp
+```
+
+Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["-y", "stock-sdk", "mcp"] }`。
+环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集（默认 `core`）。
+**MCP tools/call 大结果会自动裁剪**（数组 >200 条、序列化 >80KB）；**SDK 直连不受此限**。详见 https://stock-sdk.linkdiary.cn/mcp/
+
+### 行情类型说明
+
+- `quotes.cn()` → `FullQuote[]`；`quotes.cnSimple()` → `SimpleQuote[]`（简要字段）
+- `Quote = FullQuote | HKQuote | USQuote | FundQuote`（**不含** `SimpleQuote`，各市场方法返回对应类型）
+- 符号：`'600519'` / `'sh600519'` / `'600519.SH'` / `'00700'` / `'AAPL'` / `'105.AAPL'` 等均可（`normalizeSymbol` 容错）
+
+### 市场能力矩阵（摘要）
+
+| 能力 | A 股 | 港股 | 美股 | 基金 | 期货 | 期权 |
+|------|:----:|:----:|:----:|:----:|:----:|:----:|
+| 实时行情 | ✅ | ✅ | ✅ | ✅ | ✅ 全球 | ✅ |
+| 历史 K 线 | ✅ | ✅ | ✅ | ⚠️ ETF/LOF | ✅ | ✅ |
+| 分钟 K / 分时 | ✅ | ✅ | ✅ | ⚠️ | ❌ | ⚠️ ETF |
+| 板块 / 资金流 / 北向 / 龙虎榜等 | ✅ 为主 | 部分 | 部分 | 扩展 | 库存等 | 多品类 |
+
+完整矩阵见 README / https://stock-sdk.linkdiary.cn/api/
+
+### 数据延迟与请求治理
+
+- 数据来自腾讯 / 东财等**公开接口**，非交易所实时撮合，通常有**数十秒到数分钟延迟**，不适合高频交易。
+- `new StockSDK({ retry, providerPolicies, fetchImpl, signal, hooks, ... })` — `RequestClientOptions` 定义见第三节 `src/core/request.ts`。
+
 ---
 
-## 一、命名空间方法（共 85 个）
+## 一、命名空间方法（共 86 个）
 
-> 形如 `sdk.kline.cn(symbol, options?)`；位置参数与 `options.*` 字段如下。
+> 形如 `sdk.quotes.cn(codes)` / `sdk.kline.cn(symbol, options?)`；`codes[]` 形态的方法第一个参数为 **string[]**。
+> 标注 **CLI 专属** 的参数/flag 不应传入 SDK options（除非文档明确说明 SDK 消费）。
 
 ### `sdk.quotes`
 
-- **`sdk.quotes.cn()`** — 获取 A 股 / 指数全量行情（腾讯）：最新价、涨跌幅、五档盘口、市值、PE/PB 等。
-- **`sdk.quotes.cnSimple()`** — 获取 A 股 / 指数简要行情（价格、涨跌幅、成交量额）。
-- **`sdk.quotes.hk()`** — 获取港股行情。代码 5 位数字，带不带 hk 前缀均可（如 00700 / hk00700）。
-- **`sdk.quotes.us()`** — 获取美股行情。代码如 AAPL / BABA。
-- **`sdk.quotes.fund()`** — 获取公募基金行情（场内 / 场外，净值类）。
-- **`sdk.quotes.fundFlow()`** — 获取资金流向（简版，按代码批量）。
-- **`sdk.quotes.largeOrder()`** — 获取盘口大单占比。
+- **`sdk.quotes.cn(codes)`** — 获取 A 股 / 指数全量行情（腾讯）：最新价、涨跌幅、五档盘口、市值、PE/PB 等。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
+- **`sdk.quotes.cnSimple(codes)`** — 获取 A 股 / 指数简要行情（价格、涨跌幅、成交量额）。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
+- **`sdk.quotes.hk(codes)`** — 获取港股行情。代码 5 位数字，带不带 hk 前缀均可（如 00700 / hk00700）。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
+- **`sdk.quotes.us(codes)`** — 获取美股行情。代码如 AAPL / BABA。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
+- **`sdk.quotes.fund(codes)`** — 获取公募基金行情（场内 / 场外，净值类）。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
+- **`sdk.quotes.fundFlow(codes)`** — 获取资金流向（简版，按代码批量）。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
+- **`sdk.quotes.largeOrder(codes)`** — 获取盘口大单占比。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
 - **`sdk.quotes.timeline(code)`** — 获取 A 股当日分时走势（单只）。
     - `code` (位置参数, 必填): 单只股票代码，如 600519 / sh600519
 
 ### `sdk.codes`
 
 - **`sdk.codes.cn(options?)`** — 获取 A 股全量代码列表（可按市场筛选 / 去交易所前缀）。
-    - `options.simple` (boolean): 去掉交易所前缀
-    - `options.market` (sh | sz | bj | kc | cy): 按板块筛选
+    - `options.simple` (boolean, SDK / MCP): 去掉交易所前缀
+    - `options.market` (sh | sz | bj | kc | cy, SDK / MCP): 按板块筛选
 - **`sdk.codes.us(options?)`** — 获取美股全量代码列表。
-    - `options.simple` (boolean): 去掉市场前缀
-    - `options.market` (NASDAQ | NYSE | AMEX): 交易所筛选 NASDAQ/NYSE/AMEX
+    - `options.simple` (boolean, SDK / MCP): 去掉市场前缀
+    - `options.market` (NASDAQ | NYSE | AMEX, SDK / MCP): 交易所筛选 NASDAQ/NYSE/AMEX
 - **`sdk.codes.hk()`** — 获取港股全量代码列表。
 - **`sdk.codes.fund()`** — 获取基金全量代码列表。
 
 ### `sdk.batch`
 
-- **`sdk.batch.cn(options?)`** — 批量拉取全市场 A 股行情。⚠️ 可能耗时数十秒、返回数千条（结果会被裁剪）。
-    - `options.batchSize` (number): 单批代码数，默认 500
-    - `options.concurrency` (number): 并发数，默认 7
-    - `options.market` (sh | sz | bj | kc | cy): 按板块筛选
+- **`sdk.batch.cn(options?)`** — 批量拉取全市场 A 股行情。⚠️ 可能耗时数十秒、返回数千条（MCP tools/call 大数组会被裁剪至 200 条；SDK 直连返回全量）。
+    - `options.batchSize` (number, SDK / MCP): 单批代码数，默认 500
+    - `options.concurrency` (number, SDK / MCP): 并发数，默认 7
+    - `options.market` (sh | sz | bj | kc | cy, SDK / MCP): 按板块筛选
 - **`sdk.batch.hk(options?)`** — 批量拉取全市场港股行情。⚠️ 耗时。
-    - `options.batchSize` (number): 单批代码数，默认 500
-    - `options.concurrency` (number): 并发数，默认 7
+    - `options.batchSize` (number, SDK / MCP): 单批代码数，默认 500
+    - `options.concurrency` (number, SDK / MCP): 并发数，默认 7
 - **`sdk.batch.us(options?)`** — 批量拉取全市场美股行情。⚠️ 耗时。
-    - `options.batchSize` (number): 单批代码数，默认 500
-    - `options.concurrency` (number): 并发数，默认 7
-    - `options.market` (NASDAQ | NYSE | AMEX): 交易所筛选 NASDAQ/NYSE/AMEX
-- **`sdk.batch.byCodes(options?)`** — 按代码列表批量拉取完整行情。
-    - `options.batchSize` (number): 单批代码数，默认 500
-    - `options.concurrency` (number): 并发数，默认 7
+    - `options.batchSize` (number, SDK / MCP): 单批代码数，默认 500
+    - `options.concurrency` (number, SDK / MCP): 并发数，默认 7
+    - `options.market` (NASDAQ | NYSE | AMEX, SDK / MCP): 交易所筛选 NASDAQ/NYSE/AMEX
+- **`sdk.batch.byCodes(codes, options?)`** — 按代码列表批量拉取完整行情。
+    - `codes` (string[], 必填): 代码数组（string[]），如 ['600519', 'sh000001']；单代码可写 ['600519']
+    - `options.batchSize` (number, SDK / MCP): 单批代码数，默认 500
+    - `options.concurrency` (number, SDK / MCP): 并发数，默认 7
 - **`sdk.batch.raw(params)`** — 腾讯原始批量  _(仅 CLI / SDK，无 MCP 工具)_
-    - `params` (位置参数, 必填): 
+    - `params` (位置参数, 必填): 腾讯 raw 批量查询参数字符串（provider 原始格式，如 sh600519,sz000001）
 
 ### `sdk.kline`
 
 - **`sdk.kline.cn(symbol, options?)`** — A 股 / 指数历史 K 线（日 / 周 / 月，含复权）：开高低收、成交量额、振幅、涨跌幅等。复权默认 qfq（前复权，看走势）；做回测 / 收益计算请显式传 hfq（后复权）或 ''（不复权）。日期格式 YYYYMMDD。
     - `symbol` (位置参数, 必填): 股票 / 指数代码，如 600519 / sh600519
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
 - **`sdk.kline.cnMinute(symbol, options?)`** — A 股分钟 K 线 / 当日分时。period=1 返回最近约 5 个交易日的分时（不支持复权，可用 startDate/endDate 收窄到当日）；period=5/15/30/60 返回分钟 K 线（adjust 仅此时有效，默认 qfq）。
     - `symbol` (位置参数, 必填): 股票 / 指数代码，如 600519 / sh600519
-    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 1): 分钟周期；1=当日分时
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 开始时间
-    - `options.endDate` (string): 结束时间
+    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 1, SDK / MCP): 分钟周期；1=当日分时
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 开始时间
+    - `options.endDate` (string, SDK / MCP): 结束时间
 - **`sdk.kline.hk(symbol, options?)`** — 港股历史 K 线（日 / 周 / 月，含复权，币种 HKD）。代码 5 位数字，带不带 hk 前缀均可（如 00700 / hk00700）。复权默认 qfq；日期格式 YYYYMMDD。
     - `symbol` (位置参数, 必填): 港股代码，如 00700 / hk00700
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
 - **`sdk.kline.hkMinute(symbol, options?)`** — 港股分钟 K 线 / 当日分时。period=1 返回当日分时（不支持复权，可用 recentDays 取近 N 日）；period=5/15/30/60 返回分钟 K 线（adjust 仅此时有效，默认 qfq）。时间格式 YYYY-MM-DD HH:mm（港股本地时区 Asia/Hong_Kong）。
     - `symbol` (位置参数, 必填): 港股代码，如 00700 / hk00700
-    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 1): 分钟周期；1=当日分时
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 开始时间 YYYY-MM-DD HH:mm（港股本地时区）
-    - `options.endDate` (string): 结束时间 YYYY-MM-DD HH:mm（港股本地时区）
-    - `options.ndays` (number): 仅 period=1 生效：返回最近 N 个交易日的分时，默认 1（当日）
+    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 1, SDK / MCP): 分钟周期；1=当日分时
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 开始时间 YYYY-MM-DD HH:mm（港股本地时区）
+    - `options.endDate` (string, SDK / MCP): 结束时间 YYYY-MM-DD HH:mm（港股本地时区）
+    - `options.ndays` (number, SDK / MCP): 仅 period=1 生效：返回最近 N 个交易日的分时，默认 1（当日）
 - **`sdk.kline.us(symbol, options?)`** — 美股历史 K 线（日 / 周 / 月，含复权，币种 USD）。代码格式 {market}.{ticker}（如 105.AAPL / 106.BABA）。复权默认 qfq；日期格式 YYYYMMDD。
     - `symbol` (位置参数, 必填): 美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
 - **`sdk.kline.usMinute(symbol, options?)`** — 美股分钟 K 线 / 当日分时（仅常规交易时段，不含盘前 / 盘后）。period=1 返回当日分时（不支持复权，可用 recentDays 取近 N 日）；period=5/15/30/60 返回分钟 K 线（adjust 仅此时有效，默认 qfq）。代码格式 {market}.{ticker}，如 105.AAPL。
     - `symbol` (位置参数, 必填): 美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA
-    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 1): 分钟周期；1=当日分时
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
-    - `options.ndays` (number): 仅 period=1 生效：返回最近 N 个交易日的分时，默认 1（当日）
+    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 1, SDK / MCP): 分钟周期；1=当日分时
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.ndays` (number, SDK / MCP): 仅 period=1 生效：返回最近 N 个交易日的分时，默认 1（当日）
+    - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
+    - `--start → options.startDate` (string, CLI 专属): 起始日期 YYYYMMDD
+    - `--end → options.endDate` (string, CLI 专属): 结束日期 YYYYMMDD
 - **`sdk.kline.withIndicators(symbol, options?)`** — 带技术指标的历史 K 线（A 股 / 港股 / 美股，market 不传自动按 symbol 识别）。周期默认 daily，复权默认按 SDK 默认（qfq）；日期支持 YYYYMMDD 或 YYYY-MM-DD。indicators 为对象，键取自 14 个指标：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc，每个键传 true 即用默认参数开启，或传配置对象（如 { ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }）。SDK 会按指标依赖自动向前多取若干 bar 保证首日有效。
     - `symbol` (位置参数, 必填): 股票代码（A 股 / 港股 / 美股）
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
-    - `options.market` (A | HK | US): 市场类型 A / HK / US；不传则由 symbol 自动识别
-    - `options.ma` (number[]): MA 周期(逗号分隔，如 5,10；仅 --ma 用默认)
-    - `options.rsi` (number[]): RSI 周期(逗号分隔，如 5,10；仅 --rsi 用默认)
-    - `options.wr` (number[]): WR 周期(逗号分隔，如 5,10；仅 --wr 用默认)
-    - `options.bias` (number[]): BIAS 周期(逗号分隔，如 5,10；仅 --bias 用默认)
-    - `options.macd` (boolean): 启用 MACD
-    - `options.kdj` (boolean): 启用 KDJ
-    - `options.boll` (boolean): 启用 BOLL
-    - `options.cci` (boolean): 启用 CCI
-    - `options.atr` (boolean): 启用 ATR
-    - `options.obv` (boolean): 启用 OBV
-    - `options.roc` (boolean): 启用 ROC
-    - `options.dmi` (boolean): 启用 DMI
-    - `options.sar` (boolean): 启用 SAR
-    - `options.kc` (boolean): 启用 KC
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
+    - `options.market` (A | HK | US, SDK / MCP): 市场类型 A / HK / US；不传则由 symbol 自动识别
+    - `options.indicators` (object, SDK / MCP): 指标配置。键：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc；传 `true` 用默认参数，或传配置对象（如 `{ ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }`）
+    - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
+    - `--ma → options.ma` (number[], CLI 专属): MA 周期(逗号分隔，如 5,10；仅 --ma 用默认)
+    - `--rsi → options.rsi` (number[], CLI 专属): RSI 周期(逗号分隔，如 5,10；仅 --rsi 用默认)
+    - `--wr → options.wr` (number[], CLI 专属): WR 周期(逗号分隔，如 5,10；仅 --wr 用默认)
+    - `--bias → options.bias` (number[], CLI 专属): BIAS 周期(逗号分隔，如 5,10；仅 --bias 用默认)
+    - `--macd → options.macd` (boolean, CLI 专属): 启用 MACD
+    - `--kdj → options.kdj` (boolean, CLI 专属): 启用 KDJ
+    - `--boll → options.boll` (boolean, CLI 专属): 启用 BOLL
+    - `--cci → options.cci` (boolean, CLI 专属): 启用 CCI
+    - `--atr → options.atr` (boolean, CLI 专属): 启用 ATR
+    - `--obv → options.obv` (boolean, CLI 专属): 启用 OBV
+    - `--roc → options.roc` (boolean, CLI 专属): 启用 ROC
+    - `--dmi → options.dmi` (boolean, CLI 专属): 启用 DMI
+    - `--sar → options.sar` (boolean, CLI 专属): 启用 SAR
+    - `--kc → options.kc` (boolean, CLI 专属): 启用 KC
 
 ### `sdk.board`
 
 - **`sdk.board.industry.list()`** — 获取行业板块列表（东方财富）：板块代码、名称、最新价、涨跌幅、成交额、领涨股等。无参。
-- **`sdk.board.industry.spot(symbol)`** — 获取指定行业板块的成分股实时行情列表（最新价、涨跌幅、成交量额等）。symbol 为行业板块代码（如 BK0475）或名称。
+- **`sdk.board.industry.spot(symbol)`** — 获取指定行业板块的实时行情指标（最新、最高、最低、开盘、成交量额、涨跌幅、振幅、换手率等），返回 `{ item, value }[]`。成分股列表请用 `constituents`；成分股行情亦见 `constituents`（含价格/涨跌幅）。symbol 为行业板块代码（如 BK0475）或名称。
     - `symbol` (位置参数, 必填): 行业板块代码（如 BK0475）或板块名称
 - **`sdk.board.industry.constituents(symbol)`** — 获取指定行业板块的成分股列表（代码、名称等基础信息）。symbol 为行业板块代码（如 BK0475）或名称。
     - `symbol` (位置参数, 必填): 行业板块代码（如 BK0475）或板块名称
 - **`sdk.board.industry.kline(symbol, options?)`** — 获取行业板块历史 K 线（日/周/月）：日期、开高低收、成交量额、涨跌幅。价格单位为元。复权默认不复权，需前/后复权请显式传 adjust。
     - `symbol` (位置参数, 必填): 行业板块代码（如 BK0475）或板块名称
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none): 复权方式，默认不复权（''）；需前复权传 qfq（看走势），后复权传 hfq（算收益）
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, SDK / MCP): 复权方式，默认不复权（''）；需前复权传 qfq（看走势），后复权传 hfq（算收益）
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
 - **`sdk.board.industry.minuteKline(symbol, options?)`** — 获取行业板块分时/分钟 K 线。period=1 返回当日分时；5/15/30/60 返回对应分钟 K 线。默认 5（5 分钟 K 线），当日分时请传 period=1。
     - `symbol` (位置参数, 必填): 行业板块代码（如 BK0475）或板块名称
-    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 5): 分钟周期；默认 5（5 分钟 K 线），当日分时请传 period=1
+    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 5, SDK / MCP): 分钟周期；默认 5（5 分钟 K 线），当日分时请传 period=1
 - **`sdk.board.concept.list()`** — 获取概念板块列表（东方财富）：板块代码、名称、最新价、涨跌幅、成交额、领涨股等。无参。
-- **`sdk.board.concept.spot(symbol)`** — 获取指定概念板块的成分股实时行情列表（最新价、涨跌幅、成交量额等）。symbol 为概念板块代码（如 BK0815）或名称。
+- **`sdk.board.concept.spot(symbol)`** — 获取指定概念板块的实时行情指标（最新、最高、最低、开盘、成交量额、涨跌幅、振幅、换手率等），返回 `{ item, value }[]`。成分股列表请用 `constituents`；成分股行情亦见 `constituents`（含价格/涨跌幅）。symbol 为概念板块代码（如 BK0815）或名称。
     - `symbol` (位置参数, 必填): 概念板块代码（如 BK0815）或板块名称
 - **`sdk.board.concept.constituents(symbol)`** — 获取指定概念板块的成分股列表（代码、名称等基础信息）。symbol 为概念板块代码（如 BK0815）或名称。
     - `symbol` (位置参数, 必填): 概念板块代码（如 BK0815）或板块名称
 - **`sdk.board.concept.kline(symbol, options?)`** — 获取概念板块历史 K 线（日/周/月）：日期、开高低收、成交量额、涨跌幅。价格单位为元。复权默认不复权，需前/后复权请显式传 adjust。
     - `symbol` (位置参数, 必填): 概念板块代码（如 BK0815）或板块名称
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none): 复权方式，默认不复权（''）；需前复权传 qfq（看走势），后复权传 hfq（算收益）
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, SDK / MCP): 复权方式，默认不复权（''）；需前复权传 qfq（看走势），后复权传 hfq（算收益）
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
 - **`sdk.board.concept.minuteKline(symbol, options?)`** — 获取概念板块分时/分钟 K 线。period=1 返回当日分时；5/15/30/60 返回对应分钟 K 线。默认 5（5 分钟 K 线），当日分时请传 period=1。
     - `symbol` (位置参数, 必填): 概念板块代码（如 BK0815）或板块名称
-    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 5): 分钟周期；默认 5（5 分钟 K 线），当日分时请传 period=1
+    - `options.period` (1 | 5 | 15 | 30 | 60, 默认 5, SDK / MCP): 分钟周期；默认 5（5 分钟 K 线），当日分时请传 period=1
 
 ### `sdk.options`
 
@@ -201,7 +271,7 @@ import { normalizeSymbol } from 'stock-sdk/symbols';
 - **`sdk.options.commodity.kline(symbol)`** — 获取商品期权某合约的日 K 线。
     - `symbol` (位置参数, 必填): 期权合约代码
 - **`sdk.options.cffex.quotes(options?)`** — 获取中金所全部期权实时行情列表（价格、涨跌、成交、持仓、行权价、剩余天数等）。⚠️ 体积大：默认 pageSize=20000 返回全市场合约。
-    - `options.pageSize` (number): 每页条数，默认 20000
+    - `options.pageSize` (number, SDK / MCP): 每页条数，默认 20000
 - **`sdk.options.lhb(symbol, date)`** — 获取期权龙虎榜（按标的与日期，含成交量/持仓量排名、会员席位、净买卖等）。date 格式 YYYY-MM-DD。
     - `symbol` (位置参数, 必填): 期权标的/合约代码
     - `date` (位置参数, 必填): 日期 YYYY-MM-DD，如 2024-06-03
@@ -210,62 +280,68 @@ import { normalizeSymbol } from 'stock-sdk/symbols';
 
 - **`sdk.futures.kline(symbol, options?)`** — 获取国内期货历史 K 线（东财）：开高低收、成交量、持仓量等。symbol 为合约代码，如 rb2605(螺纹钢) / IF2604(沪深300股指) / au2606(黄金)，period 默认 daily(日线)，startDate/endDate 为 YYYYMMDD。
     - `symbol` (位置参数, 必填): 期货合约代码，如 rb2605 / IF2604 / au2606
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
+    - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
+    - `--adjust → options.adjust` (qfq | hfq | none, 默认 qfq, CLI 专属): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
 - **`sdk.futures.globalSpot(options?)`** — 获取全球期货实时行情（东财）：国际原油、黄金、外盘指数期货等的最新价、涨跌幅、成交量。pageSize 为每页条数，默认 20。
-    - `options.pageSize` (number): 每页条数，默认 20
+    - `options.pageSize` (number, SDK / MCP): 每页条数，默认 20
 - **`sdk.futures.globalKline(symbol, options?)`** — 获取全球期货历史 K 线（东财）：开高低收、成交量等。symbol 为合约代码，period 默认 daily，startDate/endDate 为 YYYYMMDD。marketCode 为东财市场代码（用于未内置品种，可从全球期货实时行情结果反查）。
     - `symbol` (位置参数, 必填): 全球期货合约代码，如 CONC(WTI 原油) / GC00Y(COMEX 黄金)
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
-    - `options.adjust` (qfq | hfq | none, 默认 qfq): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
-    - `options.startDate` (string): 起始日期 YYYYMMDD
-    - `options.endDate` (string): 结束日期 YYYYMMDD
-    - `options.marketCode` (number): 东财市场代码（未内置品种时手动指定）
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
+    - `options.marketCode` (number, SDK / MCP): 东财市场代码（未内置品种时手动指定）
+    - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
+    - `--adjust → options.adjust` (qfq | hfq | none, 默认 qfq, CLI 专属): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
 - **`sdk.futures.inventorySymbols()`** — 获取期货库存品种列表（东财）：可查库存的品种代码与名称，供 get_futures_inventory 使用。
 - **`sdk.futures.inventory(symbol, options?)`** — 获取指定品种的期货库存历史（东财）：交易所注册仓单 / 库存量及增减。symbol 为品种代码（见 get_futures_inventory_symbols），startDate 为 YYYY-MM-DD(默认 2020-10-28)。pageSize 仅为单页批量大小（默认 500），接口返回全量历史，过大时会被裁剪。
     - `symbol` (位置参数, 必填): 库存品种代码（见 get_futures_inventory_symbols）
-    - `options.startDate` (string): 开始日期 YYYY-MM-DD，默认 2020-10-28
-    - `options.pageSize` (number): 单页批量大小，默认 500；接口返回全量历史，过大时会被裁剪
+    - `options.startDate` (string, SDK / MCP): 开始日期 YYYY-MM-DD，默认 2020-10-28
+    - `options.pageSize` (number, SDK / MCP): 单页批量大小，默认 500；接口返回全量历史，过大时会被裁剪
 - **`sdk.futures.comexInventory(symbol, options?)`** — 获取 COMEX 黄金 / 白银库存历史（东财）：注册库存、合格库存及总量变化。symbol 必填，取 'gold'(黄金) 或 'silver'(白银)。pageSize 仅为单页批量大小（默认 500），接口返回全量历史，过大时会被裁剪。
     - `symbol` (位置参数, 必填 取值 gold | silver): 品种：gold=黄金 / silver=白银
-    - `options.pageSize` (number): 单页批量大小，默认 500；接口返回全量历史，过大时会被裁剪
+    - `options.pageSize` (number, SDK / MCP): 单页批量大小，默认 500；接口返回全量历史，过大时会被裁剪
 
 ### `sdk.fundFlow`
 
 - **`sdk.fundFlow.individual(symbol, options?)`** — 获取个股资金流历史（日 / 周 / 月）：主力 / 超大单 / 大单 / 中单 / 小单净流入（金额单位元、占比为百分比）。
     - `symbol` (位置参数, 必填): 股票代码，带不带 sh/sz/bj 前缀均可，如 600519 / sh600519
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 资金流统计周期（日 / 周 / 月）
 - **`sdk.fundFlow.market()`** — 获取大盘资金流（上证综指 + 深证成指(399001)）：各分类资金净流入金额（元）与占比（%）。
-- **`sdk.fundFlow.rank(options?)`** — 获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。⚠️ 返回全市场数千条，结果裁剪至前 200（按主力净流入降序），完整数据请直接用 SDK。
-    - `options.indicator` (today | 3day | 5day | 10day, 默认 today): 排名周期：today=今日(默认) / 3day / 5day / 10day
+- **`sdk.fundFlow.rank(options?)`** — 获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。⚠️ MCP tools/call 大数组会被裁剪至前 200 条（按主力净流入降序）；SDK 直连返回全量。
+    - `options.indicator` (today | 3day | 5day | 10day, 默认 today, SDK / MCP): 排名周期：today=今日(默认) / 3day / 5day / 10day
 - **`sdk.fundFlow.sectorRank(options?)`** — 获取板块资金流排名（行业 / 概念 / 地域）：按板块主力净流入排序，金额单位元、占比为百分比。
-    - `options.indicator` (today | 3day | 5day | 10day, 默认 today): 排名周期：today=今日(默认) / 3day / 5day / 10day
-    - `options.sectorType` (industry | concept | region, 默认 industry): 板块类型：industry=行业(默认) / concept=概念 / region=地域
+    - `options.indicator` (today | 3day | 5day | 10day, 默认 today, SDK / MCP): 排名周期：today=今日(默认) / 3day / 5day / 10day
+    - `options.sectorType` (industry | concept | region, 默认 industry, SDK / MCP): 板块类型：industry=行业(默认) / concept=概念 / region=地域
 - **`sdk.fundFlow.sectorHistory(symbol, options?)`** — 获取单个板块的历史资金流（日 / 周 / 月）：各分类资金净流入金额（元）与占比（%）。symbol 为板块编号，如 BK0438 或全前缀 90.BK0438。
     - `symbol` (位置参数, 必填): 板块编号，如 BK0438 或全前缀 90.BK0438
-    - `options.period` (daily | weekly | monthly, 默认 daily): 历史 K 线周期
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 资金流统计周期（日 / 周 / 月）
 
 ### `sdk.northbound`
 
-- **`sdk.northbound.minute(direction?, options?)`** — 获取北向 / 南向资金分时数据（当日，按 HH:MM）。返回沪/深分项与合计净流入（单位:万元）。direction:north=北向(默认) / south=南向。
+- **`sdk.northbound.minute(direction?)`** — 获取北向 / 南向资金分时数据（当日，按 HH:MM）。返回沪/深分项与合计净流入（单位:万元）。direction:north=北向(默认) / south=南向。
     - `direction` (位置参数, 可选 取值 north | south): 资金方向:north=北向(默认) / south=南向
-    - `options.direction` (north | south): 方向 north / south
+    - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
+    - `--direction → options.direction` (north | south, CLI 专属): 方向 north / south
+    - _(CLI 亦可用 `--direction north|south` 代替位置参数 `direction`)_
 - **`sdk.northbound.summary()`** — 获取沪深港通市场资金流向汇总（北向 + 南向 + 港股通拆分）：含板块名、净买额/净流入(元)、当日余额、相关指数涨跌幅等。
 - **`sdk.northbound.holdingRank(options?)`** — 获取北向 / 沪股通 / 深股通持股个股排行：含持股股数、持股市值(元)、占流通股/总股本比(%)、区间增持估计等。market:all(默认)/shanghai/shenzhen;period 默认 5day;date 须为有数据的交易日，否则返回空。
-    - `options.market` (all | shanghai | shenzhen, 默认 all): 市场:all(默认) / shanghai=沪股通 / shenzhen=深股通
-    - `options.period` (today | 3day | 5day | 10day | month | quarter | year, 默认 5day): 排名周期:today / 3day / 5day(默认) / 10day / month / quarter / year
-    - `options.date` (string): 指定交易日 YYYY-MM-DD（默认服务端最新交易日）
+    - `options.market` (all | shanghai | shenzhen, 默认 all, SDK / MCP): 市场:all(默认) / shanghai=沪股通 / shenzhen=深股通
+    - `options.period` (today | 3day | 5day | 10day | month | quarter | year, 默认 5day, SDK / MCP): 排名周期:today / 3day / 5day(默认) / 10day / month / quarter / year
+    - `options.date` (string, SDK / MCP): 指定交易日 YYYY-MM-DD（默认服务端最新交易日）
 - **`sdk.northbound.history(direction?, options?)`** — 获取北向 / 南向资金历史（按日）：成交净买额、买/卖成交额、历史累计净买额、当日资金流入/余额(元)及领涨股。direction:north(默认)/south;不传 startDate/endDate 取全量区间。
     - `direction` (位置参数, 可选 取值 north | south): 资金方向:north=北向(默认) / south=南向
-    - `options.direction` (north | south): 方向 north / south
-    - `options.startDate` (string): 起始日期 YYYY-MM-DD
-    - `options.endDate` (string): 结束日期 YYYY-MM-DD
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYY-MM-DD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYY-MM-DD
+    - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
+    - `--direction → options.direction` (north | south, CLI 专属): 方向 north / south
+    - _(CLI 亦可用 `--direction north|south` 代替位置参数 `direction`)_
 - **`sdk.northbound.individual(symbol, options?)`** — 获取个股的北向持仓历史（按日）：持股数量、持股市值(元)、占流通股/总股本比(%)、当日收盘价与涨跌幅。不传 startDate/endDate 取全量区间。
     - `symbol` (位置参数, 必填): 单只股票代码，如 600519 / sh600519
-    - `options.startDate` (string): 起始日期 YYYY-MM-DD
-    - `options.endDate` (string): 结束日期 YYYY-MM-DD
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYY-MM-DD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYY-MM-DD
 
 ### `sdk.marketEvent`
 
@@ -278,15 +354,15 @@ import { normalizeSymbol } from 'stock-sdk/symbols';
 
 ### `sdk.dragonTiger`
 
-- **`sdk.dragonTiger.detail(options?)`** — 获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时结果超 200 条会被裁剪，请收窄区间。
-    - `options.startDate` (string, 必填): 起始日期 YYYYMMDD
-    - `options.endDate` (string, 必填): 结束日期 YYYYMMDD
-- **`sdk.dragonTiger.stockStats(period?)`** — 获取龙虎榜个股上榜统计（按周期聚合）：代码、名称、最近上榜日、收盘价、涨跌幅(%)、上榜次数、累计买入/卖出/净额/成交额(元)、累计买/卖方机构次数。period 可选，默认 1month。⚠️ 返回全市场，可能数百至上千条，超 200 条会被裁剪。
+- **`sdk.dragonTiger.detail(options?)`** — 获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。
+    - `options.startDate` (string, 必填, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, 必填, SDK / MCP): 结束日期 YYYYMMDD
+- **`sdk.dragonTiger.stockStats(period?)`** — 获取龙虎榜个股上榜统计（按周期聚合）：代码、名称、最近上榜日、收盘价、涨跌幅(%)、上榜次数、累计买入/卖出/净额/成交额(元)、累计买/卖方机构次数。period 可选，默认 1month。⚠️ MCP tools/call 超 200 条会被裁剪；SDK 直连返回全量。
     - `period` (位置参数, 可选 取值 1month | 3month | 6month | 1year): 统计周期：1month / 3month / 6month / 1year，默认 1month
-- **`sdk.dragonTiger.institution(options?)`** — 获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时结果超 200 条会被裁剪，请收窄区间。
-    - `options.startDate` (string, 必填): 起始日期 YYYYMMDD
-    - `options.endDate` (string, 必填): 结束日期 YYYYMMDD
-- **`sdk.dragonTiger.branchRank(period?)`** — 获取龙虎榜营业部（席位）排行（按周期聚合）：营业部代码、名称、买入总额/卖出总额(元)、买入/卖出次数、上榜次数。period 可选，默认 1month。⚠️ 返回全市场，可能数百至上千条，超 200 条会被裁剪。
+- **`sdk.dragonTiger.institution(options?)`** — 获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。
+    - `options.startDate` (string, 必填, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, 必填, SDK / MCP): 结束日期 YYYYMMDD
+- **`sdk.dragonTiger.branchRank(period?)`** — 获取龙虎榜营业部（席位）排行（按周期聚合）：营业部代码、名称、买入总额/卖出总额(元)、买入/卖出次数、上榜次数。period 可选，默认 1month。⚠️ MCP tools/call 超 200 条会被裁剪；SDK 直连返回全量。
     - `period` (位置参数, 可选 取值 1month | 3month | 6month | 1year): 统计周期：1month / 3month / 6month / 1year，默认 1month
 - **`sdk.dragonTiger.seatDetail(symbol, date)`** — 获取个股某日龙虎榜席位明细：排名、营业部名称、买入额/卖出额/净额(元)、买入/卖出占总成交比(%)、买卖方向(buy/sell)。symbol 与 date 均必填；date 支持 YYYYMMDD 或 YYYY-MM-DD。
     - `symbol` (位置参数, 必填): 单只股票代码，如 600519 / sh600519
@@ -294,31 +370,37 @@ import { normalizeSymbol } from 'stock-sdk/symbols';
 
 ### `sdk.blockTrade`
 
-- **`sdk.blockTrade.marketStat()`** — 大宗交易市场统计  _(仅 CLI / SDK，无 MCP 工具)_
-- **`sdk.blockTrade.detail()`** — 大宗交易明细  _(仅 CLI / SDK，无 MCP 工具)_
-- **`sdk.blockTrade.dailyStat()`** — 大宗交易每日统计  _(仅 CLI / SDK，无 MCP 工具)_
+- **`sdk.blockTrade.marketStat()`** — 获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。  _(仅 CLI / SDK，无 MCP 工具)_
+- **`sdk.blockTrade.detail(options?)`** — 获取大宗交易明细（按日期范围筛选）：成交价、成交量、买卖营业部等。省略日期则默认最近一段时间。  _(仅 CLI / SDK，无 MCP 工具)_
+    - `options.startDate` (string, SDK): 起始日期 YYYYMMDD 或 YYYY-MM-DD
+    - `options.endDate` (string, SDK): 结束日期 YYYYMMDD 或 YYYY-MM-DD
+- **`sdk.blockTrade.dailyStat(options?)`** — 获取大宗交易每日统计（按股票汇总）：成交笔数、成交额、溢价率等。省略日期则默认最近一段时间。  _(仅 CLI / SDK，无 MCP 工具)_
+    - `options.startDate` (string, SDK): 起始日期 YYYYMMDD 或 YYYY-MM-DD
+    - `options.endDate` (string, SDK): 结束日期 YYYYMMDD 或 YYYY-MM-DD
 
 ### `sdk.margin`
 
-- **`sdk.margin.accountInfo()`** — 融资融券账户统计  _(仅 CLI / SDK，无 MCP 工具)_
-- **`sdk.margin.targetList(date?)`** — 融资融券标的  _(仅 CLI / SDK，无 MCP 工具)_
-    - `date` (位置参数, 可选): 
+- **`sdk.margin.accountInfo()`** — 获取融资融券账户统计（融资余额、融券余量、两融余额等）。  _(仅 CLI / SDK，无 MCP 工具)_
+- **`sdk.margin.targetList(date?)`** — 获取融资融券标的明细列表（可融资 / 可融券标志、折算率等）。  _(仅 CLI / SDK，无 MCP 工具)_
+    - `date` (位置参数, 可选): 交易日 YYYYMMDD 或 YYYY-MM-DD；不传则取最新可用日期
 
 ### `sdk.fund`
 
 - **`sdk.fund.dividendList(options?)`** — 获取基金分红明细列表（东方财富分红送配频道）。接口仅支持「年份+全市场+翻页」查询，不支持服务端按代码精确查；要拿单只基金完整分红记录请同时设 page='all' 与 code（code 为客户端过滤）。默认拉当前年第 1 页、按除息日(FSRQ)倒序。
-    - `options.year` (string): 查询年份，如 "2026"；默认当前年（Asia/Shanghai）
-    - `options.page` (string): 页码（从 1 开始）的数字字符串，或 'all' 自动翻完该年所有页并聚合；默认 1
-    - `options.fundType` (string): 基金类型筛选，空表示全部，如 '股票型' / '指数型-股票' / '混合型-偏股' / 'REITs'
-    - `options.rank` (BZDM | ABBNAME | DJR | FSRQ | FHFCZ | FFR, 默认 FSRQ): 排序字段：BZDM=基金代码 / ABBNAME=基金简称 / DJR=权益登记日 / FSRQ=除息日期(默认) / FHFCZ=分红(元/份) / FFR=分红发放日
-    - `options.sort` (asc | desc, 默认 desc): 排序方向：asc=升序 / desc=降序(默认)
-    - `options.code` (string): 按基金代码过滤（客户端过滤），一般搭配 page='all' 使用
+    - `options.year` (string, SDK / MCP): 查询年份，如 "2026"；默认当前年（Asia/Shanghai）
+    - `options.page` (string, SDK / MCP): 页码（从 1 开始）的数字字符串，或 'all' 自动翻完该年所有页并聚合；默认 1
+    - `options.fundType` (string, SDK / MCP): 基金类型筛选，空表示全部，如 '股票型' / '指数型-股票' / '混合型-偏股' / 'REITs'
+    - `options.rank` (BZDM | ABBNAME | DJR | FSRQ | FHFCZ | FFR, 默认 FSRQ, SDK / MCP): 排序字段：BZDM=基金代码 / ABBNAME=基金简称 / DJR=权益登记日 / FSRQ=除息日期(默认) / FHFCZ=分红(元/份) / FFR=分红发放日
+    - `options.sort` (asc | desc, 默认 desc, SDK / MCP): 排序方向：asc=升序 / desc=降序(默认)
+    - `options.code` (string, SDK / MCP): 按基金代码过滤（客户端过滤），一般搭配 page='all' 使用
 - **`sdk.fund.navHistory(code)`** — 获取基金历史净值（单位净值 + 累计净值，全历史一次返回，按日期升序）。开放式 / ETF / LOF / 货币 / QDII 均通用。⚠️ 体积大：全历史数千条、响应体约 600KB，建议应用层缓存。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
 - **`sdk.fund.estimate(code)`** — 获取基金当日实时估值（天天基金 fundgz 接口）。同时返回最新已结算单位净值（nav/navDate）与盘中实时估算（estimatedNav/estimatedChangePercent/estimateTime，涨跌幅单位 %）。QDII / 非交易日 / 部分小众基金的估算字段可能为 null。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 005827
 - **`sdk.fund.rankHistory(code)`** — 获取基金同类排名走势（每日近三月排名 + 同类总数 + 排名百分位 %，按日期升序）。适合画「该基金在同类里的相对表现」折线图。数据源同 get_fund_nav_history。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
+- **`sdk.fund.profile(code)`** — 一次请求获取基金深度资料（东方财富 pingzhongdata 全量字段）：前十大重仓股、前五大债券、季度资产配置、每日股票仓位测算、基金经理（含星级与能力评分）、业绩评价、持有人结构、规模变动、申购赎回、阶段收益率（近1月/3月/6月/1年）、同类基金等。字段随基金类型与数据完整度可能为空。与 navHistory / rankHistory 同源（同一份 pingzhongdata 文件，约 600KB），建议应用层缓存。
+    - `code` (位置参数, 必填): 基金代码，纯数字，如 000001
 
 ### `sdk.calendar`
 
@@ -360,6 +442,8 @@ import { normalizeSymbol } from 'stock-sdk/symbols';
 
 导出：`SignalType`, `Signal`, `SignalOptions`, `calcSignals`
 
+示例：`const signals = calcSignals(klineWithIndicators, { ma: { fast: 5, slow: 20 }, rsi: {} })`
+
 ### `stock-sdk/symbols`
 
 符号解析（normalizeSymbol 等，不发请求）
@@ -371,6 +455,8 @@ import { normalizeSymbol } from 'stock-sdk/symbols';
 声明式选股器 + 本地回测引擎
 
 导出：`screen`, `ScreenerBuilder`, `backtest`, `Strategy`, `StrategySignal`, `Trade`, `BacktestOptions`, `BacktestReport`
+
+示例：`screen(allQuotes).where(q => q.pe < 20).sortBy(q => q.amount).top(20)`；`backtest({ klines, strategy: (bar) => 'hold' })`
 
 ### `stock-sdk/cache`
 
@@ -385,6 +471,12 @@ import { normalizeSymbol } from 'stock-sdk/symbols';
 导出：`SdkError`, `HttpError`, `UpstreamEmptyError`, `UpstreamError`, `AbortedError`, `NotFoundError`, `InvalidArgumentError`, `InvalidSymbolError`, `getSdkErrorCode`, `isSdkError`, `normalizeRequestError`, `attachErrorMetadata`, `SdkErrorCode`, `RequestError`
 
   错误码（`SdkError.code` / `SdkErrorCode`）：NETWORK_ERROR · TIMEOUT · ABORTED · HTTP_ERROR · RATE_LIMITED · CIRCUIT_OPEN · UPSTREAM_EMPTY · UPSTREAM_ERROR · PARSE_ERROR · INVALID_SYMBOL · INVALID_ARGUMENT · NOT_FOUND
+
+### `stock-sdk/mcp`
+
+MCP server 可编程入口（`startMcpServer` / `dispatchMessage` 等；CLI 用 `stock-sdk mcp` 启动 stdio）
+
+导出：`startMcpServer`, `dispatchMessage`, `McpServerOptions`, `DispatchContext`（详见 `stock-sdk/mcp` 类型定义）
 
 ---
 
@@ -1499,6 +1591,208 @@ export interface FundRankHistory {
 }
 
 // ============================================================
+// 基金深度资料（pingzhongdata 全量字段）
+// ============================================================
+
+/** 前十大重仓股 */
+export interface FundHolding {
+  /** 股票代码（纯数字 6 位，如 `"600519"`） */
+  code: string;
+  /** 新市场号（`"0"`=深圳, `"1"`=上海），用于拼接东财 secid */
+  marketId: string;
+}
+
+/** 前五大债券持仓 */
+export interface FundBondHolding {
+  /** 债券代码 */
+  code: string;
+  /** 新市场号 */
+  marketId: string;
+}
+
+/** 资产配置项（单季度） */
+export interface FundAssetAllocation {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 报告期 UTC 毫秒时间戳；日期串无法解析时为 `null`（不产出 NaN） */
+  timestamp: number | null;
+  /** 股票占净值比（%） */
+  stockRatio: number;
+  /** 债券占净值比（%） */
+  bondRatio: number;
+  /** 现金占净值比（%） */
+  cashRatio: number;
+  /** 其他资产占净值比（%）；上游部分基金不提供该项，缺失时为 `0` */
+  otherRatio: number;
+  /** 净资产（亿元） */
+  netAsset: number;
+}
+
+/** 股票仓位测算点（每日） */
+export interface FundPositionPoint {
+  /** 日期 `YYYY-MM-DD` */
+  date: string;
+  /** UTC 毫秒时间戳 */
+  timestamp: number;
+  /** 股票仓位占比（%） */
+  position: number;
+}
+
+/** 基金经理信息 */
+export interface FundManager {
+  /** 基金经理 ID */
+  id: string;
+  /** 姓名 */
+  name: string;
+  /** 头像图片 URL；无则为 `null` */
+  avatarUrl: string | null;
+  /** 天天基金星级（0–5）；无评级为 `null` */
+  star: number | null;
+  /**
+   * 任职年限描述（东财原文，如 `"14年又192天"`）；无则为 `null`。
+   * 上游只提供这段中文描述，不提供可计算的天数/起始日，故原样透传。
+   */
+  workTime: string | null;
+  /**
+   * 在管基金规模描述（东财原文，如 `"78.91亿(4只基金)"`）；无则为 `null`。
+   * 规模与只数被上游拼在同一段字符串里，原样透传不做拆解。
+   */
+  fundSize: string | null;
+  /**
+   * 基金经理能力评分（综合分 + 各维度雷达），结构同 {@link FundPerformanceEvaluation}；
+   * 无评分为 `null`。
+   */
+  power: FundPerformanceEvaluation | null;
+}
+
+/** 业绩评价 */
+export interface FundPerformanceEvaluation {
+  /** 综合评分 */
+  overall: number;
+  /** 评价维度 */
+  categories: string[];
+  /** 各维度得分 */
+  scores: number[];
+  /** 各维度描述 */
+  descriptions: string[];
+}
+
+/** 持有人结构（单期） */
+export interface FundHolderStructure {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 报告期 UTC 毫秒时间戳；日期串无法解析时为 `null`（不产出 NaN） */
+  timestamp: number | null;
+  /** 机构持有比例（%） */
+  institutionRatio: number;
+  /** 个人持有比例（%） */
+  individualRatio: number;
+  /** 内部持有比例（%） */
+  internalRatio: number;
+}
+
+/** 规模变动（单季度） */
+export interface FundScaleChange {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 基金规模（亿元） */
+  scale: number;
+  /** 环比变动（东财原文，如 `"3.67%"` / `"-1.20%"`，不带前导 `+`） */
+  mom: string;
+}
+
+/** 申购赎回（单季度） */
+export interface FundBuySedemption {
+  /** 报告期 `YYYY-MM-DD` */
+  date: string;
+  /** 报告期 UTC 毫秒时间戳；日期串无法解析时为 `null`（不产出 NaN） */
+  timestamp: number | null;
+  /** 期间申购（亿份） */
+  buy: number;
+  /** 期间赎回（亿份） */
+  sell: number;
+  /** 期末总份额（亿份）；上游 series 名为「总份额」 */
+  total: number;
+}
+
+/** 阶段收益率 */
+export interface FundStageReturns {
+  /** 近一月收益率（%） */
+  oneMonth: number | null;
+  /** 近三月收益率（%） */
+  threeMonth: number | null;
+  /** 近六月收益率（%） */
+  sixMonth: number | null;
+  /** 近一年收益率（%） */
+  oneYear: number | null;
+}
+
+/** 同类基金中的一只 */
+export interface FundSameTypePeer {
+  /** 基金代码（纯数字） */
+  code: string;
+  /** 基金简称 */
+  name: string;
+  /**
+   * 东财附带的排序数值（随分组维度而定，通常为某区间收益或净值）；
+   * 无法解析为 `null`。
+   */
+  value: number | null;
+}
+
+/**
+ * 同类基金（用于「切换同类基金」对比）。
+ *
+ * 上游 `swithSameType` 是一个二维数组：东财按多个维度各取一组同类基金，
+ * 故这里用 `groups`（外层为分组、内层为该组下的基金）如实表达。
+ * 只想要去重后的代码列表可自行 `groups.flat()`。
+ */
+export interface FundSameType {
+  /** 同类基金分组 */
+  groups: FundSameTypePeer[][];
+}
+
+/**
+ * 基金深度资料（pingzhongdata 全量字段，一次请求返回）。
+ *
+ * 数据源：`https://fund.eastmoney.com/pingzhongdata/{code}.js`
+ */
+export interface FundProfile {
+  /** 基金代码 */
+  code: string;
+  /** 基金简称 */
+  name: string | null;
+  /** 原申购费率（%） */
+  sourceRate: number | null;
+  /** 现申购费率（%） */
+  rate: number | null;
+  /** 最小申购金额（元） */
+  minSubscription: number | null;
+  /** 前十大重仓股 */
+  holdings: FundHolding[];
+  /** 前五大债券持仓 */
+  bondHoldings: FundBondHolding[];
+  /** 资产配置（按季度，最近 4 期） */
+  assetAllocation: FundAssetAllocation[];
+  /** 股票仓位测算（每日，最近约 20 个交易日） */
+  positions: FundPositionPoint[];
+  /** 基金经理列表 */
+  managers: FundManager[];
+  /** 业绩评价 */
+  performance: FundPerformanceEvaluation | null;
+  /** 持有人结构（按报告期） */
+  holderStructure: FundHolderStructure[];
+  /** 规模变动（按季度） */
+  scaleChanges: FundScaleChange[];
+  /** 申购赎回（按季度） */
+  buySedemption: FundBuySedemption[];
+  /** 阶段收益率 */
+  stageReturns: FundStageReturns;
+  /** 同类基金 */
+  sameType: FundSameType | null;
+}
+
+// ============================================================
 // src/types/fundFlow.ts
 // ============================================================
 /**
@@ -2222,6 +2516,727 @@ export interface BoardChangeItem {
 }
 
 // ============================================================
+// src/core/request.ts
+// ============================================================
+/**
+ * HTTP 请求客户端（带重试机制、限流、熔断和 host fallback）
+ */
+import { decodeGBK, parseResponse } from './parser';
+import { TENCENT_BASE_URL } from './constants';
+import { RateLimiter, type RateLimiterOptions } from './rateLimiter';
+import { getNextUserAgent } from './userAgentPool';
+import {
+  CircuitBreaker,
+  CircuitBreakerError,
+  type CircuitBreakerOptions,
+} from './circuitBreaker';
+import { HostFallbackManager, type HostHealthStats } from './fallback';
+import {
+  HttpError,
+  SdkError,
+  AbortedError,
+  getSdkErrorCode,
+  normalizeRequestError,
+  type RequestError,
+} from './errors';
+import {
+  inferProviderFromUrl,
+  mergeProviderPolicy,
+  resolveProviderPolicy,
+  type ProviderName,
+  type ProviderRequestPolicy,
+  type ResolvedProviderPolicy,
+  type ResolvedRetryOptions,
+  type RetryOptions,
+} from './providerPolicy';
+
+export { HttpError } from './errors';
+export type {
+  ProviderName,
+  ProviderRequestPolicy,
+  RetryOptions,
+} from './providerPolicy';
+
+/** 可注入的 fetch 实现（默认走运行时全局 fetch） */
+export type FetchImpl = typeof fetch;
+
+/** 请求生命周期事件 */
+export type RequestTraceEvent =
+  | 'request'
+  | 'response'
+  | 'error'
+  | 'retry'
+  | 'fallback';
+
+/** 请求生命周期上下文 */
+export interface RequestLifecycleContext {
+  provider: ProviderName;
+  url: string;
+  timeout: number;
+  attempt: number;
+  responseType: GetOptions['responseType'];
+}
+
+/**
+ * 请求生命周期钩子（client 级）。
+ * 所有回调都在 try/catch 中调用，回调内抛错不会影响主请求流程。
+ */
+export interface RequestHooks {
+  onRequest?(ctx: RequestLifecycleContext): void;
+  onResponse?(
+    ctx: RequestLifecycleContext,
+    meta: { status: number; durationMs: number }
+  ): void;
+  onError?(ctx: RequestLifecycleContext, error: SdkError): void;
+  onRetry?(ctx: RequestLifecycleContext, error: SdkError, delay: number): void;
+  trace?(event: RequestTraceEvent, ctx: RequestLifecycleContext): void;
+}
+
+/**
+ * 判断 error 是否「形似 abort」：标准 AbortError(DOMException 或 Error)，
+ * 或 undici 连接被 abort 时抛的 TypeError，其真因(error.cause)是 AbortError。
+ * 兜底用：自定义 fetchImpl 可能不透传 signal.reason 而抛自建 AbortError，
+ * 此时按 reason 同一性溯源会落空，靠形状判定补救；
+ * 同时不误伤 try 块里主动抛出的 HttpError / SdkError(PARSE_ERROR 等)业务错误。
+ */
+function isAbortShapedError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true;
+  }
+  if (error instanceof Error) {
+    if (error.name === 'AbortError') {
+      return true;
+    }
+    // undici：连接被 abort 时抛 TypeError: terminated，真正的中止原因挂在 cause 上
+    const cause = (error as { cause?: unknown }).cause;
+    if (
+      (cause instanceof Error || cause instanceof DOMException) &&
+      cause.name === 'AbortError'
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 合并多个 AbortSignal：任一触发即 abort。
+ * 优先用原生 `AbortSignal.any`（Node 18.17+/20.3+、现代浏览器）；
+ * 缺失时（Node 18.0–18.16）退回手写联动，并在结束后清理监听防泄漏。
+ */
+interface CombinedSignal {
+  signal: AbortSignal | undefined;
+  /** 请求结束后调用以移除 fallback 注册的监听，防止长生命周期 signal 泄漏 */
+  cleanup: () => void;
+}
+
+const NO_CLEANUP = () => {};
+
+function combineSignals(signals: (AbortSignal | undefined)[]): CombinedSignal {
+  const list = signals.filter((s): s is AbortSignal => Boolean(s));
+  if (list.length === 0) return { signal: undefined, cleanup: NO_CLEANUP };
+  if (list.length === 1) return { signal: list[0], cleanup: NO_CLEANUP };
+
+  const anyFn = (
+    AbortSignal as unknown as {
+      any?: (signals: AbortSignal[]) => AbortSignal;
+    }
+  ).any;
+  if (typeof anyFn === 'function') {
+    return { signal: anyFn(list), cleanup: NO_CLEANUP };
+  }
+
+  // fallback（Node 18.0–18.16）：手动联动，并记录监听以便请求结束后移除
+  const controller = new AbortController();
+  const abort = (reason: unknown) => {
+    if (!controller.signal.aborted) controller.abort(reason);
+  };
+  const registered: Array<{ s: AbortSignal; handler: () => void }> = [];
+  for (const s of list) {
+    if (s.aborted) {
+      abort(s.reason);
+      break;
+    }
+    const handler = () => abort(s.reason);
+    s.addEventListener('abort', handler, { once: true });
+    registered.push({ s, handler });
+  }
+  const cleanup = () => {
+    for (const { s, handler } of registered) {
+      s.removeEventListener('abort', handler);
+    }
+  };
+  return { signal: controller.signal, cleanup };
+}
+
+/**
+ * Review R3-2:让「不监听 init.signal 的自定义 fetchImpl」也能被超时/取消解除挂起。
+ * 真实 fetch 会订阅 signal 并以 signal.reason 拒绝;但 naive wrapper / axios 适配
+ * 可能完全无视 signal —— 此前超时 abort 无人响应,fetch promise 永不 settle:
+ * 无 TIMEOUT、retry/熔断/hooks 全部失效,调用方无限挂起。
+ *
+ * 与 signal 的 abort 事件 race,要点:
+ * - race 的拒绝值取 signal.reason,与 performRequest 的 matchesReason 身份溯源
+ *   天然契合(内部超时 → timeoutReason → TIMEOUT;外部取消 → 外部 reason → ABORTED);
+ * - abort 监听在 settle 后显式移除,防止长生命周期 signal 上的监听泄漏;
+ * - 落败方 promise 的 rejection 预先吸掉,避免 unhandledRejection;
+ * - 对正常监听 signal 的 fetch 行为不变:谁先 settle 都是同一个 reason / 响应。
+ */
+async function raceWithAbort<T>(
+  signal: AbortSignal | undefined,
+  promise: Promise<T>
+): Promise<T> {
+  if (!signal) return promise;
+  // 预先标记落败方 rejection 已处理(派生 promise,不影响 race 对结果的传播)
+  Promise.resolve(promise).catch(() => {});
+  if (signal.aborted) {
+    // 已取消的 signal 不会再发 abort 事件 → 与「已拒绝的占位 promise」race。
+    // Promise.race 按注册序结算:已经 settle 的 fetch promise 仍然胜出 ——
+    // 保住补f 语义(已到手的真实响应/业务错误如 HTTP 500 不被外部取消掩盖);
+    // 未 settle 的(deaf fetchImpl)下一微任务即被 signal.reason 拒绝,不挂起。
+    return Promise.race([promise, Promise.reject(signal.reason)]);
+  }
+  let onAbort!: () => void;
+  const abortPromise = new Promise<never>((_, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([promise, abortPromise]);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+}
+
+/**
+ * 请求客户端配置选项
+ */
+export interface RequestClientOptions {
+  baseUrl?: string;
+  timeout?: number;
+  retry?: RetryOptions;
+  /** 自定义请求头 */
+  headers?: Record<string, string>;
+  /** 自定义 User-Agent（浏览器环境可能会被忽略） */
+  userAgent?: string;
+  /** 限流配置（防止请求过快被频控） */
+  rateLimit?: RateLimiterOptions;
+  /** 是否启用 UA 轮换（仅 Node.js 有效），默认 false */
+  rotateUserAgent?: boolean;
+  /** 熔断器配置（连续失败时暂停请求） */
+  circuitBreaker?: CircuitBreakerOptions;
+  /**
+   * Provider 级请求策略。
+   * 未配置的 provider 会回退到全局默认配置。
+   */
+  providerPolicies?: Partial<Record<ProviderName, ProviderRequestPolicy>>;
+  /** 可注入的自定义 fetch 实现（代理 / mock / 日志），默认运行时全局 fetch */
+  fetchImpl?: FetchImpl;
+  /** client 级外部取消信号；与每次请求的 timeout 合并，触发后归类为 ABORTED */
+  signal?: AbortSignal;
+  /** 请求生命周期钩子 */
+  hooks?: RequestHooks;
+}
+
+/**
+ * Provider 级运行时状态
+ */
+interface ProviderRuntimeState {
+  policy: ResolvedProviderPolicy;
+  rateLimiter: RateLimiter | null;
+  circuitBreaker: CircuitBreaker | null;
+}
+
+/**
+ * GET 请求选项
+ */
+export interface GetOptions {
+  responseType?: 'text' | 'json' | 'arraybuffer';
+  provider?: ProviderName;
+  /** 单次请求的自定义 fetch（优先级高于 client 级 fetchImpl） */
+  fetchImpl?: FetchImpl;
+  /** 单次请求的外部取消信号（触发后归类为 ABORTED） */
+  signal?: AbortSignal;
+}
+
+export class RequestClient {
+  private readonly baseUrl: string;
+  private readonly defaultPolicy: ResolvedProviderPolicy;
+  private readonly providerPolicies: Partial<Record<ProviderName, ResolvedProviderPolicy>>;
+  private readonly runtimeStates: Map<ProviderName, ProviderRuntimeState>;
+  private readonly fallbackManager: HostFallbackManager;
+  private readonly fetchImpl?: FetchImpl;
+  private readonly clientSignal?: AbortSignal;
+  private readonly hooks?: RequestHooks;
+
+  constructor(options: RequestClientOptions = {}) {
+    this.baseUrl = options.baseUrl ?? TENCENT_BASE_URL;
+    const basePolicy: ProviderRequestPolicy = {
+      timeout: options.timeout,
+      retry: options.retry,
+      headers: options.headers,
+      userAgent: options.userAgent,
+      rateLimit: options.rateLimit,
+      rotateUserAgent: options.rotateUserAgent,
+      circuitBreaker: options.circuitBreaker,
+    };
+
+    this.defaultPolicy = resolveProviderPolicy(basePolicy);
+    this.providerPolicies = {};
+    this.runtimeStates = new Map();
+    this.fallbackManager = new HostFallbackManager();
+    this.fetchImpl = options.fetchImpl;
+    this.clientSignal = options.signal;
+    this.hooks = options.hooks;
+
+    for (const [provider, policy] of Object.entries(options.providerPolicies ?? {})) {
+      const mergedPolicy = mergeProviderPolicy(basePolicy, policy);
+      this.providerPolicies[provider as ProviderName] =
+        resolveProviderPolicy(mergedPolicy);
+    }
+  }
+
+  /**
+   * 获取 provider 运行时状态，按需初始化限流器和熔断器。
+   */
+  private getProviderState(provider: ProviderName): ProviderRuntimeState {
+    const cached = this.runtimeStates.get(provider);
+    if (cached) {
+      return cached;
+    }
+
+    const policy = this.providerPolicies[provider] ?? this.defaultPolicy;
+    const state: ProviderRuntimeState = {
+      policy,
+      rateLimiter: policy.rateLimit ? new RateLimiter(policy.rateLimit) : null,
+      circuitBreaker: policy.circuitBreaker
+        ? new CircuitBreaker(policy.circuitBreaker)
+        : null,
+    };
+    this.runtimeStates.set(provider, state);
+    return state;
+  }
+
+  /**
+   * 获取默认超时时间
+   */
+  getTimeout(): number {
+    return this.defaultPolicy.timeout;
+  }
+
+  /**
+   * 获取 host 健康状态
+   */
+  getHostHealth(provider?: ProviderName): HostHealthStats[] {
+    return this.fallbackManager.getStats(provider);
+  }
+
+  /** 安全调用钩子：回调抛错不影响主流程 */
+  private safe(fn: () => void): void {
+    try {
+      fn();
+    } catch {
+      /* 钩子回调抛错被吞掉，不影响请求主流程 */
+    }
+  }
+
+  /** 把归一化后的 RequestError 转成 SdkError，供钩子使用 */
+  private toSdkError(error: RequestError): SdkError {
+    if (error instanceof SdkError) {
+      return error;
+    }
+    return new SdkError({
+      code: getSdkErrorCode(error) ?? 'NETWORK_ERROR',
+      message: error.message,
+      provider: error.provider,
+      url: error.url,
+      status: error.status,
+      details: error.details,
+      cause: error,
+    });
+  }
+
+  /**
+   * 计算指数退避延迟时间
+   */
+  private calculateDelay(
+    attempt: number,
+    retryOptions: ResolvedRetryOptions
+  ): number {
+    const delay = Math.min(
+      retryOptions.baseDelay *
+      Math.pow(retryOptions.backoffMultiplier, attempt),
+      retryOptions.maxDelay
+    );
+
+    return delay + Math.random() * 100;
+  }
+
+  /**
+   * 休眠指定毫秒
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 判断是否应该重试
+   */
+  private shouldRetry(
+    error: RequestError,
+    attempt: number,
+    retryOptions: ResolvedRetryOptions
+  ): boolean {
+    if (attempt >= retryOptions.maxRetries) {
+      return false;
+    }
+
+    const code = getSdkErrorCode(error);
+
+    // 外部主动取消不重试
+    if (code === 'ABORTED') {
+      return false;
+    }
+
+    if (code === 'TIMEOUT') {
+      return retryOptions.retryOnTimeout;
+    }
+
+    if (code === 'NETWORK_ERROR') {
+      return retryOptions.retryOnNetworkError;
+    }
+
+    // RATE_LIMITED 一定来自 HttpError(429)，统一交给下面的 HttpError 分支处理
+    if (error instanceof HttpError) {
+      return retryOptions.retryableStatusCodes.includes(error.status);
+    }
+
+    return false;
+  }
+
+  /**
+   * 单 host 带重试的请求执行器
+   */
+  private async executeWithRetry<T>(
+    requestFn: (attempt: number) => Promise<T>,
+    retryOptions: ResolvedRetryOptions,
+    context: {
+      provider: ProviderName;
+      url: string;
+      timeout: number;
+      responseType: GetOptions['responseType'];
+    },
+    attempt: number = 0
+  ): Promise<T> {
+    try {
+      return await requestFn(attempt);
+    } catch (error) {
+      const normalized = normalizeRequestError(error, context);
+      const ctx: RequestLifecycleContext = {
+        provider: context.provider,
+        url: context.url,
+        timeout: context.timeout,
+        attempt,
+        responseType: context.responseType,
+      };
+      this.safe(() => this.hooks?.onError?.(ctx, this.toSdkError(normalized)));
+      this.safe(() => this.hooks?.trace?.('error', ctx));
+
+      if (this.shouldRetry(normalized, attempt, retryOptions)) {
+        const delay = this.calculateDelay(attempt, retryOptions);
+
+        if (retryOptions.onRetry) {
+          retryOptions.onRetry(attempt + 1, normalized, delay);
+        }
+        this.safe(() =>
+          this.hooks?.onRetry?.(ctx, this.toSdkError(normalized), delay)
+        );
+        this.safe(() => this.hooks?.trace?.('retry', ctx));
+
+        await this.sleep(delay);
+        return this.executeWithRetry(requestFn, retryOptions, context, attempt + 1);
+      }
+
+      throw normalized;
+    }
+  }
+
+  /**
+   * 执行单次 HTTP 请求
+   */
+  private async performRequest<T>(
+    url: string,
+    state: ProviderRuntimeState,
+    provider: ProviderName,
+    responseType: GetOptions['responseType'] = 'text',
+    perCall: { fetchImpl?: FetchImpl; signal?: AbortSignal } = {},
+    attempt = 0
+  ): Promise<T> {
+    if (state.rateLimiter) {
+      await state.rateLimiter.acquire();
+    }
+
+    const timeoutController = new AbortController();
+    // 超时 reason 必须是 DOMException(AbortError)：fetch 会把 signal.reason 原样作为
+    // 拒绝值抛出，若用 Symbol/裸值，normalizeRequestError 无法识别 → 超时被错分类为
+    // NETWORK_ERROR(绕过 retryOnTimeout、hooks/主机健康记错码)。
+    // 每个请求新建实例：attachErrorMetadata 会往错误上写 provider/url，共享实例会被
+    // 首个超时请求的上下文污染。
+    const timeoutReason = new DOMException(
+      `Request timed out after ${state.policy.timeout}ms`,
+      'AbortError'
+    );
+    const timeoutId = setTimeout(
+      () => timeoutController.abort(timeoutReason),
+      state.policy.timeout
+    );
+    // 三源合并：内部 timeout + per-call signal + client 级 signal 都能取消该请求
+    // （此前用 perCall.signal ?? clientSignal，会让 client 级取消对带 per-call signal 的请求失效）
+    const { signal, cleanup: cleanupSignals } = combineSignals([
+      timeoutController.signal,
+      perCall.signal,
+      this.clientSignal,
+    ]);
+    const doFetch = perCall.fetchImpl ?? this.fetchImpl ?? globalThis.fetch;
+
+    const requestHeaders = { ...state.policy.headers };
+    if (state.policy.rotateUserAgent) {
+      const rotatedUA = getNextUserAgent();
+      if (rotatedUA) {
+        for (const key of Object.keys(requestHeaders)) {
+          if (key.toLowerCase() === 'user-agent') {
+            delete requestHeaders[key];
+          }
+        }
+        requestHeaders['User-Agent'] = rotatedUA;
+      }
+    }
+
+    const ctx: RequestLifecycleContext = {
+      provider,
+      url,
+      timeout: state.policy.timeout,
+      attempt,
+      responseType,
+    };
+    this.safe(() => this.hooks?.onRequest?.(ctx));
+    this.safe(() => this.hooks?.trace?.('request', ctx));
+    const startedAt = Date.now();
+
+    try {
+      // R3-2:与 signal 的 abort race —— fetchImpl 不监听 signal 时超时/取消
+      // 仍能解除挂起(详见 raceWithAbort);正常 fetch 行为不变
+      const resp = await raceWithAbort(
+        signal,
+        doFetch(url, {
+          signal,
+          headers: requestHeaders,
+        })
+      );
+
+      this.safe(() =>
+        this.hooks?.onResponse?.(ctx, {
+          status: resp.status,
+          durationMs: Date.now() - startedAt,
+        })
+      );
+      this.safe(() => this.hooks?.trace?.('response', ctx));
+
+      if (!resp.ok) {
+        throw new HttpError(resp.status, resp.statusText, url, provider);
+      }
+
+      switch (responseType) {
+        case 'json':
+          // 200 但响应体不是合法 JSON（如反爬 HTML / 验证码页）会让 resp.json() 抛 SyntaxError。
+          // 这类是确定性的数据错误，若按 NETWORK_ERROR 处理会被同 host 反复重试，放大无谓负载。
+          // 显式归类为 PARSE_ERROR：shouldRetry 不重试，但 shouldFallback 仍允许切换备用 host。
+          try {
+            return await resp.json();
+          } catch (parseError) {
+            throw new SdkError({
+              code: 'PARSE_ERROR',
+              message: `Failed to parse JSON response from ${url}`,
+              provider,
+              url,
+              cause: parseError,
+            });
+          }
+        case 'arraybuffer':
+          return (await resp.arrayBuffer()) as T;
+        default:
+          return (await resp.text()) as T;
+      }
+    } catch (error) {
+      // fetch 以 signal.reason【原样】作为拒绝值（undici 偶见把 reason 挂在 cause 上），
+      // 而 reason 可以是任意值（string / 自定义 Error / DOMException），不能只靠错误
+      // 形状分类。优先按「reason 同一性」把错误溯源到具体 signal：
+      const matchesReason = (s: AbortSignal | undefined): boolean => {
+        if (!s?.aborted) return false;
+        if (error === s.reason) return true;
+        return (
+          error instanceof Error &&
+          (error as { cause?: unknown }).cause === s.reason
+        );
+      };
+      // 内部超时命中 → 保持原错误（DOMException AbortError），由 normalizeRequestError
+      // 归一化为 TIMEOUT；与外部取消同时发生时，以先触发者（即 error 的来源）为准。
+      if (!matchesReason(timeoutController.signal)) {
+        // 外部取消（per-call 或 client 级）→ ABORTED，无论 reason 形状。
+        // 形状判定仅作兜底：自定义 fetchImpl 可能不透传 reason 而抛自建 AbortError；
+        // 同时要求「外部 signal 确已取消」，避免把该 client 后续真实的 HttpError /
+        // PARSE_ERROR 误掩盖成 AbortedError(丢失 status/cause、误导 fallback 与熔断器)。
+        const externalAborted =
+          perCall.signal?.aborted || this.clientSignal?.aborted;
+        if (
+          matchesReason(perCall.signal) ||
+          matchesReason(this.clientSignal) ||
+          (externalAborted && isAbortShapedError(error))
+        ) {
+          throw new AbortedError(
+            'Request aborted by external signal',
+            provider,
+            url
+          );
+        }
+        // Review P2-8:自定义 fetchImpl(node-fetch 风格)可能不透传 signal.reason
+        // 而抛自建 plain-Error AbortError —— reason 同一性溯源落空、又非外部取消,
+        // 此前会坠入 normalizeRequestError 的 NETWORK_ERROR 分支,绕过
+        // retryOnTimeout:false。内部超时已触发且错误形似 abort → 抛本请求的
+        // timeoutReason(DOMException),由 normalizeRequestError 正确归类 TIMEOUT。
+        //
+        // R3-10 已知残余(如实记录,不改行为):若 fetchImpl【自带】独立的超时/取消
+        // 机制(不透传本 signal,自建 AbortError),它与 SDK 内部超时几乎同时触发时
+        // 存在竞态窗口 —— 形状判定无法区分错误来源,只要内部超时已 abort 就归
+        // TIMEOUT,可能把 fetchImpl 自身的取消误标为 TIMEOUT。这是形状兜底的
+        // 固有局限(reason 同一性溯源已在上方优先生效,真实 fetch 不受影响);
+        // 若反向放行(归 NETWORK_ERROR)则 P2-8 修的「超时被错分类」复发,
+        // 两害相权取其轻,勿当 bug 修反。
+        if (timeoutController.signal.aborted && isAbortShapedError(error)) {
+          throw timeoutReason;
+        }
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+      cleanupSignals();
+    }
+  }
+
+  /**
+   * 发送 GET 请求（带自动重试、限流、熔断和 fallback）
+   */
+  async get<T = string>(
+    url: string,
+    options: GetOptions = {}
+  ): Promise<T> {
+    const provider = inferProviderFromUrl(url, options.provider);
+    const state = this.getProviderState(provider);
+
+    if (state.circuitBreaker && !state.circuitBreaker.canRequest()) {
+      throw new CircuitBreakerError('Circuit breaker is OPEN, request rejected');
+    }
+
+    const perCall = { fetchImpl: options.fetchImpl, signal: options.signal };
+    const candidateUrls = this.fallbackManager.getCandidateUrls(url, provider);
+    let lastError: RequestError | undefined;
+
+    for (let index = 0; index < candidateUrls.length; index++) {
+      const candidateUrl = candidateUrls[index];
+      // 仅首个 host 走完整重试预算；后续 fallback host 只尝试一次，
+      // 避免 (maxRetries+1) × hosts 的延迟倍乘。
+      const retryForHost: ResolvedRetryOptions =
+        index === 0
+          ? state.policy.retry
+          : { ...state.policy.retry, maxRetries: 0 };
+
+      try {
+        const result = await this.executeWithRetry(
+          (attempt) =>
+            this.performRequest<T>(
+              candidateUrl,
+              state,
+              provider,
+              options.responseType,
+              perCall,
+              attempt
+            ),
+          retryForHost,
+          {
+            provider,
+            url: candidateUrl,
+            timeout: state.policy.timeout,
+            responseType: options.responseType,
+          }
+        );
+
+        state.circuitBreaker?.recordSuccess();
+        this.fallbackManager.recordSuccess(candidateUrl);
+        return result;
+      } catch (error) {
+        const normalized = normalizeRequestError(error, {
+          provider,
+          url: candidateUrl,
+          timeout: state.policy.timeout,
+        });
+        lastError = normalized;
+        // 外部取消不是上游故障：不计入 host 健康（避免单次取消把 host 打进 30s 冷却）、
+        // 不喂熔断器（避免连续取消几次就把 breaker 打开拒绝后续正常请求）。
+        const isExternalAbort = getSdkErrorCode(normalized) === 'ABORTED';
+        if (!isExternalAbort) {
+          this.fallbackManager.recordFailure(candidateUrl, normalized);
+        } else {
+          // 半开期被取消的请求要释放预占的探测名额(既非成功也非失败)
+          state.circuitBreaker?.releaseProbe();
+        }
+
+        const shouldTryNextHost =
+          index < candidateUrls.length - 1 &&
+          this.fallbackManager.shouldFallback(normalized);
+
+        if (shouldTryNextHost) {
+          this.safe(() =>
+            this.hooks?.trace?.('fallback', {
+              provider,
+              url: candidateUrl,
+              timeout: state.policy.timeout,
+              attempt: 0,
+              responseType: options.responseType,
+            })
+          );
+          continue;
+        }
+
+        if (!isExternalAbort) {
+          state.circuitBreaker?.recordFailure();
+        }
+        throw this.toSdkError(normalized);
+      }
+    }
+
+    state.circuitBreaker?.recordFailure();
+    throw lastError
+      ? this.toSdkError(lastError)
+      : new CircuitBreakerError('Request failed without a concrete error');
+  }
+
+  /**
+   * 腾讯财经专用请求（GBK 解码，带自动重试）
+   */
+  async getTencentQuote(
+    params: string
+  ): Promise<{ key: string; fields: string[] }[]> {
+    const url = `${this.baseUrl}/?q=${encodeURIComponent(params)}`;
+    const buffer = await this.get<ArrayBuffer>(url, {
+      responseType: 'arraybuffer',
+      provider: 'tencent',
+    });
+    const text = decodeGBK(buffer);
+    return parseResponse(text);
+  }
+}
+
+// ============================================================
 // src/indicators/types.ts
 // ============================================================
 // ========== 输入类型 ==========
@@ -2573,6 +3588,231 @@ export interface NormalizedSymbol {
 
 /** API 接受的符号入参类型 */
 export type SymbolInput = string | SymbolRef;
+
+// ============================================================
+// src/screener/screener.ts
+// ============================================================
+/**
+ * 选股器（v2 B2）—— 纯本地链式筛选，输入任意行情/数据数组，无网络。
+ */
+import { InvalidArgumentError } from '../core/errors';
+
+export interface ScreenerBuilder<T> {
+  /** 过滤：保留满足条件的项 */
+  where(predicate: (item: T) => boolean): ScreenerBuilder<T>;
+  /** 排序：按数值选择器，默认降序 */
+  sortBy(
+    selector: (item: T) => number | null | undefined,
+    direction?: 'asc' | 'desc'
+  ): ScreenerBuilder<T>;
+  /** 取前 n 项并返回 */
+  top(n: number): T[];
+  /** 返回当前全部结果 */
+  toArray(): T[];
+}
+
+/**
+ * 创建一个选股器。组合现有「全市场行情 / 板块 / 资金流 / 龙虎榜」等数据使用：
+ *
+ * ```ts
+ * const picks = screen(allQuotes)
+ *   .where(q => q.pe != null && q.pe < 20)
+ *   .where(q => q.changePercent > 3)
+ *   .sortBy(q => q.amount)
+ *   .top(20);
+ * ```
+ */
+export function screen<T>(items: readonly T[]): ScreenerBuilder<T> {
+  let current = items.slice();
+  const builder: ScreenerBuilder<T> = {
+    where(predicate) {
+      current = current.filter(predicate);
+      return builder;
+    },
+    sortBy(selector, direction = 'desc') {
+      const sign = direction === 'asc' ? 1 : -1;
+      // F38: current 始终是 builder 私有副本(入口 items.slice()、filter 产新数组),
+      // 原地 sort 即可,省掉每次 sortBy 的整数组拷贝(全市场 5600 元素 ~45KB/次)。
+      // 对外不可变性不变：入口已拷贝调用方数组,top/toArray 仍返回新数组。
+      current.sort((a, b) => {
+        const va = selector(a);
+        const vb = selector(b);
+        const aOk = Number.isFinite(va);
+        const bOk = Number.isFinite(vb);
+        // null / undefined / NaN 统一沉到末尾，不参与算术比较
+        if (!aOk && !bOk) return 0;
+        if (!aOk) return 1;
+        if (!bOk) return -1;
+        return ((va as number) - (vb as number)) * sign;
+      });
+      return builder;
+    },
+    top(n) {
+      if (!Number.isInteger(n) || n < 0) {
+        throw new InvalidArgumentError(
+          `top(n): n must be a non-negative integer, got ${n}`,
+          { n }
+        );
+      }
+      return current.slice(0, n);
+    },
+    toArray() {
+      return current.slice();
+    },
+  };
+  return builder;
+}
+
+// ============================================================
+// src/screener/backtest.ts
+// ============================================================
+/**
+ * 轻量回测引擎（v2 B2）—— 纯本地、单标的、全仓多头。
+ * 输入 K 线 + 策略函数，输出收益曲线 / 总收益 / 胜率 / 最大回撤 / 成交记录。
+ */
+
+export type StrategySignal = 'buy' | 'sell' | 'hold';
+
+/** 策略：对每根 K 线返回操作信号 */
+export type Strategy<T> = (
+  bar: T,
+  index: number,
+  history: readonly T[]
+) => StrategySignal;
+
+export interface Trade {
+  entryIndex: number;
+  exitIndex: number;
+  entryPrice: number;
+  exitPrice: number;
+  /** 本笔收益率（百分数，含双边费） */
+  returnPercent: number;
+}
+
+export interface BacktestOptions<T> {
+  klines: readonly T[];
+  strategy: Strategy<T>;
+  /** 初始资金，默认 100000 */
+  initialCapital?: number;
+  /** 单边费率（如 0.0003），默认 0 */
+  fee?: number;
+  /** 取收盘价；默认读取 `bar.close` */
+  getClose?: (bar: T) => number | null;
+}
+
+export interface BacktestReport {
+  initialCapital: number;
+  finalEquity: number;
+  /** 总收益率（百分数） */
+  totalReturn: number;
+  /** 胜率（百分数） */
+  winRate: number;
+  /** 最大回撤（百分数，正数） */
+  maxDrawdown: number;
+  tradeCount: number;
+  trades: Trade[];
+  /** 每根 K 线收盘后的权益 */
+  equityCurve: number[];
+}
+
+function defaultGetClose<T>(bar: T): number | null {
+  const c = (bar as { close?: number | null }).close;
+  return c != null && Number.isFinite(c) ? c : null;
+}
+
+/**
+ * 执行回测。规则：`buy` 且空仓 → 全仓买入；`sell` 且持仓 → 全部卖出；
+ * 结束仍持仓则按最后有效收盘价平仓。
+ */
+export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
+  const {
+    klines,
+    strategy,
+    initialCapital = 100000,
+    fee = 0,
+    getClose = defaultGetClose,
+  } = options;
+
+  let cash = initialCapital;
+  let position = 0;
+  let entryPrice = 0;
+  let entryIndex = -1;
+  let lastPrice = 0;
+  const trades: Trade[] = [];
+  const equityCurve: number[] = [];
+
+  const recordTrade = (exitIndex: number, exitPrice: number) => {
+    // 与持仓现金路径完全一致:买入扣 (1-fee)、卖出扣 (1-fee),双边手续费按复利,
+    // 而非 (gross - 2*fee) 的线性近似 —— 确保 returnPercent 与 totalReturn / equityCurve 同口径,
+    // winRate(按 returnPercent>0 统计)也才准确。
+    const returnPercent =
+      ((exitPrice / entryPrice) * (1 - fee) * (1 - fee) - 1) * 100;
+    trades.push({ entryIndex, exitIndex, entryPrice, exitPrice, returnPercent });
+  };
+
+  for (let i = 0; i < klines.length; i++) {
+    const rawPrice = getClose(klines[i]);
+    // 仅正有限价为有效价；0(停牌/缺口编码)、NaN、null 一律视为无效
+    const price =
+      rawPrice != null && Number.isFinite(rawPrice) && rawPrice > 0
+        ? rawPrice
+        : null;
+    const signal = strategy(klines[i], i, klines);
+
+    if (price != null) {
+      lastPrice = price;
+      if (signal === 'buy' && position === 0) {
+        position = (cash * (1 - fee)) / price;
+        entryPrice = price;
+        entryIndex = i;
+        cash = 0;
+      } else if (signal === 'sell' && position > 0) {
+        cash = position * price * (1 - fee);
+        recordTrade(i, price);
+        position = 0;
+      }
+    }
+
+    // 无效价回退到 lastPrice 做 mark-to-market，避免 equity 塌成 cash 或被 NaN 污染
+    const mark = price ?? lastPrice;
+    const equity = cash + position * mark;
+    equityCurve.push(equity);
+  }
+
+  // 收尾平仓
+  if (position > 0 && lastPrice > 0) {
+    cash = position * lastPrice * (1 - fee);
+    recordTrade(klines.length - 1, lastPrice);
+    position = 0;
+    if (equityCurve.length > 0) equityCurve[equityCurve.length - 1] = cash;
+  }
+
+  const finalEquity = equityCurve.length
+    ? equityCurve[equityCurve.length - 1]
+    : initialCapital;
+  const totalReturn = (finalEquity / initialCapital - 1) * 100;
+  const wins = trades.filter((t) => t.returnPercent > 0).length;
+  const winRate = trades.length ? (wins / trades.length) * 100 : 0;
+
+  let peak = -Infinity;
+  let maxDrawdown = 0;
+  for (const e of equityCurve) {
+    if (e > peak) peak = e;
+    const dd = peak > 0 ? ((peak - e) / peak) * 100 : 0;
+    if (dd > maxDrawdown) maxDrawdown = dd;
+  }
+
+  return {
+    initialCapital,
+    finalEquity,
+    totalReturn,
+    winRate,
+    maxDrawdown,
+    tradeCount: trades.length,
+    trades,
+    equityCurve,
+  };
+}
 ```
 
 ---

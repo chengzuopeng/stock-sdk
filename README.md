@@ -275,7 +275,7 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 | `sdk.marketEvent` | `.ztPool` / `.stockChanges` / `.boardChanges` |
 | `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
 | `sdk.blockTrade` / `sdk.margin` | 大宗交易 / 融资融券 |
-| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` |
+| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` / `.profile` |
 | `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
 | `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
 | 顶层 | `sdk.search(keyword)` |

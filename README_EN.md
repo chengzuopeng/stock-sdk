@@ -275,7 +275,7 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 | `sdk.marketEvent` | `.ztPool` / `.stockChanges` / `.boardChanges` |
 | `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
 | `sdk.blockTrade` / `sdk.margin` | block trades / margin trading |
-| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` |
+| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` / `.profile` |
 | `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
 | `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
 | top-level | `sdk.search(keyword)` |

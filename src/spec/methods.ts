@@ -165,6 +165,11 @@ export const PERIOD_DWM: ParamSpec = {
   desc: 'K 线周期 daily/weekly/monthly',
   mcpDesc: '历史 K 线周期',
 };
+/** 资金流历史统计周期（复用 daily/weekly/monthly 枚举，文案区别于 K 线）。 */
+const PERIOD_FUND_FLOW: ParamSpec = {
+  ...PERIOD_DWM,
+  mcpDesc: '资金流统计周期（日 / 周 / 月）',
+};
 export const PERIOD_MIN: ParamSpec = {
   flag: 'period',
   type: 'enum',
@@ -210,6 +215,11 @@ const END_NB: ParamSpec = { ...END, mcpDesc: '结束日期 YYYY-MM-DD' };
 // northbound.individual 的 CLI 现状为未声明透传（--start 经 FLAG_ALIAS 仍可达）
 const START_NB_MCP_ONLY: ParamSpec = { ...START_NB, cli: false };
 const END_NB_MCP_ONLY: ParamSpec = { ...END_NB, cli: false };
+/** 大宗交易日期范围（detail / dailyStat 共用）。 */
+const BLOCK_TRADE_DATES: ParamSpec[] = [
+  { ...START, mcpDesc: '起始日期 YYYYMMDD 或 YYYY-MM-DD' },
+  { ...END, mcpDesc: '结束日期 YYYYMMDD 或 YYYY-MM-DD' },
+];
 /** 港/美股分时 ndays：CLI flag --ndays、MCP 对外名 recentDays、SDK 字段 ndays。 */
 export const NDAYS: ParamSpec = {
   flag: 'ndays',
@@ -398,7 +408,7 @@ const SYMBOL_REQ = (desc: string): SpecPositional => ({ name: 'symbol', required
 const CODE_REQ = (desc: string): SpecPositional => ({ name: 'code', required: true, desc });
 const STOCK_SYMBOL_DESC = '单只股票代码，如 600519 / sh600519';
 
-// ---------- 85 个方法定义（84 命名空间方法 + 顶层 search） ----------
+// ---------- 86 个方法定义（85 命名空间方法 + 顶层 search） ----------
 export const METHOD_SPECS: MethodSpec[] = [
   // ===== quotes (8) =====
   {
@@ -499,7 +509,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     path: ['batch', 'cn'],
     toolName: 'get_all_a_share_quotes',
     summary: '全市场A股行情',
-    mcpDesc: '批量拉取全市场 A 股行情。⚠️ 可能耗时数十秒、返回数千条（结果会被裁剪）。',
+    mcpDesc:
+      '批量拉取全市场 A 股行情。⚠️ 可能耗时数十秒、返回数千条（MCP tools/call 大数组会被裁剪至 200 条；SDK 直连返回全量）。',
     argShape: 'options',
     params: [BATCH_SIZE, CONCURRENCY, CN_BOARD],
   },
@@ -532,7 +543,13 @@ export const METHOD_SPECS: MethodSpec[] = [
     path: ['batch', 'raw'],
     summary: '腾讯原始批量',
     argShape: 'positional',
-    positional: [{ name: 'params', required: true }],
+    positional: [
+      {
+        name: 'params',
+        required: true,
+        desc: '腾讯 raw 批量查询参数字符串（provider 原始格式，如 sh600519,sz000001）',
+      },
+    ],
     mcp: false, // 原始直通接口，不适合作为 LLM 工具暴露
   },
   // ===== kline (7) =====
@@ -642,9 +659,11 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['board', 'industry', 'spot'],
     toolName: 'get_industry_spot',
-    summary: '行业板块成分行情',
+    summary: '行业板块实时指标',
     mcpDesc:
-      '获取指定行业板块的成分股实时行情列表（最新价、涨跌幅、成交量额等）。symbol 为行业板块代码（如 BK0475）或名称。',
+      '获取指定行业板块的实时行情指标（最新、最高、最低、开盘、成交量额、涨跌幅、振幅、换手率等），' +
+      '返回 `{ item, value }[]`。成分股列表请用 `constituents`；成分股行情亦见 `constituents`（含价格/涨跌幅）。' +
+      'symbol 为行业板块代码（如 BK0475）或名称。',
     argShape: 'positional',
     positional: [SYMBOL_REQ('行业板块代码（如 BK0475）或板块名称')],
   },
@@ -690,9 +709,11 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['board', 'concept', 'spot'],
     toolName: 'get_concept_spot',
-    summary: '概念板块成分行情',
+    summary: '概念板块实时指标',
     mcpDesc:
-      '获取指定概念板块的成分股实时行情列表（最新价、涨跌幅、成交量额等）。symbol 为概念板块代码（如 BK0815）或名称。',
+      '获取指定概念板块的实时行情指标（最新、最高、最低、开盘、成交量额、涨跌幅、振幅、换手率等），' +
+      '返回 `{ item, value }[]`。成分股列表请用 `constituents`；成分股行情亦见 `constituents`（含价格/涨跌幅）。' +
+      'symbol 为概念板块代码（如 BK0815）或名称。',
     argShape: 'positional',
     positional: [SYMBOL_REQ('概念板块代码（如 BK0815）或板块名称')],
   },
@@ -911,7 +932,7 @@ export const METHOD_SPECS: MethodSpec[] = [
       '获取个股资金流历史（日 / 周 / 月）：主力 / 超大单 / 大单 / 中单 / 小单净流入（金额单位元、占比为百分比）。',
     argShape: 'symbol+options',
     positional: [SYMBOL_REQ('股票代码，带不带 sh/sz/bj 前缀均可，如 600519 / sh600519')],
-    params: [{ ...PERIOD_DWM, cli: false }], // CLI 现状未声明 --period（透传可达），仅 MCP 声明
+    params: [{ ...PERIOD_FUND_FLOW, cli: false }], // CLI 现状未声明 --period（透传可达），仅 MCP 声明
   },
   {
     path: ['fundFlow', 'market'],
@@ -926,7 +947,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     tier: 'core',
     summary: '个股资金流排名',
     mcpDesc:
-      '获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。⚠️ 返回全市场数千条，结果裁剪至前 200（按主力净流入降序），完整数据请直接用 SDK。',
+      '获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。' +
+      '⚠️ MCP tools/call 大数组会被裁剪至前 200 条（按主力净流入降序）；SDK 直连返回全量。',
     argShape: 'options',
     params: [FF_INDICATOR],
   },
@@ -946,7 +968,7 @@ export const METHOD_SPECS: MethodSpec[] = [
       '获取单个板块的历史资金流（日 / 周 / 月）：各分类资金净流入金额（元）与占比（%）。symbol 为板块编号，如 BK0438 或全前缀 90.BK0438。',
     argShape: 'symbol+options',
     positional: [SYMBOL_REQ('板块编号，如 BK0438 或全前缀 90.BK0438')],
-    params: [{ ...PERIOD_DWM, cli: false }],
+    params: [{ ...PERIOD_FUND_FLOW, cli: false }],
   },
   // ===== northbound (5) =====
   // CLI 支持 --direction flag 或位置参数（custom invoke 消化）；MCP 暴露 direction 属性
@@ -1062,7 +1084,7 @@ export const METHOD_SPECS: MethodSpec[] = [
     tier: 'core',
     summary: '龙虎榜详情(必填 --start/--end)',
     mcpDesc:
-      '获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时结果超 200 条会被裁剪，请收窄区间。',
+      '获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。',
     argShape: 'options',
     params: [START_REQ, END_REQ],
   },
@@ -1071,7 +1093,7 @@ export const METHOD_SPECS: MethodSpec[] = [
     toolName: 'get_dragon_tiger_stock_stats',
     summary: '个股上榜统计',
     mcpDesc:
-      '获取龙虎榜个股上榜统计（按周期聚合）：代码、名称、最近上榜日、收盘价、涨跌幅(%)、上榜次数、累计买入/卖出/净额/成交额(元)、累计买/卖方机构次数。period 可选，默认 1month。⚠️ 返回全市场，可能数百至上千条，超 200 条会被裁剪。',
+      '获取龙虎榜个股上榜统计（按周期聚合）：代码、名称、最近上榜日、收盘价、涨跌幅(%)、上榜次数、累计买入/卖出/净额/成交额(元)、累计买/卖方机构次数。period 可选，默认 1month。⚠️ MCP tools/call 超 200 条会被裁剪；SDK 直连返回全量。',
     argShape: 'positional',
     positional: [{ name: 'period', enum: DRAGON_TIGER_PERIODS, default: '1month', desc: DT_PERIOD_DESC }],
   },
@@ -1080,7 +1102,7 @@ export const METHOD_SPECS: MethodSpec[] = [
     toolName: 'get_dragon_tiger_institution',
     summary: '机构买卖统计(必填 --start/--end)',
     mcpDesc:
-      '获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时结果超 200 条会被裁剪，请收窄区间。',
+      '获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。',
     argShape: 'options',
     params: [START_REQ, END_REQ],
   },
@@ -1089,7 +1111,7 @@ export const METHOD_SPECS: MethodSpec[] = [
     toolName: 'get_dragon_tiger_branch_rank',
     summary: '营业部排行',
     mcpDesc:
-      '获取龙虎榜营业部（席位）排行（按周期聚合）：营业部代码、名称、买入总额/卖出总额(元)、买入/卖出次数、上榜次数。period 可选，默认 1month。⚠️ 返回全市场，可能数百至上千条，超 200 条会被裁剪。',
+      '获取龙虎榜营业部（席位）排行（按周期聚合）：营业部代码、名称、买入总额/卖出总额(元)、买入/卖出次数、上榜次数。period 可选，默认 1month。⚠️ MCP tools/call 超 200 条会被裁剪；SDK 直连返回全量。',
     argShape: 'positional',
     positional: [{ name: 'period', enum: DRAGON_TIGER_PERIODS, default: '1month', desc: DT_PERIOD_DESC }],
   },
@@ -1106,16 +1128,48 @@ export const METHOD_SPECS: MethodSpec[] = [
     ],
   },
   // ===== blockTrade (3) —— CLI-only（MCP 未暴露大宗交易工具） =====
-  { path: ['blockTrade', 'marketStat'], summary: '大宗交易市场统计', argShape: 'none', mcp: false },
-  { path: ['blockTrade', 'detail'], summary: '大宗交易明细', argShape: 'options', mcp: false },
-  { path: ['blockTrade', 'dailyStat'], summary: '大宗交易每日统计', argShape: 'options', mcp: false },
+  {
+    path: ['blockTrade', 'marketStat'],
+    summary: '大宗交易市场统计',
+    mcpDesc: '获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。',
+    argShape: 'none',
+    mcp: false,
+  },
+  {
+    path: ['blockTrade', 'detail'],
+    summary: '大宗交易明细',
+    mcpDesc: '获取大宗交易明细（按日期范围筛选）：成交价、成交量、买卖营业部等。省略日期则默认最近一段时间。',
+    argShape: 'options',
+    params: BLOCK_TRADE_DATES,
+    mcp: false,
+  },
+  {
+    path: ['blockTrade', 'dailyStat'],
+    summary: '大宗交易每日统计',
+    mcpDesc: '获取大宗交易每日统计（按股票汇总）：成交笔数、成交额、溢价率等。省略日期则默认最近一段时间。',
+    argShape: 'options',
+    params: BLOCK_TRADE_DATES,
+    mcp: false,
+  },
   // ===== margin (2) —— CLI-only =====
-  { path: ['margin', 'accountInfo'], summary: '融资融券账户统计', argShape: 'none', mcp: false },
+  {
+    path: ['margin', 'accountInfo'],
+    summary: '融资融券账户统计',
+    mcpDesc: '获取融资融券账户统计（融资余额、融券余量、两融余额等）。',
+    argShape: 'none',
+    mcp: false,
+  },
   {
     path: ['margin', 'targetList'],
     summary: '融资融券标的',
+    mcpDesc: '获取融资融券标的明细列表（可融资 / 可融券标志、折算率等）。',
     argShape: 'positional',
-    positional: [{ name: 'date' }],
+    positional: [
+      {
+        name: 'date',
+        desc: '交易日 YYYYMMDD 或 YYYY-MM-DD；不传则取最新可用日期',
+      },
+    ],
     mcp: false,
   },
   // ===== fund (5) =====
