@@ -4,7 +4,20 @@ pageClass: changelog-page
 
 # 更新日志
 
-本页记录 Stock SDK 的版本更新历史。最新的 v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
+本页记录 Stock SDK 的版本更新历史。v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
+
+## v2.1.0
+
+> 发布时间：2026-06-23
+
+### 新增
+
+- **`sdk.fund.profile(code)`**：一次请求获取基金深度资料（东方财富 pingzhongdata 全量字段）——前十大重仓股、前五大债券、季度资产配置、每日股票仓位测算、基金经理（含星级与能力评分）、业绩评价、持有人结构、规模变动、申购赎回、阶段收益率（近 1 / 3 / 6 月、近 1 年）、同类基金。与 `navHistory` / `rankHistory` 同源（同一份 pingzhongdata 文件），并同步派生到 CLI（`fund profile`）与 MCP（`get_fund_profile`）。
+
+### 修复
+
+- **基金日期口径修正**：`fund.navHistory` / `fund.rankHistory` / `fund.profile` 返回的日期此前按 UTC 日期切片，比真实交易日早一天（pingzhongdata 的时间戳是北京时间零点）；改按北京时区取日期，已用天天基金权威净值日期（`jzrq`）校验。
+- **`fetchJsVars` 单引号兼容**：Node 端对单引号 JS 字面量（如 `swithSameType`）增加兜底解析，与浏览器 `<script>` 注入路径对齐，避免该类字段在 Node 端解析失败而丢失。
 
 ## v2.0.0
 

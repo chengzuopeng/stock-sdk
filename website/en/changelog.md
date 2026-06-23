@@ -4,7 +4,20 @@ pageClass: changelog-page
 
 # Changelog
 
-This page records the release history of Stock SDK. The latest v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
+This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
+
+## v2.1.0
+
+> Released: 2026-06-23
+
+### Added
+
+- **`sdk.fund.profile(code)`**: fetch a fund's deep profile in one request (the full set of Eastmoney pingzhongdata fields) — top-10 stock holdings, top-5 bond holdings, quarterly asset allocation, daily position estimates, fund managers (with star rating and ability scores), performance evaluation, holder structure, scale changes, purchase / redemption, stage returns (1 / 3 / 6-month, 1-year) and same-category peers. Shares the data source with `navHistory` / `rankHistory` (the same pingzhongdata file), and is also derived to the CLI (`fund profile`) and MCP (`get_fund_profile`).
+
+### Fixed
+
+- **Fund date alignment**: dates returned by `fund.navHistory` / `fund.rankHistory` / `fund.profile` were sliced from the UTC date and came out one day earlier than the actual trading day (pingzhongdata timestamps are Beijing midnight); now resolved in the Beijing timezone, verified against Tiantian Fund's authoritative NAV date (`jzrq`).
+- **`fetchJsVars` single-quote support**: on Node, single-quoted JS literals (e.g. `swithSameType`) now get a fallback parse to match the browser `<script>`-injection path, so such fields are no longer dropped on Node.
 
 ## v2.0.0
 
