@@ -78,7 +78,7 @@ All methods move into namespaces, with **no compatibility aliases**. The tables 
 | v1 | v2 |
 |---|---|
 | `sdk.getIndividualFundFlow(...)` / `getSectorFundFlowRank(...)` … | `sdk.fundFlow.individual(...)` / `.sectorRank(...)` … |
-| `sdk.getNorthboundSummary(...)` / `getNorthboundHistory(...)` … | `sdk.northbound.summary(...)` / `.history(...)` … |
+| `sdk.getNorthboundFlowSummary(...)` / `getNorthboundHistory(...)` … | `sdk.northbound.summary(...)` / `.history(...)` … |
 | `sdk.getZTPool(...)` / `getStockChanges(...)` | `sdk.marketEvent.ztPool(...)` / `.stockChanges(...)` |
 | `sdk.getDragonTigerDetail(...)` / `getDragonTigerInstitution(...)` … | `sdk.dragonTiger.detail(...)` / `.institution(...)` … |
 | `sdk.getBlockTradeDetail(...)` / `getBlockTradeDailyStat(...)` | `sdk.blockTrade.detail(...)` / `.dailyStat(...)` |
@@ -243,7 +243,7 @@ try {
 - v1 flat methods are removed. Some legacy fields / type names may remain as compatibility aliases; the final source of truth is the type definitions.
 - Old `boolean` signatures removed: `getAShareCodeList(boolean)` / `getUSCodeList(boolean)` keep only the options-object signature (v2 `codes.cn(opts)` / `codes.us(opts)`).
 - Node baseline stays at `>=18` (`AbortSignal.any` with a runtime fallback).
-- New subpath exports: `stock-sdk/{indicators,symbols,signals,screener,cache,errors}`.
+- New subpath exports: `stock-sdk/{indicators,symbols,signals,screener,cache,errors,mcp}`.
 
 ## Suggested migration steps
 

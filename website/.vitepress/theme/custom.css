@@ -450,6 +450,12 @@ html:not(.dark) .home-quick [class*='language-']::after {
   transform: scaleX(var(--scroll-progress, 0));
   transform-origin: left;
 }
+/* 版本下拉等 nav flyout 菜单要盖过上面的滚动进度线（.VPNavBar::after，z-index:1）。
+   两者同处 .VPNavBar 的 backdrop-filter 层叠上下文，菜单默认 z-index 为 auto，
+   下拉面板顶部会被那条红→金横线压住，这里显式抬高。 */
+.VPNavBar .VPFlyout .menu {
+  z-index: 3;
+}
 
 .VPNavBarTitle .title {
   font-family: var(--font-display);
