@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { chunkArray, asyncPool } from '../../../src/core';
-import { getPeriodCode, getAdjustCode } from '../../../src/core';
+import { getMarketCode, getPeriodCode, getAdjustCode } from '../../../src/core';
 
 describe('core utils', () => {
   describe('chunkArray', () => {
@@ -122,6 +122,58 @@ describe('core utils', () => {
     });
   });
 
+  describe('getMarketCode', () => {
+    it('should return 1 for Shanghai stocks', () => {
+      expect(getMarketCode('sh600519')).toBe('1');
+      expect(getMarketCode('600519')).toBe('1');
+      expect(getMarketCode('688001')).toBe('1');
+    });
+
+    it('should return 0 for Shenzhen stocks', () => {
+      expect(getMarketCode('sz000001')).toBe('0');
+      expect(getMarketCode('000001')).toBe('0');
+      expect(getMarketCode('300001')).toBe('0');
+    });
+
+    it('should return 0 for Beijing stocks', () => {
+      expect(getMarketCode('bj430047')).toBe('0');
+      expect(getMarketCode('430047')).toBe('0');
+      expect(getMarketCode('830799')).toBe('0'); // 8 开头北交所
+    });
+
+    // 上交所场内 ETF / LOF / 封基（5xx）— 修复前会被错误归到深圳
+    it('should return 1 for Shanghai ETFs/LOFs (5xx)', () => {
+      expect(getMarketCode('510050')).toBe('1'); // 上证 50 ETF
+      expect(getMarketCode('510300')).toBe('1'); // 沪深 300 ETF
+      expect(getMarketCode('512170')).toBe('1'); // 医疗 ETF
+      expect(getMarketCode('513050')).toBe('1'); // 中概互联网 ETF
+      expect(getMarketCode('515030')).toBe('1'); // 新能源车 ETF
+      expect(getMarketCode('518880')).toBe('1'); // 黄金 ETF
+      expect(getMarketCode('588000')).toBe('1'); // 科创 50 ETF
+    });
+
+    // 上交所 B 股（9xx）— 修复前会被错误归到深圳
+    it('should return 1 for Shanghai B-shares (9xx)', () => {
+      expect(getMarketCode('900901')).toBe('1');
+      expect(getMarketCode('sh900901')).toBe('1');
+    });
+
+    // 深交所 ETF / LOF（1 开头）— 保持 0；如需明确区分建议带 sz 前缀
+    it('should return 0 for Shenzhen ETFs/LOFs (1xx)', () => {
+      expect(getMarketCode('159919')).toBe('0'); // 沪深 300 ETF（深圳）
+      expect(getMarketCode('161725')).toBe('0'); // 招商中证白酒 LOF
+      expect(getMarketCode('sz159919')).toBe('0');
+    });
+
+    it('should return special eastmoney market codes for supported indices', () => {
+      expect(getMarketCode('930955')).toBe('2');
+      expect(getMarketCode('932000')).toBe('2');
+      expect(getMarketCode('H30533')).toBe('2');
+      expect(getMarketCode('H11136')).toBe('2');
+      expect(getMarketCode('HSHCI')).toBe('124');
+      expect(getMarketCode('GDAXI')).toBe('100');
+    });
+  });
   describe('getPeriodCode', () => {
     it('should return correct period codes', () => {
       expect(getPeriodCode('daily')).toBe('101');
