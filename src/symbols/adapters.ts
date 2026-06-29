@@ -24,6 +24,15 @@ export const EXCHANGE_TO_SECID_PREFIX: Record<string, string> = {
   US: '105',
 };
 
+const SPECIAL_CODE_TO_SECID: Record<string, string> = {
+  H30533: '2.H30533',
+  H11136: '2.H11136',
+  HSHCI: '124.HSHCI',
+  GDAXI: '100.GDAXI',
+  '932000': '2.932000',
+  '930955': '2.930955',
+};
+
 /** 交易所 → 腾讯前缀（A 股） */
 const EXCHANGE_TO_TENCENT_PREFIX: Record<string, string> = {
   SSE: 'sh',
@@ -84,6 +93,10 @@ export function toEastmoneySecid(ns: NormalizedSymbol): string {
   }
   if (ns.market === 'HK') {
     return `116.${ns.code.padStart(5, '0')}`;
+  }
+  const specialSecid = SPECIAL_CODE_TO_SECID[ns.code.toUpperCase()];
+  if (specialSecid) {
+    return specialSecid;
   }
   const prefix = EXCHANGE_TO_SECID_PREFIX[ns.exchange];
   if (!prefix) {

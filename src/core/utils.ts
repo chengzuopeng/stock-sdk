@@ -6,6 +6,14 @@ import { InvalidArgumentError } from './errors';
 const KLINE_PERIODS = new Set(['daily', 'weekly', 'monthly']);
 const MINUTE_PERIODS = new Set(['1', '5', '15', '30', '60']);
 const ADJUST_TYPES = new Set(['', 'qfq', 'hfq']);
+const SPECIAL_INDEX_MARKET_CODE_MAP: Record<string, string> = {
+  H30533: '2',
+  H11136: '2',
+  HSHCI: '124',
+  GDAXI: '100',
+  '932000': '2',
+  '930955': '2',
+};
 
 export function assertPositiveInteger(value: number, name: string): void {
   if (!Number.isFinite(value) || !Number.isInteger(value) || value <= 0) {
@@ -115,6 +123,29 @@ export async function asyncPool<T>(
 
   await Promise.all(workers);
   return results;
+}
+
+/**
+ * 根据股票代码获取东方财富市场代码
+ * 支持带前缀(sh/sz/bj)或纯代码
+ */
+export function getMarketCode(symbol: string): string {
+  const normalizedSymbol = symbol.toLowerCase();
+  const pureSymbol = normalizedSymbol.replace(/^(sh|sz|bj)/i, '').toUpperCase();
+  const specialMarketCode = SPECIAL_INDEX_MARKET_CODE_MAP[pureSymbol];
+  if (specialMarketCode) {
+    return specialMarketCode;
+  }
+
+  // 如果有前缀，直接根据前缀判断
+  if (normalizedSymbol.startsWith('sh')) return '1';
+  if (normalizedSymbol.startsWith('sz') || normalizedSymbol.startsWith('bj')) return '0';
+  // 纯代码（按首位字符判断）：
+  //   上海(1): 6 开头（主板/科创板）、5 开头（场内 ETF/LOF/封基）、9 开头（B 股）
+  //   深圳/北交所(0): 0/3 开头（深圳主板/创业板）、4/8 开头（北交所）
+  //   1 开头（深圳 ETF 159xxx / LOF 16xxxx 等）建议带 sz 前缀以避免歧义
+  const first = normalizedSymbol[0];
+  return first === '6' || first === '5' || first === '9' ? '1' : '0';
 }
 
 /**

@@ -29,6 +29,12 @@ describe('toEastmoneySecid', () => {
     ['00700', '116.00700'],
     ['105.AAPL', '105.AAPL'],
     ['106.BABA', '106.BABA'],
+    ['930955', '2.930955'],
+    ['932000', '2.932000'],
+    ['H30533', '2.H30533'],
+    ['H11136', '2.H11136'],
+    ['HSHCI', '124.HSHCI'],
+    ['GDAXI', '100.GDAXI'],
   ])('%s → %s', (input, expected) => {
     expect(toEastmoneySecid(normalizeSymbol(input))).toBe(expected);
   });
