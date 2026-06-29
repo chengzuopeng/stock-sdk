@@ -65,6 +65,8 @@ const SECID_MAP: Record<string, { market: Market; exchange: Exchange }> = {
   '107': { market: 'US', exchange: 'AMEX' },
 };
 
+const SPECIAL_CN_INDEX_CODES = new Set(['H30533', 'H11136']);
+
 /**
  * 有损 secid 前缀的可容交易所集(Review P2-9):东财 '0' 同时承载深交所与
  * 北交所(adapters 的 EXCHANGE_TO_SECID_PREFIX 即 BSE→'0'),
@@ -345,6 +347,10 @@ export function normalizeSymbol(
     }
     // 默认 6 位及其它 → A 股
     return finish('CN', inferAShareExchange(code0), code0, 'stock');
+  }
+
+  if (SPECIAL_CN_INDEX_CODES.has(code0.toUpperCase())) {
+    return finish('CN', 'SSE', code0.toUpperCase(), 'stock');
   }
 
   // 4) 带 hint 的期货裸合约（如 rb2510 + assetType:'futures'）
