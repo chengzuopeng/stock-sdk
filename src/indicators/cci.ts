@@ -3,7 +3,7 @@ import { OHLCV, CCIOptions, CCIResult } from './types';
 /**
  * 统一精度处理
  */
-function round(value: number, decimals: number = 2): number {
+function round(value: number, decimals: number = 3): number {
   const factor = Math.pow(10, decimals);
   return Math.round(value * factor) / factor;
 }
