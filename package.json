@@ -96,6 +96,16 @@
         "default": "./dist/errors.cjs"
       }
     },
+    "./fxmacrodata": {
+      "import": {
+        "types": "./dist/fxmacrodata.d.ts",
+        "default": "./dist/fxmacrodata.js"
+      },
+      "require": {
+        "types": "./dist/fxmacrodata.d.cts",
+        "default": "./dist/fxmacrodata.cjs"
+      }
+    },
     "./mcp": {
       "import": {
         "types": "./dist/mcp.d.ts",

@@ -36,6 +36,15 @@ export * from './types';
 // 导出外部财经链接工具
 export { generateSearchExternalLinks } from './externalLinks';
 
+// 导出 FXMacroData 宏观、外汇、COT、大宗商品与交易时段客户端
+export {
+  FXMacroDataClient,
+  createFXMacroDataClient,
+  type FXMacroDataClientOptions,
+  type FXMacroDataFetch,
+  type FXMacroDataParams,
+} from './providers/fxmacrodata';
+
 // 导出独立指标计算函数
 export {
   calcMA,

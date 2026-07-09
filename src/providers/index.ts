@@ -11,3 +11,6 @@ export * as eastmoney from './eastmoney';
 // 新浪财经
 export * as sina from './sina';
 
+// FXMacroData macro, FX, COT, commodity, and session data
+export * as fxmacrodata from './fxmacrodata';
+

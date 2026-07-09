@@ -16,6 +16,7 @@ export default defineConfig({
     screener: 'src/screener/index.ts',
     cache: 'src/cache/index.ts',
     errors: 'src/errors/index.ts',
+    fxmacrodata: 'src/providers/fxmacrodata/index.ts',
     cli: 'src/cli/index.ts',
     mcp: 'src/mcp/server.ts',
   },
