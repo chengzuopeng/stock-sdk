@@ -7,6 +7,8 @@ import {
   clearSharedCaches,
   createCacheKey,
   getSharedCache,
+  getClientScopedCache,
+  clearClientScopedCaches,
 } from '../../src/core/cache';
 
 describe('MemoryCache', () => {
@@ -184,5 +186,77 @@ describe('createCacheKey', () => {
 
   it('should filter out undefined and null', () => {
     expect(createCacheKey('a', undefined, 'b', null, 'c')).toBe('a:\u2205:b:\u2205:c');
+  });
+});
+
+describe('evictLRU 空字符串键（R7-11a 回归）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("'' 为 LRU 时同样被淘汰，容量保持有界", () => {
+    const cache = new MemoryCache<string>({ maxSize: 2 });
+    cache.set('', 'empty-key'); // 最早访问 → LRU
+    vi.advanceTimersByTime(10);
+    cache.set('a', '1');
+    vi.advanceTimersByTime(10);
+    cache.set('b', '2'); // 触发淘汰，应淘汰 ''
+
+    expect(cache.size).toBe(2);
+    expect(cache.get('')).toBeUndefined();
+    expect(cache.get('a')).toBe('1');
+    expect(cache.get('b')).toBe('2');
+  });
+
+  it('修复前场景：持续写入不再无界增长', () => {
+    const cache = new MemoryCache<string>({ maxSize: 3 });
+    cache.set('', 'v');
+    for (let i = 0; i < 7; i++) {
+      vi.advanceTimersByTime(10);
+      cache.set(`k${i}`, String(i));
+    }
+    expect(cache.size).toBe(3);
+  });
+});
+
+describe('getClientScopedCache（R7-11a 基建）', () => {
+  it('同一 client + namespace 返回同一实例', () => {
+    const client = {};
+    const a = getClientScopedCache<string>(client, 'ns', { maxSize: 4 });
+    const b = getClientScopedCache<string>(client, 'ns');
+    a.set('k', 'v');
+    expect(b).toBe(a);
+    expect(b.get('k')).toBe('v');
+  });
+
+  it('不同 client 相互隔离（mock 实例的数据不会串给真实实例）', () => {
+    const clientA = {};
+    const clientB = {};
+    getClientScopedCache<string>(clientA, 'tencent:code-lists').set('a-share:full', 'mock-data');
+    expect(
+      getClientScopedCache<string>(clientB, 'tencent:code-lists').get('a-share:full')
+    ).toBeUndefined();
+  });
+
+  it('同一 client 的不同 namespace 相互隔离', () => {
+    const client = {};
+    getClientScopedCache<string>(client, 'ns1').set('k', '1');
+    expect(getClientScopedCache<string>(client, 'ns2').get('k')).toBeUndefined();
+  });
+
+  it('clearClientScopedCaches 只清指定 client', () => {
+    const clientA = {};
+    const clientB = {};
+    getClientScopedCache<string>(clientA, 'ns').set('k', 'a');
+    getClientScopedCache<string>(clientB, 'ns').set('k', 'b');
+
+    clearClientScopedCaches(clientA);
+
+    expect(getClientScopedCache<string>(clientA, 'ns').get('k')).toBeUndefined();
+    expect(getClientScopedCache<string>(clientB, 'ns').get('k')).toBe('b');
   });
 });

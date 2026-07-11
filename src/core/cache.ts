@@ -144,7 +144,10 @@ export class MemoryCache<T = unknown> {
       }
     }
 
-    if (oldestKey) {
+    // R7-11a: 必须用 !== null 而非真值判断 —— 空字符串是合法键
+    // （createCacheKey() 零参即产出 ''），真值判断会让 '' 成为 LRU 时
+    // 淘汰永久失效（缓存无界增长；配合容量收缩循环则直接死循环）
+    if (oldestKey !== null) {
       this.cache.delete(oldestKey);
     }
   }
@@ -208,6 +211,46 @@ export function clearSharedCaches(): void {
   for (const cache of sharedCaches.values()) {
     cache.clear();
   }
+}
+
+const clientScopedCaches = new WeakMap<object, Map<string, MemoryCache<unknown>>>();
+
+/**
+ * 按 client 实例隔离的具名缓存：同一 client + namespace 返回同一实例。
+ *
+ * 用于"数据经由某个 client 的传输栈取回"的缓存（代码表 / 交易日历 /
+ * 板块映射 / us-secid 等），避免自定义 fetchImpl（mock / 代理）实例
+ * 取回的数据串到其它 StockSDK 实例（R7-11）。
+ *
+ * 语义与 {@link getSharedCache} 一致为 first-wins：`options` 仅在该
+ * (client, namespace) 首次创建时生效，后续调用传入的 options 被忽略
+ * ——SDK 内部各调用点统一使用模块级常量 options，无二次配置意图。
+ * client 被 GC 后其全部缓存随 WeakMap 自动释放。
+ */
+export function getClientScopedCache<T = unknown>(
+  client: object,
+  namespace: string,
+  options?: CacheOptions
+): MemoryCache<T> {
+  let byNs = clientScopedCaches.get(client);
+  if (!byNs) {
+    byNs = new Map();
+    clientScopedCaches.set(client, byNs);
+  }
+  let cache = byNs.get(namespace);
+  if (!cache) {
+    cache = new MemoryCache<T>(options) as MemoryCache<unknown>;
+    byNs.set(namespace, cache);
+  }
+  return cache as MemoryCache<T>;
+}
+
+/**
+ * 清空某 client 的全部作用域缓存（测试 teardown / 手动强制失效用；
+ * 面向 SDK 用户的入口是 `StockSDK.clearCaches()`）。
+ */
+export function clearClientScopedCaches(client: object): void {
+  clientScopedCaches.delete(client);
 }
 
 /**
