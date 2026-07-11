@@ -56,28 +56,47 @@ export function calcSAR(data: OHLCV[], options: SAROptions = {}): SARResult[] {
     return data.map(() => ({ sar: null, trend: null, ep: null, af: null }));
   }
 
+  // R7-7: 跳过前导无效 bar，以首个 high/low 均非 null 的 bar 播种。
+  // 此前 `?? 0` 把"数据缺失"当"价格为 0"注入递推：首 bar null、后续价格
+  // ~100 时 SAR 从 0 缓慢爬升，反转条件长期无法触发（trend 冻结），
+  // 几十到上百根垃圾值以"有效"非 null 输出。播种点前（含播种 bar）输出
+  // null，与其它指标的暖机语义一致；干净数据 seed=0，与历史输出 bitwise 一致。
+  let seed = 0;
+  while (
+    seed < data.length &&
+    (data[seed].high === null || data[seed].low === null)
+  ) {
+    seed++;
+  }
+  if (seed >= data.length - 1) {
+    // 全部无效 / 仅剩一根有效：无从建立趋势
+    return data.map(() => ({ sar: null, trend: null, ep: null, af: null }));
+  }
+
   // 初始化：假设开始为上升趋势
   let trend: 1 | -1 = 1;
   let af = afStart;
-  let ep = data[0].high ?? 0;
-  let sar = data[0].low ?? 0;
+  let ep = data[seed].high!;
+  let sar = data[seed].low!;
 
-  // 找到初始趋势
-  const first = data[0];
-  const second = data[1];
+  // 找到初始趋势（播种 bar 与其后首根的 close 判断，data[0]/data[1] 的一般化）
+  const seedBar = data[seed];
+  const nextBar = data[seed + 1];
   if (
-    first.close !== null &&
-    second.close !== null &&
-    second.close < first.close
+    seedBar.close !== null &&
+    nextBar.close !== null &&
+    nextBar.close < seedBar.close
   ) {
     trend = -1;
-    ep = first.low ?? 0;
-    sar = first.high ?? 0;
+    ep = seedBar.low!;
+    sar = seedBar.high!;
   }
 
-  results.push({ sar: null, trend: null, ep: null, af: null });
+  for (let i = 0; i <= seed; i++) {
+    results.push({ sar: null, trend: null, ep: null, af: null });
+  }
 
-  for (let i = 1; i < data.length; i++) {
+  for (let i = seed + 1; i < data.length; i++) {
     const current = data[i];
     const prev = data[i - 1];
 
@@ -94,9 +113,13 @@ export function calcSAR(data: OHLCV[], options: SAROptions = {}): SARResult[] {
     // 计算新的 SAR
     let newSar = sar + af * (ep - sar);
 
-    // 确保 SAR 不会穿过前两根 K 线的极值
+    // 确保 SAR 不会穿过前两根 K 线的极值。
+    // R7-7: 回看下界从 0 收紧到 seed —— 不回看播种点之前的 bar：部分 null
+    // 的前导 bar（如 {high:3.2, low:null} 半解析行）非 null 一侧会经此处
+    // 泄漏进 clamp，使结果偏离"裁掉前导无效 bar 后重算"的等价语义。
+    // 干净数据 seed=0，表达式与历史逐位相同。
     if (trend === 1) {
-      newSar = Math.min(newSar, prev.low, data[Math.max(0, i - 2)]?.low ?? prev.low);
+      newSar = Math.min(newSar, prev.low, data[Math.max(seed, i - 2)]?.low ?? prev.low);
       if (current.low < newSar) {
         // 反转为下降趋势
         trend = -1;
@@ -111,7 +134,7 @@ export function calcSAR(data: OHLCV[], options: SAROptions = {}): SARResult[] {
         }
       }
     } else {
-      newSar = Math.max(newSar, prev.high, data[Math.max(0, i - 2)]?.high ?? prev.high);
+      newSar = Math.max(newSar, prev.high, data[Math.max(seed, i - 2)]?.high ?? prev.high);
       if (current.high > newSar) {
         // 反转为上升趋势
         trend = 1;

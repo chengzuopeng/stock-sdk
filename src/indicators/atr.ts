@@ -54,6 +54,10 @@ export function calcATR(
   }
 
   // 计算 ATR（TR 的移动平均）
+  // R7-6: 播种从"只在 i === period-1 尝试一次"改为未播种即逐窗重试 ——
+  // 此前暖机期内一根 null bar 就让整条序列 ATR 永远 null（播种条件
+  // count === period 永不满足，Wilder 分支又被 atr !== null 拦死），
+  // calcKC 连带全灭；对比 calcEMA 每根重试、calcSMA 窗口滑出即恢复。
   let atr: number | null = null;
 
   for (let i = 0; i < data.length; i++) {
@@ -62,13 +66,15 @@ export function calcATR(
       continue;
     }
 
-    if (i === period - 1) {
-      // 第一个 ATR：使用简单平均。
-      // F36: 不改 —— 这个扫窗只在 i === period-1 执行一次（整次调用 O(period)），
-      // 后续全部走 Wilder O(1) 递推，整体已是 O(n)，rolling 化无意义。
+    if (atr === null) {
+      // 播种（或暖机脏数据后的重试）：最近 period 根 TR 全部非 null 时
+      // 以简单平均播种。用窗口重扫而非增量和 —— 与 rolling-parity 的
+      // 参考实现逐位一致（增量加减的浮点顺序不同，可能差 1 ulp）；
+      // 扫窗仅发生在未播种段，播种后全程 O(1) Wilder，整体仍 O(n) 量级。
+      // 干净数据下首个播种点仍是 i === period-1，与历史输出 bitwise 一致。
       let sum = 0;
       let count = 0;
-      for (let j = 0; j < period; j++) {
+      for (let j = i - period + 1; j <= i; j++) {
         if (tr[j] !== null) {
           sum += tr[j]!;
           count++;
@@ -77,12 +83,10 @@ export function calcATR(
       if (count === period) {
         atr = sum / period;
       }
-    } else {
+    } else if (tr[i] !== null) {
       // 后续 ATR：使用 Wilder 平滑法
       // ATR = (前ATR × (N-1) + 当前TR) / N
-      if (atr !== null && tr[i] !== null) {
-        atr = (atr * (period - 1) + tr[i]!) / period;
-      }
+      atr = (atr * (period - 1) + tr[i]!) / period;
     }
 
     result.push({
