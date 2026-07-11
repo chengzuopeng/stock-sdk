@@ -8,6 +8,7 @@
 import type { NormalizedSymbol } from './types';
 import { InvalidArgumentError } from '../core/errors';
 import { lookupSpecialIndex } from './specialIndex';
+import { normalizeSymbol } from './normalize';
 
 /**
  * 交易所 → 东财 secid 数字市场前缀（仅股票类）。
@@ -115,4 +116,45 @@ export function toEastmoneySecid(ns: NormalizedSymbol): string {
 /** → 纯代码（去前缀） */
 export function toPlainCode(ns: NormalizedSymbol): string {
   return ns.code;
+}
+
+/** {@link tryToTencentSymbols} 的归一结果。 */
+export interface TencentSymbolBatch {
+  /** 成功映射的腾讯行情键（按输入顺序，跳过失败项） */
+  keys: string[];
+  /** 无法映射的输入（非法格式 / 腾讯无该市场映射，如 CSI 特殊指数码 930955） */
+  invalid: Array<{ code: string; reason: string }>;
+}
+
+/**
+ * 行情入口批量容错归一（R7-2/R7-3）：
+ * - market:'CN'：`'600036'`→`'sh600036'`、`'SH600519'`→`'sh600519'`
+ * - market:'HK'：`'00700'`/`'hk00700'`/`'700'`→`'hk00700'`
+ * - market:'US'：`'BABA'`/`'usAAPL'`→`'usBABA'`/`'usAAPL'`
+ *
+ * 【设计决策：逐码容错，不整批抛错】单个代码失败只跳过该码——与行情
+ * 解析侧"无匹配行静默丢弃"的既有语义对齐。理由：
+ * - batch.* 全市场扫描把上游代码表整表灌进来（~5600 码/次），一条脏数据
+ *   不应废掉整批已完成的网络请求；
+ * - SDK 自身支持的特殊指数码（930955/HSHCI 等）在 symbols 层合法但腾讯
+ *   无行情映射（toTencentSymbol 对 CSI 抛错）——这类输入应"跳过"而非
+ *   炸掉整个调用。
+ *
+ * 注意示例按 market 而异：`'00700'` 仅在 market:'HK' 下映射为 `hk00700`，
+ * 在 market:'CN' 下按 A 股推断为 `sz00700`（无此标的，行情侧自然无匹配）。
+ */
+export function tryToTencentSymbols(
+  codes: string[],
+  market: 'CN' | 'HK' | 'US'
+): TencentSymbolBatch {
+  const keys: string[] = [];
+  const invalid: TencentSymbolBatch['invalid'] = [];
+  for (const code of codes) {
+    try {
+      keys.push(toTencentSymbol(normalizeSymbol(code, { market })));
+    } catch (e) {
+      invalid.push({ code, reason: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return { keys, invalid };
 }

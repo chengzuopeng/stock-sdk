@@ -491,7 +491,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 符号解析（normalizeSymbol 等，不发请求）
 
-导出：`Market`, `AssetType`, `Exchange`, `SymbolRef`, `NormalizedSymbol`, `SymbolInput`, `normalizeSymbol`, `marketOf`, `toTencentSymbol`, `toEastmoneySecid`, `toPlainCode`, `EXCHANGE_TO_SECID_PREFIX`, `inferAShareExchange`, `extractVariety`, `FUTURES_EXCHANGES`
+导出：`Market`, `AssetType`, `Exchange`, `SymbolRef`, `NormalizedSymbol`, `SymbolInput`, `normalizeSymbol`, `marketOf`, `toTencentSymbol`, `toEastmoneySecid`, `toPlainCode`, `tryToTencentSymbols`, `TencentSymbolBatch`, `EXCHANGE_TO_SECID_PREFIX`, `inferAShareExchange`, `extractVariety`, `FUTURES_EXCHANGES`
 
 ### `stock-sdk/screener`
 

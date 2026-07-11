@@ -52,11 +52,18 @@ function positionalProp(p: SpecPositional): JsonSchemaProp {
   return prop;
 }
 
-/** 代码数组属性（codes[] / codes+options 形态共用）。 */
+/**
+ * 代码数组属性（codes[] / codes+options 形态共用的默认文案；
+ * 非股票命名空间用 spec.codesDesc 覆盖）。
+ * R7-2 后该承诺为真：8 个 codes 入口全部经 tryToTencentSymbols 容错归一。
+ */
 const CODES_PROP: JsonSchemaProp = {
   type: 'array',
   items: { type: 'string' },
-  description: "代码数组，带不带交易所前缀均可，如 ['sh600519','000001','600036']",
+  description:
+    "代码数组，带不带交易所前缀均可（A 股 '600036'/'sh600519'；港股 '00700'/'hk00700'；" +
+    "美股 'AAPL'/'usAAPL'）。A 股指数需带前缀（如 'sh000001'）；" +
+    '无法识别或该数据源不覆盖的代码（如中证特殊指数）会被跳过而非报错',
 };
 
 /** 取该方法 MCP 侧可见的参数。 */
@@ -69,7 +76,9 @@ function toInputSchema(spec: MethodSpec): JsonSchema {
   const properties: Record<string, JsonSchemaProp> = {};
   const required: string[] = [];
   if (spec.argShape === 'codes[]' || spec.argShape === 'codes+options') {
-    properties.codes = CODES_PROP;
+    properties.codes = spec.codesDesc
+      ? { ...CODES_PROP, description: spec.codesDesc }
+      : CODES_PROP;
     required.push('codes');
   }
   for (const pos of spec.positional ?? []) {

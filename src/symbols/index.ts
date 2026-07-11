@@ -14,6 +14,8 @@ export {
   toTencentSymbol,
   toEastmoneySecid,
   toPlainCode,
+  tryToTencentSymbols,
+  type TencentSymbolBatch,
   EXCHANGE_TO_SECID_PREFIX,
 } from './adapters';
 export { inferAShareExchange } from './infer';

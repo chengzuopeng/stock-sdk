@@ -76,6 +76,12 @@ export interface MethodSpec {
   argShape: ArgShape;
   positional?: SpecPositional[];
   params?: ParamSpec[];
+  /**
+   * codes[]/codes+options 形态下 `codes` 属性的 description 覆盖 ——
+   * 共享默认文案面向股票代码；基金等非股票命名空间（quotes.fund）
+   * 与市场受限入口（batch.byCodes 仅 A 股）用本字段给出准确表述。
+   */
+  codesDesc?: string;
   /** false → CLI-only 方法，MCP 无对应工具（如 batch.raw / blockTrade / margin）。 */
   mcp?: false;
   /**
@@ -486,6 +492,7 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '基金行情',
     mcpDesc: '获取公募基金行情（场内 / 场外，净值类）。',
     argShape: 'codes[]',
+    codesDesc: "基金代码数组，纯 6 位数字（如 ['000001','110011']），无交易所前缀概念",
   },
   {
     path: ['quotes', 'fundFlow'],
@@ -575,6 +582,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     mcpDesc: '按代码列表批量拉取完整行情。',
     argShape: 'codes+options',
     params: [BATCH_SIZE, CONCURRENCY],
+    codesDesc:
+      "A 股代码数组，带不带交易所前缀均可（如 ['sh600519','600036']）；指数需带前缀（如 'sh000001'）",
   },
   {
     path: ['batch', 'raw'],
