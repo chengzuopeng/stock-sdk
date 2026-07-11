@@ -15,7 +15,7 @@ import type {
   USMinuteKline,
   USMinuteTimeline,
 } from '../../types';
-import { normalizeSymbol } from '../../symbols';
+import { normalizeSymbol, EXCHANGE_TO_SECID_PREFIX } from '../../symbols';
 import { getUSCodeList } from '../tencent/batch';
 import { fetchEmHistoryKline } from './utils';
 import {
@@ -38,8 +38,19 @@ export interface USKlineOptions extends HistoryKlineRequestOptions {}
 
 /** 负缓存哨兵：无效 ticker 的解析结论（短 TTL，挡重试风暴不挡纠错） */
 const US_SECID_NOT_FOUND = '__NOT_FOUND__';
-const US_SECID_TTL = 30 * 24 * 60 * 60 * 1000; // 命中 30 天
+// 命中 7 天：转板（NYSE↔NASDAQ）/ 退市极罕见，TTL 到期自然重解析即可覆盖。
+// 不再对"空结果"做激进自愈——空结果绝大多数是常态（周末 / 盘前 / 超出保留
+// 期 / pre-IPO 窗口），把它当 secid 失效信号会让每次空查询都重新探测。
+const US_SECID_TTL = 7 * 24 * 60 * 60 * 1000;
 const US_SECID_NEG_TTL = 60 * 60 * 1000; // 未命中 1 小时
+
+// 探测前缀从单一来源派生（F41：NASDAQ/NYSE/AMEX → 105/106/107），
+// 新增/变更美股 venue 前缀时随 EXCHANGE_TO_SECID_PREFIX 一处生效。
+const US_PROBE_PREFIXES = [
+  EXCHANGE_TO_SECID_PREFIX.NASDAQ,
+  EXCHANGE_TO_SECID_PREFIX.NYSE,
+  EXCHANGE_TO_SECID_PREFIX.AMEX,
+];
 
 function usSecidCache(client: RequestClient): MemoryCache<string> {
   // per-client 作用域：mock/代理实例的解析结论不串给其它实例（R7-11a 基建）
@@ -48,20 +59,30 @@ function usSecidCache(client: RequestClient): MemoryCache<string> {
   });
 }
 
-interface ResolvedUsSecid {
-  secid: string;
-  /** 裸 ticker 解析路径才有；secid 直通时为 undefined */
-  ticker?: string;
-  fromCache: boolean;
+// per-client 并发解析去重（single-flight）：N 个并发冷解析同一 ticker 时，
+// 若无此表每个都会独立跑代码表 find + 最多 3 发探测（3N 放大）。
+const inflightResolves = new WeakMap<RequestClient, Map<string, Promise<string>>>();
+
+function inflightResolveMap(client: RequestClient): Map<string, Promise<string>> {
+  let m = inflightResolves.get(client);
+  if (!m) {
+    m = new Map();
+    inflightResolves.set(client, m);
+  }
+  return m;
 }
 
+/**
+ * 裸 ticker → 东财 secid。'105.AAPL' 等显式 secid（含 '100.GDAXI' raw-secid
+ * 逃生口）直通；裸 ticker 经"代码表优先 → 105/106/107 探测兜底"解析，命中缓存
+ * 7 天、未命中负缓存 1 小时。无效 ticker 抛 NotFoundError。
+ */
 async function resolveUsSecid(
   client: RequestClient,
   symbol: string
-): Promise<ResolvedUsSecid> {
+): Promise<string> {
   if (/^\d{2,3}\./.test(symbol)) {
-    // '105.AAPL' 直通；'100.GDAXI' raw-secid 逃生口不受影响
-    return { secid: symbol, fromCache: false };
+    return symbol;
   }
   const ticker = normalizeSymbol(symbol, { market: 'US' }).code;
   const cache = usSecidCache(client);
@@ -70,18 +91,37 @@ async function resolveUsSecid(
     throw new NotFoundError(`美股代码不存在或不支持: ${ticker}`, 'eastmoney');
   }
   if (hit !== undefined) {
-    return { secid: hit, ticker, fromCache: true };
+    return hit;
   }
 
+  const inflight = inflightResolveMap(client);
+  const pending = inflight.get(ticker);
+  if (pending) {
+    return pending;
+  }
+  const task = probeUsSecid(client, ticker, cache).finally(() =>
+    inflight.delete(ticker)
+  );
+  inflight.set(ticker, task);
+  return task;
+}
+
+async function probeUsSecid(
+  client: RequestClient,
+  ticker: string,
+  cache: MemoryCache<string>
+): Promise<string> {
   // ① 代码表优先：getUSCodeList 返回的本就是 '105.AAPL' 形态（6h 缓存），
   //   一次摊销请求同时解决正/负存在性，NYSE/AMEX 免串行探测。
   //   跨 provider 依赖（东财 K 线 ← 腾讯代码表）是声明的权衡：失败退②，非硬依赖。
+  let codeListConsulted = false;
   try {
     const list = await getUSCodeList(client);
+    codeListConsulted = true;
     const found = list.find((s) => s.slice(s.indexOf('.') + 1) === ticker);
     if (found) {
       cache.set(ticker, found, US_SECID_TTL);
-      return { secid: found, ticker, fromCache: false };
+      return found;
     }
   } catch {
     // 代码表不可用（网络/上游异常）→ 退探测
@@ -89,7 +129,7 @@ async function resolveUsSecid(
 
   // ② 探测兜底（代码表滞后的新股）：klt=101 & lmt=1 最小请求，
   //   参数经 buildEmKlineParams 与正式请求同构
-  for (const prefix of ['105', '106', '107']) {
+  for (const prefix of US_PROBE_PREFIXES) {
     const secid = `${prefix}.${ticker}`;
     const resp = await fetchEmHistoryKline(
       client,
@@ -98,35 +138,16 @@ async function resolveUsSecid(
     );
     if (resp.klines.length > 0) {
       cache.set(ticker, secid, US_SECID_TTL);
-      return { secid, ticker, fromCache: false };
+      return secid;
     }
   }
-  cache.set(ticker, US_SECID_NOT_FOUND, US_SECID_NEG_TTL);
+  // 仅在代码表【成功查询过且未收录】时才负缓存：代码表失败时探测全空可能是
+  // 东财软限流（HTTP 200 + data:null），把有效 ticker 负缓存 1h 是误判 —— 此时
+  // 只抛错不缓存，下次调用重试。
+  if (codeListConsulted) {
+    cache.set(ticker, US_SECID_NOT_FOUND, US_SECID_NEG_TTL);
+  }
   throw new NotFoundError(`美股代码不存在或不支持: ${ticker}`, 'eastmoney');
-}
-
-/**
- * 解析 secid 后执行取数；缓存的 secid 拉回空结果时失效重解析一次
- * （覆盖 30 天缓存窗口内转板 NYSE↔NASDAQ / 退市的自愈，单次防环）。
- * 探测请求是全历史范围（beg=19700101），合法 ticker 的重解析必然命中
- * 同一 secid → 原样返回空结果，不会把"合法的空窗口查询"误判成失效。
- */
-async function withUsSecid<T extends unknown[]>(
-  client: RequestClient,
-  symbol: string,
-  run: (secid: string) => Promise<T>
-): Promise<T> {
-  const first = await resolveUsSecid(client, symbol);
-  const result = await run(first.secid);
-  if (result.length > 0 || !first.fromCache || first.ticker === undefined) {
-    return result;
-  }
-  usSecidCache(client).delete(first.ticker);
-  const second = await resolveUsSecid(client, symbol);
-  if (second.secid === first.secid) {
-    return result;
-  }
-  return run(second.secid);
 }
 
 const getUSHistoryKlineByFactory = createHistoryKlineProvider<USHistoryKline>({
@@ -160,9 +181,8 @@ export async function getUSHistoryKline(
   symbol: string,
   options: USKlineOptions = {}
 ): Promise<USHistoryKline[]> {
-  return withUsSecid(client, symbol, (secid) =>
-    getUSHistoryKlineByFactory(client, secid, options)
-  );
+  const secid = await resolveUsSecid(client, symbol);
+  return getUSHistoryKlineByFactory(client, secid, options);
 }
 
 // ============================================================
@@ -232,7 +252,6 @@ export async function getUSMinuteKline(
   symbol: string,
   options: USMinuteKlineOptions = {}
 ): Promise<USMinuteTimeline[] | USMinuteKline[]> {
-  return withUsSecid(client, symbol, (secid) =>
-    getUSMinuteKlineByFactory(client, secid, options)
-  );
+  const secid = await resolveUsSecid(client, symbol);
+  return getUSMinuteKlineByFactory(client, secid, options);
 }
