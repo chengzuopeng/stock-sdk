@@ -14,33 +14,40 @@ import type {
 
 // ============================================================
 // R7-9: 行完整性过滤（与各解析器共置，阈值改动跟着解析器走；
-// test/unit/providers/tencent/parsers.minfields.test.ts 用 Proxy 记录
-// 实际最大访问下标，机械钉住常量与解析器不漂移）
+// test/unit/providers/tencent/parsers.minfields.test.ts 机械钉住常量恰好
+// 覆盖全部关键字段、且再少一个就会伪造某关键字段，防阈值上下漂移）
 // ============================================================
+//
+// 阈值 = 最后一个【关键 safeNumber 字段】的下标 + 1，而非"最高访问下标"。
+// R7-9 要防的是 safeNumber(undefined)=0 把 价格/涨跌幅/高低/成交额 伪造成 0；
+// 而尾部的 safeNumberOrNull 字段（52 周高低、股本、市值…）缺失只是 null，
+// 不构成伪造。用最高访问下标作阈值会把这些可空字段变成强制项，误丢字段较少
+// 的合法行（指数无五档买卖盘、ETF/权证、盘前状态等短行）——本轮 review 修正。
 
-/** parseFullQuote 最高访问 f[73]（totalShares） */
-export const FULL_QUOTE_MIN_FIELDS = 74;
-/** parseSimpleQuote 最高访问 f[10]（marketType） */
-export const SIMPLE_QUOTE_MIN_FIELDS = 11;
-/** parseHKQuote 最高固定下标 f[45]（currency 为尾部相对下标，另有语义校验兜底） */
-export const HK_QUOTE_MIN_FIELDS = 46;
-/** parseUSQuote 最高访问 f[49]（low52w） */
-export const US_QUOTE_MIN_FIELDS = 50;
-/** parseFundQuote 最高访问 f[8] */
+/** parseFullQuote 关键字段止于 f[37]（amount）；f[38+] 皆 safeNumberOrNull 可空 */
+export const FULL_QUOTE_MIN_FIELDS = 38;
+/** parseSimpleQuote 关键字段止于 f[7]（amount）；f[9] marketCap 可空、f[10] 为字符串 */
+export const SIMPLE_QUOTE_MIN_FIELDS = 8;
+/** parseHKQuote 关键字段止于 f[37]（amount）；currency 为尾部相对下标，另有语义校验兜底 */
+export const HK_QUOTE_MIN_FIELDS = 38;
+/** parseUSQuote 关键字段止于 f[37]（amount）；f[38+] 皆可空 */
+export const US_QUOTE_MIN_FIELDS = 38;
+/** parseFundQuote 覆盖到 navDate f[8]（基金行情不查指数，保留完整边界） */
 export const FUND_QUOTE_MIN_FIELDS = 9;
-/** parseFundFlow 最高访问 f[13] */
+/** parseFundFlow 关键字段止于 f[9]（totalFlow）；date f[13] 为字符串仍需保证在 */
 export const FUND_FLOW_MIN_FIELDS = 14;
-/** parsePanelLargeOrder 最高访问 f[3] */
+/** parsePanelLargeOrder 关键字段止于 f[3] */
 export const PANEL_LARGE_ORDER_MIN_FIELDS = 4;
 
 /**
- * 腾讯行情行完整性过滤：只接受请求过的 key、字段数达到解析器最高访问
- * 下标 +1、非空首字段。
+ * 腾讯行情行完整性过滤：只接受请求过的 key、字段数覆盖全部关键 safeNumber
+ * 字段（见各 MIN_FIELDS 常量）、非空首字段。
  *
- * 此前 7 个入口各自手写且阈值已分叉（quote/hk/us 用宽松 `>5`，而解析器
- * 最高读到 f[73]）：截断行通过过滤后 safeNumber(undefined)=0，涨跌幅 /
- * 高低 / 成交额被伪造成 0，与真实数据无法区分。行为变化：截断行从
- * "伪造 0 值"改为整行丢弃（v_pv_none_match 的 fields=['1'] 同样被长度门拦截）。
+ * 此前 7 个入口各自手写且阈值已分叉（quote/hk/us 用宽松 `>5`）：截断行通过
+ * 过滤后 safeNumber(undefined)=0，涨跌幅 / 高低 / 成交额被伪造成 0，与真实
+ * 数据无法区分。行为变化：缺关键字段的截断行从"伪造 0 值"改为整行丢弃
+ * （v_pv_none_match 的 fields=['1'] 同样被长度门拦截）；字段较少但关键字段
+ * 齐全的合法短行（如指数）保留，尾部可空字段为 null。
  */
 export function filterTencentRows(
   data: Array<{ key: string; fields: string[] }>,

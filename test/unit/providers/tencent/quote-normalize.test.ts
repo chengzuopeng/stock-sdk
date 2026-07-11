@@ -111,3 +111,44 @@ describe('fundFlow / largeOrder 入口归一（R7-2）', () => {
     expect(result).toHaveLength(1);
   });
 });
+
+describe('R7-9 入口级：截断行丢弃、合法短行保留（回归钉住）', () => {
+  it('getFullQuotes：缺关键字段的截断行（37 字段）被丢弃', async () => {
+    const { client } = fakeClient([row('sh600519', 37)]); // < FULL_QUOTE_MIN_FIELDS(38)
+    expect(await getFullQuotes(client, ['sh600519'])).toEqual([]);
+  });
+
+  it('getFullQuotes：关键字段齐全的合法短行（38 字段，指数无尾部可空列）被保留', async () => {
+    const { client } = fakeClient([row('sh000001', 38)]);
+    const result = await getFullQuotes(client, ['sh000001']);
+    expect(result).toHaveLength(1);
+    expect(result[0].totalShares).toBeNull(); // 尾部可空字段缺失 → null，不伪造
+  });
+
+  it('getHKQuotes：37 字段截断行丢弃，50 字段完整行保留', async () => {
+    const { client: c1 } = fakeClient([row('hk00700', 37)]);
+    expect(await getHKQuotes(c1, ['hk00700'])).toEqual([]);
+    const { client: c2 } = fakeClient([row('hk00700', 50)]);
+    expect(await getHKQuotes(c2, ['hk00700'])).toHaveLength(1);
+  });
+});
+
+describe('R7-9 一致性：7 个腾讯行情入口全部走 filterTencentRows（防新站点手写）', () => {
+  const SITES = [
+    'src/providers/tencent/quote.ts',
+    'src/providers/tencent/hkQuote.ts',
+    'src/providers/tencent/usQuote.ts',
+    'src/providers/tencent/fundQuote.ts',
+    'src/providers/tencent/fundFlow.ts',
+  ];
+
+  it.each(SITES)('%s 调用 filterTencentRows 且无裸 .fields.length 手写过滤', async (relPath) => {
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const root = fileURLToPath(new URL('../../../../', import.meta.url));
+    const src = readFileSync(root + relPath, 'utf8');
+    expect(src).toContain('filterTencentRows');
+    // 手写过滤的特征：直接对 d.fields.length 做数字比较
+    expect(/\.fields\.length\s*[><]/.test(src), '不应保留手写长度过滤').toBe(false);
+  });
+});
