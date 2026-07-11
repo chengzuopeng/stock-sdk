@@ -9,8 +9,8 @@
  *   max(500, 15×maxRecursiveLookback),纯窗口型取 requiredBars 即精确
  *   (R3-12);常规路径不切片,见终审 408404d 与 P2-7)
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { RequestClient } from '../../../src/core';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RequestClient, clearClientScopedCaches } from '../../../src/core';
 import {
   getMinuteKline,
   getHKMinuteKline,
@@ -38,6 +38,9 @@ vi.mock('../../../src/indicators', async (importOriginal) => {
 
 // 关掉 retry,避免异常分支触发 backoff 拖慢测试
 const client = new RequestClient({ retry: { maxRetries: 0 } });
+// R7-11: 模块级共享 client 的用例间缓存隔离
+beforeEach(() => clearClientScopedCaches(client));
+
 
 // kline/get 的 CSV 行:date,open,close,high,low,volume,amount,amplitude,changePercent,change,turnoverRate
 const k = (time: string) => `${time},100,101,102,99,1000,100000,2,1,1,0.5`;

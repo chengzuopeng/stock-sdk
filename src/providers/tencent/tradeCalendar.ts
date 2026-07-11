@@ -2,13 +2,11 @@
  * A 股交易日历
  */
 import type { RequestClient } from '../../core';
-import { getSharedCache, UpstreamEmptyError } from '../../core';
+import { getClientScopedCache, UpstreamEmptyError } from '../../core';
 import { TRADE_CALENDAR_URL } from '../../core/constants';
 
-const tradeCalendarCache = getSharedCache<string[]>('tencent:trade-calendar', {
-  defaultTTL: 12 * 60 * 60 * 1000,
-  maxSize: 4,
-});
+/** R7-11: 交易日历缓存按 client 隔离（此前模块级共享跨实例串数据 12h） */
+const TRADE_CALENDAR_CACHE_OPTIONS = { defaultTTL: 12 * 60 * 60 * 1000, maxSize: 4 };
 
 /**
  * 获取 A 股交易日历
@@ -17,6 +15,11 @@ const tradeCalendarCache = getSharedCache<string[]>('tencent:trade-calendar', {
  * @throws UpstreamEmptyError 上游返回空数据时（不落缓存，下次调用重新拉取）
  */
 export async function getTradingCalendar(client: RequestClient): Promise<string[]> {
+  const tradeCalendarCache = getClientScopedCache<string[]>(
+    client,
+    'tencent:trade-calendar',
+    TRADE_CALENDAR_CACHE_OPTIONS
+  );
   const calendar = await tradeCalendarCache.getOrFetch('a-share', async () => {
     const text = await client.get<string>(TRADE_CALENDAR_URL);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { RequestClient } from '../../../../src/core';
+import { RequestClient, clearClientScopedCaches } from '../../../../src/core';
 import {
   getFundDividendList,
   getFundEstimate,
@@ -10,6 +10,9 @@ import {
 
 // 关掉重试避免 500 / 网络错误测试触发 backoff，拖慢测试套件
 const client = new RequestClient({ retry: { maxRetries: 0 } });
+// R7-11: 模块级共享 client 的用例间缓存隔离
+beforeEach(() => clearClientScopedCaches(client));
+
 
 /**
  * 用 stubGlobal('fetch') 做端到端测试：

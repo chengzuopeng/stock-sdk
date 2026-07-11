@@ -505,7 +505,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 缓存层（MemoryCache / cacheThrough 等）
 
-导出：`MemoryCache`, `getSharedCache`, `clearSharedCaches`, `createCacheKey`, `CacheOptions`, `MaybePromise`, `CacheStore`, `MemoryCacheStore`, `cacheThrough`
+导出：`MemoryCache`, `getSharedCache`, `clearSharedCaches`, `configureSharedCache`, `createCacheKey`, `CacheOptions`, `MaybePromise`, `CacheStore`, `MemoryCacheStore`, `cacheThrough`
 
 ### `stock-sdk/errors`
 

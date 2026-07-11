@@ -254,7 +254,7 @@
         ]
       }
     ],
-    "methodGroupExemptions": []
+    "methodGroupExemptions": ["clearCaches"]
   },
   "forbiddenTokens": [
     "RateLimitOptions",

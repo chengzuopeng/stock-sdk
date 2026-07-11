@@ -7,7 +7,7 @@ import {
   US_LIST_URL,
   HK_LIST_URL,
   FUND_LIST_URL,
-  getSharedCache,
+  getClientScopedCache,
   UpstreamEmptyError,
   chunkArray,
   asyncPool,
@@ -30,16 +30,20 @@ interface StockListResponse {
   list: string[];
 }
 
-const codeListCache = getSharedCache<string[]>('tencent:code-lists', {
-  defaultTTL: 6 * 60 * 60 * 1000,
-  maxSize: 16,
-});
+/** R7-11: 代码表缓存按 client 隔离 —— 此前模块级共享导致 mock/代理实例
+ *  取回的数据串给其它 StockSDK 实例最长 6 小时（首个调用者的 client 独占取数）。 */
+const CODE_LIST_CACHE_OPTIONS = { defaultTTL: 6 * 60 * 60 * 1000, maxSize: 16 };
 
 async function fetchJsonCodeList(
   client: RequestClient,
   cacheKey: string,
   url: string
 ): Promise<string[]> {
+  const codeListCache = getClientScopedCache<string[]>(
+    client,
+    'tencent:code-lists',
+    CODE_LIST_CACHE_OPTIONS
+  );
   return codeListCache.getOrFetch(cacheKey, async () => {
     const data = await client.get<StockListResponse>(url, {
       responseType: 'json',
@@ -412,6 +416,11 @@ export async function getAllUSQuotesByCodes(
 export async function getFundCodeList(
   client: RequestClient
 ): Promise<string[]> {
+  const codeListCache = getClientScopedCache<string[]>(
+    client,
+    'tencent:code-lists',
+    CODE_LIST_CACHE_OPTIONS
+  );
   const codes = await codeListCache.getOrFetch('fund:full', async () => {
     const text = await client.get<string>(FUND_LIST_URL, {
       responseType: 'text',

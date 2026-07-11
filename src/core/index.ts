@@ -136,6 +136,7 @@ export {
   createCacheKey,
   getSharedCache,
   clearSharedCaches,
+  configureSharedCache,
   getClientScopedCache,
   clearClientScopedCaches,
   type CacheOptions,

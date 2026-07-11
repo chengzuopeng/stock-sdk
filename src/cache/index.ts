@@ -9,6 +9,7 @@ import {
   MemoryCache,
   getSharedCache,
   clearSharedCaches,
+  configureSharedCache,
   createCacheKey,
   type CacheOptions,
 } from '../core/cache';
@@ -17,6 +18,7 @@ export {
   MemoryCache,
   getSharedCache,
   clearSharedCaches,
+  configureSharedCache,
   createCacheKey,
   type CacheOptions,
 };

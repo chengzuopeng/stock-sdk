@@ -2,7 +2,7 @@
  * Stock SDK - 门面类
  * 统一对外接口，组合各个 service
  */
-import { RequestClient, type RequestClientOptions } from './core';
+import { RequestClient, clearClientScopedCaches, type RequestClientOptions } from './core';
 import type {
   SearchResult,
 } from './types';
@@ -76,6 +76,16 @@ export class StockSDK {
     this.dataService = new DataService(this.client);
     this.tradingCalendarService = new TradingCalendarService(this.quoteService);
     this.fundService = new FundService(this.client);
+  }
+
+  /**
+   * 清空本实例的全部内部缓存（代码表 / 交易日历 / 板块名称映射 / us-secid 解析）。
+   *
+   * R7-11 起这些缓存按实例隔离，模块级 `clearSharedCaches()` 对它们不再生效
+   * —— 长驻进程需要强刷时用本方法。
+   */
+  clearCaches(): void {
+    clearClientScopedCaches(this.client);
   }
 
   // ===== v2 命名空间 API（委托现有 service;v1 扁平方法已移除,仅余顶层 search）=====

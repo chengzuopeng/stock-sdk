@@ -6,8 +6,8 @@
  * '00700.HK' 后缀形)到不了 kline.hk(会拼出 '116.116.00700' 这类坏 secid)。
  * 收编后所有形式统一经 normalizeSymbol({market:'HK'}) + toEastmoneySecid。
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { RequestClient } from '../../../../src/core';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RequestClient, clearClientScopedCaches } from '../../../../src/core';
 import {
   getHKHistoryKline,
   getHKMinuteKline,
@@ -15,6 +15,9 @@ import {
 import { InvalidSymbolError } from '../../../../src/core/errors';
 
 const client = new RequestClient({ retry: { maxRetries: 0 } });
+// R7-11: 模块级共享 client 的用例间缓存隔离
+beforeEach(() => clearClientScopedCaches(client));
+
 
 const sampleKline =
   '2024-12-30 14:30,100.00,101.50,102.00,99.80,1234567,123456789.00,2.20,1.50,1.50,0.55';

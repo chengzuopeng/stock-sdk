@@ -1,9 +1,12 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { RequestClient } from '../../../../src/core';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RequestClient, clearClientScopedCaches } from '../../../../src/core';
 import { getAShareCodeList, getUSCodeList } from '../../../../src/providers/tencent';
 
 // 关掉 retry，避免错误响应触发 backoff
 const client = new RequestClient({ retry: { maxRetries: 0 } });
+// R7-11: 模块级共享 client 的用例间缓存隔离
+beforeEach(() => clearClientScopedCaches(client));
+
 
 describe('getAShareCodeList market filter', () => {
   afterEach(() => {

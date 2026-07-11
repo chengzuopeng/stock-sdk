@@ -17,6 +17,9 @@ const sdk = new StockSDK();
 // 跨北京午夜时漂移一天的窄窗 flake(F43 同款做法,只 fake Date 保留真实 timer)
 beforeEach(() => {
   vi.useFakeTimers({ now: Date.UTC(2026, 2, 3, 4, 0), toFake: ['Date'] });
+  // R7-11: 交易日历等已是实例级缓存,setup 的 clearSharedCaches 清不到 ——
+  // 模块级共享 sdk 需自行强刷,否则前一用例的日历 mock 泄漏到后一用例
+  sdk.clearCaches();
 });
 afterEach(() => {
   vi.useRealTimers();

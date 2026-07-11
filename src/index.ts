@@ -208,6 +208,7 @@ export {
   cacheThrough,
   MemoryCache,
   getSharedCache,
+  configureSharedCache,
   createCacheKey,
 } from './cache';
 export type { CacheStore, MaybePromise, CacheOptions } from './cache';

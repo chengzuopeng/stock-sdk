@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   MemoryCache,
   clearSharedCaches,
+  configureSharedCache,
   createCacheKey,
   getSharedCache,
   getClientScopedCache,
@@ -258,5 +259,58 @@ describe('getClientScopedCache（R7-11a 基建）', () => {
 
     expect(getClientScopedCache<string>(clientA, 'ns').get('k')).toBeUndefined();
     expect(getClientScopedCache<string>(clientB, 'ns').get('k')).toBe('b');
+  });
+});
+
+describe('getSharedCache first-wins 警告与 configureSharedCache（R7-13）', () => {
+  afterEach(() => {
+    clearSharedCaches();
+    vi.restoreAllMocks();
+  });
+
+  it('命中已存在 namespace 且 options 不等价：警告恰一次', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getSharedCache('r13:warn-once', { defaultTTL: 6000 });
+    getSharedCache('r13:warn-once', { defaultTTL: 60 });
+    getSharedCache('r13:warn-once', { defaultTTL: 60 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('configureSharedCache');
+  });
+
+  it('options 等价（get-or-create 惰性访问器用法）不警告', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getSharedCache('r13:equal-opts', { defaultTTL: 6000, maxSize: 8 });
+    getSharedCache('r13:equal-opts', { defaultTTL: 6000, maxSize: 8 });
+    getSharedCache('r13:equal-opts'); // 不传 options 同样不警告
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('configureSharedCache：namespace 不存在返回 false，存在则生效', () => {
+    expect(configureSharedCache('r13:missing', { defaultTTL: 1 })).toBe(false);
+
+    vi.useFakeTimers();
+    const cache = getSharedCache<string>('r13:configure', { defaultTTL: 60_000 });
+    cache.set('before', 'v'); // 旧 TTL 60s
+    expect(configureSharedCache('r13:configure', { defaultTTL: 100 })).toBe(true);
+    cache.set('after', 'v'); // 新 TTL 100ms
+
+    vi.advanceTimersByTime(200);
+    expect(cache.get('before')).toBe('v'); // 已存条目 expireAt 不回溯
+    expect(cache.get('after')).toBeUndefined(); // 新 TTL 生效
+    vi.useRealTimers();
+  });
+
+  it("maxSize 收缩立即淘汰至达标（含 '' 键场景，依赖 R7-11a 修复不死循环）", () => {
+    vi.useFakeTimers();
+    const cache = getSharedCache<string>('r13:shrink', { maxSize: 10 });
+    cache.set('', 'lru'); // 最早访问
+    for (let i = 0; i < 5; i++) {
+      vi.advanceTimersByTime(5);
+      cache.set(`k${i}`, String(i));
+    }
+    expect(configureSharedCache('r13:shrink', { maxSize: 2 })).toBe(true);
+    expect(cache.size).toBe(2);
+    expect(cache.get('')).toBeUndefined(); // '' 被正常淘汰
+    vi.useRealTimers();
   });
 });
