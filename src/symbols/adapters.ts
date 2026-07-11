@@ -149,9 +149,16 @@ export function tryToTencentSymbols(
 ): TencentSymbolBatch {
   const keys: string[] = [];
   const invalid: TencentSymbolBatch['invalid'] = [];
+  // 去重：别名输入（'600036' + 'sh600036'、'700' + '00700'）归一到同一 key，
+  // 不去重会让请求串重复、上游按 key 回一行、结果里出现重复行
+  const seen = new Set<string>();
   for (const code of codes) {
     try {
-      keys.push(toTencentSymbol(normalizeSymbol(code, { market })));
+      const key = toTencentSymbol(normalizeSymbol(code, { market }));
+      if (!seen.has(key)) {
+        seen.add(key);
+        keys.push(key);
+      }
     } catch (e) {
       invalid.push({ code, reason: e instanceof Error ? e.message : String(e) });
     }

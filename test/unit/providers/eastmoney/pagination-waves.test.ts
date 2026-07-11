@@ -162,3 +162,23 @@ describe('getFundFlowRank（fetchClistAllPages 波次并发）', () => {
     expect(Math.max(...pages)).toBeLessThanOrEqual(4);
   });
 });
+
+describe('fetchDatacenter concurrency 入参 coerce（review 修正）', () => {
+  const dcPage = (page: number, totalPages: number, rowsPerPage: number) => ({
+    result: {
+      pages: totalPages,
+      count: totalPages * rowsPerPage,
+      data: Array.from({ length: rowsPerPage }, (_, i) => ({ ROW: `${page}-${i}` })),
+    },
+  });
+
+  it.each([2.5, 0, -3, NaN])('concurrency=%s 不抛错，仍完整拉取', async (c) => {
+    const { client } = pagedClient((p) => dcPage(p, 4, 2));
+    const result = await fetchDatacenter(
+      client,
+      { reportName: 'RPT_TEST', concurrency: c as number },
+      (item) => item
+    );
+    expect(result.data).toHaveLength(8); // 4 页 × 2 行，无中途抛错
+  });
+});

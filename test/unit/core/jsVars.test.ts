@@ -434,3 +434,46 @@ describe('fetchJsVars (R7-10 var 全局残留防护)', () => {
     expect(r2.v_hint).toBe('kw2-result');
   });
 });
+
+describe('fetchJsVars (R7-10 残留 own property 清理，review 修正)', () => {
+  interface FakeScript {
+    src: string;
+    onload: (() => void) | null;
+    onerror: (() => void) | null;
+    parentNode: { removeChild: (el: FakeScript) => void } | null;
+  }
+  let scripts: FakeScript[];
+  let fakeWindow: Record<string, unknown>;
+  async function flush() {
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+  }
+  beforeEach(() => {
+    scripts = [];
+    fakeWindow = {};
+    __resetScriptMutex();
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const el: FakeScript = { src: '', onload: null, onerror: null, parentNode: null };
+        scripts.push(el);
+        return el;
+      },
+      head: { appendChild: (el: FakeScript) => { el.parentNode = { removeChild: () => {} }; } },
+    });
+    vi.stubGlobal('window', fakeWindow);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetScriptMutex();
+  });
+
+  it('脚本未定义的变量名读后不残留为 window own property', async () => {
+    const p = fetchJsVars<{ a: number; b: number }>('http://x/1.js', ['a', 'b']);
+    await flush();
+    fakeWindow.a = 1; // 脚本只定义 a，未定义 b
+    scripts[0].onload!();
+    await p;
+    // presetUndefined 给 b 建的 own 属性应被清理，不污染 window 命名空间
+    expect('b' in fakeWindow).toBe(false);
+    expect('a' in fakeWindow).toBe(false); // a 读完也清理
+  });
+});

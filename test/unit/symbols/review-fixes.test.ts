@@ -438,3 +438,19 @@ describe('R7-1 裸前缀不吞真实 US*/HK* ticker（2026-07 review）', () => 
     expect(normalizeSymbol('USB.US')).toMatchObject({ market: 'US', code: 'USB' });
   });
 });
+
+describe('R7-1 小写手输形收紧为纯字母（review 修正）', () => {
+  it("'usb.a'（含分隔符的 2 字母 ticker）不被误剥成 'B.A'", () => {
+    // rest 'b.a' 长度 3 但含点 → 不进全小写手输形 → 落纯字母分支
+    expect(normalizeSymbol('usb.a')).toMatchObject({ market: 'US', code: 'USB.A' });
+  });
+
+  it('全小写纯字母手输形仍剥前缀（钉死行为不变）', () => {
+    expect(normalizeSymbol('usaapl').code).toBe('AAPL');
+    expect(normalizeSymbol('hkhsi')).toMatchObject({ market: 'HK', code: '00HSI' });
+  });
+
+  it('规范形的点分 rest 仍剥（usBRK.A → BRK.A）', () => {
+    expect(normalizeSymbol('usBRK.A')).toMatchObject({ market: 'US', code: 'BRK.A' });
+  });
+});

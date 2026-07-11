@@ -37,11 +37,11 @@ describe('tryToTencentSymbols', () => {
     expect(invalid[0].code).toBe('930955');
   });
 
-  it('HK：带不带 hk 前缀均可，自动补零', () => {
+  it('HK：带不带 hk 前缀均可，自动补零（同 key 去重）', () => {
+    // '00700' 与 '700' 归一到同一 hk00700 → 去重
     expect(tryToTencentSymbols(['00700', 'hk09988', '700'], 'HK').keys).toEqual([
       'hk00700',
       'hk09988',
-      'hk00700',
     ]);
   });
 
@@ -150,5 +150,19 @@ describe('R7-9 一致性：7 个腾讯行情入口全部走 filterTencentRows（
     expect(src).toContain('filterTencentRows');
     // 手写过滤的特征：直接对 d.fields.length 做数字比较
     expect(/\.fields\.length\s*[><]/.test(src), '不应保留手写长度过滤').toBe(false);
+  });
+});
+
+describe('tryToTencentSymbols 去重（review 修正）', () => {
+  it('别名输入归一到同一 key 时去重，不产生重复请求/重复行', () => {
+    expect(tryToTencentSymbols(['600036', 'sh600036'], 'CN').keys).toEqual(['sh600036']);
+    expect(tryToTencentSymbols(['700', '00700', 'hk00700'], 'HK').keys).toEqual(['hk00700']);
+  });
+
+  it('getFullQuotes：别名输入只请求一次、只返回一行', async () => {
+    const { client, getTencentQuote } = fakeClient([row('sh600036', 80)]);
+    const result = await getFullQuotes(client, ['600036', 'sh600036']);
+    expect(getTencentQuote).toHaveBeenCalledWith('sh600036');
+    expect(result).toHaveLength(1);
   });
 });

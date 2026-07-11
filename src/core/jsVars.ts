@@ -185,11 +185,14 @@ function browserFetchJsVars<T extends object>(
         // undefined 视为"本次脚本未定义"，不采信上一轮残留（R7-10）
         if (name in win && win[name] !== undefined) {
           out[name] = win[name];
-          try {
-            delete win[name];
-          } catch {
-            win[name] = undefined; // var 全局删不掉：置 undefined 兜底清理
-          }
+        }
+        // 无论脚本是否定义，都清理该名：presetUndefined 建的 configurable own
+        // 属性会被 delete 掉（不残留 window 命名空间污染），脚本声明的
+        // non-configurable var 删不掉则置 undefined 兜底
+        try {
+          delete win[name];
+        } catch {
+          win[name] = undefined;
         }
       }
       cleanup();

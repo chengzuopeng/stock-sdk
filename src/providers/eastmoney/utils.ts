@@ -34,7 +34,11 @@ export async function fetchPagesInWaves<T>(
   fetchPage: (page: number) => Promise<WavePage<T> | null>
 ): Promise<T[]> {
   const out: T[] = [];
-  const width = Math.max(1, concurrency);
+  // concurrency 是对外可传的（DatacenterQuery.concurrency），coerce 而非抛错：
+  // 非有限值 → 1；小数向下取整（asyncPool 的 assertPositiveInteger 会拒绝非整数）
+  const width = Number.isFinite(concurrency)
+    ? Math.max(1, Math.floor(concurrency))
+    : 1;
   for (let start = firstPage; start <= lastPage; start += width) {
     const pages: number[] = [];
     for (let p = start; p <= Math.min(start + width - 1, lastPage); p++) {

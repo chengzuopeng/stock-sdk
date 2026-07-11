@@ -355,8 +355,12 @@ export function normalizeSymbol(
       // ticker 归 US——全大写前缀形态改用点分（'AAPL.US'）或 market hint。
       const caseCanonical =
         code0.startsWith(p) && // p 恒为小写；startsWith 大小写敏感 ⇒ 原文前缀即小写
+        // 规范形：小写前缀 + 大写开头 rest（含 . / - 供 BRK.A 类）
         (/^[A-Z][A-Za-z0-9.\-]*$/.test(rest) ||
-          (rest.length >= 3 && /^[a-z][a-z0-9.\-]*$/.test(rest)));
+          // 全小写手输形：纯小写【字母】且 ≥3。收紧为纯字母（不含 . / -）——
+          // 否则 'usb.a'（rest 'b.a' 长度 3）会被误剥成 'B.A'；真实 US* ticker
+          // 的 rest 都是 ≤2 纯字母，长度≥3 的纯小写不与之冲突
+          /^[a-z]{3,}$/.test(rest));
       const restOk =
         s.market === 'CN' ? /^\d+$/.test(rest) : /^\d+$/.test(rest) || caseCanonical;
       if (restOk) {
