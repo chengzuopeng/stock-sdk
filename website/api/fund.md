@@ -138,7 +138,7 @@ interface FundNavHistory {
 interface FundNavPoint {
   date: string;                // 净值日期 YYYY-MM-DD
   timestamp: number | null;    // UTC 毫秒；无法解析为 null
-  nav: number;                 // 单位净值
+  nav: number | null;          // 单位净值（该行缺失/非数值为 null，v2.4.0 起）
   accNav: number | null;       // 累计净值（对齐失败为 null）
   dailyReturn: number | null;  // 日增长率（百分数，如 1.23）
   unitMoney: string;           // 每万份收益（货币基金有意义；其余多为空串）

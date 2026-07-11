@@ -97,6 +97,15 @@ interface NormalizedSymbol {
 > Hong Kong codes shorter than 5 digits are zero-padded: `700` → `00700`, `hk700` → `00700`.
 > US tickers are upper-cased: `aapl` → `AAPL`.
 
+::: warning hk / us prefix + letter codes: stripping rules (tightened in v2.4.0)
+Letter rests inherently collide with **real US tickers** starting with `US*` / `HK*` (USB / USO / USFD / HKD…). Only two unambiguous shapes strip the prefix:
+
+- **Canonical**: lowercase prefix + uppercase-led rest — `usAAPL` / `usBRK.A` / `hkHSI`
+- **All-lowercase**: lowercase prefix with an all-lowercase rest of length ≥ 3 — `usaapl` / `hkhsi`
+
+Everything else (`USB`, `usb`, `HKD`, `USAAPL`) parses as a **full ticker** in the US market. For all-uppercase prefixed forms (`USAAPL`), use the canonical form, dotted `AAPL.US`, or a `market` hint. Digit rests (`hk00700` / `HK00700` / `us600519`) are unaffected and strip under any casing.
+:::
+
 ### Special indices (CSI / Hang Seng / overseas)
 
 Some indices use dedicated Eastmoney secid market prefixes (`2` / `124` / `100`) instead of exchange-based inference. The SDK recognizes them via **code-shape rules plus a named registry**, and `assetType` is always `'index'`:
