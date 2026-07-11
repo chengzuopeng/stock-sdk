@@ -1,7 +1,62 @@
 /**
  * 东方财富 - 通用工具函数
  */
-import { RequestClient, addDays } from '../../core';
+import { RequestClient, addDays, asyncPool } from '../../core';
+
+/** {@link fetchPagesInWaves} 单页取数结果。 */
+export interface WavePage<T> {
+  value: T;
+  /**
+   * 本页是"终止页"（如 clist 短页 = 已到结尾）：保留本页内容，
+   * 但其后所有页不再请求 / 不再采信。
+   */
+  terminal?: boolean;
+}
+
+/**
+ * 波次并发翻页（R7-14，datacenter / fetchPaginatedData / fetchClistAllPages 共用）。
+ *
+ * 首页由调用方串行探明总页数后，其余页按 concurrency 一波波并发拉取。
+ * 语义与串行 break 对齐 —— fetchPage 返回 null（坏页/空页）时丢弃该页
+ * 及其后所有内容并停止调度后续波，结果恒为**连续前缀**：时序数据不会
+ * 出现中部静默空洞，跨页行号（rank/index 契约）与串行完全一致。
+ * 单波内已发出的请求无法取消，请求浪费上限 = 并发数 - 1 页
+ * （对齐 F7 的请求放大防护思路；futuresGlobal 因 F7 钉死用例不并行化）。
+ *
+ * ⚠️ 默认部署无 RateLimiter（仅用户显式配置时创建），并发直接打上游，
+ * 因此默认并发取保守值；已按 request-governance 示例配置限速的用户，
+ * 墙钟收益受限速地板约束。
+ */
+export async function fetchPagesInWaves<T>(
+  firstPage: number,
+  lastPage: number,
+  concurrency: number,
+  fetchPage: (page: number) => Promise<WavePage<T> | null>
+): Promise<T[]> {
+  const out: T[] = [];
+  const width = Math.max(1, concurrency);
+  for (let start = firstPage; start <= lastPage; start += width) {
+    const pages: number[] = [];
+    for (let p = start; p <= Math.min(start + width - 1, lastPage); p++) {
+      pages.push(p);
+    }
+    const wave = await asyncPool(
+      pages.map((p) => () => fetchPage(p)),
+      width,
+      true
+    );
+    for (const page of wave) {
+      if (page === null) {
+        return out; // 坏页：前缀截断（与串行 break 一致）
+      }
+      out.push(page.value);
+      if (page.terminal) {
+        return out; // 终止页：保留本页，其后丢弃
+      }
+    }
+  }
+  return out;
+}
 
 /**
  * 把 YYYYMMDD 转为 YYYY-MM-DD（datacenter filter 要求横线格式）。
@@ -97,46 +152,56 @@ export async function fetchPaginatedData<T>(
   pageSize: number = 100,
   dataMapper: (item: Record<string, unknown>, index: number) => T
 ): Promise<T[]> {
-  const allData: T[] = [];
-  let page = 1;
-  let total = 0;
-
-  do {
+  const fetchPage = async (
+    page: number
+  ): Promise<{ total?: number; diff: Record<string, unknown>[] } | null> => {
     const params = new URLSearchParams({
       ...baseParams,
       pn: String(page),
       pz: String(pageSize),
       fields: fieldsStr,
     });
-
     const url = `${baseUrl}?${params.toString()}`;
     const json = await client.get<{
       data?: { total?: number; diff?: Record<string, unknown>[] };
     }>(url, { responseType: 'json' });
-
     const data = json?.data;
     if (!data || !Array.isArray(data.diff)) {
-      break;
+      return null;
     }
+    return { total: data.total, diff: data.diff };
+  };
 
-    if (page === 1) {
-      total = data.total ?? 0;
+  // R7-14: 首页串行探明 total，其余页波次并发（前缀连续语义，见 fetchPagesInWaves）。
+  // 空页保护（F7 同款）：服务端高报 total 时越界页返回空 diff —— 空页即结束，
+  // 并行版由 null 前缀截断承接，不再有无限翻页面。
+  const allData: T[] = [];
+  const first = await fetchPage(1);
+  if (!first || first.diff.length === 0) {
+    return allData;
+  }
+  const total = first.total ?? 0;
+  const appendRows = (rows: Record<string, unknown>[]) => {
+    // 保持既有 1-based 跨页连续行号契约
+    allData.push(...rows.map((item, idx) => dataMapper(item, allData.length + idx + 1)));
+  };
+  appendRows(first.diff);
+
+  const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 1;
+  if (totalPages <= 1 || allData.length >= total) {
+    return allData;
+  }
+
+  const restPages = await fetchPagesInWaves(2, totalPages, 3, async (page) => {
+    const result = await fetchPage(page);
+    if (!result || result.diff.length === 0) {
+      return null; // 坏页/空页：结束（与串行 break 一致）
     }
-
-    const items = data.diff.map((item, idx) =>
-      dataMapper(item, allData.length + idx + 1)
-    );
-    allData.push(...items);
-
-    // 空页保护：若服务端高报 total，越界页会返回空 diff（空数组而非 null），
-    // 此时 allData 不再增长而 allData.length < total 恒成立，会无限翻页。
-    // 一旦某页无数据即视为已到结尾，主动跳出。
-    if (items.length === 0) {
-      break;
-    }
-
-    page++;
-  } while (allData.length < total);
+    return { value: result.diff };
+  });
+  for (const rows of restPages) {
+    appendRows(rows);
+  }
 
   return allData;
 }

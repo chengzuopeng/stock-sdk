@@ -13,6 +13,7 @@ import {
   toNumberSafe,
   InvalidArgumentError,
 } from '../../core';
+import { fetchPagesInWaves } from './utils';
 import type {
   StockFundFlowDaily,
   FundFlowRankItem,
@@ -233,13 +234,12 @@ async function fetchClistAllPages(
   client: RequestClient,
   baseParams: Record<string, string>,
   pageSize = 100,
-  maxPages = 1000
+  maxPages = 1000,
+  concurrency = 3
 ): Promise<Record<string, unknown>[]> {
-  const allItems: Record<string, unknown>[] = [];
-  let page = 1;
-  let total = 0;
-
-  do {
+  const fetchPage = async (
+    page: number
+  ): Promise<{ total?: number; diff: Record<string, unknown>[] } | null> => {
     const params = new URLSearchParams({
       ...baseParams,
       pn: String(page),
@@ -248,15 +248,44 @@ async function fetchClistAllPages(
     const url = `${EM_CLIST_URL}?${params.toString()}`;
     const json = await client.get<ClistResponse>(url, { responseType: 'json' });
     const data = json?.data;
-    if (!data || !Array.isArray(data.diff)) break;
-    if (page === 1) total = data.total ?? 0;
-    allItems.push(...data.diff);
-    if (allItems.length >= total || data.diff.length < pageSize) break;
-    page++;
-  } while (allItems.length < total && page <= maxPages);
+    if (!data || !Array.isArray(data.diff)) {
+      return null;
+    }
+    return { total: data.total, diff: data.diff };
+  };
+
+  // R7-14: 首页串行探明 total（ClistResponse 无 pages 字段，页数由
+  // ceil(total/pageSize) 推导），其余页波次并发；短页 = 终止页（已到结尾），
+  // 保留其内容、其后不再请求 —— 与串行版的短页早停语义一致。
+  // 此前 ~5600 只全市场资金流排名 ≈ 57 次严格串行往返（8-10s 墙钟）。
+  const allItems: Record<string, unknown>[] = [];
+  const first = await fetchPage(1);
+  if (!first) {
+    return allItems;
+  }
+  const total = first.total ?? 0;
+  allItems.push(...first.diff);
+  if (allItems.length >= total || first.diff.length < pageSize) {
+    return allItems;
+  }
+
+  const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 1;
+  const lastPage = Math.min(totalPages, maxPages);
+  const restPages = await fetchPagesInWaves(2, lastPage, concurrency, async (page) => {
+    const result = await fetchPage(page);
+    if (!result || result.diff.length === 0) {
+      return null;
+    }
+    return { value: result.diff, terminal: result.diff.length < pageSize };
+  });
+  for (const rows of restPages) {
+    allItems.push(...rows);
+  }
 
   // 命中安全阀但仍未拉完时，提示调用方避免静默截断
-  if (page > maxPages && allItems.length < total) {
+  // （坏页/短页的前缀截断保持串行版语义，不在此列）
+  const fetchedAllRequested = restPages.length === lastPage - 1;
+  if (totalPages > maxPages && fetchedAllRequested && allItems.length < total) {
     // eslint-disable-next-line no-console
     console.warn(
       `[stock-sdk] fetchClistAllPages truncated at maxPages=${maxPages} ` +
