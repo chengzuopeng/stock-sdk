@@ -93,7 +93,8 @@ function resolveMethod(sdk: unknown, path: string[]): (args: unknown[]) => unkno
   // walker 收编进 spec/resolve(P3-13),与 CLI dispatch.invokeMethod 同一实现
   const resolved = resolveSdkMethod(sdk, path);
   if (!resolved) {
-    // spec 路径静态可信（contract 测试全量覆盖），此处仅防御性兜底
+    // spec 路径与 options 键集由 test/unit/spec/resolve-coverage.test.ts 全量钉住，
+    // 此处仅防御性兜底
     throw new Error(`SDK 上不存在方法: ${path.join('.')}`);
   }
   return (args) => resolved.fn.apply(resolved.parent, args);
