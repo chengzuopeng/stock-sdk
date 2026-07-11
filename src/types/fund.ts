@@ -79,8 +79,11 @@ export interface FundNavPoint {
   date: string;
   /** 净值日期对应的毫秒时间戳（数据源原值，UTC 当日 00:00） */
   timestamp: number | null;
-  /** 单位净值 */
-  nav: number;
+  /**
+   * 单位净值；上游该行净值缺失 / 非数值时为 `null`
+   * （v2.4.0 起从 `number` 放宽，与 accNav / dailyReturn 的可空口径一致）
+   */
+  nav: number | null;
   /** 累计净值；与单位净值数组按 timestamp 对齐，无法对齐时为 `null` */
   accNav: number | null;
   /** 日增长率（%）；无值时为 `null` */

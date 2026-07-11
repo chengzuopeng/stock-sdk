@@ -198,6 +198,16 @@ interface FundNavRaw {
   Data_ACWorthTrend?: Array<[number, number]>;
 }
 
+/**
+ * 上游行时间戳有效性门（R7-8，与 parsePositions 同款防御）：
+ * timestampToDate 对 NaN/Infinity/字符串会在 Intl 层抛 RangeError（一行脏数据
+ * 毁掉整个几千行结果）；x 为 undefined 更隐蔽 —— todayInTz 的默认参数会落到
+ * Date.now()，静默产出"今天"的幽灵行。
+ */
+function isFiniteTs(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+
 function timestampToDate(ts: number): string {
   // pingzhongdata 的 x 是「北京时间当日 00:00」的毫秒数（= 16:00 UTC，每条对应 A 股
   // 一个交易日）。必须按北京时区取日期：直接切 UTC ISO 会得到前一天（早 8 小时），
@@ -249,22 +259,26 @@ export async function getFundNavHistory(
   );
 
   const trend = vars.Data_netWorthTrend ?? [];
-  // 把累计净值按 timestamp 建索引，O(1) 对齐
-  const accMap = new Map<number, number>();
+  // 把累计净值按 timestamp 建索引，O(1) 对齐。
+  // R7-8: 建索引与取值同样过校验 —— 上游 [ts,"1.234"] 这类字符串 y（JSON 合法）
+  // 此前经裸 as number 直通，运行时类型违反 accNav: number | null 声明
+  const accMap = new Map<number, number | null>();
   for (const row of vars.Data_ACWorthTrend ?? []) {
-    if (Array.isArray(row) && row.length >= 2) {
-      accMap.set(row[0], row[1]);
+    if (Array.isArray(row) && row.length >= 2 && isFiniteTs(row[0])) {
+      accMap.set(row[0], toFiniteNumberOrNull(row[1]));
     }
   }
 
-  const items: FundNavPoint[] = trend.map((p) => ({
-    date: timestampToDate(p.x),
-    timestamp: p.x,
-    nav: p.y,
-    accNav: accMap.has(p.x) ? (accMap.get(p.x) as number) : null,
-    dailyReturn: toFiniteNumberOrNull(p.equityReturn),
-    unitMoney: p.unitMoney ?? '',
-  }));
+  const items: FundNavPoint[] = trend
+    .filter((p) => p && isFiniteTs(p.x))
+    .map((p) => ({
+      date: timestampToDate(p.x),
+      timestamp: p.x,
+      nav: toFiniteNumberOrNull(p.y),
+      accNav: accMap.get(p.x) ?? null,
+      dailyReturn: toFiniteNumberOrNull(p.equityReturn),
+      unitMoney: p.unitMoney ?? '',
+    }));
 
   return {
     code: vars.fS_code ?? code,
@@ -469,20 +483,23 @@ export async function getFundRankHistory(
   );
 
   const series = vars.Data_rateInSimilarType ?? [];
-  const percentMap = new Map<number, number>();
+  // R7-8: 与 navHistory 同款 —— 建索引/取值均过校验，不再裸 as number
+  const percentMap = new Map<number, number | null>();
   for (const row of vars.Data_rateInSimilarPersent ?? []) {
-    if (Array.isArray(row) && row.length >= 2) {
-      percentMap.set(row[0], row[1]);
+    if (Array.isArray(row) && row.length >= 2 && isFiniteTs(row[0])) {
+      percentMap.set(row[0], toFiniteNumberOrNull(row[1]));
     }
   }
 
-  const items: FundRankPoint[] = series.map((p) => ({
-    date: timestampToDate(p.x),
-    timestamp: p.x,
-    rank: toFiniteNumberOrNull(p.y),
-    total: toFiniteNumberOrNull(p.sc),
-    percentile: percentMap.has(p.x) ? (percentMap.get(p.x) as number) : null,
-  }));
+  const items: FundRankPoint[] = series
+    .filter((p) => p && isFiniteTs(p.x))
+    .map((p) => ({
+      date: timestampToDate(p.x),
+      timestamp: p.x,
+      rank: toFiniteNumberOrNull(p.y),
+      total: toFiniteNumberOrNull(p.sc),
+      percentile: percentMap.get(p.x) ?? null,
+    }));
 
   return {
     code: vars.fS_code ?? code,
@@ -621,8 +638,8 @@ function parseAssetAllocation(raw: FundProfileRaw['Data_assetAllocation']): Fund
 function parsePositions(raw: Array<[number, number]> | undefined): FundPositionPoint[] {
   if (!raw) return [];
   return raw
-    // 过滤非有限时间戳：timestampToDate(NaN/Infinity) 内部 Intl 会抛 RangeError
-    .filter(([ts]) => typeof ts === 'number' && Number.isFinite(ts))
+    // 过滤非有限时间戳（收编到共享的 isFiniteTs，与 nav/rank 同一份防御）
+    .filter((row) => isFiniteTs(row[0]))
     .map(([ts, pos]) => ({
       date: timestampToDate(ts),
       timestamp: ts,
