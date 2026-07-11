@@ -342,9 +342,23 @@ export function normalizeSymbol(
       const rest = code0.slice(p.length);
       const s = PREFIX_MAP[p];
       // A 股代码无字母：CN 系前缀(sh/sz/bj)要求 rest 全数字，否则不当作前缀
-      // （如 'SHW'/'SHOP' 是美股 ticker，不应被 'sh' 前缀吞成 A 股）；hk/us 允许字母
+      // （如 'SHW'/'SHOP' 是美股 ticker，不应被 'sh' 前缀吞成 A 股）。
+      // R7-1: hk/us 前缀的字母 rest 与 'US*'/'HK*' 开头的真实美股 ticker
+      // （USB/USO/USFD/HKD/HKIT...）天然冲突，收紧为三种无歧义形态：
+      // - 数字 rest：任意大小写前缀都剥（'hk00700'/'HK00700'/'us600519'，
+      //   数字码不与任何字母 ticker 冲突，行为与历史一致）；
+      // - 规范形：原文前缀为小写 + rest 以大写开头（'usAAPL'/'hkHSI'/'usBRK.A'，
+      //   即 toTencentSymbol 自身的产出形态；'.'/'-' 供 BRK.A 类 ticker）；
+      // - 全小写手输形：前缀小写 + rest 全小写且长度 ≥3（'usaapl'/'hkhsi'；
+      //   真实 US** ticker 的 rest 均 ≤2 字母，无冲突面）。
+      // 其余（'USB'/'usb'/'HKD'/'USAAPL'）不剥前缀，落到纯字母分支按完整
+      // ticker 归 US——全大写前缀形态改用点分（'AAPL.US'）或 market hint。
+      const caseCanonical =
+        code0.startsWith(p) && // p 恒为小写；startsWith 大小写敏感 ⇒ 原文前缀即小写
+        (/^[A-Z][A-Za-z0-9.\-]*$/.test(rest) ||
+          (rest.length >= 3 && /^[a-z][a-z0-9.\-]*$/.test(rest)));
       const restOk =
-        s.market === 'CN' ? /^\d+$/.test(rest) : /^[0-9A-Za-z]+$/.test(rest);
+        s.market === 'CN' ? /^\d+$/.test(rest) : /^\d+$/.test(rest) || caseCanonical;
       if (restOk) {
         // 特殊指数码形与 sh/sz/bj/hk 前缀断言矛盾 → 与后缀/hint 轴同口径拒绝
         // 并指引(us 前缀除外:纯字母码属真实美股 ticker 命名空间)
@@ -359,7 +373,7 @@ export function normalizeSymbol(
         }
         const code =
           s.market === 'HK'
-            ? rest.padStart(5, '0')
+            ? rest.toUpperCase().padStart(5, '0') // 字母指数码统一大写（'hkhsi'→'00HSI'）
             : s.market === 'US'
               ? rest.toUpperCase()
               : rest;

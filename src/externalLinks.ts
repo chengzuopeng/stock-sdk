@@ -99,18 +99,12 @@ function normalizeSearchTarget(result: SearchResult): NormalizedSearchTarget {
     };
   }
 
-  // search.ts 拼接 code = market + pureCode,而美股 pureCode 可带交易所后缀
-  // (如 'AAPL.OQ'):点号会让 symbols 层的 us 前缀剥离失手(其前缀规则要求
-  // 剩余部分为纯字母数字),这里先还原 pureCode 再交给 normalizeSymbol。
-  // 仅在 us hint 或无 hint 时做,与旧实现的剥离范围一致。
-  const code =
-    hinted === undefined || hinted === 'us'
-      ? rawCode.replace(/^us(?=[A-Za-z.]+$)/i, '')
-      : rawCode;
-
+  // R7-1: 本地 us 前缀预剥离已收编进 symbols 层 —— normalizeSymbol 的规范形
+  // 规则现已覆盖带点 rest（'usAAPL.OQ'/'usBRK.A'），且能区分 'USB' 这类真实
+  // ticker（大写前缀不剥）。不再维护平行实现,symbols 层的前缀修复从此直达链接生成。
   try {
     const ns = normalizeSymbol(
-      code,
+      rawCode,
       hinted ? { market: LINK_MARKET_HINT[hinted] } : undefined
     );
     // 期货/板块等非股票符号:旧实现一律 unknown 走搜索兜底,保持

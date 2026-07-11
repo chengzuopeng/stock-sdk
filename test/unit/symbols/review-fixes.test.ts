@@ -391,3 +391,50 @@ describe('R3-14 SECID_ADMISSIBLE_EXCHANGES 与 adapters 前缀表一致性', () 
     }
   });
 });
+
+describe('R7-1 裸前缀不吞真实 US*/HK* ticker（2026-07 review）', () => {
+  // 修复目标：'USB'（US Bancorp）等真实 ticker 不再被 us/hk 前缀吞掉
+  it.each(['USB', 'usb', 'USO', 'USFD', 'HKD', 'hkd', 'HKIT'])(
+    '%s → 完整 ticker 归 US',
+    (t) => {
+      expect(normalizeSymbol(t)).toMatchObject({ market: 'US', code: t.toUpperCase() });
+    }
+  );
+
+  it('规范形（小写前缀 + 大写开头 rest）继续剥前缀', () => {
+    expect(normalizeSymbol('usAAPL')).toMatchObject({ market: 'US', code: 'AAPL' });
+    expect(normalizeSymbol('usBRK.A')).toMatchObject({ market: 'US', code: 'BRK.A' });
+    expect(normalizeSymbol('usAAPL.OQ')).toMatchObject({ market: 'US', code: 'AAPL.OQ' });
+    expect(normalizeSymbol('hkHSI')).toMatchObject({
+      market: 'HK',
+      code: '00HSI', // padStart 与 externalLinks 既有行为一致
+    });
+  });
+
+  it('全小写手输形（rest ≥3）继续剥前缀', () => {
+    expect(normalizeSymbol('usaapl').code).toBe('AAPL');
+    expect(normalizeSymbol('hkhsi')).toMatchObject({ market: 'HK', code: '00HSI' });
+  });
+
+  it('数字 rest 任意大小写前缀都剥（与历史一致）', () => {
+    expect(normalizeSymbol('hk00700')).toMatchObject({ market: 'HK', code: '00700' });
+    expect(normalizeSymbol('HK00700')).toMatchObject({ market: 'HK', code: '00700' });
+    expect(normalizeSymbol('us600519')).toMatchObject({ market: 'US', code: '600519' });
+  });
+
+  it('特殊指数冲突检查在剥前缀后照跑：hkHSHCI 仍抛带指引的 InvalidSymbolError', () => {
+    expect(() => normalizeSymbol('hkHSHCI')).toThrow(InvalidSymbolError);
+    expect(() => normalizeSymbol('hkHSHCI')).toThrow(/HSHCI/);
+  });
+
+  it('已知取舍：全大写前缀 + 字母 rest 不再剥（改用点分或 hint）', () => {
+    expect(normalizeSymbol('USAAPL')).toMatchObject({ market: 'US', code: 'USAAPL' });
+    expect(normalizeSymbol('HKHSI')).toMatchObject({ market: 'US', code: 'HKHSI' });
+    // 点分/hint 通道不受影响
+    expect(normalizeSymbol('AAPL.US')).toMatchObject({ market: 'US', code: 'AAPL' });
+  });
+
+  it('点分形式保持既有保护（USB.US 不剥）', () => {
+    expect(normalizeSymbol('USB.US')).toMatchObject({ market: 'US', code: 'USB' });
+  });
+});
