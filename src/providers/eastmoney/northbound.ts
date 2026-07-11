@@ -13,6 +13,7 @@ import {
   toNumberSafe,
   InvalidArgumentError,
 } from '../../core';
+import { normalizeSymbol, toPlainCode } from '../../symbols';
 import type {
   NorthboundDirection,
   NorthboundMarket,
@@ -290,7 +291,11 @@ export async function getNorthboundIndividual(
   symbol: string,
   options: NorthboundHistoryOptions = {}
 ): Promise<NorthboundIndividualItem[]> {
-  const pureSymbol = symbol.replace(/^(sh|sz|bj)/i, '');
+  // R7-12: 收编到 symbols 层归一 —— 此前的正则各写各的（dividend 漏 /i，
+  // 'SH600519' 静默返回空而兄弟接口正常），且 '600519.SH' / '1.600519' 等
+  // normalizeSymbol 系工具接受的形态在 datacenter filter 里同样静默空。
+  // 行为变化：无法解析的垃圾输入从"静默空数组"改为抛 InvalidSymbolError。
+  const pureSymbol = toPlainCode(normalizeSymbol(symbol, { market: 'CN' }));
   const { startDate, endDate } = options;
 
   const filters: string[] = [`(SECURITY_CODE="${pureSymbol}")`];
