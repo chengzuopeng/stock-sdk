@@ -26,6 +26,9 @@ This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 
 - **Datacenter symbol normalization covers all shapes (R7-12)**: `SH600519` / `600519.SH` / `1.600519` no longer silently return empty.
 - **Cross-instance cache leakage (R7-11)**: code lists / calendar / board maps are now instance-scoped.
 - **`evictLRU` empty-string key**: eviction no longer stalls once `''` is the LRU entry.
+- **Backtest input validation**: invalid `fee` (incl. per-side `{buy, sell}`), `initialCapital` or `positionSize` throws `InvalidArgumentError` instead of producing silent garbage reports ("0 drawdown with sign-flipped returns").
+- **Backtest null-hole bars**: `null` elements in `klines` are treated as invalid bars and skipped for `strategy` — the engine no longer throws bare `TypeError`s.
+- **`sortBy` numeric strings participate in ordering**: values like `'999999'` are normalized via `Number()` instead of sinking as non-finite and hiding the true maximum.
 
 ### Behavior changes (read before upgrading)
 
@@ -37,6 +40,11 @@ This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 
 - **`getSharedCache` warns on non-equivalent options**; use `configureSharedCache()` for runtime reconfig.
 - **Datacenter pagination is now concurrent (R7-14)**: 3-way waves by default; no RateLimiter by default — configure `rateLimit` if throttling matters.
 - **All-uppercase prefix + letters no longer strips (R7-1)**: `'USAAPL'` → `US/USAAPL`; use `usAAPL` / `AAPL.US` / a `market` hint.
+- **Backtest signals on invalid-price bars now defer** (previously silently dropped): a `buy`/`sell` emitted on a suspended / NaN bar fills at the next valid-price bar, so one-shot crossover signals are no longer lost; a pending sell left at end-of-data closes at the last valid price as a strategy exit.
+- **Backtest forced-close records are self-consistent**: `Trade` gains a `forced` flag; `exitIndex` now points at the last **valid-price** bar (same bar as `exitPrice`), settlement is booked at the exit bar — no more phantom fee dips across suspended tails.
+- **Backtest `maxDrawdown` baselines at initial capital**: the entry fee of a first-bar buy is no longer invisible (identical economics previously reported 2× different drawdowns depending on the entry bar).
+- **Strategy's third parameter renamed `history` → `series`**: it is the full array including future bars; renamed + documented against look-ahead bias (type-level parameter name only, no call-site breakage).
+- **`sortBy` `direction` is strictly validated**: anything other than `'asc'`/`'desc'` (e.g. `'ASC'`) throws `InvalidArgumentError` instead of silently sorting descending.
 
 ### Added
 
@@ -49,6 +57,7 @@ This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 
 - **MCP Skills (Prompts) — 7 scenario analysis skills**: the server implements `prompts/list` + `prompts/get`; core 4 + full 3, scoped by `STOCK_SDK_MCP_PROMPTS`, read-only. See [AI Skills](/en/skills/).
 - **`get_kline_signals` + `sdk.kline.signals(symbol, options)`**: detects 14 technical signals (golden/death crosses, overbought/oversold, BOLL breakouts, SAR reversals); `maFast` / `maSlow` tunable.
 - **Full spec ↔ SDK contract tests (R7-15)**: method paths and MCP options keys are mechanically pinned; a `prompts-contract` was added for skills.
+- **Backtest engine upgrades** (`stock-sdk/screener`, see the new [screener docs page](/en/api/screener)): report gains `buyHoldReturn` (buy-and-hold benchmark) and `validBars` (0 means no bar yielded a valid close — wrong price field); options gain `positionSize` (fraction per buy), `fee: { buy, sell }` (asymmetric rates, e.g. A-share sell-side stamp tax) and `getDate` (trades carry `entryDate`/`exitDate`); the execution contract (same-bar-close fills / signal deferral / no lot-size constraint) is now fully documented.
 
 ::: tip Long-lived processes should reuse a singleton SDK
 Since v2.4.0 instance-scoped caches are isolated per `StockSDK` instance (fixing cross-instance leakage). A "new StockSDK() per request" pattern makes every instance start cache-cold (the 6h code-list cache degrades to one fetch per request) — reuse a singleton in long-lived services.

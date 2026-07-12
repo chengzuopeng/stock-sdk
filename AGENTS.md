@@ -455,8 +455,8 @@ stock-sdk mcp
 | 方法 | 说明 |
 |------|------|
 | `calcSignals(klines, options)` | 金叉死叉 / 超买超卖 / 布林突破等（`stock-sdk/signals`） |
-| `screen()` | 链式选股器（`stock-sdk/screener`） |
-| `backtest(strategy, options)` | 本地回测（`stock-sdk/screener`） |
+| `screen(items)` | 链式选股器（`stock-sdk/screener`） |
+| `backtest({ klines, strategy, ... })` | 本地回测，单 options 对象入参（`stock-sdk/screener`） |
 
 ### 板块数据
 

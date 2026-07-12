@@ -71,6 +71,7 @@ import { normalizeSymbol } from 'stock-sdk/symbols'
 |---|---|---|---|
 | Indicators | `stock-sdk/indicators` | 14 indicators: `calcMA` / `calcMACD` / `calcBOLL` / `calcKDJ` / `calcRSI` / `calcWR` / `calcBIAS` / `calcCCI` / `calcATR` / `calcOBV` / `calcROC` / `calcDMI` / `calcSAR` / `calcKC` + `addIndicators` | [indicators](/en/api/indicators) |
 | Signals | `stock-sdk/signals` | `calcSignals`: golden / death cross, overbought / oversold, etc. | [signals](/en/api/signals) |
+| Screener / Backtest | `stock-sdk/screener` | `screen`: chainable filter & rank; `backtest`: single-symbol long-only backtest | [screener](/en/api/screener) |
 | Symbols | `stock-sdk/symbols` | `normalizeSymbol`, `SymbolRef` type: lenient symbol parsing | [Symbols & Codes](/en/guide/symbols) |
 
 ## Conventions

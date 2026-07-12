@@ -26,6 +26,9 @@ pageClass: changelog-page
 - **datacenter symbol 全形态归一（R7-12）**：`SH600519` / `600519.SH` / `1.600519` 不再静默返空。
 - **缓存跨实例串数据（R7-11）**：代码表 / 日历 / 板块映射改按实例隔离。
 - **`evictLRU` 空串键**：`''` 为 LRU 时不再淘汰停摆。
+- **回测入口参数校验**：`fee`（含 `{buy, sell}` 逐侧）、`initialCapital`、`positionSize` 非法值抛 `InvalidArgumentError`，不再产出「回撤 0 + 收益符号反转」的静默垃圾报告。
+- **回测 null 空洞 bar 防护**：`klines` 含 `null` 元素按无效 bar 处理且不进 `strategy`，引擎不再抛裸 `TypeError`。
+- **`sortBy` 字符串数值参与排序**：`'999999'` 等字符串数值经 `Number()` 归一，不再被当非有限值沉底而漏掉真实最大值。
 
 ### 行为变更（升级请注意）
 
@@ -37,6 +40,11 @@ pageClass: changelog-page
 - **`getSharedCache` options 不等价时 `console.warn`**；运行时调整用 `configureSharedCache()`。
 - **datacenter 翻页并发化（R7-14）**：默认 3 路波次；默认无 RateLimiter，频控敏感配 `rateLimit`。
 - **全大写前缀 + 字母不再剥（R7-1）**：`'USAAPL'` → `US/USAAPL`；改用 `usAAPL` / `AAPL.US` / hint。
+- **回测无效价 bar 的信号改为挂起递延**（此前静默丢弃）：停牌 / NaN bar 上的 `buy`/`sell` 挂起到下一根有效价 bar 成交，一次性交叉信号不再永久丢失；数据走完前未成交的挂起 sell 按最后有效价平仓计策略出场。
+- **回测强平记录自洽**：`Trade` 新增 `forced` 标记；`exitIndex` 改指最后一根**有效价** bar（与 `exitPrice` 同根），结算记账在出场 bar、停牌尾部不再出现幽灵费差。
+- **回测 `maxDrawdown` 以初始资金为基线**：首根即买入时的入场手续费回撤不再不可见（同经济学此前因入场 bar 不同产出 2 倍差异）。
+- **回测策略第三参改名 `history` → `series`**：它是含未来 bar 的完整数组，改名 + 文档警示前视偏差（类型层参数名变更，不破坏调用）。
+- **`sortBy` 的 `direction` 严格校验**：非 `'asc'`/`'desc'`（如 `'ASC'`）抛 `InvalidArgumentError`，不再静默按降序。
 
 ### 新增
 
@@ -49,6 +57,7 @@ pageClass: changelog-page
 - **MCP Skills（Prompts）——7 个场景化分析技能**：server 实现 `prompts/list` + `prompts/get`，core 4 + full 3，`STOCK_SDK_MCP_PROMPTS` 控范围，全程只读。见 [AI Skills](/skills/)。
 - **`get_kline_signals` + `sdk.kline.signals(symbol, options)`**：识别 14 类技术信号（金叉死叉 / 超买超卖 / BOLL 突破 / SAR 反转），`maFast` / `maSlow` 可调。
 - **spec ↔ SDK 全量 contract 测试（R7-15）**：方法路径与 MCP options 键机械钉住；技能侧新增 `prompts-contract`。
+- **回测引擎增强**（`stock-sdk/screener`，见新增的 [screener 文档页](/api/screener)）：报告新增 `buyHoldReturn`（买入持有基准）与 `validBars`（有效价 bar 数，0 即取价字段不对）；选项新增 `positionSize`（仓位比例）、`fee: { buy, sell }`（买卖不对称费率，如 A 股卖侧印花税）、`getDate`（成交记录带 `entryDate`/`exitDate`）；同根收盘成交 / 信号挂起 / 无手数简化等成交契约全部文档化。
 
 ::: tip 长驻进程建议复用单例 SDK
 v2.4.0 起实例级缓存按 `StockSDK` 实例隔离（修复跨实例串数据）。"每请求 `new StockSDK()`"的写法会让每个实例冷启缓存（代码表 6h 缓存失效为每请求一次）——长驻服务请复用单例。

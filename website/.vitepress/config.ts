@@ -98,6 +98,7 @@ const zhApiSidebar = {
       items: [
         { text: 'indicators · 指标函数', link: '/api/indicators' },
         { text: 'signals · 信号', link: '/api/signals' },
+        { text: 'screener · 选股 / 回测', link: '/api/screener' },
       ],
     },
   ],
@@ -223,6 +224,7 @@ const enApiSidebar = {
       items: [
         { text: 'indicators', link: '/en/api/indicators' },
         { text: 'signals', link: '/en/api/signals' },
+        { text: 'screener', link: '/en/api/screener' },
       ],
     },
   ],

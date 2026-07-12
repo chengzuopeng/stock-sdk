@@ -167,4 +167,4 @@ The exact default thresholds, configurable options, and `detail` fields follow t
 - Want a batch of indicators attached to K-lines for iteration → `addIndicators`, or `sdk.kline.withIndicators` to fetch-and-attach.
 - Want to detect **events** like golden/death crosses or overbought/oversold (for alerts, screener conditions, or backtest strategy inputs) → `calcSignals`.
 
-Signal-layer output feeds directly into the [screener](/en/api/signals) and backtest strategies, wiring "indicators → events → decisions" into a fully local, reproducible pipeline.
+Signal-layer output feeds directly into the [screener & backtest](/en/api/screener) strategies, wiring "indicators → events → decisions" into a fully local, reproducible pipeline.
