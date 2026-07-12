@@ -37,11 +37,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 24:npm@12(latest)要求 node ^22.22.2 || ^24.15.0 || >=26 ——
+          # 此前钉 20 时 npm@latest 升到 12.0.1 直接 EBADENGINE,v2.4.0 发布因此失败
+          node-version: 24
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
 
-      # Trusted Publishing 需要 npm >= 11.5.0；Node 20 自带的是 npm 10.x，需升级
+      # Trusted Publishing 需要 npm >= 11.5.0；Node 自带 npm 偏旧，升级到 latest
       - name: Upgrade npm
         run: npm install -g npm@latest
 
