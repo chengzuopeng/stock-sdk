@@ -22,6 +22,7 @@ export const MARKET_OVERRIDES: Record<string, MarketKey[]> = {
   'reference.dividendDetail': ['a'],
   'reference.tradingCalendar': ['all'],
   'kline.withIndicators': ['a', 'hk', 'us'],
+  'kline.signals': ['a', 'hk', 'us'],
 };
 
 const dt7 = recentRange(7);
@@ -50,6 +51,7 @@ export const DEFAULT_VALUES: Record<string, Record<string, string>> = {
   'kline.hkMinute': { symbol: '00700' },
   'kline.us': { symbol: '105.AAPL' },
   'kline.usMinute': { symbol: '105.AAPL' },
+  'kline.signals': { symbol: '600519' },
   // ===== chips =====
   'chips.cn': { symbol: '600519' },
   'chips.hk': { symbol: '00700' },

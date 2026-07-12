@@ -13,6 +13,7 @@
 | Batch quotes | `sdk.batch.cn` / `hk` / `us` / `byCodes` | Whole-market or by-code batch quotes |
 | K-line | `sdk.kline.cn` / `hk` / `us` / `cnMinute` / `hkMinute` / `usMinute` | Historical and minute K-lines |
 | K-line with indicators | `sdk.kline.withIndicators` | K-line plus built-in technical indicators |
+| Indicator signals | `sdk.kline.signals` | Golden/death crosses, overbought/oversold, breakouts, reversals — 14 signal types |
 | Chip distribution | `sdk.chips.cn` / `hk` / `us` | Profit ratio / avg cost / cost ranges & concentration / chip peak |
 | Code lists | `sdk.codes.cn` / `us` / `hk` / `fund` | Per-market symbol lists |
 | Boards | `sdk.board.industry.*` / `sdk.board.concept.*` | Industry / concept board list, spot, constituents, K-line |
