@@ -1,7 +1,7 @@
 # stock-sdk
 
 > 零依赖股票行情 SDK（A 股 / 港股 / 美股 / 基金 / 期货 / 期权），浏览器 + Node.js 双端；
-> 命名空间 API，自带 CLI 与内置 MCP server。版本 v2.3.0。
+> 命名空间 API，自带 CLI 与内置 MCP server。版本 v2.4.0。
 
 给 AI / LLM 工具的**完整 API**（全部方法 / 参数 / 数据结构，一次性读取）：
 
