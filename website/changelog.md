@@ -8,7 +8,7 @@ pageClass: changelog-page
 
 ## v2.4.0
 
-> 发布时间：2026-07-07
+> 发布时间：待发布
 
 本版本落地 2026-07 全工程 review 的 Top15 修复（R7-1 ~ R7-15）：符号契约、数据健壮性、浏览器并发安全、缓存治理与翻页性能。
 
@@ -16,7 +16,7 @@ pageClass: changelog-page
 
 - **符号前缀不再吞真实美股 ticker（R7-1）**：`normalizeSymbol('USB')` 此前被剥成 `US/B`（静默返回 Barnes Group 的数据）、`'HKD'` 被剥成 `HK/0000D`。字母 rest 现在只认两种无歧义形态——小写前缀 + 大写开头（`usAAPL` / `hkHSI` / `usBRK.A`）、全小写且 rest ≥ 3（`usaapl`）；数字 rest 任意大小写照剥。`externalLinks` 的本地预剥离一并收编，`USB` 类修复直达链接生成。
 - **行情 codes 入口"带不带前缀均可"落地（R7-2/R7-3）**：`quotes.cn/cnSimple/hk/us/fundFlow/largeOrder` 全部经 `tryToTencentSymbols` 容错归一——裸代码（`'600036'`）此前必空、带前缀（`'hk00700'` / `'usBABA'`）此前被双拼成 `hkhk00700` / `ususBABA` 必空。无法映射的代码（如中证特殊指数码）逐码跳过，不影响批量调用的其它代码。
-- **美股 K 线支持裸 ticker（R7-4）**：`kline.us / usMinute / chips.us` 及 CLI / MCP 自动路由的 `'AAPL'` 此前直传非法 secid，全线静默"无数据"。现在按"代码表 → 105/106/107 探测 → 负缓存（1h）"解析交易所前缀，缓存的 secid 拉空时自动失效重解析（覆盖转板/退市窗口）。
+- **美股 K 线支持裸 ticker（R7-4）**：`kline.us / usMinute / chips.us` 及 CLI / MCP 自动路由的 `'AAPL'` 此前直传非法 secid，全线静默"无数据"。现在按"代码表 → 105/106/107 探测"解析交易所前缀，命中缓存 7 天、未收录负缓存 1 小时；转板（NYSE↔NASDAQ）/ 退市极罕见，靠命中 TTL 到期自然重解析覆盖。
 - **搜索并发安全（R7-5）**：浏览器端 `sdk.search()` 收编到 `core/jsVars`——此前手写注入无互斥（并发搜索互相覆盖 `v_hint`，拿到对方关键词的结果或空）也无超时（脚本挂起 promise 永不 resolve）；`v_hint` 走专属互斥队列，不再被基金大文件下载排队拖慢。
 - **jsVars 残留变量防护（R7-10）**：顶层 `var` 全局不可 delete，此前请求 A 的残留数据会被归属到脚本未定义该变量的请求 B（基金数据张冠李戴）。注入前预置 `undefined` + 读取侧 `undefined` 门 + 超时二次清扫。
 - **ATR 暖机期脏数据恢复（R7-6）**：暖机期内一根 null bar 此前让整条序列 ATR（连带 KC）永远 null；现在窗口滑过脏点后恢复播种。干净数据输出逐位不变。
@@ -35,7 +35,7 @@ pageClass: changelog-page
 - **dividend / dragonTiger / northbound 的垃圾 symbol：静默空数组 → 抛 `InvalidSymbolError`**。
 - **`clearSharedCaches()` 不再覆盖实例级缓存**（代码表 / 交易日历 / 板块映射 / us-secid）——强刷请用新增的 `sdk.clearCaches()`。
 - **`getSharedCache(ns, options)` 命中已存在 namespace 且 options 不等价时输出一次 `console.warn`**（此前静默忽略）；运行时调整用新增的 `configureSharedCache()`。
-- **datacenter 系接口翻页并发化（R7-14）**：默认 3 路波次并发（`DatacenterQuery.concurrency` 可调，设 1 退化串行）。全市场资金流排名等多页接口墙钟显著下降；坏页仍是"前缀截断"语义，不会出现中部空洞。注意默认部署没有 RateLimiter（仅显式配置时创建），如对上游频控敏感请配置 `rateLimit` 或调低 `concurrency`。
+- **datacenter 系接口翻页并发化（R7-14）**：默认 3 路波次并发（`DatacenterQuery.concurrency` 可调，设 1 退化串行）。全市场资金流排名等多页接口墙钟显著下降；坏页仍是"前缀截断"语义，不会出现中部空洞。注意默认部署没有 RateLimiter（仅显式配置时创建），如对上游频控敏感请配置 `rateLimit`（顶层选项，对所有 provider 生效）。
 - **全大写前缀 + 字母的形态不再剥前缀**（R7-1 的已知取舍）：`'USAAPL'` 现在按完整 ticker 解析为 `US/USAAPL`（此前剥成 `AAPL`）。迁移：用规范形 `'usAAPL'`、点分 `'AAPL.US'` 或 `market` hint。
 
 ### 新增

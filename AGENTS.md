@@ -591,8 +591,13 @@ stock-sdk mcp
 | 方法 | 说明 |
 |------|------|
 | `normalizeSymbol(input)` | 统一符号解析（`stock-sdk/symbols`） |
+| `tryToTencentSymbols(codes, market)` | 行情键批量容错归一，返回 `{ keys, invalid }`（`stock-sdk/symbols`） |
 | `generateSearchExternalLinks(keyword)` | 外部财经链接 |
 | `formatInTz(epoch, tz)` |  epoch → 市场时区字符串 |
+| `sdk.clearCaches()` | 清空本实例内部缓存（代码表 / 交易日历 / 板块映射 / us-secid，实例级） |
+| `configureSharedCache(ns, options)` | 运行时重配共享缓存（`stock-sdk/cache` 或主入口） |
+
+> ⚠️ 缓存语义（v2.4.0）：实例级缓存按 `StockSDK` 实例隔离，`clearSharedCaches()` 已**不再**覆盖它们——强刷用 `sdk.clearCaches()`。
 
 > 完整方法签名与参数以 `src/spec/methods.ts`（SSOT）及其生成物 `website/summary.md` / `website/public/llms-full.txt`（`pnpm docs:meta` 派生、CI 校验）为准。上表为**手工维护**的速览，仅用于让 AI 快速把握能力边界——它不受任何机器校验，历史上多次漂移；新增 / 下线能力时务必同步本表（检查清单有专项）。
 

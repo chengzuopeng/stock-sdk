@@ -37,7 +37,7 @@ const peak = withPeak.at(-1)!.histogram!
 |---|---|
 | `chips.cn(symbol, opts?)` | A 股筹码分布(符号写法同 `kline.cn`,如 `'600519'` / `'sh600519'`) |
 | `chips.hk(symbol, opts?)` | 港股筹码分布(如 `'00700'` / `'hk00700'`) |
-| `chips.us(symbol, opts?)` | 美股筹码分布(格式 `{market}.{ticker}`,如 `'105.AAPL'`) |
+| `chips.us(symbol, opts?)` | 美股筹码分布(裸 ticker `'AAPL'` 或 secid `'105.AAPL'` 均可) |
 
 > 数据原料:东方财富对应市场日 K 线(含换手率)。指数 / ETF 没有换手率概念,不适用本模型。
 

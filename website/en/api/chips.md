@@ -38,7 +38,7 @@ const peak = withPeak.at(-1)!.histogram!
 |---|---|
 | `chips.cn(symbol, opts?)` | A-share chip distribution (symbol forms same as `kline.cn`, e.g. `'600519'` / `'sh600519'`) |
 | `chips.hk(symbol, opts?)` | HK-stock chip distribution (e.g. `'00700'` / `'hk00700'`) |
-| `chips.us(symbol, opts?)` | US-stock chip distribution (format `{market}.{ticker}`, e.g. `'105.AAPL'`) |
+| `chips.us(symbol, opts?)` | US-stock chip distribution (bare ticker `'AAPL'` or secid `'105.AAPL'`) |
 
 > Raw material: Eastmoney daily K-lines (with turnover rate) of the corresponding market. Indices / ETFs have no turnover-rate concept and are out of scope for this model.
 

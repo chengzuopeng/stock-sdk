@@ -8,7 +8,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.0
 
-> Released: 2026-07-07
+> Released: Unreleased
 
 This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 ~ R7-15): symbol contracts, data robustness, browser concurrency safety, cache governance, and pagination performance.
 
@@ -16,7 +16,7 @@ This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 
 
 - **Bare prefixes no longer swallow real US tickers (R7-1)**: `normalizeSymbol('USB')` used to be stripped into `US/B` (silently returning Barnes Group's data), `'HKD'` into `HK/0000D`. Letter rests now only accept two unambiguous shapes — lowercase prefix + uppercase-led rest (`usAAPL` / `hkHSI` / `usBRK.A`), or all-lowercase with rest ≥ 3 (`usaapl`); digit rests strip under any prefix casing. `externalLinks`' local pre-strip is consolidated, so the `USB`-class fix reaches link generation too.
 - **"With or without exchange prefix" is now true for quote codes (R7-2/R7-3)**: `quotes.cn/cnSimple/hk/us/fundFlow/largeOrder` all normalize via `tryToTencentSymbols` — bare codes (`'600036'`) used to return empty, and prefixed inputs (`'hk00700'` / `'usBABA'`) were double-prefixed into `hkhk00700` / `ususBABA` (also empty). Unmappable codes (e.g. CSI special-index codes) are skipped per code without failing the batch.
-- **US K-lines accept bare tickers (R7-4)**: `kline.us / usMinute / chips.us` and the CLI / MCP auto-routing used to pass `'AAPL'` straight through as an invalid secid — silent "no data" across the board. Exchange prefixes now resolve via "code list → 105/106/107 probing → negative cache (1h)", with self-healing when a cached secid starts returning empty (exchange transfer / delisting window).
+- **US K-lines accept bare tickers (R7-4)**: `kline.us / usMinute / chips.us` and the CLI / MCP auto-routing used to pass `'AAPL'` straight through as an invalid secid — silent "no data" across the board. Exchange prefixes now resolve via "code list → 105/106/107 probing"; a resolved secid is cached 7 days and an unlisted ticker negative-cached 1h. Exchange transfer (NYSE↔NASDAQ) / delisting is rare and covered by the hit-cache TTL expiring.
 - **Search concurrency safety (R7-5)**: the browser path of `sdk.search()` is consolidated onto `core/jsVars` — the hand-rolled injection had no mutex (concurrent searches overwrote each other's `v_hint`) and no timeout (a stalled script hung the promise forever); `v_hint` gets a dedicated mutex queue so autocomplete no longer queues behind large fund-file downloads.
 - **jsVars stale-global protection (R7-10)**: top-level `var` globals cannot be deleted; request A's leftovers used to be attributed to a request B whose script didn't define the variable (fund data cross-attribution). Now pre-set to `undefined` before injection + an `undefined` gate on read + a second sweep on timeout.
 - **ATR recovers from dirty warm-up bars (R7-6)**: one null bar in the warm-up window used to leave the entire series' ATR (and KC) null forever; seeding now retries once the window slides past the dirty bar. Clean-data output is bit-for-bit unchanged.
@@ -35,7 +35,7 @@ This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 
 - **Garbage symbols in dividend / dragonTiger / northbound: silent empty array → `InvalidSymbolError`.**
 - **`clearSharedCaches()` no longer covers instance-scoped caches** (code lists / calendar / board maps / us-secid) — use the new `sdk.clearCaches()`.
 - **`getSharedCache(ns, options)` warns once when hitting an existing namespace with non-equivalent options** (previously silently ignored); use the new `configureSharedCache()` for runtime reconfiguration.
-- **Datacenter pagination is now concurrent (R7-14)**: 3-way waves by default (`DatacenterQuery.concurrency`; set 1 for strictly serial). Multi-page endpoints get significantly faster; bad pages keep the "contiguous prefix" semantics (no silent holes in the middle). Note the default deployment has no RateLimiter (created only when explicitly configured) — configure `rateLimit` or lower `concurrency` if upstream throttling is a concern.
+- **Datacenter pagination is now concurrent (R7-14)**: 3-way waves by default (`DatacenterQuery.concurrency`; set 1 for strictly serial). Multi-page endpoints get significantly faster; bad pages keep the "contiguous prefix" semantics (no silent holes in the middle). Note the default deployment has no RateLimiter (created only when explicitly configured) — configure `rateLimit` (a top-level option applying to all providers) if upstream throttling is a concern.
 - **All-uppercase prefix + letters no longer strips (R7-1's documented trade-off)**: `'USAAPL'` now parses as the full ticker `US/USAAPL` (previously stripped to `AAPL`). Migration: use the canonical `'usAAPL'`, dotted `'AAPL.US'`, or a `market` hint.
 
 ### Added
