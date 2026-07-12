@@ -20,13 +20,20 @@ import {
   type JsonRpcResponse,
 } from './protocol';
 import { listTools } from './tools';
-import type { ToolDef, ToolTier } from './types';
+import { listPrompts } from './prompts';
+import type { PromptDef } from '../spec/derive-prompt';
+import { resolveTierFilter, type ToolDef, type ToolTier } from './types';
 import { toToolResult, toolErrorResult } from './result';
+
+/** 技能集范围：'core'(默认) / 'full' / 指定 name 列表（与工具集独立过滤）。 */
+export type PromptTier = 'core' | 'full';
 
 export interface DispatchContext {
   sdk: StockSDK;
   tools: ToolDef[];
   toolMap: Map<string, ToolDef>;
+  prompts: PromptDef[];
+  promptMap: Map<string, PromptDef>;
 }
 
 /** 普通对象判定（排除 null 与数组）—— JSON-RPC params/arguments 必须是对象 */
@@ -127,7 +134,8 @@ export async function dispatchMessage(
       const pv = isObject(params) ? params.protocolVersion : undefined;
       return ok({
         protocolVersion: negotiateProtocolVersion(pv),
-        capabilities: { tools: {} },
+        // prompts.listChanged 暂不支持（技能集是构建期静态的）
+        capabilities: { tools: {}, prompts: {} },
         serverInfo: SERVER_INFO,
       });
     }
@@ -175,6 +183,42 @@ export async function dispatchMessage(
       }
     }
 
+    case 'prompts/list':
+      return ok({
+        prompts: ctx.prompts.map((p) => ({
+          name: p.name,
+          title: p.title,
+          description: p.description,
+          arguments: p.arguments,
+        })),
+      });
+
+    case 'prompts/get': {
+      if (!isObject(params)) return err(RPC_INVALID_PARAMS, 'params must be an object');
+      const name = params.name;
+      if (typeof name !== 'string') return err(RPC_INVALID_PARAMS, 'params.name must be a string');
+      const prompt = ctx.promptMap.get(name);
+      if (!prompt) return err(RPC_INVALID_PARAMS, `Unknown prompt: ${name}`);
+      const rawArgs = params.arguments;
+      if (rawArgs !== undefined && !isObject(rawArgs)) {
+        return err(RPC_INVALID_PARAMS, 'params.arguments must be an object');
+      }
+      // MCP prompt arguments 规范为字符串键值；容忍非字符串值（下游 render 只做插值）
+      const args = isObject(rawArgs) ? (rawArgs as Record<string, string>) : {};
+      try {
+        const text = prompt.render(args);
+        const firstArg = prompt.arguments[0]?.name;
+        const firstVal = firstArg ? args[firstArg] : undefined;
+        return ok({
+          description: firstVal ? `${prompt.title} · ${firstVal}` : prompt.title,
+          messages: [{ role: 'user', content: { type: 'text', text } }],
+        });
+      } catch (e) {
+        // 必填缺失等 → JSON-RPC error（prompts/get 无 isError result 约定，与 tools/call 不同）
+        return err(RPC_INVALID_PARAMS, (e as Error)?.message ?? 'invalid prompt arguments');
+      }
+    }
+
     default:
       // 未知方法：请求回 METHOD_NOT_FOUND，通知（无 id）忽略
       return isRequest ? err(RPC_METHOD_NOT_FOUND, `Unknown method: ${msg.method}`) : null;
@@ -184,6 +228,8 @@ export async function dispatchMessage(
 export interface McpServerOptions {
   /** 工具集范围：'core'(默认) / 'full' / 指定 name 列表 */
   tools?: ToolTier | string[];
+  /** 技能集范围：'core'(默认) / 'full' / 指定 name 列表（与工具集独立） */
+  prompts?: PromptTier | string[];
   /**
    * 透传给 StockSDK 的请求治理配置（timeout / retry / rateLimit / circuitBreaker / providerPolicies 等）。
    * 也可通过环境变量 STOCK_SDK_MCP_TIMEOUT 单独设置超时（毫秒）。
@@ -191,14 +237,14 @@ export interface McpServerOptions {
   sdk?: RequestClientOptions;
 }
 
-/** 从显式参数或环境变量 STOCK_SDK_MCP_TOOLS 解析工具集范围（空列表回退 core，避免零工具） */
+/** 工具集范围：显式 > STOCK_SDK_MCP_TOOLS 环境变量 > core。 */
 function resolveFilter(explicit?: ToolTier | string[]): ToolTier | string[] {
-  if (explicit) return explicit;
-  const env = process.env.STOCK_SDK_MCP_TOOLS;
-  if (!env) return 'core';
-  if (env === 'core' || env === 'full') return env;
-  const names = env.split(',').map((s) => s.trim()).filter(Boolean);
-  return names.length > 0 ? names : 'core';
+  return resolveTierFilter(explicit, 'STOCK_SDK_MCP_TOOLS');
+}
+
+/** 技能集范围：显式 > STOCK_SDK_MCP_PROMPTS 环境变量 > core。 */
+function resolvePromptFilter(explicit?: PromptTier | string[]): PromptTier | string[] {
+  return resolveTierFilter(explicit, 'STOCK_SDK_MCP_PROMPTS');
 }
 
 /** 解析 SDK 请求治理配置：显式 > STOCK_SDK_MCP_TIMEOUT 环境变量 > 默认 */
@@ -212,12 +258,58 @@ function resolveSdkOptions(explicit?: RequestClientOptions): RequestClientOption
 /** 启动 MCP server（监听 stdin，直到 stdin 关闭后 event loop 自然退出） */
 export function startMcpServer(options: McpServerOptions = {}): void {
   const sdk = new StockSDK(resolveSdkOptions(options.sdk));
-  const tools = listTools(resolveFilter(options.tools));
-  const ctx: DispatchContext = { sdk, tools, toolMap: new Map(tools.map((t) => [t.name, t])) };
+  const toolFilter = resolveFilter(options.tools);
+  const promptFilter = resolvePromptFilter(options.prompts);
+  const tools = listTools(toolFilter);
+  const prompts = listPrompts(promptFilter);
+  const ctx: DispatchContext = {
+    sdk,
+    tools,
+    toolMap: new Map(tools.map((t) => [t.name, t])),
+    prompts,
+    promptMap: new Map(prompts.map((p) => [p.name, p])),
+  };
 
   logStderr(
-    `[stock-sdk mcp] ready · ${tools.length} tools · ${SERVER_INFO.name}@${SERVER_INFO.version}`
+    `[stock-sdk mcp] ready · ${tools.length} tools · ${prompts.length} prompts · ${SERVER_INFO.name}@${SERVER_INFO.version}`
   );
+
+  // 名单过滤的未知名告警：笔误的工具/技能名此前静默产出 0 集合,
+  // 只有 ready 行的计数可察 —— 现对照注册结果显式点名
+  const warnUnknownNames = (
+    kind: string,
+    filter: 'core' | 'full' | string[],
+    resolved: ReadonlyArray<{ name: string }>
+  ) => {
+    if (!Array.isArray(filter)) return;
+    const known = new Set(resolved.map((x) => x.name));
+    const unknown = filter.filter((n) => !known.has(n));
+    if (unknown.length > 0) {
+      logStderr(
+        `[stock-sdk mcp] ⚠ ${kind} 名单中有 ${unknown.length} 个未知名（已忽略）：${unknown.join(', ')}`
+      );
+    }
+  };
+  warnUnknownNames('工具', toolFilter, tools);
+  warnUnknownNames('技能', promptFilter, prompts);
+
+  // 配置校验：技能集与工具集各自独立过滤。若启用的技能点名了当前工具集之外的工具
+  // （典型：prompts=full 但 tools 仍为默认 core），客户端 model 编排到该步会拿到
+  // 「Unknown tool」。启动时显式告警并指明补救，避免技能半路静默失败。
+  const activeToolNames = new Set(tools.map((t) => t.name));
+  const missingForPrompts = new Set<string>();
+  for (const p of prompts) {
+    for (const name of p.usesTools) {
+      if (!activeToolNames.has(name)) missingForPrompts.add(name);
+    }
+  }
+  if (missingForPrompts.size > 0) {
+    logStderr(
+      `[stock-sdk mcp] ⚠ 已启用的技能引用了 ${missingForPrompts.size} 个不在当前工具集内的工具：` +
+        `${[...missingForPrompts].join(', ')}。这些技能编排到该步会失败 —— ` +
+        `请设 STOCK_SDK_MCP_TOOLS=full（或把这些工具加进名单）。`
+    );
+  }
 
   createLineReader((line) => {
     void handleLine(line);

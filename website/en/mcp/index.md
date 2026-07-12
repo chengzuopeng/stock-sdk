@@ -55,4 +55,4 @@ The server keeps a **supported-versions array** and negotiates during `initializ
 
 - [MCP Installation](/en/mcp/installation): connect Cursor / Claude Desktop / Codex / Gemini.
 - [MCP Tool Table](/en/mcp/tools): the available tools at a glance.
-- [AI Skills](/en/mcp/skills): built-in skills like technical analysis, smart screening, market overview and live monitoring.
+- [AI Skills](/en/skills/): built-in skills like technical analysis, smart screening, market overview and live monitoring.

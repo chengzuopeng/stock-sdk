@@ -124,5 +124,5 @@ interface Signal {
 ## See also
 
 - [indicators](/en/api/indicators) — the input to signals: 14 `calc*` functions and `addIndicators`
-- [kline](/en/api/kline) — `kline.withIndicators` gets you indicator-enriched K-lines in one step
+- [kline](/en/api/kline) — `kline.withIndicators` gets you indicator-enriched K-lines in one step; `kline.signals` goes further, fetching + detecting signals in one call (also exposed as the MCP tool `get_kline_signals`)
 - [Indicators & signals guide](/en/guide/indicators)

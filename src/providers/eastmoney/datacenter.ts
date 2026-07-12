@@ -6,6 +6,7 @@
  * 走 `https://datacenter-web.eastmoney.com/api/data/v1/get` 的接口。
  */
 import { type RequestClient, EM_DATACENTER_URL } from '../../core';
+import { fetchPagesInWaves } from './utils';
 
 /**
  * datacenter-web 标准响应结构
@@ -48,6 +49,13 @@ export interface DatacenterQuery {
    * 命中此上限时会在 console 输出 warning 提示，避免数据被静默截断。
    */
   maxPages?: number;
+  /**
+   * 翻页并发波次大小（R7-14），默认 3；设 1 退化为严格串行。
+   *
+   * ⚠️ 默认部署没有 RateLimiter（仅用户显式配置时创建），并发请求直接
+   * 打上游，故默认值保守；配置了限速的用户墙钟收益受限速地板约束。
+   */
+  concurrency?: number;
   /** 额外的 quoteColumns 参数（用于行情字段聚合） */
   quoteColumns?: string;
   /** 额外的 quoteType 参数 */
@@ -99,18 +107,15 @@ export async function fetchDatacenter<T>(
     startPage = 1,
     fetchAllPages = true,
     maxPages = 1000,
+    concurrency = 3,
     quoteColumns,
     quoteType,
     extraParams,
   } = query;
 
-  const allData: T[] = [];
-  let page = startPage;
-  let totalPages = 1;
-  let totalCount = 0;
-  let pagesFetched = 0;
-
-  do {
+  const fetchPage = async (
+    page: number
+  ): Promise<{ data: Record<string, unknown>[]; pages?: number; count?: number } | null> => {
     const params = new URLSearchParams({
       reportName,
       columns,
@@ -135,29 +140,50 @@ export async function fetchDatacenter<T>(
     const json = await client.get<DatacenterApiResponse>(url, {
       responseType: 'json',
     });
-
     const result = json?.result;
     if (!result || !Array.isArray(result.data)) {
-      break;
+      return null; // 坏页：与串行版 break 同语义（前缀截断）
     }
+    return result as { data: Record<string, unknown>[]; pages?: number; count?: number };
+  };
 
-    if (page === startPage) {
-      totalPages = result.pages ?? 1;
-      totalCount = result.count ?? result.data.length;
+  // R7-14: 首页串行探明总页数，其余页波次并发（见 fetchPagesInWaves 的
+  // 前缀连续语义说明）。mapper 的第二参保持【跨页连续行号】契约 ——
+  // dragonTiger 等以 `?? index + 1` 补 rank，合并阶段按页序统一编号。
+  const allData: T[] = [];
+  const first = await fetchPage(startPage);
+  if (!first) {
+    return { data: [], total: 0, pages: 1 };
+  }
+  const totalPages = first.pages ?? 1;
+  const totalCount = first.count ?? first.data.length;
+  const appendPage = (rows: Record<string, unknown>[]) => {
+    allData.push(...rows.map((item, idx) => mapper(item, allData.length + idx)));
+  };
+  appendPage(first.data);
+
+  if (!fetchAllPages || totalPages <= startPage) {
+    return { data: allData, total: totalCount, pages: totalPages };
+  }
+
+  const lastPage = Math.min(totalPages, startPage + maxPages - 1);
+  const restPages = await fetchPagesInWaves(
+    startPage + 1,
+    lastPage,
+    concurrency,
+    async (page) => {
+      const result = await fetchPage(page);
+      return result === null ? null : { value: result.data };
     }
-
-    const items = result.data.map((item, idx) =>
-      mapper(item, allData.length + idx)
-    );
-    allData.push(...items);
-    page++;
-    pagesFetched++;
-
-    if (!fetchAllPages) break;
-  } while (page <= totalPages && pagesFetched < maxPages);
+  );
+  for (const rows of restPages) {
+    appendPage(rows);
+  }
 
   // 命中安全阀且服务端还有更多数据时，提示调用方避免静默截断
-  if (fetchAllPages && pagesFetched >= maxPages && page <= totalPages) {
+  // （坏页导致的前缀截断保持串行版的静默语义，不在此列）
+  const fetchedAllRequested = restPages.length === lastPage - startPage;
+  if (lastPage < totalPages && fetchedAllRequested) {
     // eslint-disable-next-line no-console
     console.warn(
       `[stock-sdk] fetchDatacenter("${reportName}") truncated at maxPages=${maxPages} ` +

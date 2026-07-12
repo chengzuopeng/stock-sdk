@@ -155,6 +155,8 @@ npx stock-sdk mcp
 
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集范围（默认 `core`）。
 
+除工具外还内置 **7 个场景化 AI Skills**（MCP Prompts，如 `analyze_stock` / `screen_stocks` / `diagnose_stock`），支持的客户端可一键触发；`STOCK_SDK_MCP_PROMPTS=core|full|<名单>` 控制技能集（默认 `core`）。详见 [AI Skills 文档](https://stock-sdk.linkdiary.cn/skills/)。
+
 👉 [完整 MCP 文档](https://stock-sdk.linkdiary.cn/mcp/)
 
 ---
@@ -268,7 +270,7 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 | `sdk.quotes` | `.cn` / `.cnSimple` / `.hk` / `.us` / `.fund` / `.fundFlow` / `.largeOrder` / `.timeline` |
 | `sdk.codes` | `.cn` / `.us` / `.hk` / `.fund` |
 | `sdk.batch` | `.cn` / `.hk` / `.us` / `.byCodes` / `.raw` |
-| `sdk.kline` | `.cn` / `.cnMinute` / `.hk` / `.hkMinute` / `.us` / `.usMinute` / `.withIndicators` |
+| `sdk.kline` | `.cn` / `.cnMinute` / `.hk` / `.hkMinute` / `.us` / `.usMinute` / `.withIndicators` / `.signals` |
 | `sdk.chips` | `.cn` / `.hk` / `.us`（筹码分布：获利比例 / 平均成本 / 成本区间 / 筹码峰） |
 | `sdk.board` | `.industry.*` / `.concept.*`（`list` / `spot` / `constituents` / `kline` / `minuteKline`） |
 | `sdk.options` | `.index.*` / `.etf.*` / `.commodity.*` / `.cffex.*` / `.lhb` |

@@ -21,7 +21,7 @@
 - 涨停跌停股池（含连板数）、盘口异动（支持多类型/all + 个股当日与近 N 天异动历史）、板块异动
 - 龙虎榜（详情 / 个股统计 / 机构 / 营业部 / 席位明细）
 - 大宗交易、融资融券
-- 公募基金扩展（分红 / 历史净值 / 实时估值 / 同类排名 / 档案）
+- 公募基金扩展（分红 / 历史净值 / 实时估值 / 同类排名 / 档案 / 主题基金）
 - 交易日历、市场开休市状态、股票搜索、分红数据
 - 期货数据、期权数据
 - 技术指标计算、指标信号识别、链式选股器、本地回测
@@ -92,12 +92,16 @@ src/
 ├── cache/                   # 对外缓存 subpath（MemoryCache / cacheThrough）
 ├── errors/                  # 对外错误 subpath（re-export core/errors）
 ├── spec/                    # CLI / MCP / Playground 的 SSOT
-│   ├── methods.ts           # MethodSpec 单一事实来源
+│   ├── methods.ts           # MethodSpec 单一事实来源（工具）
+│   ├── prompts.ts           # PromptSpec 单一事实来源（MCP Skills / 7 技能）
 │   ├── derive-cli.ts        # 派生 CLI manifest
 │   ├── derive-mcp.ts        # 派生 MCP 工具清单
+│   ├── derive-prompt.ts     # 派生 MCP 技能清单（PromptDef + render）
 │   └── resolve.ts           # 路径 / 参数解析
 ├── cli/                     # stock-sdk 命令行
 ├── mcp/                     # 内置 MCP server（零依赖手写协议）
+│   ├── tools/               # 工具注册表（自 methods.ts 派生）
+│   └── prompts/             # 技能注册表（自 prompts.ts 派生）
 ├── providers/               # 数据源适配层(只负责"取数 + 解析")
 │   ├── index.ts             # 聚合导出 tencent / eastmoney / sina
 │   ├── tencent/             # 行情、批量、搜索、交易日历、资金流
@@ -108,7 +112,7 @@ src/
 │   ├── quoteService.ts      # 实时行情
 │   ├── klineService.ts      # K 线 / 分时(A / HK / US)
 │   ├── boardService.ts      # 行业 / 概念板块
-│   ├── indicatorService.ts  # 带指标 K 线(组合 kline + quote)
+│   ├── indicatorService.ts  # 带指标 K 线 + 指标信号识别(组合 kline + quote + calcSignals)
 │   ├── chipService.ts       # 筹码分布(组合 kline + 本地 CYQ 计算)
 │   ├── futuresService.ts    # 期货
 │   ├── optionsService.ts    # 期权
@@ -192,6 +196,14 @@ export async function getQuotes(codes: string[]): Promise<Quote[]> {
 | 常量 | UPPER_SNAKE_CASE | `DEFAULT_TIMEOUT` |
 | 类型/接口 | PascalCase | `FullQuote` |
 
+### Options 参数命名约定
+
+对外方法的 options 字段跨方法保持一致，新方法与同 namespace 既有方法对齐：
+
+1. **分页**统一用 `page` / `pageSize`，不要引入 `pageIndex` / `pageNo` 等变体；上游参数名不同时在 provider 内映射（对外 `page` → 上游 `pageIndex`）。
+2. **排序**统一"字段 + 方向"两参：排序字段用 `sort`（或领域语义名如 `sortColumn`），方向用 `order`（`'desc' | 'asc'`）；同一 namespace 内不得一处 `sort` 表字段、另一处表方向。
+3. **spec 与类型精确对齐**：`src/spec/methods.ts` 中 param 的 `flag` / `field` 必须与 SDK options 类型的字段名完全一致——不一致时 CLI / MCP 传参会被 SDK 静默忽略（曾因 spec 写 `page`、类型是 `pageIndex`，导致翻页参数悄悄失效）。
+
 ### 代码风格
 
 1. **使用 ES Module 导入/导出**
@@ -210,12 +222,32 @@ export async function getQuotes(codes: string[]): Promise<Quote[]> {
 2. **类型**：在 `src/types/` 下对应领域模块补充公共类型（行情进 `quotes.ts`、龙虎榜进 `dragonTiger.ts`…），并在 `src/types/index.ts` 导出。
 3. **service 层**：在 `src/sdk/` 选对应领域的 `xxxService.ts` 添加方法（找不到归属再新建 service 并在 `src/sdk/index.ts` 导出）。service 通过构造注入的 `RequestClient` 调用 provider。
 4. **门面**：在 `src/sdk.ts` 对应命名空间 getter 中挂载方法（薄委托）；**不要在门面里写业务逻辑**。v2 仅保留顶层 `search()` 作为快捷入口。
-5. **Spec（CLI / MCP / Playground 三端）**：在 `src/spec/methods.ts` 增 / 改 `MethodSpec`；必要时调整 `derive-cli.ts` / `derive-mcp.ts`。`test/unit/spec/consistency.test.ts` 会校验 spec 与门面一致性。
-6. **导出**：在 `src/index.ts`（及对应 subpath 入口）导出新增的对外方法 / 类型 / 配置类型。
-7. 按下方清单补测试、README、website 中英文文档。
-8. 完成后执行下方检查清单。
+5. **Spec（CLI / MCP / Playground 三端）**：在 `src/spec/methods.ts` 增 / 改 `MethodSpec`；必要时调整 `derive-cli.ts` / `derive-mcp.ts`。param 的 `flag` / `field` 必须与 SDK options 类型字段名精确一致（见"Options 参数命名约定"第 3 条）。
+6. **docs-meta 登记（高频遗漏点，漏了 CI 必红）**：把新方法的点分路径（如 `fund.theme.getThemeList`）加进 `docs-meta/sdk.json` 的 `summary.methodGroups` 对应分组。`pnpm docs:check` 的反向覆盖闸会校验"每个 spec 方法都归属某个分组"，未登记会直接 fail（曾有 PR 漏此步，合入后 master CI 变红）。
+7. **计数测试同步**：`test/unit/spec/consistency.test.ts`（方法 / MCP 工具总数）与 `test/unit/cli/manifest.test.ts`（命名空间方法数）中的硬编码计数需随方法增删更新。这是有意设置的门禁——强迫改动者确认两端规模，不要想办法绕过。
+8. **Playground 必填参数预置**：新方法若有必填参数（codes / 必填 positional / required param），必须在 `website/.vitepress/theme/components/playground/overrides.ts` 的 `DEFAULT_VALUES` 预置开箱即跑的示例值；参数天然时效无法预置的（如期权合约代码），在 `PLACEHOLDER_OVERRIDES` 写"先查 XX 接口"的引导文案。两者都没有 = 用户点开是个空表单。
+9. **导出**：在 `src/index.ts`（及对应 subpath 入口）导出新增的对外方法 / 类型 / 配置类型。
+10. **重新生成派生文档**：跑 `pnpm docs:meta`（更新 `website/summary.md` 与 `llms*.txt`，均为生成物、勿手改），随后 `pnpm docs:check` 必须通过。
+11. 按下方清单补测试、README、website 中英文文档；完成后执行下方检查清单。
 
 > 浏览器专用数据源（如基金扩展走天天基金 `<script>` 注入、无 CORS 头）：复用 `src/core/jsVars.ts` 的双端取数与 `src/core/scriptMutex.ts` 的注入互斥，**不要**自己写 `document.createElement('script')`。
+
+### 数据源准入与上游实测（新增 provider 端点必读）
+
+单测走 MSW mock、集成测试被 `RUN_INTEGRATION` 门控——**静态检查全绿完全不能证明端点可用**。曾有接口按臆想的响应结构开发（真实字段是 `Datas`，代码读 `Data`），且上游被反爬封锁，typecheck / test / docs:check 全绿合入后线上直接 404。因此：
+
+1. **实测铁律**：新增 / 修改 provider 端点，合并前必须至少一次真实请求验证（`RUN_INTEGRATION=1` 跑对应集成测试，或 curl 实测），并在 PR 描述里贴真实响应片段作为证据。
+2. **mock 取自实测**：MSW mock 的响应结构必须来自真实响应样本，禁止凭接口文档或猜测手写（字段名、大小写、包裹层都可能与预期不同）。
+3. **断言基于实测行为**：错误路径断言（是否抛错、空数据形态）以实测为准——部分上游对非法参数返回 200 + 空集而非报错，臆测 `rejects.toThrow()` 会写出永远跑不过的用例。
+4. **新 host 需评估准入**：优先复用下表已验证 host；引入新 host 时在 PR 里说明反爬 / CORS / 稳定性评估结论。
+
+   | 状态 | Host |
+   |------|------|
+   | ✅ 已验证可用 | 腾讯 `qt.gtimg.cn` / `web.ifzq.gtimg.cn` / `smartbox.gtimg.cn`；东财 `push2*.eastmoney.com`（含 push2his / push2ex）、`datacenter-web.eastmoney.com`、`futsseapi.eastmoney.com`、`fund.eastmoney.com`（pingzhongdata 等）、`fundgz.1234567.com.cn`；新浪 `stock.finance.sina.com.cn` |
+   | ❌ 已知封锁 | `fundmobapi.eastmoney.com`（天天基金 App 专用，反爬；非 App 客户端仅返回"网络繁忙"业务错误或 404，`fund.theme.getHotThemes` 因此下线） |
+
+5. **浏览器端真验证**：浏览器专用 / 双端数据源要在真实浏览器里打通一次（CORS / Referer 校验只有浏览器环境能暴露）。
+6. **网络不可达不是豁免**：本机网络访问不到上游时（部分办公网屏蔽财经接口），换网络实测或贴可复现的 curl 证据，不要跳过验证直接合并。
 
 ### 添加新的技术指标
 
@@ -267,13 +299,14 @@ pnpm test
 - 集成测试放在 `test/integration/`
 - 单元测试使用 MSW mock 网络请求
 - 测试文件命名：单元测试 `*.test.ts`，集成测试 `*.int.test.ts`
-- 新增命名空间方法时确认 `test/unit/spec/consistency.test.ts` 通过
+- 新增 / 删除命名空间方法时，同步 `test/unit/spec/consistency.test.ts` 与 `test/unit/cli/manifest.test.ts` 中的硬编码计数（有意的门禁，见开发流程第 7 步）
 
 ```bash
 pnpm test:integration
 ```
 
 - 涉及真实接口行为、provider 适配、线上数据兼容性时，应运行集成测试
+- 新增 / 修改 provider 端点时**必须**实测真实上游（见"数据源准入与上游实测"）；本机网络不可达就换网络或贴 curl 证据，不得跳过
 
 ### 3. 更新 README 文档
 
@@ -289,16 +322,18 @@ pnpm test:integration
 - MCP 相关内容更新到 `website/mcp/`
 - 英文文档同步更新到 `website/en/` 对应目录
 - 保持中英文文档内容一致
+- 文档中的类型代码块从 `src/types/` 对应定义**复制**，不要凭记忆重写（字段名 / 可空性 / 返回包裹层写错是高发问题，如把 `{ total, pageIndex }` 写成 `{ totalPages, currentPage }`）
+- 示例中的调用路径必须是真实存在的命名空间路径（如 `sdk.fund.theme.getThemeList`，而非 `sdk.getThemeList`）
 
 ### 5. 检查文档元数据与一致性
 
-如果修改了文档结构、导航或新增了文档页面，建议执行：
+**方法面有任何增 / 删 / 改名，或文档结构、导航、页面有改动时，必须执行**（不是可选项——CI 的 `verify` 任务跑的就是同一条命令，本地不跑等于把红推给 CI；fork PR 甚至不触发 CI，见"PR 与合并规范"）：
 
 ```bash
 pnpm docs:check
 ```
 
-`docs:meta` 会顺带执行 `pnpm gen:llms`，更新 `website/public/llms.txt` 与 `llms-full.txt`（供 AI / MCP 消费）。
+`docs:meta` 会顺带执行 `pnpm gen:llms`，更新 `website/summary.md`、`website/public/llms.txt` 与 `llms-full.txt`（供 AI / MCP 消费）；这些均为生成物，**不要手改**。
 
 必要时执行：
 
@@ -322,14 +357,15 @@ Playground 已组件化，且**从 `src/spec/methods.ts` 派生**（与 CLI / MC
 □ pnpm typecheck 通过
 □ pnpm build 成功
 □ pnpm test 通过
-□ pnpm test:integration 通过（如有相关修改）
-□ README.md 已更新
-□ README_EN.md 已更新
-□ website/ 中文文档已更新
-□ website/en/ 英文文档已更新
-□ docs:check / build:docs 已验证（如有文档改动）
-□ spec / Playground 已更新（如适用）
-□ AGENTS.md SDK 速查表已同步（如新增公共 API）
+□ 新 / 改 provider 端点已实测真实上游（RUN_INTEGRATION 或 curl，证据贴 PR）
+□ README.md / README_EN.md 已更新
+□ website/ 中文文档已更新，website/en/ 已同步
+□ spec（methods.ts）已更新，flag/field 与 options 类型字段一致
+□ docs-meta/sdk.json methodGroups 已登记（新增 / 删除方法时）
+□ consistency.test.ts / manifest.test.ts 计数已同步（新增 / 删除方法时）
+□ Playground DEFAULT_VALUES 已预置必填参数（如适用）
+□ pnpm docs:check 通过（方法面或文档有改动时必跑）
+□ AGENTS.md SDK 速查表已同步（如新增 / 下线公共 API）
 ```
 
 ## 常用命令
@@ -419,8 +455,8 @@ stock-sdk mcp
 | 方法 | 说明 |
 |------|------|
 | `calcSignals(klines, options)` | 金叉死叉 / 超买超卖 / 布林突破等（`stock-sdk/signals`） |
-| `screen()` | 链式选股器（`stock-sdk/screener`） |
-| `backtest(strategy, options)` | 本地回测（`stock-sdk/screener`） |
+| `screen(items)` | 链式选股器（`stock-sdk/screener`） |
+| `backtest({ klines, strategy, ... })` | 本地回测，单 options 对象入参（`stock-sdk/screener`） |
 
 ### 板块数据
 
@@ -551,16 +587,23 @@ stock-sdk mcp
 | `fund.estimate(code)` | 当日实时估值（T-1 净值 + 盘中估算） |
 | `fund.rankHistory(code)` | 同类排名走势 |
 | `fund.profile(code)` | 基金档案 / 基本概况 |
+| `fund.theme.getThemeList(options?)` | 主题基金列表（行业 / 概念，各阶段收益率，排序分页） |
+| `fund.theme.getThemeFunds(themeCode, options?)` | 指定主题下基金排行（`getHotThemes` 因上游封锁暂下线） |
 
 ### 符号 / 工具（subpath 或主入口）
 
 | 方法 | 说明 |
 |------|------|
 | `normalizeSymbol(input)` | 统一符号解析（`stock-sdk/symbols`） |
+| `tryToTencentSymbols(codes, market)` | 行情键批量容错归一，返回 `{ keys, invalid }`（`stock-sdk/symbols`） |
 | `generateSearchExternalLinks(keyword)` | 外部财经链接 |
 | `formatInTz(epoch, tz)` |  epoch → 市场时区字符串 |
+| `sdk.clearCaches()` | 清空本实例内部缓存（代码表 / 交易日历 / 板块映射 / us-secid，实例级） |
+| `configureSharedCache(ns, options)` | 运行时重配共享缓存（`stock-sdk/cache` 或主入口） |
 
-> 完整方法签名与参数以 `src/sdk.ts` 门面、`src/spec/methods.ts`、README 和 website API 文档为准；上表用于让 AI 快速把握能力边界，新增能力时请同步本表。
+> ⚠️ 缓存语义（v2.4.0）：实例级缓存按 `StockSDK` 实例隔离，`clearSharedCaches()` 已**不再**覆盖它们——强刷用 `sdk.clearCaches()`。
+
+> 完整方法签名与参数以 `src/spec/methods.ts`（SSOT）及其生成物 `website/summary.md` / `website/public/llms-full.txt`（`pnpm docs:meta` 派生、CI 校验）为准。上表为**手工维护**的速览，仅用于让 AI 快速把握能力边界——它不受任何机器校验，历史上多次漂移；新增 / 下线能力时务必同步本表（检查清单有专项）。
 
 ## Git 提交规范
 
@@ -577,6 +620,38 @@ stock-sdk mcp
 
 示例：`feat: 添加创业板指数支持`
 
+## PR 与合并规范
+
+1. **一个 PR 一个主题**：不要夹带无关功能或重构——夹带部分往往成为评审盲区（曾有独立功能混入其他 PR，零测试零文档合入）。
+2. **本地工具产物不入库**：AI / 编辑器配置与规划稿（`.opencode/`、AI 生成的 plan / spec 文档等）不要提交；新工具的产物先加进 `.gitignore`。
+3. **PR 描述附自测证据**：列出本地已跑的检查命令与结果（typecheck / test / docs:check），新端点附真实上游响应片段。
+4. **维护者合并守则（fork PR 必读）**：fork PR 不会触发本仓 CI（checks 列表为空），GitHub 的 `MERGEABLE / CLEAN` 只表示无合并冲突、**不代表任何检查通过**。合并前必须在本地对 PR 分支跑 `pnpm docs:check && pnpm test`，或要求贡献者在 PR 里贴齐自测结果——曾有 PR 在零检查状态下合入，master CI 随即变红。
+
+## 发布流程（版本 / Changelog / Release）
+
+1. **版本号只改 `package.json`**，改完跑 `pnpm docs:meta`——`website/summary.md`、`llms*.txt`、文档站首页版本展示均由它派生，不要手改这些文件。
+2. **Changelog 双语同步**：`website/changelog.md` 与 `website/en/changelog.md`，新版本置顶，只写**相对上一发布版的净变化**（开发过程中"加了又撤"的内容不写）。格式沿用现有条目：
+
+   ```markdown
+   ## vX.Y.Z
+
+   > 发布时间：YYYY-MM-DD（未发布时写"待发布"）
+
+   ### 新增 / ### 修复 / ### 破坏性变更（按需取舍）
+   ```
+
+3. **先合入 master 且 CI 绿**，再发 release。
+4. **GitHub Release**：tag `vX.Y.Z`（target master），标题 `vX.Y.Z 英文短名`（如 `v2.2.0 Theme Funds`），正文 = 简介段（注明是否有破坏性变更）+ `### 新增 / 修复` + `### 升级` + 自动生成的 `## What's Changed` + Full Changelog 链接，标记 latest。
+5. **npm 自动发布**：推 `v*` tag 触发 `.github/workflows/release.yml` 执行 `npm publish`（Trusted Publishing + provenance）；prerelease（`-beta` / `-rc` / `-alpha`）自动发对应 dist-tag，不会顶掉 `latest`。
+6. **⚠️ 发布顺序硬约束**：生产文档站的 Playground 按 `package.json` 版本从 `unpkg.com/stock-sdk@<version>` 锁版加载 SDK——**npm 上必须先存在该版本，带新版本号的文档站才能部署**，否则线上 Playground 加载不存在的包直接不可用。
+
+## 方法下线与恢复
+
+上游数据源失效需临时下线某方法（保留实现、移除入口）时，按此模式操作（先例：`fund.theme.getHotThemes`）：
+
+- **下线**：删 `src/spec/methods.ts` 条目（CLI / MCP / Playground 派生面自动消失）→ 删 service 门面方法 → 删中英文档章节 → 从 `docs-meta/sdk.json` methodGroups 移除 → 同步两处计数测试 → `pnpm docs:meta` 重新生成。**provider 实现、类型与其单测保留**，并在 spec 与 service 的删除位置留 `NOTE` 注释写明下线原因与恢复步骤。
+- **恢复**：先实测上游确认可用（见"数据源准入与上游实测"），再反向执行上述步骤，并把方法加回 AGENTS.md 速查表。
+
 ## 注意事项
 
 1. **保持零运行时依赖**：不要引入新的运行时依赖。
@@ -590,3 +665,4 @@ stock-sdk mcp
 9. **浏览器专用数据源**：无 CORS 头的源（如天天基金）走 `<script>` 注入，统一复用 `core/jsVars.ts` + `core/scriptMutex.ts`，保证双端可用与注入并发安全。
 10. **Spec 三端同源**：新增对外方法必须更新 `src/spec/methods.ts`，保证 CLI / MCP / Playground 不漂移。
 11. **文档同步**：新增对外能力时，README、website 中文、website 英文、spec / Playground、必要时 AGENTS.md 速查表均需同步更新。
+12. **上游可用性优先怀疑**：新端点必须实测真实上游后才可合并（见"数据源准入与上游实测"）；线上调用报错（404 / "网络繁忙"）先怀疑上游反爬或封锁，再查代码。

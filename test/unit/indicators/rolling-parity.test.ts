@@ -363,16 +363,18 @@ function refCalcATR(data: OHLCV[], options: { period?: number } = {}): ATRResult
       }
     }
   }
+  // R7-6 同步：与 calcATR 的滑窗重试播种语义一致（未播种即逐窗扫描，
+  // 全非 null 时简单平均播种），保持独立实现继续对拍
   let atr: number | null = null;
   for (let i = 0; i < data.length; i++) {
     if (i < period - 1) {
       result.push({ tr: tr[i] !== null ? round(tr[i]!) : null, atr: null });
       continue;
     }
-    if (i === period - 1) {
+    if (atr === null) {
       let sum = 0;
       let count = 0;
-      for (let j = 0; j < period; j++) {
+      for (let j = i - period + 1; j <= i; j++) {
         if (tr[j] !== null) {
           sum += tr[j]!;
           count++;
@@ -381,10 +383,8 @@ function refCalcATR(data: OHLCV[], options: { period?: number } = {}): ATRResult
       if (count === period) {
         atr = sum / period;
       }
-    } else {
-      if (atr !== null && tr[i] !== null) {
-        atr = (atr * (period - 1) + tr[i]!) / period;
-      }
+    } else if (tr[i] !== null) {
+      atr = (atr * (period - 1) + tr[i]!) / period;
     }
     result.push({
       tr: tr[i] !== null ? round(tr[i]!) : null,
@@ -605,7 +605,7 @@ describe('F36 rolling-parity：新实现 vs 旧逐窗实现逐值全等', () => 
     }
   });
 
-  it('calcATR(本轮未改动)对拍锚', () => {
+  it('calcATR(R7-6 滑窗重试播种)对拍锚', () => {
     for (const data of ohlcvSets) {
       for (const period of [5, 14]) {
         expect(calcATR(data, { period })).toEqual(refCalcATR(data, { period }));

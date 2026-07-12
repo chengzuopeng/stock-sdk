@@ -90,4 +90,4 @@ The process waits for JSON-RPC messages (such as `initialize`) on stdin. Once a 
 ## Next steps
 
 - [MCP Tool Table](/en/mcp/tools): the tools available once connected.
-- [AI Skills](/en/mcp/skills): compose tools into higher-level skills like technical analysis and smart screening.
+- [AI Skills](/en/skills/): compose tools into higher-level skills like technical analysis and smart screening.

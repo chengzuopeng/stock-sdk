@@ -25,8 +25,11 @@ const us15 = await sdk.kline.us('AAPL', { period: '15' })
 | `kline.us(symbol, opts?)` | 美股历史 K 线 |
 | `kline.usMinute(symbol, opts?)` | 美股分钟 K 线 / 分时 |
 | `kline.withIndicators(symbol, opts?)` | 历史 K 线 + 内置技术指标（MA / MACD / KDJ 等） |
+| `kline.signals(symbol, opts?)` | 历史 K 线上的指标信号（金叉死叉 / 超买超卖 / 突破 / 反转，共 14 类） |
 
 > 数据来源为东方财富。港股 / 美股 K 线仅含常规交易时段，不含盘前 / 盘后。
+>
+> `kline.signals` 内部串 `withIndicators` + `calcSignals`（[`stock-sdk/signals`](/api/signals)），返回每条信号的 `type` / `date` / `close` / `detail`。`maFast` / `maSlow`（默认 5 / 20）调 MA 交叉周期，其余用常用默认阈值；不传 `startDate` 在全部历史上识别，传则收窄窗口。
 
 ## 参数概览
 

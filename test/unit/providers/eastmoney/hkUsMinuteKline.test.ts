@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { RequestClient } from '../../../../src/core';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RequestClient, clearClientScopedCaches } from '../../../../src/core';
 import {
   getHKMinuteKline,
   getUSMinuteKline,
@@ -7,6 +7,9 @@ import {
 
 // 关掉 retry 避免 500 测试触发 backoff
 const client = new RequestClient({ retry: { maxRetries: 0 } });
+// R7-11: 模块级共享 client 的用例间缓存隔离
+beforeEach(() => clearClientScopedCaches(client));
+
 
 // 模拟 push2his kline/get 的 CSV 行：date,open,close,high,low,volume,amount,amplitude,changePercent,change,turnoverRate
 const sampleKline =

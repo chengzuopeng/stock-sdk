@@ -1,8 +1,9 @@
 /**
  * 特殊指数注册表:东财 secid 前缀不走交易所推断的指数族。
  * 单一事实来源(normalize 分类 / adapters 拼接 / secid 回读共用),新增只改本文件。
- * 准入约束:按码形/字面无上下文匹配且分类语法确定,仅可收录与其它命名空间
- * 零碰撞的拼写(HSI、000985 类碰撞码需先给 lookup 加 hint 消歧参数);
+ * 准入约束:分类语法确定。零碰撞拼写(HSHCI / GDAXI / 中证)裸码即解析;与其它
+ * 命名空间字面冲突的碰撞码(HSI / HSCEI / HSTECH 落在美股 ticker 命名空间)标
+ * `collision: true`,仅在 market hint 匹配其市场时解析,裸码无 hint 维持原命名空间。
  * 码形合法但不存在的码(如 H30553)由上游返回空数据,不做本地枚举校验。
  */
 import type { Exchange, Market } from './types';
@@ -10,10 +11,23 @@ import type { Exchange, Market } from './types';
 export interface SpecialIndexInfo {
   market: Market;
   exchange: Exchange;
-  /** 东财 secid 数字市场前缀 */
-  secidPrefix: string;
+  /** 东财 secid 数字市场前缀;缺省表示东财无该指数行情(仅腾讯可用,如 HSTECH) */
+  secidPrefix?: string;
   /** 规范化(大写)后的指数代码,调用方应以此为准而非原始输入 */
   code: string;
+  /**
+   * 东财 secid 的 code 部分(默认取 code)。美股指数东财码 ≠ 规范码
+   * (DJI→DJIA / INX→SPX / IXIC→NDX):规范码对齐腾讯与用户习惯,secid 用本字段。
+   * 注意东财码可能撞真实 ticker(DJIA 是 Global X ETF),故仅内部用、不做用户别名。
+   */
+  eastmoneyCode?: string;
+  /** 腾讯行情码(如 'hkHSI');缺省表示腾讯无该指数行情(仅东财可用,如 HSHCI) */
+  tencent?: string;
+  /**
+   * 碰撞码:字面与其它命名空间(如美股 ticker)冲突,仅在 market hint 匹配其
+   * 市场时才按本指数解析;裸码无 hint 维持原命名空间(不劫持真实 ticker)。
+   */
+  collision?: boolean;
 }
 
 /** 中证指数家族(开放集):93xxxx 与 H+5 位,均未被 A 股/美股/期货命名空间占用 */
@@ -25,8 +39,31 @@ const CSI_INFO: Omit<SpecialIndexInfo, 'code'> = {
 const CSI_PATTERNS = [/^93\d{4}$/, /^H\d{5}$/];
 
 const NAMED_INDICES: Record<string, Omit<SpecialIndexInfo, 'code'>> = {
-  /** 恒生医疗保健指数(Hang Seng Healthcare Index) */
+  /** 恒生医疗保健指数(Hang Seng Healthcare Index;仅东财,腾讯无 hkHSHCI) */
   HSHCI: { market: 'HK', exchange: 'HSI', secidPrefix: '124' },
+  /** 恒生指数(Hang Seng Index) */
+  HSI: { market: 'HK', exchange: 'HSI', secidPrefix: '100', tencent: 'hkHSI', collision: true },
+  /** 恒生中国企业指数(国企指数 / H 股指数) */
+  HSCEI: { market: 'HK', exchange: 'HSI', secidPrefix: '100', tencent: 'hkHSCEI', collision: true },
+  /** 恒生科技指数(Hang Seng TECH;东财 secid 暂未确认,当前仅腾讯行情可用) */
+  HSTECH: { market: 'HK', exchange: 'HSI', tencent: 'hkHSTECH', collision: true },
+  // 美股三大指数:规范码取腾讯码(碰撞安全,usDJI/usINX/usIXIC 皆为指数),
+  // 东财码另存 eastmoneyCode(DJIA/SPX/NDX,其中 DJIA 撞真实 ETF,故不做用户别名)。
+  /** 道琼斯工业平均指数(腾讯 usDJI / 东财 100.DJIA) */
+  DJI: {
+    market: 'US', exchange: 'US', secidPrefix: '100',
+    eastmoneyCode: 'DJIA', tencent: 'usDJI', collision: true,
+  },
+  /** 标普 500 指数(腾讯 usINX / 东财 100.SPX) */
+  INX: {
+    market: 'US', exchange: 'US', secidPrefix: '100',
+    eastmoneyCode: 'SPX', tencent: 'usINX', collision: true,
+  },
+  /** 纳斯达克指数(腾讯 usIXIC / 东财 100.NDX) */
+  IXIC: {
+    market: 'US', exchange: 'US', secidPrefix: '100',
+    eastmoneyCode: 'NDX', tencent: 'usIXIC', collision: true,
+  },
   /** 德国 DAX 指数 */
   GDAXI: { market: 'GLOBAL', exchange: 'DAX', secidPrefix: '100' },
 };
@@ -49,4 +86,24 @@ export function lookupSpecialIndex(code: string): SpecialIndexInfo | undefined {
   // 键全大写,不会命中 Object.prototype 继承属性(constructor 等均非全大写)
   const named = NAMED_INDICES[upper];
   return named ? { ...named, code: upper } : undefined;
+}
+
+/**
+ * 按东财 secid 反查特殊指数(kline 行 code 归一用):'100.DJIA' → DJI。
+ * 前缀必须与注册表一致才命中 —— 真实 ETF 'DJIA' 走 105/106/107 探测,
+ * secid 前缀不同,不会被误归一成指数码。
+ */
+export function lookupSpecialIndexByEastmoneySecid(
+  secid: string
+): SpecialIndexInfo | undefined {
+  const dot = secid.indexOf('.');
+  if (dot <= 0) return undefined;
+  const prefix = secid.slice(0, dot);
+  const emCode = secid.slice(dot + 1).toUpperCase();
+  for (const [code, info] of Object.entries(NAMED_INDICES)) {
+    if (info.secidPrefix === prefix && (info.eastmoneyCode ?? code) === emCode) {
+      return { ...info, code };
+    }
+  }
+  return undefined;
 }

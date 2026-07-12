@@ -4,7 +4,7 @@
 > 单一事实源）与 `src/types` 自动生成，目的是让 AI 工具**一次性读取** stock-sdk 的全部
 > 命名空间方法、参数与返回数据结构。**请勿手改本文件**——改 spec / types 后重新生成。
 >
-> 版本：v2.3.0 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
+> 版本：v2.4.0 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
 
 ## 这是什么
 
@@ -44,7 +44,7 @@ import { screen, backtest } from 'stock-sdk/screener';
 
 ### 安装与模块格式
 
-- 最新版：`npm i stock-sdk`（当前 v2.3.0）
+- 最新版：`npm i stock-sdk`（当前 v2.4.0）
 - v1 旧版（已封存）：`npm i stock-sdk@legacy`
 - **ESM + CommonJS** 双格式；主包 `import { StockSDK } from 'stock-sdk'`
 - 纯计算 subpath：`stock-sdk/{indicators,signals,symbols,screener,cache,errors,mcp}`（tree-shake 友好，不拖入全部 provider）
@@ -72,6 +72,18 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集（默认 `core`）。
 **MCP tools/call 大结果会自动裁剪**（数组 >200 条、序列化 >80KB）；**SDK 直连不受此限**。详见 https://stock-sdk.linkdiary.cn/mcp/
 
+#### MCP Skills（Prompts）
+
+除工具外，server 还暴露 **7 个场景化技能**（MCP Prompts，`prompts/list` + `prompts/get`）。支持的客户端（Claude Desktop / Claude Code / Cursor / Cline）把技能渲染成斜杠命令 / 模板，用户一键触发；server 只下发「任务说明书」，多步取数由客户端 model 走 `tools/call` 完成，全程只读。`STOCK_SDK_MCP_PROMPTS=core|full|<逗号分隔技能名>` 控制（默认 `core`，与工具集独立）。
+
+- `analyze_stock` (core; args: symbol, period?) — Full technical analysis of one symbol: klines + indicators + signals, summarized.
+- `screen_stocks` (core; args: criteria, scope?) — Build a candidate shortlist over a chosen universe by natural-language criteria, coarse-filtering before per-symbol indicator work.
+- `market_overview` (core; args: 无参数) — Today's A-share snapshot: market status, limit-up breadth, northbound flow, main-force money direction.
+- `monitor_watchlist` (core; args: symbols) — Single-shot check of a watchlist: batch quotes, then drill into names that crossed a threshold.
+- `analyze_capital_flow` (full; args: symbol?) — Smart-money / main-force read for one stock or the broad market: fund flow + dragon-tiger + block trades + margin + northbound.
+- `analyze_fund` (full; args: fundCode) — Mutual-fund review: profile + NAV history + category ranking + intraday estimate.
+- `diagnose_stock` (full; args: symbol) — Cross-dimension diagnosis of one stock: technicals + capital + chips, scored and combined.
+
 ### 行情类型说明
 
 - `quotes.cn()` → `FullQuote[]`；`quotes.cnSimple()` → `SimpleQuote[]`（简要字段）
@@ -96,7 +108,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ---
 
-## 一、命名空间方法（共 93 个）
+## 一、命名空间方法（共 94 个）
 
 > 形如 `sdk.quotes.cn(codes)` / `sdk.kline.cn(symbol, options?)`；`codes[]` 形态的方法第一个参数为 **string[]**。
 > 标注 **CLI 专属** 的参数/flag 不应传入 SDK options（除非文档明确说明 SDK 消费）。
@@ -178,14 +190,14 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `options.startDate` (string, SDK / MCP): 开始时间 YYYY-MM-DD HH:mm（港股本地时区）
     - `options.endDate` (string, SDK / MCP): 结束时间 YYYY-MM-DD HH:mm（港股本地时区）
     - `options.ndays` (number, SDK / MCP): 仅 period=1 生效：返回最近 N 个交易日的分时，默认 1（当日）
-- **`sdk.kline.us(symbol, options?)`** — 美股历史 K 线（日 / 周 / 月，含复权，币种 USD）。代码格式 {market}.{ticker}（如 105.AAPL / 106.BABA）。复权默认 qfq；日期格式 YYYYMMDD。
-    - `symbol` (位置参数, 必填): 美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA
+- **`sdk.kline.us(symbol, options?)`** — 美股历史 K 线（日 / 周 / 月，含复权，币种 USD）。代码支持裸 ticker（如 AAPL / BABA，自动解析交易所）或显式 secid（105.AAPL / 106.BABA）。复权默认 qfq；日期格式 YYYYMMDD。
+    - `symbol` (位置参数, 必填): 美股代码，裸 ticker（AAPL）或 secid（105.AAPL / 106.BABA）均可
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
     - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
     - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
     - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
-- **`sdk.kline.usMinute(symbol, options?)`** — 美股分钟 K 线 / 当日分时（仅常规交易时段，不含盘前 / 盘后）。period=1 返回当日分时（不支持复权，可用 recentDays 取近 N 日）；period=5/15/30/60 返回分钟 K 线（adjust 仅此时有效，默认 qfq）。代码格式 {market}.{ticker}，如 105.AAPL。
-    - `symbol` (位置参数, 必填): 美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA
+- **`sdk.kline.usMinute(symbol, options?)`** — 美股分钟 K 线 / 当日分时（仅常规交易时段，不含盘前 / 盘后）。period=1 返回当日分时（不支持复权，可用 recentDays 取近 N 日）；period=5/15/30/60 返回分钟 K 线（adjust 仅此时有效，默认 qfq）。代码支持裸 ticker（AAPL）或 secid（105.AAPL）。
+    - `symbol` (位置参数, 必填): 美股代码，裸 ticker（AAPL）或 secid（105.AAPL / 106.BABA）均可
     - `options.period` (1 | 5 | 15 | 30 | 60, 默认 1, SDK / MCP): 分钟周期；1=当日分时
     - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
     - `options.ndays` (number, SDK / MCP): 仅 period=1 生效：返回最近 N 个交易日的分时，默认 1（当日）
@@ -215,6 +227,15 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `--dmi → options.dmi` (boolean, CLI 专属): 启用 DMI
     - `--sar → options.sar` (boolean, CLI 专属): 启用 SAR
     - `--kc → options.kc` (boolean, CLI 专属): 启用 KC
+- **`sdk.kline.signals(symbol, options?)`** — 识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；只看近期请传 startDate 收窄窗口。周期默认 daily，复权默认 qfq。
+    - `symbol` (位置参数, 必填): 股票代码（A 股 / 港股 / 美股）
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
+    - `options.market` (A | HK | US, SDK / MCP): 市场类型 A / HK / US；不传则由 symbol 自动识别
+    - `options.maFast` (number, 默认 5, SDK / MCP): MA 金叉/死叉的快线周期，默认 5（须为正整数且小于 maSlow）
+    - `options.maSlow` (number, 默认 20, SDK / MCP): MA 金叉/死叉的慢线周期，默认 20（须为正整数且大于 maFast）
 
 ### `sdk.chips`
 
@@ -233,7 +254,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `options.includeHistogram` (last | all, SDK / MCP): 筹码峰直方图(150 价格档的占比分布)：last=仅最后一日附带 / all=每日都附带；不传则不附带
     - `options.decimals` (number, 默认 3, SDK / MCP): 获利比例 / 集中度的舍入小数位，默认 3(价格类字段固定 2 位)
 - **`sdk.chips.us(symbol, options?)`** — 美股筹码分布 / 筹码峰（基于东财美股日 K 线 + 换手率本地计算，同 A 股 CYQ 算法）：每日获利比例、平均成本、90/70 成本区间与集中度。days 默认 90；range 默认 120（0 = 全量累计）。换手率为东财口径（交易所公开成交量 / 流通股本），不含暗池细节。
-    - `symbol` (位置参数, 必填): 美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA
+    - `symbol` (位置参数, 必填): 美股代码，裸 ticker（AAPL）或 secid（105.AAPL / 106.BABA）均可
     - `options.days` (number, 默认 90, SDK / MCP): 返回最近 N 个交易日的筹码分布序列，默认 90
     - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
     - `options.range` (number, 默认 120, SDK / MCP): 分布回看窗口(K 线根数)。默认 120 = 东财 App 显示口径；0 = 从上市首日全量累计(akshare stock_cyq_em 口径，计算量更大)
@@ -400,18 +421,18 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ### `sdk.blockTrade`
 
-- **`sdk.blockTrade.marketStat()`** — 获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。  _(仅 CLI / SDK，无 MCP 工具)_
-- **`sdk.blockTrade.detail(options?)`** — 获取大宗交易明细（按日期范围筛选）：成交价、成交量、买卖营业部等。省略日期则默认最近一段时间。  _(仅 CLI / SDK，无 MCP 工具)_
-    - `options.startDate` (string, SDK): 起始日期 YYYYMMDD 或 YYYY-MM-DD
-    - `options.endDate` (string, SDK): 结束日期 YYYYMMDD 或 YYYY-MM-DD
-- **`sdk.blockTrade.dailyStat(options?)`** — 获取大宗交易每日统计（按股票汇总）：成交笔数、成交额、溢价率等。省略日期则默认最近一段时间。  _(仅 CLI / SDK，无 MCP 工具)_
-    - `options.startDate` (string, SDK): 起始日期 YYYYMMDD 或 YYYY-MM-DD
-    - `options.endDate` (string, SDK): 结束日期 YYYYMMDD 或 YYYY-MM-DD
+- **`sdk.blockTrade.marketStat()`** — 获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。
+- **`sdk.blockTrade.detail(options?)`** — 获取大宗交易明细（按日期范围筛选）：成交价、成交量、买卖营业部等。省略日期则默认最近一段时间。
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD 或 YYYY-MM-DD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD 或 YYYY-MM-DD
+- **`sdk.blockTrade.dailyStat(options?)`** — 获取大宗交易每日统计（按股票汇总）：成交笔数、成交额、溢价率等。省略日期则默认最近一段时间。
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD 或 YYYY-MM-DD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD 或 YYYY-MM-DD
 
 ### `sdk.margin`
 
-- **`sdk.margin.accountInfo()`** — 获取融资融券账户统计（融资余额、融券余量、两融余额等）。  _(仅 CLI / SDK，无 MCP 工具)_
-- **`sdk.margin.targetList(date?)`** — 获取融资融券标的明细列表（可融资 / 可融券标志、折算率等）。  _(仅 CLI / SDK，无 MCP 工具)_
+- **`sdk.margin.accountInfo()`** — 获取融资融券账户统计（融资余额、融券余量、两融余额等）。
+- **`sdk.margin.targetList(date?)`** — 获取融资融券标的明细列表（可融资 / 可融券标志、折算率等）。
     - `date` (位置参数, 可选): 交易日 YYYYMMDD 或 YYYY-MM-DD；不传则取最新可用日期
 
 ### `sdk.fund`
@@ -491,7 +512,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 符号解析（normalizeSymbol 等，不发请求）
 
-导出：`Market`, `AssetType`, `Exchange`, `SymbolRef`, `NormalizedSymbol`, `SymbolInput`, `normalizeSymbol`, `marketOf`, `toTencentSymbol`, `toEastmoneySecid`, `toPlainCode`, `EXCHANGE_TO_SECID_PREFIX`, `inferAShareExchange`, `extractVariety`, `FUTURES_EXCHANGES`
+导出：`Market`, `AssetType`, `Exchange`, `SymbolRef`, `NormalizedSymbol`, `SymbolInput`, `normalizeSymbol`, `marketOf`, `toTencentSymbol`, `toEastmoneySecid`, `toPlainCode`, `tryToTencentSymbols`, `TencentSymbolBatch`, `EXCHANGE_TO_SECID_PREFIX`, `inferAShareExchange`, `extractVariety`, `FUTURES_EXCHANGES`
 
 ### `stock-sdk/screener`
 
@@ -505,7 +526,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 缓存层（MemoryCache / cacheThrough 等）
 
-导出：`MemoryCache`, `getSharedCache`, `clearSharedCaches`, `createCacheKey`, `CacheOptions`, `MaybePromise`, `CacheStore`, `MemoryCacheStore`, `cacheThrough`
+导出：`MemoryCache`, `getSharedCache`, `clearSharedCaches`, `configureSharedCache`, `clearClientScopedCaches`, `createCacheKey`, `CacheOptions`, `MaybePromise`, `CacheStore`, `MemoryCacheStore`, `cacheThrough`
 
 ### `stock-sdk/errors`
 
@@ -792,7 +813,8 @@ export interface HKQuote {
   totalMarketCap: number | null;
   currency: string;
   market: 'HK';
-  assetType: 'stock';
+  /** 命中特殊指数注册表(HSI/HSCEI/HSTECH)的行标 'index'(港股真码恒为数字,无碰撞面) */
+  assetType: 'stock' | 'index';
   source: ProviderName;
 }
 
@@ -845,7 +867,8 @@ export interface USQuote {
   /** 52周最低价 */
   low52w: number | null;
   market: 'US';
-  assetType: 'stock';
+  /** 命中特殊指数注册表(DJI/INX/IXIC)的行标 'index'，code 归一为注册表规范形 */
+  assetType: 'stock' | 'index';
   source: ProviderName;
 }
 
@@ -1562,8 +1585,11 @@ export interface FundNavPoint {
   date: string;
   /** 净值日期对应的毫秒时间戳（数据源原值，UTC 当日 00:00） */
   timestamp: number | null;
-  /** 单位净值 */
-  nav: number;
+  /**
+   * 单位净值；上游该行净值缺失 / 非数值时为 `null`
+   * （v2.4.0 起从 `number` 放宽，与 accNav / dailyReturn 的可空口径一致）
+   */
+  nav: number | null;
   /** 累计净值；与单位净值数组按 timestamp 对齐，无法对齐时为 `null` */
   accNav: number | null;
   /** 日增长率（%）；无值时为 `null` */
@@ -3856,15 +3882,27 @@ import { InvalidArgumentError } from '../core/errors';
 export interface ScreenerBuilder<T> {
   /** 过滤：保留满足条件的项 */
   where(predicate: (item: T) => boolean): ScreenerBuilder<T>;
-  /** 排序：按数值选择器，默认降序 */
+  /**
+   * 排序：按数值选择器，默认降序。
+   * 字符串数值（原始行情 JSON 常见，如 `'999999'`）会经 `Number()` 归一后参与排序；
+   * null / undefined / NaN / 空串 / 非数值字符串统一沉底。
+   * direction 仅接受 `'asc'` / `'desc'`，其余取值抛 InvalidArgumentError。
+   */
   sortBy(
-    selector: (item: T) => number | null | undefined,
+    selector: (item: T) => number | string | null | undefined,
     direction?: 'asc' | 'desc'
   ): ScreenerBuilder<T>;
   /** 取前 n 项并返回 */
   top(n: number): T[];
   /** 返回当前全部结果 */
   toArray(): T[];
+}
+
+/** 选择器返回值归一：数字原样；非空字符串 Number() 转换；其余（null/undefined/空串）→ NaN 沉底。 */
+function toSortValue(v: number | string | null | undefined): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string' && v.trim() !== '') return Number(v);
+  return NaN;
 }
 
 /**
@@ -3886,20 +3924,27 @@ export function screen<T>(items: readonly T[]): ScreenerBuilder<T> {
       return builder;
     },
     sortBy(selector, direction = 'desc') {
+      // JS 调用方传 'ASC'/'ascending' 等此前会被静默当降序处理，top(n) 全部选反
+      if (direction !== 'asc' && direction !== 'desc') {
+        throw new InvalidArgumentError(
+          `sortBy(direction): 仅接受 'asc' / 'desc'，得到 ${String(direction)}`,
+          { direction }
+        );
+      }
       const sign = direction === 'asc' ? 1 : -1;
       // F38: current 始终是 builder 私有副本(入口 items.slice()、filter 产新数组),
       // 原地 sort 即可,省掉每次 sortBy 的整数组拷贝(全市场 5600 元素 ~45KB/次)。
       // 对外不可变性不变：入口已拷贝调用方数组,top/toArray 仍返回新数组。
       current.sort((a, b) => {
-        const va = selector(a);
-        const vb = selector(b);
+        const va = toSortValue(selector(a));
+        const vb = toSortValue(selector(b));
         const aOk = Number.isFinite(va);
         const bOk = Number.isFinite(vb);
-        // null / undefined / NaN 统一沉到末尾，不参与算术比较
+        // null / undefined / NaN / 非数值字符串统一沉到末尾，不参与算术比较
         if (!aOk && !bOk) return 0;
         if (!aOk) return 1;
         if (!bOk) return -1;
-        return ((va as number) - (vb as number)) * sign;
+        return (va - vb) * sign;
       });
       return builder;
     },
@@ -3923,37 +3968,74 @@ export function screen<T>(items: readonly T[]): ScreenerBuilder<T> {
 // src/screener/backtest.ts
 // ============================================================
 /**
- * 轻量回测引擎（v2 B2）—— 纯本地、单标的、全仓多头。
+ * 轻量回测引擎（v2 B2）—— 纯本地、单标的、多头。
  * 输入 K 线 + 策略函数，输出收益曲线 / 总收益 / 胜率 / 最大回撤 / 成交记录。
+ *
+ * 成交契约（回测引擎最重要的约定，误解即对不上实盘）：
+ * - **同根收盘成交**：第 i 根 K 线上算出的信号，按第 i 根的收盘价成交（策略能看到
+ *   该收盘价再决策）。真实交易只能在下一根成交，本引擎的零延迟约定会系统性美化
+ *   「按收盘价触发」类策略（均值回归入场 / 止损出场），对比实盘请自行外加滑点。
+ * - **无效价 bar 的信号挂起**：close 为 0（停牌编码）/ NaN / null 的 bar 上发出的
+ *   buy/sell 不会被丢弃，而是挂起到下一根有效价 bar 成交；若届时策略给出新的非
+ *   hold 信号，以新信号为准（最新意图优先）。数据在挂起信号成交前走完时：挂起的
+ *   sell 按最后有效价平仓、计为策略出场（forced=false）；挂起的 buy 作废（无从建仓）。
+ * - **null 空洞 bar**：klines 中 null/undefined 元素按无效价 bar 处理，且**不调用
+ *   strategy**（策略可依赖 bar 恒非空）；下标对齐不受影响。
+ * - **无手数约束**：全仓（或 positionSize 比例）买入允许任意小数股数，不模拟
+ *   A 股 100 股整手限制与最低佣金 —— 小资金回测高价股的结果请自行审视可行性。
  */
+import { InvalidArgumentError } from '../core/errors';
 
 export type StrategySignal = 'buy' | 'sell' | 'hold';
 
-/** 策略：对每根 K 线返回操作信号 */
+/**
+ * 策略：对每根 K 线返回操作信号。
+ *
+ * ⚠️ 第三个参数 `series` 是**完整 K 线数组（含当前 bar 之后的未来数据）**，仅供
+ * 读取历史窗口（如 `series.slice(0, index + 1)`）。读取 `series[index + 1]` 及之后
+ * 的元素即引入前视偏差（look-ahead bias），回测结果会严重虚高且不可复现于实盘。
+ */
 export type Strategy<T> = (
   bar: T,
   index: number,
-  history: readonly T[]
+  series: readonly T[]
 ) => StrategySignal;
 
 export interface Trade {
   entryIndex: number;
+  /** 出场 bar 下标；强制平仓时指向**最后一根有效价 bar**（与 exitPrice 必然对应同一根） */
   exitIndex: number;
   entryPrice: number;
   exitPrice: number;
-  /** 本笔收益率（百分数，含双边费） */
+  /** 本笔收益率（百分数，含双边费，相对本笔投入资金） */
   returnPercent: number;
+  /**
+   * true = 数据走完时强制平仓（非策略意图出场），统计时可据此过滤。
+   * 尾部无效 bar 上挂起的 sell 视为策略意图 → forced=false（按最后有效价成交）。
+   */
+  forced: boolean;
+  /** 入场 bar 日期（传入 getDate 时才有） */
+  entryDate?: string | number;
+  /** 出场 bar 日期（传入 getDate 时才有） */
+  exitDate?: string | number;
 }
 
 export interface BacktestOptions<T> {
   klines: readonly T[];
   strategy: Strategy<T>;
-  /** 初始资金，默认 100000 */
+  /** 初始资金，默认 100000（须为正有限数） */
   initialCapital?: number;
-  /** 单边费率（如 0.0003），默认 0 */
-  fee?: number;
-  /** 取收盘价；默认读取 `bar.close` */
+  /**
+   * 手续费率，默认 0。数字 = 买卖同费率；对象形式可表达买卖不对称
+   * （如 A 股卖出侧印花税：`{ buy: 0.0003, sell: 0.0013 }`）。取值须在 [0, 1)。
+   */
+  fee?: number | { buy: number; sell: number };
+  /** 每次买入动用现金的比例，(0, 1]，默认 1（全仓） */
+  positionSize?: number;
+  /** 取收盘价；默认读取 `bar.close`（分时数据字段是 price 而非 close，需自传） */
   getClose?: (bar: T) => number | null;
+  /** 取 bar 日期（如 `bar.date`）；传入后成交记录带 entryDate/exitDate */
+  getDate?: (bar: T) => string | number | null | undefined;
 }
 
 export interface BacktestReport {
@@ -3961,10 +4043,17 @@ export interface BacktestReport {
   finalEquity: number;
   /** 总收益率（百分数） */
   totalReturn: number;
-  /** 胜率（百分数） */
+  /**
+   * 胜率（百分数）。按 `returnPercent > 0` 计胜：恰好 0（纯费差平局）与强制平仓单
+   * 均计入分母 —— 过滤强平单请用 `trades.filter(t => !t.forced)` 自行统计。
+   */
   winRate: number;
-  /** 最大回撤（百分数，正数） */
+  /** 最大回撤（百分数，正数；以初始资金为起始基线） */
   maxDrawdown: number;
+  /** 买入持有基准收益率（百分数，首根有效收盘 → 末根有效收盘，不含费） */
+  buyHoldReturn: number;
+  /** 有效价 bar 数。为 0 说明所有 bar 都取不到有效收盘价（如字段名不是 close） */
+  validBars: number;
   tradeCount: number;
   trades: Trade[];
   /** 每根 K 线收盘后的权益 */
@@ -3972,13 +4061,25 @@ export interface BacktestReport {
 }
 
 function defaultGetClose<T>(bar: T): number | null {
-  const c = (bar as { close?: number | null }).close;
-  return c != null && Number.isFinite(c) ? c : null;
+  // 有效性（有限、>0）统一由主循环把关，这里只做取值 + 空值归一
+  const c = (bar as { close?: number | null } | null | undefined)?.close;
+  return c ?? null;
+}
+
+/** 校验费率取值 ∈ [0, 1)（fee ≥ 1 会让仓位归零/变负、引擎永久卡死，负费率则凭空生钱）。 */
+function assertFeeRate(name: string, value: number): void {
+  if (!Number.isFinite(value) || value < 0 || value >= 1) {
+    throw new InvalidArgumentError(
+      `${name} 必须在 [0, 1) 内（如 0.0003 表示万分之三），得到 ${value}`,
+      { [name]: value }
+    );
+  }
 }
 
 /**
- * 执行回测。规则：`buy` 且空仓 → 全仓买入；`sell` 且持仓 → 全部卖出；
- * 结束仍持仓则按最后有效收盘价平仓。
+ * 执行回测。规则：`buy` 且空仓 → 按 positionSize 买入；`sell` 且持仓 → 全部卖出；
+ * 结束仍持仓则按最后有效收盘价强制平仓（Trade.forced = true）。
+ * 成交时点 / 无效价挂起 / 手数简化等契约见文件头注释。
  */
 export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
   const {
@@ -3986,47 +4087,112 @@ export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
     strategy,
     initialCapital = 100000,
     fee = 0,
+    positionSize = 1,
     getClose = defaultGetClose,
+    getDate,
   } = options;
+
+  // 入口校验（对齐 screener.top(n) 的 InvalidArgumentError 先例）：
+  // 不校验时 fee>=1 / 负本金 / NaN 会产出「maxDrawdown 0 + 收益符号反转」的静默垃圾报告
+  if (!Number.isFinite(initialCapital) || initialCapital <= 0) {
+    throw new InvalidArgumentError(
+      `initialCapital 必须为正有限数，得到 ${initialCapital}`,
+      { initialCapital }
+    );
+  }
+  // fee 形态归一：null 视同未传（沿袭旧引擎宽容语义）；数字 = 双边同费率；
+  // 对象 = 逐侧；其余类型（字符串等）以准确文案拒绝，而非误导性的 fee.buy=undefined
+  let feeBuy: number;
+  let feeSell: number;
+  if (fee == null) {
+    feeBuy = feeSell = 0;
+  } else if (typeof fee === 'number') {
+    feeBuy = feeSell = fee;
+    assertFeeRate('fee', fee);
+  } else if (typeof fee === 'object') {
+    feeBuy = fee.buy;
+    feeSell = fee.sell;
+    assertFeeRate('fee.buy', feeBuy);
+    assertFeeRate('fee.sell', feeSell);
+  } else {
+    throw new InvalidArgumentError(
+      `fee 必须是数字或 { buy, sell } 对象，得到 ${String(fee)}`,
+      { fee }
+    );
+  }
+  if (!Number.isFinite(positionSize) || positionSize <= 0 || positionSize > 1) {
+    throw new InvalidArgumentError(
+      `positionSize 必须在 (0, 1] 内，得到 ${positionSize}`,
+      { positionSize }
+    );
+  }
 
   let cash = initialCapital;
   let position = 0;
   let entryPrice = 0;
   let entryIndex = -1;
   let lastPrice = 0;
+  let lastPriceIndex = -1;
+  let firstValidPrice = 0;
+  let validBars = 0;
+  // 无效价 bar 上的最新非 hold 意图，挂起到下一根有效价 bar
+  let pending: 'buy' | 'sell' | null = null;
   const trades: Trade[] = [];
   const equityCurve: number[] = [];
 
-  const recordTrade = (exitIndex: number, exitPrice: number) => {
-    // 与持仓现金路径完全一致:买入扣 (1-fee)、卖出扣 (1-fee),双边手续费按复利,
-    // 而非 (gross - 2*fee) 的线性近似 —— 确保 returnPercent 与 totalReturn / equityCurve 同口径,
+  const dateOf = (i: number): string | number | undefined => {
+    if (!getDate || i < 0 || klines[i] == null) return undefined;
+    return getDate(klines[i]) ?? undefined;
+  };
+
+  const recordTrade = (exitIndex: number, exitPrice: number, forced: boolean) => {
+    // 与持仓现金路径完全一致:买入扣 (1-feeBuy)、卖出扣 (1-feeSell),双边手续费按复利,
+    // 而非 (gross - 2*fee) 的线性近似 —— 确保 returnPercent 相对本笔投入资金的口径
+    // 与 equityCurve 一致(positionSize=1 单笔时与 totalReturn 数值相等),
     // winRate(按 returnPercent>0 统计)也才准确。
     const returnPercent =
-      ((exitPrice / entryPrice) * (1 - fee) * (1 - fee) - 1) * 100;
-    trades.push({ entryIndex, exitIndex, entryPrice, exitPrice, returnPercent });
+      ((exitPrice / entryPrice) * (1 - feeBuy) * (1 - feeSell) - 1) * 100;
+    const t: Trade = { entryIndex, exitIndex, entryPrice, exitPrice, returnPercent, forced };
+    const entryDate = dateOf(entryIndex);
+    if (entryDate !== undefined) t.entryDate = entryDate;
+    const exitDate = dateOf(exitIndex);
+    if (exitDate !== undefined) t.exitDate = exitDate;
+    trades.push(t);
   };
 
   for (let i = 0; i < klines.length; i++) {
-    const rawPrice = getClose(klines[i]);
+    // bar 本身为 null/undefined（JSON 空洞）时既不进 getClose 也不进 strategy ——
+    // 策略作者可依赖「bar 恒非空」，引擎与用户代码都不因空洞抛裸 TypeError
+    const isHole = klines[i] == null;
+    const rawPrice = isHole ? null : getClose(klines[i]);
     // 仅正有限价为有效价；0(停牌/缺口编码)、NaN、null 一律视为无效
     const price =
       rawPrice != null && Number.isFinite(rawPrice) && rawPrice > 0
         ? rawPrice
         : null;
-    const signal = strategy(klines[i], i, klines);
+    const signal: StrategySignal = isHole ? 'hold' : strategy(klines[i], i, klines);
 
     if (price != null) {
+      validBars++;
       lastPrice = price;
-      if (signal === 'buy' && position === 0) {
-        position = (cash * (1 - fee)) / price;
+      lastPriceIndex = i;
+      if (firstValidPrice === 0) firstValidPrice = price;
+      // 当根信号优先；当根 hold 时执行挂起意图（无效 bar 上发出的信号在此成交）
+      const effective = signal !== 'hold' ? signal : pending;
+      pending = null;
+      if (effective === 'buy' && position === 0) {
+        const invest = cash * positionSize;
+        position = (invest * (1 - feeBuy)) / price;
         entryPrice = price;
         entryIndex = i;
-        cash = 0;
-      } else if (signal === 'sell' && position > 0) {
-        cash = position * price * (1 - fee);
-        recordTrade(i, price);
+        cash -= invest;
+      } else if (effective === 'sell' && position > 0) {
+        cash += position * price * (1 - feeSell);
+        recordTrade(i, price, false);
         position = 0;
       }
+    } else if (signal !== 'hold') {
+      pending = signal;
     }
 
     // 无效价回退到 lastPrice 做 mark-to-market，避免 equity 塌成 cash 或被 NaN 污染
@@ -4035,12 +4201,17 @@ export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
     equityCurve.push(equity);
   }
 
-  // 收尾平仓
+  // 收尾平仓：exitIndex 指向最后一根有效价 bar（价格与下标必然对应同一根 K 线）。
+  // 挂起的 sell（发在尾部无效 bar 上、没等到下一根有效价）视为策略意图出场
+  // （forced=false），仅「数据走完仍持仓且无出场意图」才标 forced=true。
   if (position > 0 && lastPrice > 0) {
-    cash = position * lastPrice * (1 - fee);
-    recordTrade(klines.length - 1, lastPrice);
-    position = 0;
-    if (equityCurve.length > 0) equityCurve[equityCurve.length - 1] = cash;
+    cash += position * lastPrice * (1 - feeSell);
+    recordTrade(lastPriceIndex, lastPrice, pending !== 'sell');
+    // 结算记账在出场 bar（与 exitIndex 同根，卖出费即刻体现），其后的无效尾 bar
+    // 一律标为现金 —— 否则 exitIndex 与权益结算落点分离，停牌尾部会出现幽灵费差
+    for (let j = Math.max(lastPriceIndex, 0); j < equityCurve.length; j++) {
+      equityCurve[j] = cash;
+    }
   }
 
   const finalEquity = equityCurve.length
@@ -4049,12 +4220,16 @@ export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
   const totalReturn = (finalEquity / initialCapital - 1) * 100;
   const wins = trades.filter((t) => t.returnPercent > 0).length;
   const winRate = trades.length ? (wins / trades.length) * 100 : 0;
+  const buyHoldReturn =
+    firstValidPrice > 0 ? (lastPrice / firstValidPrice - 1) * 100 : 0;
 
-  let peak = -Infinity;
+  // peak 以 initialCapital 播种:首笔买入的手续费回撤才会被看见
+  // (此前 bar0 买入 vs bar1 买入,同一经济学产出 2 倍差异的 maxDrawdown)
+  let peak = initialCapital;
   let maxDrawdown = 0;
   for (const e of equityCurve) {
     if (e > peak) peak = e;
-    const dd = peak > 0 ? ((peak - e) / peak) * 100 : 0;
+    const dd = ((peak - e) / peak) * 100;
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
@@ -4064,6 +4239,8 @@ export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
     totalReturn,
     winRate,
     maxDrawdown,
+    buyHoldReturn,
+    validBars,
     tradeCount: trades.length,
     trades,
     equityCurve,

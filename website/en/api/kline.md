@@ -25,8 +25,11 @@ const us15 = await sdk.kline.us('AAPL', { period: '15' })
 | `kline.us(symbol, opts?)` | US historical K-line |
 | `kline.usMinute(symbol, opts?)` | US minute K-line / intraday |
 | `kline.withIndicators(symbol, opts?)` | Historical K-line + built-in indicators (MA / MACD / KDJ, etc.) |
+| `kline.signals(symbol, opts?)` | Indicator signals over historical K-lines (golden/death crosses, overbought/oversold, breakouts, reversals — 14 types) |
 
 > Data is sourced from Eastmoney. HK / US K-lines cover regular trading hours only (no pre-/post-market).
+>
+> `kline.signals` chains `withIndicators` + `calcSignals` ([`stock-sdk/signals`](/en/api/signals)) and returns each signal's `type` / `date` / `close` / `detail`. `maFast` / `maSlow` (default 5 / 20) tune the MA cross periods, the rest use common default thresholds; omit `startDate` to scan full history, pass it to narrow the window.
 
 ## Parameters
 

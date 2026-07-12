@@ -144,8 +144,39 @@ export class MemoryCache<T = unknown> {
       }
     }
 
-    if (oldestKey) {
+    // R7-11a: 必须用 !== null 而非真值判断 —— 空字符串是合法键
+    // （createCacheKey() 零参即产出 ''），真值判断会让 '' 成为 LRU 时
+    // 淘汰永久失效（缓存无界增长；配合容量收缩循环则直接死循环）
+    if (oldestKey !== null) {
       this.cache.delete(oldestKey);
+    }
+  }
+
+  /** options 浅等价（defaultTTL / maxSize，与构造默认值对齐后比较） */
+  matchesOptions(options: CacheOptions): boolean {
+    return (
+      (options.defaultTTL ?? this.defaultTTL) === this.defaultTTL &&
+      (options.maxSize ?? this.maxSize) === this.maxSize
+    );
+  }
+
+  /**
+   * 运行时重配（R7-13，配合 {@link configureSharedCache}）。
+   * 新 defaultTTL 只影响后续 set（已存条目的 expireAt 不回溯改写）；
+   * maxSize 调小时立即淘汰至达标。
+   */
+  configure(options: CacheOptions): void {
+    if (options.defaultTTL !== undefined) {
+      this.defaultTTL = options.defaultTTL;
+    }
+    if (options.maxSize !== undefined) {
+      this.maxSize = options.maxSize;
+      // 有界兜底：即使淘汰异常也不会死循环（evictLRU 的 '' falsy bug
+      // 已在 R7-11a 修复，此处 guard 是双保险）
+      let guard = this.cache.size;
+      while (this.cache.size > this.maxSize && guard-- > 0) {
+        this.evictLRU();
+      }
     }
   }
 
@@ -184,8 +215,15 @@ export class MemoryCache<T = unknown> {
 
 const sharedCaches = new Map<string, MemoryCache<unknown>>();
 
+/** 已就"options 不生效"发过警告的 namespace（每个只警告一次，防热路径刷屏） */
+const warnedSharedNamespaces = new Set<string>();
+
 /**
- * 获取具名共享缓存
+ * 获取具名共享缓存。
+ *
+ * **first-caller-wins**：`options` 仅在 namespace 首次创建时生效；命中已存在
+ * 的 namespace 时 options 被忽略（与现行配置不等价时警告一次），如需运行时
+ * 调整请用 {@link configureSharedCache}。
  */
 export function getSharedCache<T = unknown>(
   namespace: string,
@@ -193,6 +231,19 @@ export function getSharedCache<T = unknown>(
 ): MemoryCache<T> {
   const cached = sharedCaches.get(namespace);
   if (cached) {
+    // R7-13: 配置意图未生效必须可见 —— 但"get-or-create 惰性访问器每次带
+    // 同一份 options"是自然用法，等价配置不警告、每 namespace 只警告一次
+    if (
+      options !== undefined &&
+      !cached.matchesOptions(options) &&
+      !warnedSharedNamespaces.has(namespace)
+    ) {
+      warnedSharedNamespaces.add(namespace);
+      console.warn(
+        `[stock-sdk] getSharedCache("${namespace}") 已存在，本次传入的 options 不生效；` +
+          `如需调整请用 configureSharedCache("${namespace}", options)`
+      );
+    }
     return cached as MemoryCache<T>;
   }
 
@@ -202,12 +253,78 @@ export function getSharedCache<T = unknown>(
 }
 
 /**
- * 清空所有共享缓存
+ * 显式重配已存在的共享缓存（R7-13）；namespace 不存在返回 `false`。
+ * 语义见 {@link MemoryCache.configure}。
+ */
+export function configureSharedCache(
+  namespace: string,
+  options: CacheOptions
+): boolean {
+  const cache = sharedCaches.get(namespace);
+  if (!cache) {
+    return false;
+  }
+  cache.configure(options);
+  return true;
+}
+
+/**
+ * 清空所有**共享**缓存。
+ *
+ * ⚠️ v2.4.0 起不覆盖实例级缓存：代码表 / 交易日历 / 板块映射 / us-secid
+ * 已迁移为按 client 隔离（R7-11），强刷它们请用 `StockSDK.clearCaches()`。
  */
 export function clearSharedCaches(): void {
   for (const cache of sharedCaches.values()) {
     cache.clear();
   }
+}
+
+const clientScopedCaches = new WeakMap<object, Map<string, MemoryCache<unknown>>>();
+
+/**
+ * 按 client 实例隔离的具名缓存：同一 client + namespace 返回同一实例。
+ *
+ * 用于"数据经由某个 client 的传输栈取回"的缓存（代码表 / 交易日历 /
+ * 板块映射 / us-secid 等），避免自定义 fetchImpl（mock / 代理）实例
+ * 取回的数据串到其它 StockSDK 实例（R7-11）。
+ *
+ * 语义与 {@link getSharedCache} 一致为 first-wins：`options` 仅在该
+ * (client, namespace) 首次创建时生效，后续调用传入的 options 被忽略
+ * ——SDK 内部各调用点统一使用模块级常量 options，无二次配置意图。
+ * client 被 GC 后其全部缓存随 WeakMap 自动释放。
+ */
+export function getClientScopedCache<T = unknown>(
+  client: object,
+  namespace: string,
+  options?: CacheOptions
+): MemoryCache<T> {
+  let byNs = clientScopedCaches.get(client);
+  if (!byNs) {
+    byNs = new Map();
+    clientScopedCaches.set(client, byNs);
+  }
+  let cache = byNs.get(namespace);
+  if (!cache) {
+    cache = new MemoryCache<T>(options) as MemoryCache<unknown>;
+    byNs.set(namespace, cache);
+  }
+  return cache as MemoryCache<T>;
+}
+
+/**
+ * 清空某 client 的全部作用域缓存（测试 teardown / 手动强制失效用；
+ * 面向 SDK 用户的入口是 `StockSDK.clearCaches()`；不经 StockSDK、直接以
+ * 自建 RequestClient 调 provider 函数的用户，从 `stock-sdk/cache` 导入本函数
+ * 传入该 client 即可 —— v2.4.0 起代码表/日历/板块映射迁到实例级后,
+ * `clearSharedCaches()` 不再覆盖它们。
+ *
+ * 已知残留:清空瞬间仍在途的 getOrFetch 解析完成后会写进被丢弃的旧缓存
+ * 实例(无害,首次新调用会重新解析),清空窗口内的"强制重解析"对该 key
+ * 可能晚一拍生效。
+ */
+export function clearClientScopedCaches(client: object): void {
+  clientScopedCaches.delete(client);
 }
 
 /**

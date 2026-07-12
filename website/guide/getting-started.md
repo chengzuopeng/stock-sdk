@@ -14,6 +14,10 @@ const sdk = new StockSDK()
 
 构造函数接受可选配置（自定义 `fetch`、外部 `AbortSignal`、请求 hooks、缓存等），不传则使用默认值。详见[请求治理](/guide/request-governance)。
 
+::: tip 长驻进程请复用单例
+实例级缓存（代码表 / 交易日历 / 板块映射等）按 `StockSDK` 实例隔离（v2.4.0 起）。"每请求 `new StockSDK()`"会让每个实例缓存冷启——长驻服务请在模块顶层创建一次并复用；需要强刷缓存时调用 `sdk.clearCaches()`。
+:::
+
 ## 10 行 demo
 
 获取一只 A 股的实时行情，并打印价格与涨跌幅：

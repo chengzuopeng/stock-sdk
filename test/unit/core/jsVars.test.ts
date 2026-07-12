@@ -301,3 +301,179 @@ describe('fetchJsVars (browser concurrency safety with mutex)', () => {
     expect('x' in r2).toBe(false);
   });
 });
+
+describe('fetchJsVars (R7-10 var 全局残留防护)', () => {
+  interface FakeScript {
+    src: string;
+    onload: (() => void) | null;
+    onerror: (() => void) | null;
+    parentNode: { removeChild: (el: FakeScript) => void } | null;
+  }
+
+  let scripts: FakeScript[];
+  let fakeWindow: Record<string, unknown>;
+
+  async function flushMicrotasks() {
+    for (let i = 0; i < 5; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
+  beforeEach(() => {
+    scripts = [];
+    fakeWindow = {};
+    __resetScriptMutex();
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const el: FakeScript = { src: '', onload: null, onerror: null, parentNode: null };
+        scripts.push(el);
+        return el;
+      },
+      head: {
+        appendChild: (el: FakeScript) => {
+          el.parentNode = { removeChild: () => {} };
+        },
+      },
+    });
+    vi.stubGlobal('window', fakeWindow);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetScriptMutex();
+  });
+
+  /** 模拟顶层 `var` 声明产生的 non-configurable 全局（delete 必然失败）。 */
+  function defineVarGlobal(name: string, value: unknown) {
+    Object.defineProperty(fakeWindow, name, {
+      configurable: false,
+      writable: true,
+      value,
+    });
+  }
+
+  it('上一请求残留的 var 全局不再归属到本次请求（预置 undefined + undefined 门）', async () => {
+    // 请求 A 留下 non-configurable 残留（fund A 的数据）
+    defineVarGlobal('Data_netWorthTrend', [[1, 2]]);
+
+    // 请求 B 的脚本什么都不定义（上游变体/空基金）
+    const p = fetchJsVars<{ Data_netWorthTrend: unknown }>('http://x/fundB.js', [
+      'Data_netWorthTrend',
+    ]);
+    await flushMicrotasks();
+    scripts[0].onload!();
+    const r = await p;
+
+    // 修复前：'Data_netWorthTrend' in win 为 true → fund A 的数据被当成 fund B 的返回
+    expect('Data_netWorthTrend' in r).toBe(false);
+  });
+
+  it('var 全局 delete 失败时以置 undefined 兜底清理，本次值仍正常返回', async () => {
+    defineVarGlobal('fS_code', 'STALE');
+
+    const p = fetchJsVars<{ fS_code: string }>('http://x/fund.js', ['fS_code']);
+    await flushMicrotasks();
+    fakeWindow.fS_code = 'FRESH'; // 脚本执行：var 可写
+    scripts[0].onload!();
+    const r = await p;
+
+    expect(r.fS_code).toBe('FRESH');
+    // non-configurable 删不掉，但已被清空
+    expect(fakeWindow.fS_code).toBeUndefined();
+  });
+
+  it('超时后迟到脚本被二次清扫：串数据降级为缺数据', async () => {
+    const p = fetchJsVars<{ x: number }>('http://x/slow.js', ['x'], { timeout: 10 });
+    await expect(p).rejects.toThrow(/timed out/);
+
+    // 迟到脚本此刻才执行并赋值，随后其 onload（已被替换为清扫器）触发
+    fakeWindow.x = 42;
+    scripts[0].onload!();
+    expect(fakeWindow.x).toBeUndefined();
+  });
+
+  it('mutexKey 专属队列与默认全局队列互不阻塞（R7-5）', async () => {
+    const p1 = fetchJsVars<{ fS_code: string }>('http://x/fund.js', ['fS_code']);
+    const p2 = fetchJsVars<{ v_hint: string }>('http://x/hint.js', ['v_hint'], {
+      mutexKey: 'jsVars:v_hint',
+    });
+
+    await flushMicrotasks();
+    // 不同 key：两个 script 并行创建（默认全局队列则只会有 1 个）
+    expect(scripts).toHaveLength(2);
+
+    fakeWindow.v_hint = 'result~b';
+    scripts[1].onload!();
+    const r2 = await p2;
+    expect(r2.v_hint).toBe('result~b');
+
+    fakeWindow.fS_code = 'A';
+    scripts[0].onload!();
+    const r1 = await p1;
+    expect(r1.fS_code).toBe('A');
+  });
+
+  it('同一 mutexKey 内仍串行（搜索之间的并发安全保持）', async () => {
+    const key = { mutexKey: 'jsVars:v_hint' };
+    const p1 = fetchJsVars<{ v_hint: string }>('http://x/kw1.js', ['v_hint'], key);
+    const p2 = fetchJsVars<{ v_hint: string }>('http://x/kw2.js', ['v_hint'], key);
+
+    await flushMicrotasks();
+    expect(scripts).toHaveLength(1); // 第二个排队中
+
+    fakeWindow.v_hint = 'kw1-result';
+    scripts[0].onload!();
+    const r1 = await p1;
+
+    await flushMicrotasks();
+    fakeWindow.v_hint = 'kw2-result';
+    scripts[1].onload!();
+    const r2 = await p2;
+
+    expect(r1.v_hint).toBe('kw1-result');
+    expect(r2.v_hint).toBe('kw2-result');
+  });
+});
+
+describe('fetchJsVars (R7-10 残留 own property 清理，review 修正)', () => {
+  interface FakeScript {
+    src: string;
+    onload: (() => void) | null;
+    onerror: (() => void) | null;
+    parentNode: { removeChild: (el: FakeScript) => void } | null;
+  }
+  let scripts: FakeScript[];
+  let fakeWindow: Record<string, unknown>;
+  async function flush() {
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+  }
+  beforeEach(() => {
+    scripts = [];
+    fakeWindow = {};
+    __resetScriptMutex();
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const el: FakeScript = { src: '', onload: null, onerror: null, parentNode: null };
+        scripts.push(el);
+        return el;
+      },
+      head: { appendChild: (el: FakeScript) => { el.parentNode = { removeChild: () => {} }; } },
+    });
+    vi.stubGlobal('window', fakeWindow);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetScriptMutex();
+  });
+
+  it('脚本未定义的变量名读后不残留为 window own property', async () => {
+    const p = fetchJsVars<{ a: number; b: number }>('http://x/1.js', ['a', 'b']);
+    await flush();
+    fakeWindow.a = 1; // 脚本只定义 a，未定义 b
+    scripts[0].onload!();
+    await p;
+    // presetUndefined 给 b 建的 own 属性应被清理，不污染 window 命名空间
+    expect('b' in fakeWindow).toBe(false);
+    expect('a' in fakeWindow).toBe(false); // a 读完也清理
+  });
+});

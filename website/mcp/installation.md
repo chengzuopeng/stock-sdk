@@ -90,4 +90,4 @@ npx -y stock-sdk mcp
 ## 下一步
 
 - [MCP 工具表](/mcp/tools)：连上后可用的工具一览。
-- [AI Skills](/mcp/skills)：把工具组合成技术分析 / 智能选股等高层技能。
+- [AI Skills](/skills/)：把工具组合成技术分析 / 智能选股等高层技能。

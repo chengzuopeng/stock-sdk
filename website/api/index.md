@@ -26,7 +26,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // 二级命名空间
 
 | 命名空间 | 用途 | 文档 |
 |---|---|---|
-| `sdk.kline` | A/HK/US 历史 K 线、分钟 K 线、带指标 K 线 | [kline](/api/kline) |
+| `sdk.kline` | A/HK/US 历史 K 线、分钟 K 线、带指标 K 线、指标信号 | [kline](/api/kline) |
 | `sdk.chips` | A/HK/US 筹码分布：获利比例 / 平均成本 / 90-70 成本区间与集中度 / 筹码峰 | [chips](/api/chips) |
 | `sdk.board.industry` · `sdk.board.concept` | 行业 / 概念板块：列表、行情、成分股、K线、分时 | [board](/api/board) |
 
@@ -71,6 +71,7 @@ import { normalizeSymbol } from 'stock-sdk/symbols'
 |---|---|---|---|
 | 指标 | `stock-sdk/indicators` | 14 个技术指标：`calcMA` / `calcMACD` / `calcBOLL` / `calcKDJ` / `calcRSI` / `calcWR` / `calcBIAS` / `calcCCI` / `calcATR` / `calcOBV` / `calcROC` / `calcDMI` / `calcSAR` / `calcKC` + `addIndicators` | [indicators](/api/indicators) |
 | 信号 | `stock-sdk/signals` | `calcSignals`：金叉 / 死叉 / 超买 / 超卖等事件识别 | [signals](/api/signals) |
+| 选股 / 回测 | `stock-sdk/screener` | `screen`：链式筛选排序；`backtest`：单标的多头回测 | [screener](/api/screener) |
 | 符号 | `stock-sdk/symbols` | `normalizeSymbol`、`SymbolRef` 类型：符号容错解析 | [符号与代码规则](/guide/symbols) |
 
 ## 约定

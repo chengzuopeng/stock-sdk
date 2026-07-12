@@ -4,7 +4,7 @@
  */
 import {
   RequestClient,
-  getSharedCache,
+  getClientScopedCache,
   assertKlinePeriod,
   assertAdjustType,
   getPeriodCode,
@@ -75,18 +75,13 @@ export interface BoardMinuteKlineOptions {
 
 // ========== 工厂函数 ==========
 
+/** R7-11: 板块名称映射缓存按 client 隔离（此前模块级共享跨实例串数据 1h） */
+const BOARD_CODE_CACHE_OPTIONS = { defaultTTL: 60 * 60 * 1000, maxSize: 4 };
+
 /**
  * 创建板块名称到代码的映射管理器
  */
 export function createBoardCodeCache(config: BoardTypeConfig) {
-  const cache = getSharedCache<Record<string, string>>(
-    `eastmoney:board-code-map:${config.type}`,
-    {
-      defaultTTL: 60 * 60 * 1000,
-      maxSize: 4,
-    }
-  );
-
   return {
     async getCode(
       client: RequestClient,
@@ -99,6 +94,11 @@ export function createBoardCodeCache(config: BoardTypeConfig) {
         return symbol;
       }
 
+      const cache = getClientScopedCache<Record<string, string>>(
+        client,
+        `eastmoney:board-code-map:${config.type}`,
+        BOARD_CODE_CACHE_OPTIONS
+      );
       const nameCodeMap = await cache.getOrFetch('name-code-map', async () => {
         const boards = await listFn(client);
         // 空板块列表必为上游异常：抛错且【不落缓存】，避免空 map 被缓存 1 小时、

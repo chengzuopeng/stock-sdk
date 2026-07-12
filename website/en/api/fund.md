@@ -138,7 +138,7 @@ interface FundNavHistory {
 interface FundNavPoint {
   date: string;                // NAV date YYYY-MM-DD
   timestamp: number | null;    // UTC ms; null if unparseable
-  nav: number;                 // unit NAV
+  nav: number | null;          // unit NAV (null when missing/non-numeric, since v2.4.0)
   accNav: number | null;       // accumulated NAV (null if alignment fails)
   dailyReturn: number | null;  // daily growth (percent, e.g. 1.23)
   unitMoney: string;           // per-10k-share yield (money funds only; otherwise empty)

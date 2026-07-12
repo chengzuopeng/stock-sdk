@@ -84,6 +84,28 @@ interface HistoryKlineProviderFactoryOptions<T> {
 }
 
 /**
+ * 东财历史 K 线 query 组装（工厂与 usKline 的 secid 探测共用）。
+ * R7-4: 抽出以保证探测请求与正式请求参数集同构 —— 漏 ut/fields
+ * 会让探测对有效 secid 也返回 data:null，探测结论失真。
+ */
+export function buildEmKlineParams(
+  secid: string,
+  opts: { klt: string; fqt: string; lmt: string; beg?: string; end?: string }
+): URLSearchParams {
+  return new URLSearchParams({
+    fields1: 'f1,f2,f3,f4,f5,f6',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
+    ut: EM_PUSH_TOKEN,
+    klt: opts.klt,
+    fqt: opts.fqt,
+    secid,
+    beg: opts.beg ?? '19700101',
+    end: opts.end ?? '20500101',
+    lmt: opts.lmt,
+  });
+}
+
+/**
  * 创建港股 / 美股历史 K 线 provider。
  */
 export function createHistoryKlineProvider<
@@ -104,16 +126,12 @@ export function createHistoryKlineProvider<
     assertAdjustType(adjust);
 
     const normalizedSymbol = config.normalizeSymbol(symbol);
-    const params = new URLSearchParams({
-      fields1: 'f1,f2,f3,f4,f5,f6',
-      fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
-      ut: EM_PUSH_TOKEN,
+    const params = buildEmKlineParams(normalizedSymbol.secid, {
       klt: getPeriodCode(period),
       fqt: getAdjustCode(adjust),
-      secid: normalizedSymbol.secid,
+      lmt: '1000000',
       beg: startDate,
       end: endDate,
-      lmt: '1000000',
     });
 
     const { klines, name, code } = await fetchEmHistoryKline(

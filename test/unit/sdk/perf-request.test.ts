@@ -9,8 +9,8 @@
  *   max(500, 15×maxRecursiveLookback),纯窗口型取 requiredBars 即精确
  *   (R3-12);常规路径不切片,见终审 408404d 与 P2-7)
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { RequestClient } from '../../../src/core';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RequestClient, clearClientScopedCaches } from '../../../src/core';
 import {
   getMinuteKline,
   getHKMinuteKline,
@@ -21,6 +21,7 @@ import { IndicatorService } from '../../../src/sdk/indicatorService';
 import { addIndicators } from '../../../src/indicators';
 import type { IndicatorOptions } from '../../../src/indicators';
 import type { HistoryKline } from '../../../src/types';
+import { makeHistoryKline } from './helpers';
 
 // 把 addIndicators 包成可观测的 passthrough spy(行为不变),
 // 用于 F37 断言"指标计算只收到裁剪后的切片,而不是全量历史"
@@ -38,6 +39,9 @@ vi.mock('../../../src/indicators', async (importOriginal) => {
 
 // 关掉 retry,避免异常分支触发 backoff 拖慢测试
 const client = new RequestClient({ retry: { maxRetries: 0 } });
+// R7-11: 模块级共享 client 的用例间缓存隔离
+beforeEach(() => clearClientScopedCaches(client));
+
 
 // kline/get 的 CSV 行:date,open,close,high,low,volume,amount,amplitude,changePercent,change,turnoverRate
 const k = (time: string) => `${time},100,101,102,99,1000,100000,2,1,1,0.5`;
@@ -222,22 +226,7 @@ describe('F34: minute kline pushes startDate/endDate down as beg/end', () => {
 // ============================================================
 
 function makeKline(date: string, close: number): HistoryKline {
-  return {
-    date,
-    timestamp: Date.parse(`${date}T00:00:00+08:00`),
-    tz: 'Asia/Shanghai',
-    code: '600519',
-    open: close,
-    close,
-    high: close + 1,
-    low: close - 1,
-    volume: 1000,
-    amount: 100000,
-    amplitude: 1,
-    changePercent: 0,
-    change: 0,
-    turnoverRate: 1,
-  };
+  return makeHistoryKline(date, close); // 行形状单一来源:test/unit/sdk/helpers.ts
 }
 
 /** 从 2023-01-01 起按自然日生成 count 根确定性的合成日 K */
@@ -328,8 +317,9 @@ describe('F35: skip the full-history refetch for short-listed symbols', () => {
     // 月线标签在期末,首根可晚于起点 8~31 天 —— P1-4 曾因此对非日线一律
     // refetch;R3-14 把期末滞后并入容差公式(30 + 31 = 61 天),滞后在
     // 容差内仍保守 refetch(实测此前月线窗口首段 kdj 全 null 的场景被覆盖)。
-    // 这里 actualStartDate ≈ 2024-02-21,首根 2024-02-29 仅差 8 天 ≤ 61。
-    const monthly = ['2024-02-29', '2024-03-29', '2024-04-30'].map((d, i) =>
+    // 周期感知换算后月线按 31.5 天/bar 回推:requiredBars 6 → actualStartDate
+    // ≈ 2024-03-01 - 189 天 ≈ 2023-08-25;首根 2023-09-29 差 35 天 ≤ 61。
+    const monthly = ['2023-09-29', '2023-10-31', '2023-11-30'].map((d, i) =>
       makeKline(d, 100 + i)
     );
     const { service, klineService } = makeService({ A: [monthly, monthly] });
@@ -339,6 +329,44 @@ describe('F35: skip the full-history refetch for short-listed symbols', () => {
       indicators,
     });
     expect(klineService.getHistoryKline).toHaveBeenCalledTimes(2);
+  });
+
+  it('周期感知回推:周线 + startDate 首次抓取即覆盖 requiredBars,不再必然双请求', async () => {
+    // 此前 bars→自然日换算不看周期(×1.5):周线 requiredBars 6 只回推 9 天
+    // ≈1-2 根周线 bar < 6 → F35 全量 refetch 每次必触发,首次抓取整个作废。
+    // 周期感知(×7.5)回推 45 天 ≈6-7 根 → 单次请求闭环。
+    const base = Date.UTC(2024, 0, 5);
+    const weekly = Array.from({ length: 20 }, (_, i) => {
+      const date = new Date(base + i * 7 * 86_400_000).toISOString().slice(0, 10);
+      return makeKline(date, 100 + i);
+    });
+    const getHistoryKline = vi
+      .fn()
+      .mockImplementation(async (_s: string, opts?: { startDate?: string }) => {
+        if (!opts?.startDate) return weekly;
+        const iso = `${opts.startDate.slice(0, 4)}-${opts.startDate.slice(4, 6)}-${opts.startDate.slice(6, 8)}`;
+        return weekly.filter((k) => k.date >= iso); // 模拟上游按 beg 裁剪
+      });
+    const klineService = {
+      getHistoryKline,
+      getHKHistoryKline: vi.fn().mockResolvedValue([]),
+      getUSHistoryKline: vi.fn().mockResolvedValue([]),
+    };
+    const quoteService = {
+      getTradingCalendar: vi.fn().mockRejectedValue(new Error('calendar unavailable')),
+    };
+    const service = new IndicatorService(klineService, quoteService);
+
+    const rows = await service.getKlineWithIndicators('600519', {
+      period: 'weekly',
+      startDate: '2024-05-01',
+      indicators,
+    });
+    // actualStartDate ≈ 2024-05-01 - ceil(6×7.5)=45 天 ≈ 2024-03-17 → 上游裁剪后
+    // 仍有 ≈9 根 ≥ requiredBars(6) → 不触发 refetch(旧换算只回推 9 天 ≈1 根 → 必 refetch)
+    expect(getHistoryKline).toHaveBeenCalledTimes(1); // 此前这里必然是 2
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.date >= '2024-05-01')).toBe(true);
   });
 
   it('R3-14: 月线真 IPO(首根晚于容差 61+ 天)→ 跳过 refetch,单次请求', async () => {

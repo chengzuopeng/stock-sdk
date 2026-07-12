@@ -1,0 +1,126 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`prompts-contract⑦: 技能清单快照（name/tier/args/usesTools 变动可见） > PROMPT_SPECS 结构快照 1`] = `
+[
+  {
+    "args": [
+      {
+        "name": "symbol",
+        "required": true,
+      },
+      {
+        "name": "period",
+        "required": false,
+      },
+    ],
+    "name": "analyze_stock",
+    "tier": "core",
+    "usesTools": [
+      "search",
+      "get_kline_with_indicators",
+      "get_kline_signals",
+    ],
+  },
+  {
+    "args": [
+      {
+        "name": "criteria",
+        "required": true,
+      },
+      {
+        "name": "scope",
+        "required": false,
+      },
+    ],
+    "name": "screen_stocks",
+    "tier": "core",
+    "usesTools": [
+      "get_industry_constituents",
+      "get_concept_constituents",
+      "get_fund_flow_rank",
+      "get_a_share_quotes",
+      "get_kline_with_indicators",
+      "get_kline_signals",
+    ],
+  },
+  {
+    "args": [],
+    "name": "market_overview",
+    "tier": "core",
+    "usesTools": [
+      "get_market_status",
+      "get_zt_pool",
+      "get_northbound_flow_summary",
+      "get_fund_flow_rank",
+    ],
+  },
+  {
+    "args": [
+      {
+        "name": "symbols",
+        "required": true,
+      },
+    ],
+    "name": "monitor_watchlist",
+    "tier": "core",
+    "usesTools": [
+      "get_a_share_quotes",
+      "get_today_timeline",
+      "get_individual_fund_flow",
+      "get_kline_signals",
+    ],
+  },
+  {
+    "args": [
+      {
+        "name": "symbol",
+        "required": false,
+      },
+    ],
+    "name": "analyze_capital_flow",
+    "tier": "full",
+    "usesTools": [
+      "get_individual_fund_flow",
+      "get_market_fund_flow",
+      "get_dragon_tiger_detail",
+      "get_dragon_tiger_seat_detail",
+      "get_block_trade_detail",
+      "get_margin_account_info",
+      "get_northbound_individual",
+    ],
+  },
+  {
+    "args": [
+      {
+        "name": "fundCode",
+        "required": true,
+      },
+    ],
+    "name": "analyze_fund",
+    "tier": "full",
+    "usesTools": [
+      "get_fund_profile",
+      "get_fund_nav_history",
+      "get_fund_rank_history",
+      "get_fund_estimate",
+    ],
+  },
+  {
+    "args": [
+      {
+        "name": "symbol",
+        "required": true,
+      },
+    ],
+    "name": "diagnose_stock",
+    "tier": "full",
+    "usesTools": [
+      "get_kline_with_indicators",
+      "get_kline_signals",
+      "get_individual_fund_flow",
+      "get_dragon_tiger_stock_stats",
+      "get_chip_distribution",
+    ],
+  },
+]
+`;

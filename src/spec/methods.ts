@@ -76,7 +76,13 @@ export interface MethodSpec {
   argShape: ArgShape;
   positional?: SpecPositional[];
   params?: ParamSpec[];
-  /** false → CLI-only 方法，MCP 无对应工具（如 batch.raw / blockTrade / margin）。 */
+  /**
+   * codes[]/codes+options 形态下 `codes` 属性的 description 覆盖 ——
+   * 共享默认文案面向股票代码；基金等非股票命名空间（quotes.fund）
+   * 与市场受限入口（batch.byCodes 仅 A 股）用本字段给出准确表述。
+   */
+  codesDesc?: string;
+  /** false → CLI-only 方法，MCP 无对应工具（目前仅 batch.raw：腾讯原始批量直通，不适合 LLM）。 */
   mcp?: false;
   /**
    * true → MCP 工具 schema/invoke 手写（src/mcp/tools/ 下），spec 仅提供
@@ -255,6 +261,22 @@ export const MARKET_ENUM: ParamSpec = {
   upper: true,
   desc: '市场(默认自动识别)',
   mcpDesc: '市场类型 A / HK / US；不传则由 symbol 自动识别',
+};
+/** MA 金叉/死叉快线周期（get_kline_signals）。 */
+const MA_FAST: ParamSpec = {
+  flag: 'maFast',
+  type: 'number',
+  default: 5,
+  desc: 'MA 金叉/死叉快线周期(默认 5)',
+  mcpDesc: 'MA 金叉/死叉的快线周期，默认 5（须为正整数且小于 maSlow）',
+};
+/** MA 金叉/死叉慢线周期（get_kline_signals）。 */
+const MA_SLOW: ParamSpec = {
+  flag: 'maSlow',
+  type: 'number',
+  default: 20,
+  desc: 'MA 金叉/死叉慢线周期(默认 20)',
+  mcpDesc: 'MA 金叉/死叉的慢线周期，默认 20（须为正整数且大于 maFast）',
 };
 const BATCH_SIZE: ParamSpec = {
   flag: 'batchSize',
@@ -455,6 +477,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: 'A股全量行情(含五档)',
     mcpDesc: '获取 A 股 / 指数全量行情（腾讯）：最新价、涨跌幅、五档盘口、市值、PE/PB 等。',
     argShape: 'codes[]',
+    codesDesc:
+      'A 股代码数组，带不带 sh/sz/bj 前缀均可（如 600036 / sh600519）；指数需带前缀（如 sh000001）',
   },
   {
     path: ['quotes', 'cnSimple'],
@@ -462,6 +486,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: 'A股简要行情',
     mcpDesc: '获取 A 股 / 指数简要行情（价格、涨跌幅、成交量额）。',
     argShape: 'codes[]',
+    codesDesc:
+      'A 股代码数组，带不带 sh/sz/bj 前缀均可（如 600036 / sh600519）；指数需带前缀（如 sh000001）',
   },
   {
     path: ['quotes', 'hk'],
@@ -470,6 +496,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '港股行情',
     mcpDesc: '获取港股行情。代码 5 位数字，带不带 hk 前缀均可（如 00700 / hk00700）。',
     argShape: 'codes[]',
+    codesDesc:
+      '港股代码数组，带不带 hk 前缀均可（如 00700 / hk00700）',
   },
   {
     path: ['quotes', 'us'],
@@ -478,6 +506,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '美股行情',
     mcpDesc: '获取美股行情。代码如 AAPL / BABA。',
     argShape: 'codes[]',
+    codesDesc:
+      '美股代码数组，带不带 us 前缀均可（如 AAPL / usAAPL）',
   },
   {
     path: ['quotes', 'fund'],
@@ -486,6 +516,7 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '基金行情',
     mcpDesc: '获取公募基金行情（场内 / 场外，净值类）。',
     argShape: 'codes[]',
+    codesDesc: "基金代码数组，纯 6 位数字（如 ['000001','110011']），无交易所前缀概念",
   },
   {
     path: ['quotes', 'fundFlow'],
@@ -493,6 +524,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '资金流向(简版)',
     mcpDesc: '获取资金流向（简版，按代码批量）。',
     argShape: 'codes[]',
+    codesDesc:
+      'A 股代码数组，带不带 sh/sz/bj 前缀均可（如 600036 / sz000858）',
   },
   {
     path: ['quotes', 'largeOrder'],
@@ -500,6 +533,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '盘口大单占比',
     mcpDesc: '获取盘口大单占比。',
     argShape: 'codes[]',
+    codesDesc:
+      'A 股代码数组，带不带 sh/sz/bj 前缀均可（如 600036 / sz000858）',
   },
   {
     path: ['quotes', 'timeline'],
@@ -575,6 +610,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     mcpDesc: '按代码列表批量拉取完整行情。',
     argShape: 'codes+options',
     params: [BATCH_SIZE, CONCURRENCY],
+    codesDesc:
+      "A 股代码数组，带不带交易所前缀均可（如 ['sh600519','600036']）；指数需带前缀（如 'sh000001'）",
   },
   {
     path: ['batch', 'raw'],
@@ -648,10 +685,11 @@ export const METHOD_SPECS: MethodSpec[] = [
     tier: 'core',
     summary: '美股历史K线',
     mcpDesc:
-      '美股历史 K 线（日 / 周 / 月，含复权，币种 USD）。代码格式 {market}.{ticker}' +
-      '（如 105.AAPL / 106.BABA）。复权默认 qfq；日期格式 YYYYMMDD。',
+      '美股历史 K 线（日 / 周 / 月，含复权，币种 USD）。代码支持裸 ticker' +
+      '（如 AAPL / BABA，自动解析交易所）或显式 secid（105.AAPL / 106.BABA）。' +
+      '复权默认 qfq；日期格式 YYYYMMDD。',
     argShape: 'symbol+options',
-    positional: [SYMBOL_REQ('美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA')],
+    positional: [SYMBOL_REQ('美股代码，裸 ticker（AAPL）或 secid（105.AAPL / 106.BABA）均可')],
     params: [PERIOD_DWM, ADJUST, START, END],
   },
   // 美股分时：MCP 现行 schema 不含时间窗口（仅 recentDays），CLI 侧 --start/--end 保留
@@ -662,9 +700,9 @@ export const METHOD_SPECS: MethodSpec[] = [
     mcpDesc:
       '美股分钟 K 线 / 当日分时（仅常规交易时段，不含盘前 / 盘后）。period=1 返回当日分时' +
       '（不支持复权，可用 recentDays 取近 N 日）；period=5/15/30/60 返回分钟 K 线' +
-      '（adjust 仅此时有效，默认 qfq）。代码格式 {market}.{ticker}，如 105.AAPL。',
+      '（adjust 仅此时有效，默认 qfq）。代码支持裸 ticker（AAPL）或 secid（105.AAPL）。',
     argShape: 'symbol+options',
-    positional: [SYMBOL_REQ('美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA')],
+    positional: [SYMBOL_REQ('美股代码，裸 ticker（AAPL）或 secid（105.AAPL / 106.BABA）均可')],
     params: [PERIOD_MIN, ADJUST, START_CLI_ONLY, END_CLI_ONLY, NDAYS],
   },
   // MCP 工具手写（mcpCustom）：MCP 用嵌套 indicators 对象，CLI 用 14 个扁平指标 flag
@@ -686,6 +724,22 @@ export const METHOD_SPECS: MethodSpec[] = [
     positional: [SYMBOL_REQ('股票代码（A 股 / 港股 / 美股）')],
     params: [PERIOD_DWM, ADJUST, START, END, MARKET_ENUM, ...INDICATOR_PARAMS],
     mcpCustom: true,
+  },
+  {
+    path: ['kline', 'signals'],
+    toolName: 'get_kline_signals',
+    tier: 'core',
+    summary: '指标信号识别(金叉/死叉/超买超卖/突破/反转)',
+    mcpDesc:
+      '识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：' +
+      'MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。' +
+      '内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。' +
+      'MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值' +
+      '（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；' +
+      '只看近期请传 startDate 收窄窗口。周期默认 daily，复权默认 qfq。',
+    argShape: 'symbol+options',
+    positional: [SYMBOL_REQ('股票代码（A 股 / 港股 / 美股）')],
+    params: [PERIOD_DWM, ADJUST, START, END, MARKET_ENUM, MA_FAST, MA_SLOW],
   },
   // ===== chips (3) =====
   {
@@ -724,7 +778,7 @@ export const METHOD_SPECS: MethodSpec[] = [
       '每日获利比例、平均成本、90/70 成本区间与集中度。days 默认 90；range 默认 120（0 = 全量累计）。' +
       '换手率为东财口径（交易所公开成交量 / 流通股本），不含暗池细节。',
     argShape: 'symbol+options',
-    positional: [SYMBOL_REQ('美股代码，格式 {market}.{ticker}，如 105.AAPL / 106.BABA')],
+    positional: [SYMBOL_REQ('美股代码，裸 ticker（AAPL）或 secid（105.AAPL / 106.BABA）均可')],
     params: CHIP_PARAMS,
   },
   // ===== board (10) =====
@@ -1250,40 +1304,41 @@ export const METHOD_SPECS: MethodSpec[] = [
       { name: 'date', required: true, desc: '上榜日期，YYYYMMDD 或 YYYY-MM-DD' },
     ],
   },
-  // ===== blockTrade (3) —— CLI-only（MCP 未暴露大宗交易工具） =====
+  // ===== blockTrade (3) =====
   {
     path: ['blockTrade', 'marketStat'],
+    toolName: 'get_block_trade_market_stat',
     summary: '大宗交易市场统计',
     mcpDesc: '获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。',
     argShape: 'none',
-    mcp: false,
   },
   {
     path: ['blockTrade', 'detail'],
+    toolName: 'get_block_trade_detail',
     summary: '大宗交易明细',
     mcpDesc: '获取大宗交易明细（按日期范围筛选）：成交价、成交量、买卖营业部等。省略日期则默认最近一段时间。',
     argShape: 'options',
     params: BLOCK_TRADE_DATES,
-    mcp: false,
   },
   {
     path: ['blockTrade', 'dailyStat'],
+    toolName: 'get_block_trade_daily_stat',
     summary: '大宗交易每日统计',
     mcpDesc: '获取大宗交易每日统计（按股票汇总）：成交笔数、成交额、溢价率等。省略日期则默认最近一段时间。',
     argShape: 'options',
     params: BLOCK_TRADE_DATES,
-    mcp: false,
   },
-  // ===== margin (2) —— CLI-only =====
+  // ===== margin (2) =====
   {
     path: ['margin', 'accountInfo'],
+    toolName: 'get_margin_account_info',
     summary: '融资融券账户统计',
     mcpDesc: '获取融资融券账户统计（融资余额、融券余量、两融余额等）。',
     argShape: 'none',
-    mcp: false,
   },
   {
     path: ['margin', 'targetList'],
+    toolName: 'get_margin_target_list',
     summary: '融资融券标的',
     mcpDesc: '获取融资融券标的明细列表（可融资 / 可融券标志、折算率等）。',
     argShape: 'positional',
@@ -1293,7 +1348,6 @@ export const METHOD_SPECS: MethodSpec[] = [
         desc: '交易日 YYYYMMDD 或 YYYY-MM-DD；不传则取最新可用日期',
       },
     ],
-    mcp: false,
   },
   // ===== fund (5) =====
   {

@@ -300,7 +300,7 @@ export function normalizeSymbol(
       // 并指引('.US' 除外:纯字母码属真实美股 ticker 命名空间)
       if (suffix.market === 'CN' || suffix.market === 'HK') {
         const idx = lookupSpecialIndex(left);
-        if (idx) {
+        if (idx && !idx.collision) {
           throw new InvalidSymbolError(
             `${rawInput} (special index code '${idx.code}' conflicts with exchange suffix '${right}'; ` +
               `use bare '${idx.code}' or secid '${idx.secidPrefix}.${idx.code}')`
@@ -342,24 +342,48 @@ export function normalizeSymbol(
       const rest = code0.slice(p.length);
       const s = PREFIX_MAP[p];
       // A 股代码无字母：CN 系前缀(sh/sz/bj)要求 rest 全数字，否则不当作前缀
-      // （如 'SHW'/'SHOP' 是美股 ticker，不应被 'sh' 前缀吞成 A 股）；hk/us 允许字母
+      // （如 'SHW'/'SHOP' 是美股 ticker，不应被 'sh' 前缀吞成 A 股）。
+      // R7-1: hk/us 前缀的字母 rest 与 'US*'/'HK*' 开头的真实美股 ticker
+      // （USB/USO/USFD/HKD/HKIT...）天然冲突，收紧为三种无歧义形态：
+      // - 数字 rest：任意大小写前缀都剥（'hk00700'/'HK00700'/'us600519'，
+      //   数字码不与任何字母 ticker 冲突，行为与历史一致）；
+      // - 规范形：原文前缀为小写 + rest 以大写开头（'usAAPL'/'hkHSI'/'usBRK.A'，
+      //   即 toTencentSymbol 自身的产出形态；'.'/'-' 供 BRK.A 类 ticker）；
+      // - 全小写手输形：前缀小写 + rest 全小写且长度 ≥3（'usaapl'/'hkhsi'；
+      //   真实 US** ticker 的 rest 均 ≤2 字母，无冲突面）。
+      // 其余（'USB'/'usb'/'HKD'/'USAAPL'）不剥前缀，落到纯字母分支按完整
+      // ticker 归 US——全大写前缀形态改用点分（'AAPL.US'）或 market hint。
+      const caseCanonical =
+        code0.startsWith(p) && // p 恒为小写；startsWith 大小写敏感 ⇒ 原文前缀即小写
+        // 规范形：小写前缀 + 大写开头 rest（含 . / - 供 BRK.A 类）
+        (/^[A-Z][A-Za-z0-9.\-]*$/.test(rest) ||
+          // 全小写手输形：纯小写【字母】且 ≥3。收紧为纯字母（不含 . / -）——
+          // 否则 'usb.a'（rest 'b.a' 长度 3）会被误剥成 'B.A'；真实 US* ticker
+          // 的 rest 都是 ≤2 纯字母，长度≥3 的纯小写不与之冲突
+          /^[a-z]{3,}$/.test(rest));
       const restOk =
-        s.market === 'CN' ? /^\d+$/.test(rest) : /^[0-9A-Za-z]+$/.test(rest);
+        s.market === 'CN' ? /^\d+$/.test(rest) : /^\d+$/.test(rest) || caseCanonical;
       if (restOk) {
-        // 特殊指数码形与 sh/sz/bj/hk 前缀断言矛盾 → 与后缀/hint 轴同口径拒绝
-        // 并指引(us 前缀除外:纯字母码属真实美股 ticker 命名空间)
-        if (s.market === 'CN' || s.market === 'HK') {
-          const idx = lookupSpecialIndex(rest);
-          if (idx) {
-            throw new InvalidSymbolError(
-              `${rawInput} (special index code '${idx.code}' conflicts with exchange prefix '${p}'; ` +
-                `use bare '${idx.code}' or secid '${idx.secidPrefix}.${idx.code}')`
-            );
-          }
+        // 特殊指数与前缀的交互:前缀即市场断言,与 market hint 同语义。
+        // - 碰撞码且前缀市场匹配(hkHSI/hkHSCEI/hkHSTECH/usDJI/usINX/usIXIC):
+        //   按指数解析 —— 这些是 toTencentSymbol 自身的产出形态,必须可回读
+        //   (此前 'hkHSI' 被解成港股股票 '00HSI',quotes.hk 静默返空);
+        //   显式 assetType:'stock' hint 仍维持 ticker 命名空间(最强消歧优先)。
+        // - CN/HK 前缀 + 非碰撞码(hkHSHCI/sh930955 等):照旧拒绝并指引
+        //   (这些码腾讯无行情映射,前缀形不是任何一端的产出,放行只会静默空)。
+        const idx = lookupSpecialIndex(rest);
+        if (idx && idx.collision && idx.market === s.market && hintAsset !== 'stock') {
+          return finishSpecialIndex(idx);
+        }
+        if ((s.market === 'CN' || s.market === 'HK') && idx && !idx.collision) {
+          throw new InvalidSymbolError(
+            `${rawInput} (special index code '${idx.code}' conflicts with exchange prefix '${p}'; ` +
+              `use bare '${idx.code}' or secid '${idx.secidPrefix}.${idx.code}')`
+          );
         }
         const code =
           s.market === 'HK'
-            ? rest.padStart(5, '0')
+            ? rest.toUpperCase().padStart(5, '0') // 字母指数码统一大写（'hkhsi'→'00HSI'）
             : s.market === 'US'
               ? rest.toUpperCase()
               : rest;
@@ -374,8 +398,19 @@ export function normalizeSymbol(
 
   // 3) 特殊指数：须先于纯数字分支，否则 93xxxx 被 inferAShareExchange 按
   //    「9 开头→沪」误判，拼出 '1.930955' 这类上游静默返空的 secid
+  // 碰撞码(HSI/HSCEI/HSTECH 等)仅在 market hint 匹配其市场时按指数解析,否则
+  // 维持原命名空间:裸 'HSI' 无 hint → 落到纯字母分支归 US ticker(向后兼容),
+  // quotes.hk(['HSI']) 传 {market:'HK'} → 恒生指数。非碰撞码(HSHCI/CSI/GDAXI)
+  // 裸码即解析(与历史一致)。
+  // 显式 assetType:'stock' hint 对碰撞码维持 ticker 命名空间 —— 碰撞门的设计
+  // 本意就是不劫持真实 ticker,最强的消歧声明({code:'DJI',market:'US',
+  // assetType:'stock'})必须放行为股票,而非按指数解析后在 finish 里矛盾抛错。
   const specialIdx = lookupSpecialIndex(code0);
-  if (specialIdx) {
+  if (
+    specialIdx &&
+    (!specialIdx.collision ||
+      (hintMarket === specialIdx.market && hintAsset !== 'stock'))
+  ) {
     return finishSpecialIndex(specialIdx);
   }
 

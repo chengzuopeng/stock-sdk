@@ -6,6 +6,63 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.4.0
+
+> Released: Unreleased
+
+This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 ~ R7-15): symbol contracts, data robustness, browser concurrency safety, cache governance, and pagination performance.
+
+### Fixed
+
+- **Bare prefixes no longer swallow real US tickers (R7-1)**: `'USB'` / `'HKD'` are no longer mis-stripped into `US/B` / `HK/0000D`.
+- **"With or without prefix" now holds for quote codes (R7-2/R7-3)**: `quotes.*` normalize via `tryToTencentSymbols`; bare and prefixed (`hk00700` / `usBABA`) both work.
+- **US K-lines accept bare tickers (R7-4)**: `kline.us('AAPL')` resolves the exchange prefix automatically (cached).
+- **Search concurrency safety (R7-5)**: `sdk.search()` moved onto `core/jsVars`, fixing concurrent `v_hint` overwrites / hangs in the browser.
+- **jsVars stale-global protection (R7-10)**: fixes cross-request fund-data attribution.
+- **ATR recovers from dirty warm-up bars (R7-6)**: one null bar no longer leaves the whole ATR / KC series null forever.
+- **SAR skips invalid leading bars (R7-7)**: a null first bar no longer seeds at price 0 (frozen trend).
+- **Fund NAV / rank history dirty-row defense (R7-8)**: bad timestamps / missing fields are filtered per row instead of losing the whole result or emitting ghost rows.
+- **Truncated Tencent quote rows no longer fabricate zeros (R7-9)**: truncated rows are dropped (were fabricated as 0); HK `currency` gains a check.
+- **Datacenter symbol normalization covers all shapes (R7-12)**: `SH600519` / `600519.SH` / `1.600519` no longer silently return empty.
+- **Cross-instance cache leakage (R7-11)**: code lists / calendar / board maps are now instance-scoped.
+- **`evictLRU` empty-string key**: eviction no longer stalls once `''` is the LRU entry.
+- **Backtest input validation**: invalid `fee` (incl. per-side `{buy, sell}`), `initialCapital` or `positionSize` throws `InvalidArgumentError` instead of producing silent garbage reports ("0 drawdown with sign-flipped returns").
+- **Backtest null-hole bars**: `null` elements in `klines` are treated as invalid bars and skipped for `strategy` — the engine no longer throws bare `TypeError`s.
+- **`sortBy` numeric strings participate in ordering**: values like `'999999'` are normalized via `Number()` instead of sinking as non-finite and hiding the true maximum.
+
+### Behavior changes (read before upgrading)
+
+- **`FundNavPoint.nav`: `number` → `number | null`**; null-check before arithmetic.
+- **Invalid US tickers: silent empty array → `NotFoundError`.**
+- **Truncated Tencent quote rows: fabricated zeros → dropped rows.**
+- **Garbage symbols in dividend / dragonTiger / northbound: silent empty array → `InvalidSymbolError`.**
+- **`clearSharedCaches()` no longer covers instance-scoped caches** — use the new `sdk.clearCaches()`.
+- **`getSharedCache` warns on non-equivalent options**; use `configureSharedCache()` for runtime reconfig.
+- **Datacenter pagination is now concurrent (R7-14)**: 3-way waves by default; no RateLimiter by default — configure `rateLimit` if throttling matters.
+- **All-uppercase prefix + letters no longer strips (R7-1)**: `'USAAPL'` → `US/USAAPL`; use `usAAPL` / `AAPL.US` / a `market` hint.
+- **Backtest signals on invalid-price bars now defer** (previously silently dropped): a `buy`/`sell` emitted on a suspended / NaN bar fills at the next valid-price bar, so one-shot crossover signals are no longer lost; a pending sell left at end-of-data closes at the last valid price as a strategy exit.
+- **Backtest forced-close records are self-consistent**: `Trade` gains a `forced` flag; `exitIndex` now points at the last **valid-price** bar (same bar as `exitPrice`), settlement is booked at the exit bar — no more phantom fee dips across suspended tails.
+- **Backtest `maxDrawdown` baselines at initial capital**: the entry fee of a first-bar buy is no longer invisible (identical economics previously reported 2× different drawdowns depending on the entry bar).
+- **Strategy's third parameter renamed `history` → `series`**: it is the full array including future bars; renamed + documented against look-ahead bias (type-level parameter name only, no call-site breakage).
+- **`sortBy` `direction` is strictly validated**: anything other than `'asc'`/`'desc'` (e.g. `'ASC'`) throws `InvalidArgumentError` instead of silently sorting descending.
+
+### Added
+
+- **Hang Seng family & the three major US indices in `quotes` / `kline` (unified bare codes)**: adds `HSI` / `HSCEI` / `HSTECH` and `DJI` / `INX` / `IXIC`, one code on both ends (K-line previously needed a raw secid like `100.HSI`); `DJIA` and other real tickers are not hijacked, `HSTECH` is Tencent-`quotes`-only.
+- `StockSDK.clearCaches()`: clears all of this instance's internal caches.
+- `configureSharedCache(namespace, options)`: runtime reconfiguration of shared caches.
+- `tryToTencentSymbols(codes, market)` (`stock-sdk/symbols`): batch fault-tolerant normalization to Tencent quote keys.
+- `DatacenterQuery.concurrency`: wave size for datacenter pagination.
+- **5 MCP tools for block trades / margin trading**: `get_block_trade_market_stat` / `_detail` / `_daily_stat` / `get_margin_account_info` / `_target_list`.
+- **MCP Skills (Prompts) — 7 scenario analysis skills**: the server implements `prompts/list` + `prompts/get`; core 4 + full 3, scoped by `STOCK_SDK_MCP_PROMPTS`, read-only. See [AI Skills](/en/skills/).
+- **`get_kline_signals` + `sdk.kline.signals(symbol, options)`**: detects 14 technical signals (golden/death crosses, overbought/oversold, BOLL breakouts, SAR reversals); `maFast` / `maSlow` tunable.
+- **Full spec ↔ SDK contract tests (R7-15)**: method paths and MCP options keys are mechanically pinned; a `prompts-contract` was added for skills.
+- **Backtest engine upgrades** (`stock-sdk/screener`, see the new [screener docs page](/en/api/screener)): report gains `buyHoldReturn` (buy-and-hold benchmark) and `validBars` (0 means no bar yielded a valid close — wrong price field); options gain `positionSize` (fraction per buy), `fee: { buy, sell }` (asymmetric rates, e.g. A-share sell-side stamp tax) and `getDate` (trades carry `entryDate`/`exitDate`); the execution contract (same-bar-close fills / signal deferral / no lot-size constraint) is now fully documented.
+
+::: tip Long-lived processes should reuse a singleton SDK
+Since v2.4.0 instance-scoped caches are isolated per `StockSDK` instance (fixing cross-instance leakage). A "new StockSDK() per request" pattern makes every instance start cache-cold (the 6h code-list cache degrades to one fetch per request) — reuse a singleton in long-lived services.
+:::
+
 ## v2.3.0
 
 > Released: 2026-07-06

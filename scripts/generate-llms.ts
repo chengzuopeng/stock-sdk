@@ -20,6 +20,7 @@ import {
   type MethodSpec,
   type ParamSpec,
 } from '../src/spec/methods.ts';
+import { PROMPT_SPECS } from '../src/spec/prompts.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -268,6 +269,15 @@ function renderDataStructures(): string {
   return '```ts\n' + blocks.join('\n\n') + '\n```';
 }
 
+// ---------- MCP Skills（Prompts）目录（从 spec/prompts 派生） ----------
+function renderSkills(): string {
+  const lines = PROMPT_SPECS.map((p) => {
+    const args = p.args.map((a) => (a.required ? a.name : `${a.name}?`)).join(', ') || '无参数';
+    return `- \`${p.name}\` (${p.tier}; args: ${args}) — ${p.description}`;
+  });
+  return lines.join('\n');
+}
+
 function renderOverview(): string {
   return `## 速览（非 API 清单）
 
@@ -300,6 +310,12 @@ npx stock-sdk mcp
 Cursor / Claude Desktop 等配置 \`mcpServers\`：\`{ "command": "npx", "args": ["-y", "stock-sdk", "mcp"] }\`。
 环境变量 \`STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>\` 控制工具集（默认 \`core\`）。
 **MCP tools/call 大结果会自动裁剪**（数组 >200 条、序列化 >80KB）；**SDK 直连不受此限**。详见 ${SITE}/mcp/
+
+#### MCP Skills（Prompts）
+
+除工具外，server 还暴露 **${PROMPT_SPECS.length} 个场景化技能**（MCP Prompts，\`prompts/list\` + \`prompts/get\`）。支持的客户端（Claude Desktop / Claude Code / Cursor / Cline）把技能渲染成斜杠命令 / 模板，用户一键触发；server 只下发「任务说明书」，多步取数由客户端 model 走 \`tools/call\` 完成，全程只读。\`STOCK_SDK_MCP_PROMPTS=core|full|<逗号分隔技能名>\` 控制（默认 \`core\`，与工具集独立）。
+
+${renderSkills()}
 
 ### 行情类型说明
 
@@ -427,5 +443,6 @@ writeFileSync(r('website/public/llms.txt'), index, 'utf8');
 
 console.log(
   `Generated website/public/llms.txt + llms-full.txt — ${count} 命名空间方法, ` +
+    `${PROMPT_SPECS.length} 技能, ` +
     `${SUBPATHS.length} subpath, ${TYPE_FILES.filter((f) => existsSync(r(f))).length} 类型文件`
 );

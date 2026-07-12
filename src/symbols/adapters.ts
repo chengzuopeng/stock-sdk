@@ -8,6 +8,7 @@
 import type { NormalizedSymbol } from './types';
 import { InvalidArgumentError } from '../core/errors';
 import { lookupSpecialIndex } from './specialIndex';
+import { normalizeSymbol } from './normalize';
 
 /**
  * 交易所 → 东财 secid 数字市场前缀（仅股票类）。
@@ -45,6 +46,18 @@ export function toTencentSymbol(ns: NormalizedSymbol): string {
       `Tencent quote symbol does not support assetType '${ns.assetType}'`,
       { assetType: ns.assetType, code: ns.code }
     );
+  }
+  // 特殊指数:注册表带腾讯码的(HSI→hkHSI / HSCEI→hkHSCEI 等)直接返回,不走
+  // 下方市场分支的纯数字/前缀拼接(否则 HK 分支会因字母指数码非纯数字而抛错)。
+  // exchange 一致才路由(与 toEastmoneySecid 同款守卫):碰撞码被 hint 解成
+  // 其它市场时(如 'HSI'+{assetType:'index'} 无 market hint → US/index),
+  // 不得跨市场劫持返回 hkHSI —— 两个适配器必须对同一 NormalizedSymbol
+  // 给出同一市场的产出。
+  if (ns.assetType === 'index') {
+    const idx = lookupSpecialIndex(ns.code);
+    if (idx?.tencent && idx.exchange === ns.exchange) {
+      return idx.tencent;
+    }
   }
   switch (ns.market) {
     case 'CN': {
@@ -96,7 +109,17 @@ export function toEastmoneySecid(ns: NormalizedSymbol): string {
   if (ns.assetType === 'index') {
     const specialIdx = lookupSpecialIndex(ns.code);
     if (specialIdx && specialIdx.exchange === ns.exchange) {
-      return `${specialIdx.secidPrefix}.${specialIdx.code}`;
+      if (specialIdx.secidPrefix) {
+        return `${specialIdx.secidPrefix}.${specialIdx.eastmoneyCode ?? specialIdx.code}`;
+      }
+      // 注册表命中但东财无码(如 HSTECH 仅腾讯) → fail-fast,与 toTencentSymbol
+      // 对 HSHCI 的镜像语义一致 —— 此前 fall-through 到 HK 分支拼出 '116.HSTECH'
+      // 这类垃圾 secid,上游 data:null 静默返空
+      throw new InvalidArgumentError(
+        `Eastmoney has no quote for special index '${specialIdx.code}' (Tencent-only); ` +
+          `use quotes.hk/quotes.us instead of kline for this index`,
+        { code: specialIdx.code, exchange: specialIdx.exchange }
+      );
     }
   }
   if (ns.market === 'HK') {
@@ -115,4 +138,52 @@ export function toEastmoneySecid(ns: NormalizedSymbol): string {
 /** → 纯代码（去前缀） */
 export function toPlainCode(ns: NormalizedSymbol): string {
   return ns.code;
+}
+
+/** {@link tryToTencentSymbols} 的归一结果。 */
+export interface TencentSymbolBatch {
+  /** 成功映射的腾讯行情键（按输入顺序，跳过失败项） */
+  keys: string[];
+  /** 无法映射的输入（非法格式 / 腾讯无该市场映射，如 CSI 特殊指数码 930955） */
+  invalid: Array<{ code: string; reason: string }>;
+}
+
+/**
+ * 行情入口批量容错归一（R7-2/R7-3）：
+ * - market:'CN'：`'600036'`→`'sh600036'`、`'SH600519'`→`'sh600519'`
+ * - market:'HK'：`'00700'`/`'hk00700'`/`'700'`→`'hk00700'`
+ * - market:'US'：`'BABA'`/`'usAAPL'`→`'usBABA'`/`'usAAPL'`
+ *
+ * 【设计决策：逐码容错，不整批抛错】单个代码失败只跳过该码——与行情
+ * 解析侧"无匹配行静默丢弃"的既有语义对齐。理由：
+ * - batch.* 全市场扫描把上游代码表整表灌进来（~5600 码/次），一条脏数据
+ *   不应废掉整批已完成的网络请求；
+ * - SDK 自身支持的特殊指数码（930955/HSHCI 等）在 symbols 层合法但腾讯
+ *   无行情映射（toTencentSymbol 对 CSI 抛错）——这类输入应"跳过"而非
+ *   炸掉整个调用。
+ *
+ * 注意示例按 market 而异：`'00700'` 仅在 market:'HK' 下映射为 `hk00700`，
+ * 在 market:'CN' 下按 A 股推断为 `sz00700`（无此标的，行情侧自然无匹配）。
+ */
+export function tryToTencentSymbols(
+  codes: string[],
+  market: 'CN' | 'HK' | 'US'
+): TencentSymbolBatch {
+  const keys: string[] = [];
+  const invalid: TencentSymbolBatch['invalid'] = [];
+  // 去重：别名输入（'600036' + 'sh600036'、'700' + '00700'）归一到同一 key，
+  // 不去重会让请求串重复、上游按 key 回一行、结果里出现重复行
+  const seen = new Set<string>();
+  for (const code of codes) {
+    try {
+      const key = toTencentSymbol(normalizeSymbol(code, { market }));
+      if (!seen.has(key)) {
+        seen.add(key);
+        keys.push(key);
+      }
+    } catch (e) {
+      invalid.push({ code, reason: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return { keys, invalid };
 }

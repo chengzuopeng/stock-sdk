@@ -3,7 +3,7 @@
  */
 import { RequestClient } from '../../core';
 import type { FundQuote } from '../../types';
-import { parseFundQuote } from './parsers';
+import { parseFundQuote, filterTencentRows, FUND_QUOTE_MIN_FIELDS } from './parsers';
 
 /**
  * 获取公募基金行情
@@ -22,14 +22,8 @@ export async function getFundQuotes(
   // 腾讯无匹配时会返回 v_pv_none_match="1"（fields=['1']），按 key 精确过滤；
   // 同时校验字段长度满足 parseFundQuote 所需（最高访问 f[8]）。
   const wanted = new Set(prefixedCodes);
-  return data
-    .filter(
-      (d) =>
-        wanted.has(d.key) &&
-        d.fields &&
-        d.fields.length >= 9 &&
-        d.fields[0] !== ''
-    )
-    .map((d) => parseFundQuote(d.fields));
+  return filterTencentRows(data, wanted, FUND_QUOTE_MIN_FIELDS).map((d) =>
+    parseFundQuote(d.fields)
+  );
 }
 

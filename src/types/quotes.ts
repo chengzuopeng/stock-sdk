@@ -180,7 +180,8 @@ export interface HKQuote {
   totalMarketCap: number | null;
   currency: string;
   market: 'HK';
-  assetType: 'stock';
+  /** 命中特殊指数注册表(HSI/HSCEI/HSTECH)的行标 'index'(港股真码恒为数字,无碰撞面) */
+  assetType: 'stock' | 'index';
   source: ProviderName;
 }
 
@@ -233,7 +234,8 @@ export interface USQuote {
   /** 52周最低价 */
   low52w: number | null;
   market: 'US';
-  assetType: 'stock';
+  /** 命中特殊指数注册表(DJI/INX/IXIC)的行标 'index'，code 归一为注册表规范形 */
+  assetType: 'stock' | 'index';
   source: ProviderName;
 }
 

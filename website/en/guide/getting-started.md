@@ -14,6 +14,10 @@ const sdk = new StockSDK()
 
 The constructor takes optional configuration (custom `fetch`, an external `AbortSignal`, request hooks, caching, etc.); omit it to use defaults. See [Request Governance](/en/guide/request-governance).
 
+::: tip Reuse a singleton in long-lived processes
+Instance-scoped caches (code lists / trading calendar / board maps, etc.) are isolated per `StockSDK` instance (since v2.4.0). A "new StockSDK() per request" pattern makes every instance start cache-cold — create one at module top level and reuse it; call `sdk.clearCaches()` when you need a forced refresh.
+:::
+
 ## A 10-line demo
 
 Fetch a real-time A-share quote and print its price and change:

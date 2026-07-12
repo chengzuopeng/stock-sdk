@@ -5,8 +5,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   MemoryCache,
   clearSharedCaches,
+  configureSharedCache,
   createCacheKey,
   getSharedCache,
+  getClientScopedCache,
+  clearClientScopedCaches,
 } from '../../src/core/cache';
 
 describe('MemoryCache', () => {
@@ -184,5 +187,130 @@ describe('createCacheKey', () => {
 
   it('should filter out undefined and null', () => {
     expect(createCacheKey('a', undefined, 'b', null, 'c')).toBe('a:\u2205:b:\u2205:c');
+  });
+});
+
+describe('evictLRU 空字符串键（R7-11a 回归）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("'' 为 LRU 时同样被淘汰，容量保持有界", () => {
+    const cache = new MemoryCache<string>({ maxSize: 2 });
+    cache.set('', 'empty-key'); // 最早访问 → LRU
+    vi.advanceTimersByTime(10);
+    cache.set('a', '1');
+    vi.advanceTimersByTime(10);
+    cache.set('b', '2'); // 触发淘汰，应淘汰 ''
+
+    expect(cache.size).toBe(2);
+    expect(cache.get('')).toBeUndefined();
+    expect(cache.get('a')).toBe('1');
+    expect(cache.get('b')).toBe('2');
+  });
+
+  it('修复前场景：持续写入不再无界增长', () => {
+    const cache = new MemoryCache<string>({ maxSize: 3 });
+    cache.set('', 'v');
+    for (let i = 0; i < 7; i++) {
+      vi.advanceTimersByTime(10);
+      cache.set(`k${i}`, String(i));
+    }
+    expect(cache.size).toBe(3);
+  });
+});
+
+describe('getClientScopedCache（R7-11a 基建）', () => {
+  it('同一 client + namespace 返回同一实例', () => {
+    const client = {};
+    const a = getClientScopedCache<string>(client, 'ns', { maxSize: 4 });
+    const b = getClientScopedCache<string>(client, 'ns');
+    a.set('k', 'v');
+    expect(b).toBe(a);
+    expect(b.get('k')).toBe('v');
+  });
+
+  it('不同 client 相互隔离（mock 实例的数据不会串给真实实例）', () => {
+    const clientA = {};
+    const clientB = {};
+    getClientScopedCache<string>(clientA, 'tencent:code-lists').set('a-share:full', 'mock-data');
+    expect(
+      getClientScopedCache<string>(clientB, 'tencent:code-lists').get('a-share:full')
+    ).toBeUndefined();
+  });
+
+  it('同一 client 的不同 namespace 相互隔离', () => {
+    const client = {};
+    getClientScopedCache<string>(client, 'ns1').set('k', '1');
+    expect(getClientScopedCache<string>(client, 'ns2').get('k')).toBeUndefined();
+  });
+
+  it('clearClientScopedCaches 只清指定 client', () => {
+    const clientA = {};
+    const clientB = {};
+    getClientScopedCache<string>(clientA, 'ns').set('k', 'a');
+    getClientScopedCache<string>(clientB, 'ns').set('k', 'b');
+
+    clearClientScopedCaches(clientA);
+
+    expect(getClientScopedCache<string>(clientA, 'ns').get('k')).toBeUndefined();
+    expect(getClientScopedCache<string>(clientB, 'ns').get('k')).toBe('b');
+  });
+});
+
+describe('getSharedCache first-wins 警告与 configureSharedCache（R7-13）', () => {
+  afterEach(() => {
+    clearSharedCaches();
+    vi.restoreAllMocks();
+  });
+
+  it('命中已存在 namespace 且 options 不等价：警告恰一次', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getSharedCache('r13:warn-once', { defaultTTL: 6000 });
+    getSharedCache('r13:warn-once', { defaultTTL: 60 });
+    getSharedCache('r13:warn-once', { defaultTTL: 60 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('configureSharedCache');
+  });
+
+  it('options 等价（get-or-create 惰性访问器用法）不警告', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getSharedCache('r13:equal-opts', { defaultTTL: 6000, maxSize: 8 });
+    getSharedCache('r13:equal-opts', { defaultTTL: 6000, maxSize: 8 });
+    getSharedCache('r13:equal-opts'); // 不传 options 同样不警告
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('configureSharedCache：namespace 不存在返回 false，存在则生效', () => {
+    expect(configureSharedCache('r13:missing', { defaultTTL: 1 })).toBe(false);
+
+    vi.useFakeTimers();
+    const cache = getSharedCache<string>('r13:configure', { defaultTTL: 60_000 });
+    cache.set('before', 'v'); // 旧 TTL 60s
+    expect(configureSharedCache('r13:configure', { defaultTTL: 100 })).toBe(true);
+    cache.set('after', 'v'); // 新 TTL 100ms
+
+    vi.advanceTimersByTime(200);
+    expect(cache.get('before')).toBe('v'); // 已存条目 expireAt 不回溯
+    expect(cache.get('after')).toBeUndefined(); // 新 TTL 生效
+    vi.useRealTimers();
+  });
+
+  it("maxSize 收缩立即淘汰至达标（含 '' 键场景，依赖 R7-11a 修复不死循环）", () => {
+    vi.useFakeTimers();
+    const cache = getSharedCache<string>('r13:shrink', { maxSize: 10 });
+    cache.set('', 'lru'); // 最早访问
+    for (let i = 0; i < 5; i++) {
+      vi.advanceTimersByTime(5);
+      cache.set(`k${i}`, String(i));
+    }
+    expect(configureSharedCache('r13:shrink', { maxSize: 2 })).toBe(true);
+    expect(cache.size).toBe(2);
+    expect(cache.get('')).toBeUndefined(); // '' 被正常淘汰
+    vi.useRealTimers();
   });
 });

@@ -167,4 +167,4 @@ v2 把 K 线 `timestamp` 收敛为 `number | null`，但 `Signal.at` 恒为 `num
 - 要把一批指标统一贴到 K 线上遍历 → `addIndicators`，或取数即带的 `sdk.kline.withIndicators`。
 - 要识别金叉 / 死叉 / 超买 / 超卖等**事件**（如做提醒、做选股条件、喂给回测策略）→ `calcSignals`。
 
-信号层的输出可直接作为[选股器](/api/signals)与回测策略的输入，把「指标 → 事件 → 决策」串成一条纯本地、可复现的链路。
+信号层的输出可直接作为[选股器与回测](/api/screener)策略的输入，把「指标 → 事件 → 决策」串成一条纯本地、可复现的链路。

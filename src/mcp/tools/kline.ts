@@ -41,7 +41,11 @@ export const klineWithIndicatorsTool: ToolDef = {
   inputSchema: {
     type: 'object',
     properties: {
-      symbol: { type: 'string', description: '股票代码（A 股 / 港股 / 美股）' },
+      symbol: {
+        type: 'string',
+        description:
+          '股票代码。A 股 / 港股裸码即可（600519 / 00700）；美股支持裸 ticker（AAPL）或 secid（105.AAPL）',
+      },
       market: paramProp(MARKET_ENUM),
       period: paramProp(PERIOD_DWM),
       adjust: paramProp(ADJUST),

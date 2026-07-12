@@ -13,6 +13,7 @@
 | 批量行情 | `sdk.batch.cn` / `hk` / `us` / `byCodes` | 全市场或按代码批量取行情 |
 | K 线 | `sdk.kline.cn` / `hk` / `us` / `cnMinute` / `hkMinute` / `usMinute` | 历史 K 线与分钟 K 线 |
 | 带指标 K 线 | `sdk.kline.withIndicators` | K 线 + 内置技术指标 |
+| 指标信号 | `sdk.kline.signals` | 金叉死叉 / 超买超卖 / 突破 / 反转，共 14 类信号识别 |
 | 筹码分布 | `sdk.chips.cn` / `hk` / `us` | 获利比例 / 平均成本 / 成本区间与集中度 / 筹码峰 |
 | 代码列表 | `sdk.codes.cn` / `us` / `hk` / `fund` | 各市场代码清单 |
 | 板块 | `sdk.board.industry.*` / `sdk.board.concept.*` | 行业 / 概念板块列表、行情、成分、K 线 |
@@ -43,4 +44,4 @@
 ## 下一步
 
 - [MCP 安装配置](/mcp/installation)：在各 AI 客户端接入。
-- [AI Skills](/mcp/skills)：把这些工具组合成更高层的分析技能。
+- [AI Skills](/skills/)：把这些工具组合成更高层的分析技能。

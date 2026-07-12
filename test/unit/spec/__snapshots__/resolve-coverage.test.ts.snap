@@ -1,0 +1,670 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`R7-15②: MCP invoke 的 path / 位置参数 / options 键集快照 > 93 个 MCP 工具的调用契约与快照一致 1`] = `
+{
+  "get_a_share_code_list": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "market",
+      "simple",
+    ],
+    "path": "codes.cn",
+  },
+  "get_a_share_quotes": {
+    "argCount": 1,
+    "argShape": "codes[]",
+    "path": "quotes.cn",
+  },
+  "get_a_share_simple_quotes": {
+    "argCount": 1,
+    "argShape": "codes[]",
+    "path": "quotes.cnSimple",
+  },
+  "get_all_a_share_quotes": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "batchSize",
+      "concurrency",
+      "market",
+    ],
+    "path": "batch.cn",
+  },
+  "get_all_hk_quotes": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "batchSize",
+      "concurrency",
+    ],
+    "path": "batch.hk",
+  },
+  "get_all_us_quotes": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "batchSize",
+      "concurrency",
+      "market",
+    ],
+    "path": "batch.us",
+  },
+  "get_block_trade_daily_stat": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "endDate",
+      "startDate",
+    ],
+    "path": "blockTrade.dailyStat",
+  },
+  "get_block_trade_detail": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "endDate",
+      "startDate",
+    ],
+    "path": "blockTrade.detail",
+  },
+  "get_block_trade_market_stat": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "blockTrade.marketStat",
+  },
+  "get_board_changes": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "marketEvent.boardChanges",
+  },
+  "get_cffex_option_quotes": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "pageSize",
+    ],
+    "path": "options.cffex.quotes",
+  },
+  "get_chip_distribution": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "days",
+      "decimals",
+      "includeHistogram",
+      "range",
+    ],
+    "path": "chips.cn",
+  },
+  "get_comex_inventory": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "pageSize",
+    ],
+    "path": "futures.comexInventory",
+  },
+  "get_commodity_option_kline": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "options.commodity.kline",
+  },
+  "get_commodity_option_spot": {
+    "argCount": 2,
+    "argShape": "positional",
+    "path": "options.commodity.spot",
+  },
+  "get_concept_constituents": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "board.concept.constituents",
+  },
+  "get_concept_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "period",
+      "startDate",
+    ],
+    "path": "board.concept.kline",
+  },
+  "get_concept_list": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "board.concept.list",
+  },
+  "get_concept_minute_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "period",
+    ],
+    "path": "board.concept.minuteKline",
+  },
+  "get_concept_spot": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "board.concept.spot",
+  },
+  "get_dividend_detail": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "reference.dividendDetail",
+  },
+  "get_dragon_tiger_branch_rank": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "dragonTiger.branchRank",
+  },
+  "get_dragon_tiger_detail": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "endDate",
+      "startDate",
+    ],
+    "path": "dragonTiger.detail",
+  },
+  "get_dragon_tiger_institution": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "endDate",
+      "startDate",
+    ],
+    "path": "dragonTiger.institution",
+  },
+  "get_dragon_tiger_seat_detail": {
+    "argCount": 2,
+    "argShape": "positional",
+    "path": "dragonTiger.seatDetail",
+  },
+  "get_dragon_tiger_stock_stats": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "dragonTiger.stockStats",
+  },
+  "get_etf_option_daily_kline": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "options.etf.dailyKline",
+  },
+  "get_etf_option_expire_day": {
+    "argCount": 2,
+    "argShape": "positional",
+    "path": "options.etf.expireDay",
+  },
+  "get_etf_option_five_day_minute": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "options.etf.fiveDayMinute",
+  },
+  "get_etf_option_minute": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "options.etf.minute",
+  },
+  "get_etf_option_months": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "options.etf.months",
+  },
+  "get_fund_code_list": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "codes.fund",
+  },
+  "get_fund_dividend_list": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "code",
+      "fundType",
+      "page",
+      "rank",
+      "sort",
+      "year",
+    ],
+    "path": "fund.dividendList",
+  },
+  "get_fund_estimate": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "fund.estimate",
+  },
+  "get_fund_flow": {
+    "argCount": 1,
+    "argShape": "codes[]",
+    "path": "quotes.fundFlow",
+  },
+  "get_fund_flow_rank": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "indicator",
+    ],
+    "path": "fundFlow.rank",
+  },
+  "get_fund_nav_history": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "fund.navHistory",
+  },
+  "get_fund_profile": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "fund.profile",
+  },
+  "get_fund_quotes": {
+    "argCount": 1,
+    "argShape": "codes[]",
+    "path": "quotes.fund",
+  },
+  "get_fund_rank_history": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "fund.rankHistory",
+  },
+  "get_futures_inventory": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "pageSize",
+      "startDate",
+    ],
+    "path": "futures.inventory",
+  },
+  "get_futures_inventory_symbols": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "futures.inventorySymbols",
+  },
+  "get_futures_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "endDate",
+      "period",
+      "startDate",
+    ],
+    "path": "futures.kline",
+  },
+  "get_global_futures_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "endDate",
+      "marketCode",
+      "period",
+      "startDate",
+    ],
+    "path": "futures.globalKline",
+  },
+  "get_global_futures_spot": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "pageSize",
+    ],
+    "path": "futures.globalSpot",
+  },
+  "get_history_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "period",
+      "startDate",
+    ],
+    "path": "kline.cn",
+  },
+  "get_hk_chip_distribution": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "days",
+      "decimals",
+      "includeHistogram",
+      "range",
+    ],
+    "path": "chips.hk",
+  },
+  "get_hk_code_list": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "codes.hk",
+  },
+  "get_hk_history_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "period",
+      "startDate",
+    ],
+    "path": "kline.hk",
+  },
+  "get_hk_minute_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "ndays",
+      "period",
+      "startDate",
+    ],
+    "path": "kline.hkMinute",
+  },
+  "get_hk_quotes": {
+    "argCount": 1,
+    "argShape": "codes[]",
+    "path": "quotes.hk",
+  },
+  "get_index_option_kline": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "options.index.kline",
+  },
+  "get_index_option_spot": {
+    "argCount": 2,
+    "argShape": "positional",
+    "path": "options.index.spot",
+  },
+  "get_individual_fund_flow": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "period",
+    ],
+    "path": "fundFlow.individual",
+  },
+  "get_individual_stock_changes": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "date",
+    ],
+    "path": "marketEvent.individualChanges",
+  },
+  "get_individual_stock_changes_history": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "days",
+    ],
+    "path": "marketEvent.individualChangesHistory",
+  },
+  "get_industry_constituents": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "board.industry.constituents",
+  },
+  "get_industry_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "period",
+      "startDate",
+    ],
+    "path": "board.industry.kline",
+  },
+  "get_industry_list": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "board.industry.list",
+  },
+  "get_industry_minute_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "period",
+    ],
+    "path": "board.industry.minuteKline",
+  },
+  "get_industry_spot": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "board.industry.spot",
+  },
+  "get_kline_signals": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "maFast",
+      "maSlow",
+      "market",
+      "period",
+      "startDate",
+    ],
+    "path": "kline.signals",
+  },
+  "get_margin_account_info": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "margin.accountInfo",
+  },
+  "get_margin_target_list": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "margin.targetList",
+  },
+  "get_market_fund_flow": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "fundFlow.market",
+  },
+  "get_market_status": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "calendar.marketStatus",
+  },
+  "get_minute_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "period",
+      "startDate",
+    ],
+    "path": "kline.cnMinute",
+  },
+  "get_northbound_flow_summary": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "northbound.summary",
+  },
+  "get_northbound_history": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "endDate",
+      "startDate",
+    ],
+    "path": "northbound.history",
+  },
+  "get_northbound_holding_rank": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "date",
+      "market",
+      "period",
+    ],
+    "path": "northbound.holdingRank",
+  },
+  "get_northbound_individual": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "endDate",
+      "startDate",
+    ],
+    "path": "northbound.individual",
+  },
+  "get_northbound_minute": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "northbound.minute",
+  },
+  "get_option_lhb": {
+    "argCount": 2,
+    "argShape": "positional",
+    "path": "options.lhb",
+  },
+  "get_panel_large_order": {
+    "argCount": 1,
+    "argShape": "codes[]",
+    "path": "quotes.largeOrder",
+  },
+  "get_quotes_by_codes": {
+    "argCount": 2,
+    "argShape": "codes+options",
+    "optionKeys": [
+      "batchSize",
+      "concurrency",
+    ],
+    "path": "batch.byCodes",
+  },
+  "get_sector_fund_flow_history": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "period",
+    ],
+    "path": "fundFlow.sectorHistory",
+  },
+  "get_sector_fund_flow_rank": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "indicator",
+      "sectorType",
+    ],
+    "path": "fundFlow.sectorRank",
+  },
+  "get_stock_changes": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "marketEvent.stockChanges",
+  },
+  "get_theme_funds": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "fundType",
+      "page",
+      "pageSize",
+      "sort",
+      "sortColumn",
+    ],
+    "path": "fund.theme.getThemeFunds",
+  },
+  "get_theme_list": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "category",
+      "order",
+      "page",
+      "pageSize",
+      "sort",
+    ],
+    "path": "fund.theme.getThemeList",
+  },
+  "get_today_timeline": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "quotes.timeline",
+  },
+  "get_trading_calendar": {
+    "argCount": 0,
+    "argShape": "none",
+    "path": "reference.tradingCalendar",
+  },
+  "get_us_chip_distribution": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "days",
+      "decimals",
+      "includeHistogram",
+      "range",
+    ],
+    "path": "chips.us",
+  },
+  "get_us_code_list": {
+    "argCount": 1,
+    "argShape": "options",
+    "optionKeys": [
+      "market",
+      "simple",
+    ],
+    "path": "codes.us",
+  },
+  "get_us_history_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "endDate",
+      "period",
+      "startDate",
+    ],
+    "path": "kline.us",
+  },
+  "get_us_minute_kline": {
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "adjust",
+      "ndays",
+      "period",
+    ],
+    "path": "kline.usMinute",
+  },
+  "get_us_quotes": {
+    "argCount": 1,
+    "argShape": "codes[]",
+    "path": "quotes.us",
+  },
+  "get_zt_pool": {
+    "argCount": 2,
+    "argShape": "positional",
+    "path": "marketEvent.ztPool",
+  },
+  "is_trading_day": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "calendar.isTradingDay",
+  },
+  "next_trading_day": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "calendar.nextTradingDay",
+  },
+  "prev_trading_day": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "calendar.prevTradingDay",
+  },
+  "search": {
+    "argCount": 1,
+    "argShape": "positional",
+    "path": "search",
+  },
+}
+`;

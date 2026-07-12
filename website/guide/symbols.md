@@ -97,6 +97,15 @@ interface NormalizedSymbol {
 > 港股不足 5 位会自动补零：`700` → `00700`、`hk700` → `00700`。
 > 美股 ticker 会统一转大写：`aapl` → `AAPL`。
 
+::: warning hk / us 前缀 + 字母代码的剥离规则（v2.4.0 收紧）
+字母 rest 与 `US*` / `HK*` 开头的**真实美股 ticker**（USB / USO / USFD / HKD…）天然冲突，只有两种无歧义形态会剥前缀：
+
+- **规范形**：小写前缀 + 大写开头 rest —— `usAAPL` / `usBRK.A` / `hkHSI`
+- **全小写手输形**：前缀小写且 rest 全小写、长度 ≥ 3 —— `usaapl` / `hkhsi`
+
+其余（`USB`、`usb`、`HKD`、`USAAPL`）一律按**完整 ticker** 归美股。全大写前缀写法（`USAAPL`）请改用规范形、点分（`AAPL.US`）或 `market` hint。数字 rest（`hk00700` / `HK00700` / `us600519`）不受影响，任意大小写照剥。
+:::
+
 ### 特殊指数（中证 / 恒生 / 海外）
 
 部分指数在东方财富使用独立的 secid 市场前缀（`2` / `124` / `100`），不走交易所推断。SDK 按**码形规则 + 具名注册表**识别，`assetType` 恒为 `'index'`：

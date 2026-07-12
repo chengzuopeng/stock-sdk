@@ -1,6 +1,6 @@
 {
   "name": "stock-sdk",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -23,6 +23,7 @@
     "build:docs": "pnpm docs:meta && DOCS_BASE=/ vitepress build website",
     "build:pages": "pnpm docs:meta && DOCS_BASE=/stock-sdk/ vitepress build website",
     "gen:llms": "tsx ./scripts/generate-llms.ts",
+    "gen:indicator-baseline": "tsx ./scripts/gen-indicator-baseline.ts",
     "prepare": "node ./scripts/install-git-hooks.js"
   },
   "exports": {

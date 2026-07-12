@@ -3,18 +3,18 @@
  * 支持浏览器（JSONP）和 Node.js（fetch）双端
  */
 import { RequestClient } from '../../core/request';
-import { SdkError } from '../../core/errors';
+import { fetchJsVars } from '../../core/jsVars';
 import { SearchResult, type SearchResultType } from '../../types';
 
 /** Smartbox 搜索接口基础 URL */
 const SEARCH_URL = 'https://smartbox.gtimg.cn/s3/';
 
-/** 全局变量声明（浏览器环境）*/
-declare global {
-  interface Window {
-    v_hint?: string;
-  }
-}
+/**
+ * v_hint 专属注入互斥队列（R7-5）：与基金系变量集合（fS_code/Data_*）
+ * 确定不相交，走专属 key 避免自动补全被 pingzhongdata 大文件下载排队
+ * 拖慢；搜索之间仍串行，保住并发安全。
+ */
+const V_HINT_MUTEX_KEY = 'jsVars:v_hint';
 
 /**
  * 解码 Unicode 转义序列
@@ -91,39 +91,20 @@ function parseSearchResult(raw: string): SearchResult[] {
 }
 
 /**
- * 浏览器环境下通过 JSONP 方式请求
+ * 浏览器环境下通过 script 注入读取 `window.v_hint`。
+ *
+ * R7-5: 收编到 core/jsVars（AGENTS.md 规定统一复用 jsVars + scriptMutex）——
+ * 此前手写注入既无互斥（两个并发 search 互相覆盖 v_hint，自动补全场景拿到
+ * 对方关键词的结果或空）也无超时（脚本挂起 promise 永不 resolve）。
+ * 现在获得：同 key 串行 + 15s TIMEOUT + 统一错误码 + 残留变量防护（R7-10）。
  * @param keyword 搜索关键词
  */
-function fetchByJsonp(keyword: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = `${SEARCH_URL}?v=2&t=all&q=${encodeURIComponent(keyword)}`;
-
-    // 预置全局变量
-    window.v_hint = '';
-
-    const script = document.createElement('script');
-    script.src = url;
-    script.charset = 'utf-8';
-
-    script.onload = () => {
-      const result = window.v_hint || '';
-      document.body.removeChild(script);
-      resolve(result);
-    };
-
-    script.onerror = () => {
-      document.body.removeChild(script);
-      reject(
-        new SdkError({
-          code: 'NETWORK_ERROR',
-          message: 'Network error calling Smartbox',
-          url,
-        })
-      );
-    };
-
-    document.body.appendChild(script);
+async function fetchByJsonp(keyword: string): Promise<string> {
+  const url = `${SEARCH_URL}?v=2&t=all&q=${encodeURIComponent(keyword)}`;
+  const vars = await fetchJsVars<{ v_hint: string }>(url, ['v_hint'], {
+    mutexKey: V_HINT_MUTEX_KEY,
   });
+  return typeof vars.v_hint === 'string' ? vars.v_hint : '';
 }
 
 /**

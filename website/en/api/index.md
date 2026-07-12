@@ -26,7 +26,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // nested namespace
 
 | Namespace | Purpose | Docs |
 |---|---|---|
-| `sdk.kline` | A/HK/US history K-line, minute K-line, K-line with indicators | [kline](/en/api/kline) |
+| `sdk.kline` | A/HK/US history K-line, minute K-line, K-line with indicators, indicator signals | [kline](/en/api/kline) |
 | `sdk.chips` | A/HK/US chip distribution: profit ratio / avg cost / 90-70 cost ranges & concentration / chip peak | [chips](/en/api/chips) |
 | `sdk.board.industry` · `sdk.board.concept` | Industry / concept boards: list, spot, constituents, kline, minute | [board](/en/api/board) |
 
@@ -71,6 +71,7 @@ import { normalizeSymbol } from 'stock-sdk/symbols'
 |---|---|---|---|
 | Indicators | `stock-sdk/indicators` | 14 indicators: `calcMA` / `calcMACD` / `calcBOLL` / `calcKDJ` / `calcRSI` / `calcWR` / `calcBIAS` / `calcCCI` / `calcATR` / `calcOBV` / `calcROC` / `calcDMI` / `calcSAR` / `calcKC` + `addIndicators` | [indicators](/en/api/indicators) |
 | Signals | `stock-sdk/signals` | `calcSignals`: golden / death cross, overbought / oversold, etc. | [signals](/en/api/signals) |
+| Screener / Backtest | `stock-sdk/screener` | `screen`: chainable filter & rank; `backtest`: single-symbol long-only backtest | [screener](/en/api/screener) |
 | Symbols | `stock-sdk/symbols` | `normalizeSymbol`, `SymbolRef` type: lenient symbol parsing | [Symbols & Codes](/en/guide/symbols) |
 
 ## Conventions

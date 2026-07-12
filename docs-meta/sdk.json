@@ -110,7 +110,8 @@
           "kline.hkMinute",
           "kline.usMinute",
           "quotes.timeline",
-          "kline.withIndicators"
+          "kline.withIndicators",
+          "kline.signals"
         ]
       },
       {
@@ -254,7 +255,7 @@
         ]
       }
     ],
-    "methodGroupExemptions": []
+    "methodGroupExemptions": ["clearCaches"]
   },
   "forbiddenTokens": [
     "RateLimitOptions",

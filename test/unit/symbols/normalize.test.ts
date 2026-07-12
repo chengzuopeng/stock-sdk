@@ -148,6 +148,98 @@ describe('normalizeSymbol — 特殊指数(specialIndex 注册表)', () => {
     );
   });
 
+  it('恒生系碰撞码(HSI/HSCEI/HSTECH):market hint 匹配才按港股指数解析,不劫持裸码', () => {
+    // 回归护栏(2.4.0 曾把 quotes.hk(['HSI']) 从恒生指数改回空)—— {market:'HK'} 应解析为指数
+    for (const [code, ex] of [
+      ['HSI', 'HSI'],
+      ['HSCEI', 'HSI'],
+      ['HSTECH', 'HSI'],
+    ] as const) {
+      expect(normalizeSymbol(code, { market: 'HK' })).toMatchObject({
+        market: 'HK',
+        exchange: ex,
+        assetType: 'index',
+        code,
+      });
+    }
+    // 向后兼容:无 hint 裸 'HSI' 仍归美股 ticker 命名空间,不被指数劫持
+    expect(normalizeSymbol('HSI')).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+      code: 'HSI',
+    });
+    expect(normalizeSymbol('HSI', { market: 'US' }).market).toBe('US');
+    expect(() => normalizeSymbol('HSI', { market: 'CN' })).toThrow(
+      InvalidSymbolError
+    );
+    // 规范形回读:'hkHSI' 是 toTencentSymbol 自身的产出形态,必须解析回恒生指数
+    // (此前被解成港股股票 '00HSI',quotes.hk(['hkHSI']) 静默返空、kline.hk 拼死 secid)
+    expect(normalizeSymbol('hkHSI')).toMatchObject({
+      market: 'HK',
+      assetType: 'index',
+      code: 'HSI',
+    });
+    expect(normalizeSymbol('hkhsi')).toMatchObject({ assetType: 'index', code: 'HSI' });
+    // 显式 assetType:'stock' 维持 ticker 命名空间(最强消歧优先,不抛错)
+    expect(normalizeSymbol('hkHSI', { assetType: 'stock' })).toMatchObject({
+      market: 'HK',
+      assetType: 'stock',
+      code: '00HSI',
+    });
+    // 显式 secid 回读:100.HSI → 恒生指数
+    expect(normalizeSymbol('100.HSI')).toMatchObject({
+      market: 'HK',
+      assetType: 'index',
+      code: 'HSI',
+    });
+  });
+
+  it('美股指数(DJI/INX/IXIC):{market:US} 按指数解析;裸码与 DJIA-ETF 不被劫持', () => {
+    for (const code of ['DJI', 'INX', 'IXIC'] as const) {
+      expect(normalizeSymbol(code, { market: 'US' })).toMatchObject({
+        market: 'US',
+        assetType: 'index',
+        code,
+      });
+    }
+    // 向后兼容:裸码仍归美股 stock 命名空间
+    expect(normalizeSymbol('DJI')).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+    });
+    // 碰撞安全:DJIA 是真实 ETF(Global X),即便带 {market:'US'} 也不得劫持成道琼斯指数
+    expect(normalizeSymbol('DJIA', { market: 'US' })).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+      code: 'DJIA',
+    });
+    // 规范形回读:'usDJI' 是 toTencentSymbol 的产出形态,必须解析回指数
+    // (此前 us 前缀分支不查 specialIndex,kline.us('usDJI') 抛 NotFoundError)
+    for (const [prefixed, code] of [
+      ['usDJI', 'DJI'],
+      ['usINX', 'INX'],
+      ['usIXIC', 'IXIC'],
+    ] as const) {
+      expect(normalizeSymbol(prefixed)).toMatchObject({
+        market: 'US',
+        assetType: 'index',
+        code,
+      });
+    }
+    // 显式 assetType:'stock' hint:最强消歧,维持 ticker 命名空间且不抛错
+    // (此前碰撞门只看 market hint,{market:'US',assetType:'stock'} 反而抛错)
+    expect(normalizeSymbol('DJI', { market: 'US', assetType: 'stock' })).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+      code: 'DJI',
+    });
+    expect(normalizeSymbol('usDJI', { assetType: 'stock' })).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+      code: 'DJI',
+    });
+  });
+
   it('交易所前缀/后缀断言与特殊指数码形矛盾:与 hint 轴同口径抛错,不拼死 secid', () => {
     expect(() => normalizeSymbol('sh930955')).toThrow(InvalidSymbolError);
     expect(() => normalizeSymbol('930955.SH')).toThrow(InvalidSymbolError);

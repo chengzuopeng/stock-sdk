@@ -37,13 +37,16 @@ function isBrowserEnv(): boolean {
 const DEFAULT_TIMEOUT_MS = 15000;
 
 /**
- * 浏览器端所有 fetchJsVars 调用共享的 mutex 键。
+ * 浏览器端 fetchJsVars 默认共享的 mutex 键。
  *
  * 用全局键（而非按变量名集合算 key）的原因：不同接口的变量名集合常有交集
  * （如 pingzhongdata 的 `fS_code` / `fS_name` 同时被多个接口写入）。按集合
  * 分组的 key 会让"集合不同但有交集"的并发请求互相覆盖全局变量。
  *
- * 代价：浏览器端任意两个 fetchJsVars 调用都串行；收益：彻底消除变量交集漏洞。
+ * 代价：默认下任意两个浏览器 fetchJsVars 调用都串行。变量集合与基金系
+ * **确定不相交**的数据源（如 smartbox 的 `v_hint`）可用 `options.mutexKey`
+ * 声明专属队列，避免被基金大文件下载排队拖慢（R7-5）——同 key 仍串行，
+ * 保住自身并发安全。
  *
  * Node 端不走 mutex，不受影响。
  */
@@ -54,6 +57,11 @@ export interface FetchJsVarsOptions {
   timeout?: number;
   /** 额外的 fetch headers（仅 Node 端裸 fetch 路径生效；client 路径请通过 client 配置） */
   headers?: Record<string, string>;
+  /**
+   * 浏览器端注入互斥队列的 key，默认 {@link BROWSER_JSVARS_MUTEX_KEY}（全局串行）。
+   * 仅当变量名集合与其它数据源**确定不相交**时才可指定专属 key。
+   */
+  mutexKey?: string;
   /**
    * 可选的 SDK 请求客户端。
    * - 传入：Node 端走 `client.get<string>(url, { responseType: 'text' })`，享受 SDK 重试 /
@@ -79,11 +87,12 @@ export async function fetchJsVars<T extends object>(
 ): Promise<Partial<T>> {
   const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
   if (isBrowserEnv()) {
-    // 用全局 mutex key：浏览器端所有 fetchJsVars 串行。
+    // 默认全局 mutex key：浏览器端所有 fetchJsVars 串行。
     // 详见 BROWSER_JSVARS_MUTEX_KEY 注释——不同接口的变量集合常有交集
     // （如 pingzhongdata 系列共享 fS_code / fS_name），按集合分组的 key
-    // 会出现"集合不同但有交集"的并发漏洞。
-    return withScriptMutex(BROWSER_JSVARS_MUTEX_KEY, () =>
+    // 会出现"集合不同但有交集"的并发漏洞；集合确定不相交的数据源
+    // 可通过 options.mutexKey 走专属队列（R7-5）。
+    return withScriptMutex(options.mutexKey ?? BROWSER_JSVARS_MUTEX_KEY, () =>
       browserFetchJsVars<T>(url, varNames, timeout)
     );
   }
@@ -119,8 +128,26 @@ function browserFetchJsVars<T extends object>(
   timeout: number
 ): Promise<Partial<T>> {
   return new Promise((resolve, reject) => {
+    const win = window as unknown as Record<string, unknown>;
     const script = document.createElement('script');
     let settled = false;
+
+    // R7-10: 注入前把请求的变量名预置为 undefined。
+    // 上一轮请求留下的顶层 `var` 全局是 non-configurable 的，delete 必然失败
+    // （strict 模式下 TypeError 被下方 catch 吞掉）——若本次脚本不定义某变量，
+    // `name in win` 仍为 true，会把上一个基金的数据归属到本次请求。
+    // var 全局不可 delete 但可写：置 undefined 等价"清空残留"，读取侧以
+    // undefined 判缺失（数据文件的变量值不会是 undefined）。
+    const presetUndefined = () => {
+      for (const name of varNames) {
+        try {
+          win[name] = undefined;
+        } catch {
+          // 只读全局（极端宿主注入场景）：忽略，读取侧仍有 undefined 门
+        }
+      }
+    };
+    presetUndefined();
 
     const cleanup = () => {
       if (script.parentNode) {
@@ -131,6 +158,13 @@ function browserFetchJsVars<T extends object>(
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
+      // R7-10: 移除 script 节点并不能取消已在途的 classic script 执行，且超时
+      // reject 即释放互斥——迟到脚本可能落在下一请求的"预置之后、onload 之前"
+      // 窗口。给超时脚本挂二次清扫，把最坏后果从"串数据"降级为"偶发缺数据"
+      // （已知残余：清扫可能误清下一请求已写入的同名值，表现为该变量缺失，
+      // 可重试；彻底方案需请求代际标记，复杂度与收益不匹配）。
+      script.onload = presetUndefined;
+      script.onerror = null;
       cleanup();
       reject(
         new SdkError({
@@ -146,15 +180,23 @@ function browserFetchJsVars<T extends object>(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      const win = window as unknown as Record<string, unknown>;
       const out: Record<string, unknown> = {};
       for (const name of varNames) {
-        if (name in win) {
+        // undefined 视为"本次脚本未定义"，不采信上一轮残留（R7-10）
+        if (name in win && win[name] !== undefined) {
           out[name] = win[name];
+        }
+        // 无论脚本是否定义，都清理该名：presetUndefined 建的 configurable own
+        // 属性会被 delete 掉（不残留 window 命名空间污染），脚本声明的
+        // non-configurable var 删不掉则置 undefined 兜底（兜底赋值本身也可能
+        // 撞上只读全局，再包一层 try 避免 onload 抛错致 promise 永不 settle）
+        try {
+          delete win[name];
+        } catch {
           try {
-            delete win[name];
+            win[name] = undefined;
           } catch {
-            // 严格模式或不可配置的属性：忽略，不影响业务
+            /* 只读全局：无法清理，忽略（读取侧已取到值） */
           }
         }
       }

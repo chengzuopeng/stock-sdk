@@ -7,6 +7,8 @@ export {
   IndicatorService,
   type MarketType,
   type KlineWithIndicatorsOptions,
+  type KlineSignalsOptions,
+  type KlineSignal,
 } from './indicatorService';
 export {
   ChipService,
