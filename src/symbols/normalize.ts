@@ -300,7 +300,7 @@ export function normalizeSymbol(
       // 并指引('.US' 除外:纯字母码属真实美股 ticker 命名空间)
       if (suffix.market === 'CN' || suffix.market === 'HK') {
         const idx = lookupSpecialIndex(left);
-        if (idx) {
+        if (idx && !idx.collision) {
           throw new InvalidSymbolError(
             `${rawInput} (special index code '${idx.code}' conflicts with exchange suffix '${right}'; ` +
               `use bare '${idx.code}' or secid '${idx.secidPrefix}.${idx.code}')`
@@ -367,8 +367,10 @@ export function normalizeSymbol(
         // 特殊指数码形与 sh/sz/bj/hk 前缀断言矛盾 → 与后缀/hint 轴同口径拒绝
         // 并指引(us 前缀除外:纯字母码属真实美股 ticker 命名空间)
         if (s.market === 'CN' || s.market === 'HK') {
+          // 碰撞码放行:'hkHSI' 维持既有 HK/00HSI 解析(前缀已提供 HK 上下文,
+          // 不必再抛"用裸码"指引);非碰撞码(hkHSHCI 等)照旧拒绝并指引。
           const idx = lookupSpecialIndex(rest);
-          if (idx) {
+          if (idx && !idx.collision) {
             throw new InvalidSymbolError(
               `${rawInput} (special index code '${idx.code}' conflicts with exchange prefix '${p}'; ` +
                 `use bare '${idx.code}' or secid '${idx.secidPrefix}.${idx.code}')`
@@ -392,8 +394,12 @@ export function normalizeSymbol(
 
   // 3) 特殊指数：须先于纯数字分支，否则 93xxxx 被 inferAShareExchange 按
   //    「9 开头→沪」误判，拼出 '1.930955' 这类上游静默返空的 secid
+  // 碰撞码(HSI/HSCEI/HSTECH 等)仅在 market hint 匹配其市场时按指数解析,否则
+  // 维持原命名空间:裸 'HSI' 无 hint → 落到纯字母分支归 US ticker(向后兼容),
+  // quotes.hk(['HSI']) 传 {market:'HK'} → 恒生指数。非碰撞码(HSHCI/CSI/GDAXI)
+  // 裸码即解析(与历史一致)。
   const specialIdx = lookupSpecialIndex(code0);
-  if (specialIdx) {
+  if (specialIdx && (!specialIdx.collision || hintMarket === specialIdx.market)) {
     return finishSpecialIndex(specialIdx);
   }
 

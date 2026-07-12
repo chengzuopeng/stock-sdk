@@ -29,6 +29,17 @@ describe('toTencentSymbol', () => {
       );
     }
   );
+
+  // 恒生系碰撞码带腾讯码:{market:'HK'} 解析后 → 腾讯行情键(quotes.hk 回归护栏)
+  it.each([
+    ['HSI', 'hkHSI'],
+    ['HSCEI', 'hkHSCEI'],
+    ['HSTECH', 'hkHSTECH'],
+  ])('恒生系 %s @HK → %s', (input, expected) => {
+    expect(toTencentSymbol(normalizeSymbol(input, { market: 'HK' }))).toBe(
+      expected
+    );
+  });
 });
 
 describe('toEastmoneySecid', () => {
@@ -68,6 +79,16 @@ describe('toEastmoneySecid', () => {
   it("普通指数 fall-through 现状:'000300'+{assetType:'index'} → '0.000300'(已知错宿主,待修)", () => {
     expect(toEastmoneySecid(normalizeSymbol('000300', { assetType: 'index' }))).toBe(
       '0.000300'
+    );
+  });
+
+  it('恒生系东财 secid:HSI/HSCEI 走 100. 前缀;HSTECH 东财无码回退 116.(仅腾讯可用)', () => {
+    expect(toEastmoneySecid(normalizeSymbol('HSI', { market: 'HK' }))).toBe('100.HSI');
+    expect(toEastmoneySecid(normalizeSymbol('HSCEI', { market: 'HK' }))).toBe(
+      '100.HSCEI'
+    );
+    expect(toEastmoneySecid(normalizeSymbol('HSTECH', { market: 'HK' }))).toBe(
+      '116.HSTECH'
     );
   });
 });

@@ -148,6 +148,40 @@ describe('normalizeSymbol — 特殊指数(specialIndex 注册表)', () => {
     );
   });
 
+  it('恒生系碰撞码(HSI/HSCEI/HSTECH):market hint 匹配才按港股指数解析,不劫持裸码', () => {
+    // 回归护栏(2.4.0 曾把 quotes.hk(['HSI']) 从恒生指数改回空)—— {market:'HK'} 应解析为指数
+    for (const [code, ex] of [
+      ['HSI', 'HSI'],
+      ['HSCEI', 'HSI'],
+      ['HSTECH', 'HSI'],
+    ] as const) {
+      expect(normalizeSymbol(code, { market: 'HK' })).toMatchObject({
+        market: 'HK',
+        exchange: ex,
+        assetType: 'index',
+        code,
+      });
+    }
+    // 向后兼容:无 hint 裸 'HSI' 仍归美股 ticker 命名空间,不被指数劫持
+    expect(normalizeSymbol('HSI')).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+      code: 'HSI',
+    });
+    expect(normalizeSymbol('HSI', { market: 'US' }).market).toBe('US');
+    expect(() => normalizeSymbol('HSI', { market: 'CN' })).toThrow(
+      InvalidSymbolError
+    );
+    // 'hkHSI' 维持既有 HK/00HSI(碰撞码放行前缀冲突检查,不改历史行为)
+    expect(normalizeSymbol('hkHSI')).toMatchObject({ market: 'HK', code: '00HSI' });
+    // 显式 secid 回读:100.HSI → 恒生指数
+    expect(normalizeSymbol('100.HSI')).toMatchObject({
+      market: 'HK',
+      assetType: 'index',
+      code: 'HSI',
+    });
+  });
+
   it('交易所前缀/后缀断言与特殊指数码形矛盾:与 hint 轴同口径抛错,不拼死 secid', () => {
     expect(() => normalizeSymbol('sh930955')).toThrow(InvalidSymbolError);
     expect(() => normalizeSymbol('930955.SH')).toThrow(InvalidSymbolError);

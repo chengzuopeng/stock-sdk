@@ -47,6 +47,14 @@ export function toTencentSymbol(ns: NormalizedSymbol): string {
       { assetType: ns.assetType, code: ns.code }
     );
   }
+  // 特殊指数:注册表带腾讯码的(HSI→hkHSI / HSCEI→hkHSCEI 等)直接返回,不走
+  // 下方市场分支的纯数字/前缀拼接(否则 HK 分支会因字母指数码非纯数字而抛错)。
+  if (ns.assetType === 'index') {
+    const idx = lookupSpecialIndex(ns.code);
+    if (idx?.tencent) {
+      return idx.tencent;
+    }
+  }
   switch (ns.market) {
     case 'CN': {
       const prefix = EXCHANGE_TO_TENCENT_PREFIX[ns.exchange];
@@ -96,7 +104,7 @@ export function toEastmoneySecid(ns: NormalizedSymbol): string {
   // 未命中注册表的普通指数走交易所前缀 fall-through(沪市 000xxx 已知错宿主,待修)。
   if (ns.assetType === 'index') {
     const specialIdx = lookupSpecialIndex(ns.code);
-    if (specialIdx && specialIdx.exchange === ns.exchange) {
+    if (specialIdx?.secidPrefix && specialIdx.exchange === ns.exchange) {
       return `${specialIdx.secidPrefix}.${specialIdx.code}`;
     }
   }
