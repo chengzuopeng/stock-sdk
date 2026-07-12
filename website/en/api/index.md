@@ -26,7 +26,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // nested namespace
 
 | Namespace | Purpose | Docs |
 |---|---|---|
-| `sdk.kline` | A/HK/US history K-line, minute K-line, K-line with indicators | [kline](/en/api/kline) |
+| `sdk.kline` | A/HK/US history K-line, minute K-line, K-line with indicators, indicator signals | [kline](/en/api/kline) |
 | `sdk.chips` | A/HK/US chip distribution: profit ratio / avg cost / 90-70 cost ranges & concentration / chip peak | [chips](/en/api/chips) |
 | `sdk.board.industry` · `sdk.board.concept` | Industry / concept boards: list, spot, constituents, kline, minute | [board](/en/api/board) |
 

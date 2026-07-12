@@ -14,40 +14,41 @@ pageClass: changelog-page
 
 ### 修复
 
-- **符号前缀不再吞真实美股 ticker（R7-1）**：`normalizeSymbol('USB')` 此前被剥成 `US/B`（静默返回 Barnes Group 的数据）、`'HKD'` 被剥成 `HK/0000D`。字母 rest 现在只认两种无歧义形态——小写前缀 + 大写开头（`usAAPL` / `hkHSI` / `usBRK.A`）、全小写且 rest ≥ 3（`usaapl`）；数字 rest 任意大小写照剥。`externalLinks` 的本地预剥离一并收编，`USB` 类修复直达链接生成。
-- **行情 codes 入口"带不带前缀均可"落地（R7-2/R7-3）**：`quotes.cn/cnSimple/hk/us/fundFlow/largeOrder` 全部经 `tryToTencentSymbols` 容错归一——裸代码（`'600036'`）此前必空、带前缀（`'hk00700'` / `'usBABA'`）此前被双拼成 `hkhk00700` / `ususBABA` 必空。无法映射的代码（如中证特殊指数码）逐码跳过，不影响批量调用的其它代码。
-- **美股 K 线支持裸 ticker（R7-4）**：`kline.us / usMinute / chips.us` 及 CLI / MCP 自动路由的 `'AAPL'` 此前直传非法 secid，全线静默"无数据"。现在按"代码表 → 105/106/107 探测"解析交易所前缀，命中缓存 7 天、未收录负缓存 1 小时；转板（NYSE↔NASDAQ）/ 退市极罕见，靠命中 TTL 到期自然重解析覆盖。
-- **搜索并发安全（R7-5）**：浏览器端 `sdk.search()` 收编到 `core/jsVars`——此前手写注入无互斥（并发搜索互相覆盖 `v_hint`，拿到对方关键词的结果或空）也无超时（脚本挂起 promise 永不 resolve）；`v_hint` 走专属互斥队列，不再被基金大文件下载排队拖慢。
-- **jsVars 残留变量防护（R7-10）**：顶层 `var` 全局不可 delete，此前请求 A 的残留数据会被归属到脚本未定义该变量的请求 B（基金数据张冠李戴）。注入前预置 `undefined` + 读取侧 `undefined` 门 + 超时二次清扫。
-- **ATR 暖机期脏数据恢复（R7-6）**：暖机期内一根 null bar 此前让整条序列 ATR（连带 KC）永远 null；现在窗口滑过脏点后恢复播种。干净数据输出逐位不变。
-- **SAR 前导无效 bar 播种（R7-7）**：首根 K 线 high/low 为 null 时此前以 0 价播种（长段非 null 垃圾、趋势冻结）；现在跳过前导无效 bar，输出与"裁掉前导后重算"逐位等价。干净数据输出逐位不变。
-- **基金净值 / 排名历史脏行防御（R7-8）**：上游一行非有限时间戳此前抛 `RangeError` 毁掉整个结果、`x` 缺失会静默产出"今天"的幽灵行——现在逐行过滤；`accNav` / `percentile` 不再裸 cast 直通字符串。
-- **腾讯行情截断行不再伪造零值（R7-9）**：行过滤阈值与解析器最高访问下标机械绑定（此前 `>5` 放行截断行，`safeNumber(undefined)=0` 把涨跌幅/高低/成交额伪造成 0）；港股 `currency` 加 3 位大写字母语义校验。
-- **datacenter 系接口 symbol 全形态归一（R7-12）**：`dividend.detail` 此前对 `'SH600519'` 静默返回空（去前缀正则漏 `/i`）；`'600519.SH'` / `'1.600519'` 形态在 dividend / dragonTiger / northbound 三处此前全部静默空。
-- **缓存跨实例串数据（R7-11）**：代码表 / 交易日历 / 板块名称映射此前是仅按名字键控的模块级全局缓存——mock / 代理 fetchImpl 实例取回的数据会串给其它 `StockSDK` 实例最长 6-12 小时。现按实例隔离。
-- **`evictLRU` 空字符串键淘汰失效**：`''` 为 LRU 时此前淘汰永久失效（缓存无界增长）。
+- **前缀不再吞真实美股 ticker（R7-1）**：`'USB'` / `'HKD'` 不再被误剥成 `US/B` / `HK/0000D`。
+- **行情 codes 带不带前缀均可（R7-2/R7-3）**：`quotes.*` 经 `tryToTencentSymbols` 归一，裸码与带前缀（`hk00700` / `usBABA`）都可查。
+- **美股 K 线支持裸 ticker（R7-4）**：`kline.us('AAPL')` 自动解析交易所前缀并缓存。
+- **搜索并发安全（R7-5）**：`sdk.search()` 走 `core/jsVars`，修浏览器端并发覆盖 / 挂起。
+- **jsVars 残留变量防护（R7-10）**：修请求间基金数据张冠李戴。
+- **ATR 暖机脏数据恢复（R7-6）**：一根 null bar 不再令整条 ATR / KC 永久 null。
+- **SAR 前导无效 bar（R7-7）**：首根 null 不再以 0 价播种冻结趋势。
+- **基金净值 / 排名历史脏行防御（R7-8）**：坏时间戳 / 缺字段逐行过滤，不再毁整个结果或产幽灵行。
+- **腾讯截断行不再伪造零值（R7-9）**：截断行整行丢弃（此前伪造成 0）；港股 `currency` 加校验。
+- **datacenter symbol 全形态归一（R7-12）**：`SH600519` / `600519.SH` / `1.600519` 不再静默返空。
+- **缓存跨实例串数据（R7-11）**：代码表 / 日历 / 板块映射改按实例隔离。
+- **`evictLRU` 空串键**：`''` 为 LRU 时不再淘汰停摆。
 
 ### 行为变更（升级请注意）
 
-- **`FundNavPoint.nav`：`number` → `number | null`**。上游该行净值缺失 / 非数值时为 `null`，与 `accNav` / `dailyReturn` 口径一致。迁移：对 `nav` 做算术前判空（此前这类行会让整个调用抛 `RangeError` 或悄悄携带脏值，并非可用数据）。
-- **美股 K 线无效 ticker：静默空数组 → 抛 `NotFoundError`**。迁移：捕获 `NotFoundError` 或先校验代码。
-- **腾讯行情截断行：伪造 0 值 → 整行丢弃**（结果条数可能少于此前，少的是脏数据）。
-- **dividend / dragonTiger / northbound 的垃圾 symbol：静默空数组 → 抛 `InvalidSymbolError`**。
-- **`clearSharedCaches()` 不再覆盖实例级缓存**（代码表 / 交易日历 / 板块映射 / us-secid）——强刷请用新增的 `sdk.clearCaches()`。
-- **`getSharedCache(ns, options)` 命中已存在 namespace 且 options 不等价时输出一次 `console.warn`**（此前静默忽略）；运行时调整用新增的 `configureSharedCache()`。
-- **datacenter 系接口翻页并发化（R7-14）**：默认 3 路波次并发（`DatacenterQuery.concurrency` 可调，设 1 退化串行）。全市场资金流排名等多页接口墙钟显著下降；坏页仍是"前缀截断"语义，不会出现中部空洞。注意默认部署没有 RateLimiter（仅显式配置时创建），如对上游频控敏感请配置 `rateLimit`（顶层选项，对所有 provider 生效）。
-- **全大写前缀 + 字母的形态不再剥前缀**（R7-1 的已知取舍）：`'USAAPL'` 现在按完整 ticker 解析为 `US/USAAPL`（此前剥成 `AAPL`）。迁移：用规范形 `'usAAPL'`、点分 `'AAPL.US'` 或 `market` hint。
+- **`FundNavPoint.nav`：`number` → `number | null`**；算术前判空。
+- **美股 K 线无效 ticker：空数组 → `NotFoundError`**。
+- **腾讯截断行：伪造 0 → 整行丢弃**。
+- **dividend / dragonTiger / northbound 垃圾 symbol：空数组 → `InvalidSymbolError`**。
+- **`clearSharedCaches()` 不再覆盖实例级缓存**——用新增 `sdk.clearCaches()`。
+- **`getSharedCache` options 不等价时 `console.warn`**；运行时调整用 `configureSharedCache()`。
+- **datacenter 翻页并发化（R7-14）**：默认 3 路波次；默认无 RateLimiter，频控敏感配 `rateLimit`。
+- **全大写前缀 + 字母不再剥（R7-1）**：`'USAAPL'` → `US/USAAPL`；改用 `usAAPL` / `AAPL.US` / hint。
 
 ### 新增
 
-- `StockSDK.clearCaches()`：清空本实例全部内部缓存（代码表 / 交易日历 / 板块映射 / us-secid）。
-- `configureSharedCache(namespace, options)`：运行时重配共享缓存（新 TTL 只影响后续写入，maxSize 收缩立即淘汰）。
+- **恒生系与美股三大指数接入 `quotes` / `kline`（统一裸码）**：新增 `HSI` / `HSCEI` / `HSTECH` 与 `DJI` / `INX` / `IXIC`，一码两端通用（此前 K 线需 raw secid `100.HSI`）；`DJIA` 等真 ticker 不被劫持，`HSTECH` 仅腾讯 `quotes`。
+- `StockSDK.clearCaches()`：清空本实例全部内部缓存。
+- `configureSharedCache(namespace, options)`：运行时重配共享缓存。
 - `tryToTencentSymbols(codes, market)`（`stock-sdk/symbols`）：行情键批量容错归一，返回 `{ keys, invalid }`。
-- `DatacenterQuery.concurrency`：datacenter 系接口翻页并发波次大小。
-- **大宗交易 / 融资融券的 5 个 MCP 工具**：`get_block_trade_market_stat` / `get_block_trade_detail` / `get_block_trade_daily_stat` / `get_margin_account_info` / `get_margin_target_list`。此前这两个数据域仅 CLI / SDK 可用、MCP 未暴露；现在 LLM 也能查大宗交易总览/明细/每日统计与两融账户/标的（能力早已在 SDK，本次仅补 MCP 派生）。
-- **MCP Skills（Prompts）——7 个场景化分析技能**：server 声明 `capabilities.prompts`，实现 `prompts/list` + `prompts/get`，把此前只是文档概念的「内置技能」落地为 MCP 协议真正的 Prompts 能力，支持的客户端（Claude Desktop / Claude Code / Cursor / Cline）可在斜杠命令 / 模板里一键触发。内置 core 4（`analyze_stock` / `screen_stocks` / `market_overview` / `monitor_watchlist`）+ full 3（`analyze_capital_flow` / `analyze_fund` / `diagnose_stock`）；`STOCK_SDK_MCP_PROMPTS`（core / full / 名单）控制范围，与工具集独立过滤。编排指令为英文、模板末尾统一指示模型「用用户语言作答」。server 只下发「任务说明书」，多步执行由客户端模型 + `tools/call` 循环完成，全程只读、不下单不移动资金。见 [AI Skills](/mcp/skills)。
-- **`get_kline_signals` MCP 工具 + `sdk.kline.signals(symbol, options)`**：识别 14 类技术指标信号（MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 突破、SAR 反转），内部串 `withIndicators` + `calcSignals` 并对齐指标/信号周期，返回每条信号的类型 / 日期 / 收盘价。`maFast` / `maSlow`（默认 5 / 20）可调交叉周期。兑现 skills.md 一直宣称、但此前 MCP 拿不到的 signals 能力（`calcSignals` 原仅在 `stock-sdk/signals` subpath），也是技术类技能的取数闭环。
-- spec ↔ SDK 全量 contract 测试（R7-15）：方法路径与 MCP options 键集机械钉住，重命名不再静默漂移。技能侧同风格新增 `prompts-contract`：技能引用的工具必须真实存在、core 技能不越级引用 full 工具、模板确实点了名。
+- `DatacenterQuery.concurrency`：datacenter 翻页并发波次大小。
+- **大宗交易 / 融资融券 5 个 MCP 工具**：`get_block_trade_market_stat` / `_detail` / `_daily_stat` / `get_margin_account_info` / `_target_list`。
+- **MCP Skills（Prompts）——7 个场景化分析技能**：server 实现 `prompts/list` + `prompts/get`，core 4 + full 3，`STOCK_SDK_MCP_PROMPTS` 控范围，全程只读。见 [AI Skills](/mcp/skills)。
+- **`get_kline_signals` + `sdk.kline.signals(symbol, options)`**：识别 14 类技术信号（金叉死叉 / 超买超卖 / BOLL 突破 / SAR 反转），`maFast` / `maSlow` 可调。
+- **spec ↔ SDK 全量 contract 测试（R7-15）**：方法路径与 MCP options 键机械钉住；技能侧新增 `prompts-contract`。
 
 ::: tip 长驻进程建议复用单例 SDK
 v2.4.0 起实例级缓存按 `StockSDK` 实例隔离（修复跨实例串数据）。"每请求 `new StockSDK()`"的写法会让每个实例冷启缓存（代码表 6h 缓存失效为每请求一次）——长驻服务请复用单例。

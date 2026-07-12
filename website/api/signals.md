@@ -124,5 +124,5 @@ interface Signal {
 ## 相关
 
 - [indicators](/api/indicators) —— 信号的输入：14 个 `calc*` 与 `addIndicators`
-- [kline](/api/kline) —— `kline.withIndicators` 一步拿到带指标的 K 线
+- [kline](/api/kline) —— `kline.withIndicators` 一步拿到带指标的 K 线；`kline.signals` 更进一步，取数 + 识别信号一步到位（同时作为 MCP 工具 `get_kline_signals` 暴露）
 - [技术指标与信号指南](/guide/indicators)

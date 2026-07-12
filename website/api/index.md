@@ -26,7 +26,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // 二级命名空间
 
 | 命名空间 | 用途 | 文档 |
 |---|---|---|
-| `sdk.kline` | A/HK/US 历史 K 线、分钟 K 线、带指标 K 线 | [kline](/api/kline) |
+| `sdk.kline` | A/HK/US 历史 K 线、分钟 K 线、带指标 K 线、指标信号 | [kline](/api/kline) |
 | `sdk.chips` | A/HK/US 筹码分布：获利比例 / 平均成本 / 90-70 成本区间与集中度 / 筹码峰 | [chips](/api/chips) |
 | `sdk.board.industry` · `sdk.board.concept` | 行业 / 概念板块：列表、行情、成分股、K线、分时 | [board](/api/board) |
 

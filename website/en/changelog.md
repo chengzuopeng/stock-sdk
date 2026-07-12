@@ -14,40 +14,41 @@ This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 
 
 ### Fixed
 
-- **Bare prefixes no longer swallow real US tickers (R7-1)**: `normalizeSymbol('USB')` used to be stripped into `US/B` (silently returning Barnes Group's data), `'HKD'` into `HK/0000D`. Letter rests now only accept two unambiguous shapes — lowercase prefix + uppercase-led rest (`usAAPL` / `hkHSI` / `usBRK.A`), or all-lowercase with rest ≥ 3 (`usaapl`); digit rests strip under any prefix casing. `externalLinks`' local pre-strip is consolidated, so the `USB`-class fix reaches link generation too.
-- **"With or without exchange prefix" is now true for quote codes (R7-2/R7-3)**: `quotes.cn/cnSimple/hk/us/fundFlow/largeOrder` all normalize via `tryToTencentSymbols` — bare codes (`'600036'`) used to return empty, and prefixed inputs (`'hk00700'` / `'usBABA'`) were double-prefixed into `hkhk00700` / `ususBABA` (also empty). Unmappable codes (e.g. CSI special-index codes) are skipped per code without failing the batch.
-- **US K-lines accept bare tickers (R7-4)**: `kline.us / usMinute / chips.us` and the CLI / MCP auto-routing used to pass `'AAPL'` straight through as an invalid secid — silent "no data" across the board. Exchange prefixes now resolve via "code list → 105/106/107 probing"; a resolved secid is cached 7 days and an unlisted ticker negative-cached 1h. Exchange transfer (NYSE↔NASDAQ) / delisting is rare and covered by the hit-cache TTL expiring.
-- **Search concurrency safety (R7-5)**: the browser path of `sdk.search()` is consolidated onto `core/jsVars` — the hand-rolled injection had no mutex (concurrent searches overwrote each other's `v_hint`) and no timeout (a stalled script hung the promise forever); `v_hint` gets a dedicated mutex queue so autocomplete no longer queues behind large fund-file downloads.
-- **jsVars stale-global protection (R7-10)**: top-level `var` globals cannot be deleted; request A's leftovers used to be attributed to a request B whose script didn't define the variable (fund data cross-attribution). Now pre-set to `undefined` before injection + an `undefined` gate on read + a second sweep on timeout.
-- **ATR recovers from dirty warm-up bars (R7-6)**: one null bar in the warm-up window used to leave the entire series' ATR (and KC) null forever; seeding now retries once the window slides past the dirty bar. Clean-data output is bit-for-bit unchanged.
-- **SAR skips invalid leading bars (R7-7)**: a null first bar used to seed the recursion at price 0 (long stretches of non-null garbage, frozen trend); output now equals a recalculation with the leading invalid bars trimmed. Clean-data output is bit-for-bit unchanged.
-- **Fund NAV / rank history dirty-row defense (R7-8)**: one non-finite upstream timestamp used to throw `RangeError` and lose the whole result, and a missing `x` silently produced a ghost "today" row — rows are now filtered; `accNav` / `percentile` no longer pass strings through bare casts.
-- **Truncated Tencent quote rows no longer fabricate zeros (R7-9)**: row filters are mechanically bound to each parser's max accessed index (the old `>5` let truncated rows through, where `safeNumber(undefined)=0` fabricated change/high/low/amount as 0); HK `currency` gains a 3-uppercase-letter semantic check.
-- **Datacenter symbol normalization covers all input shapes (R7-12)**: `dividend.detail` silently returned empty for `'SH600519'` (missing `/i`), and `'600519.SH'` / `'1.600519'` forms silently returned empty across dividend / dragonTiger / northbound.
-- **Cross-instance cache leakage (R7-11)**: code lists / trading calendar / board-name maps were module-global caches keyed only by name — data fetched through a mock / proxy `fetchImpl` instance leaked to other `StockSDK` instances for up to 6-12 hours. Now instance-scoped.
-- **`evictLRU` empty-string key**: eviction used to permanently stall once `''` became the LRU entry (unbounded growth).
+- **Bare prefixes no longer swallow real US tickers (R7-1)**: `'USB'` / `'HKD'` are no longer mis-stripped into `US/B` / `HK/0000D`.
+- **"With or without prefix" now holds for quote codes (R7-2/R7-3)**: `quotes.*` normalize via `tryToTencentSymbols`; bare and prefixed (`hk00700` / `usBABA`) both work.
+- **US K-lines accept bare tickers (R7-4)**: `kline.us('AAPL')` resolves the exchange prefix automatically (cached).
+- **Search concurrency safety (R7-5)**: `sdk.search()` moved onto `core/jsVars`, fixing concurrent `v_hint` overwrites / hangs in the browser.
+- **jsVars stale-global protection (R7-10)**: fixes cross-request fund-data attribution.
+- **ATR recovers from dirty warm-up bars (R7-6)**: one null bar no longer leaves the whole ATR / KC series null forever.
+- **SAR skips invalid leading bars (R7-7)**: a null first bar no longer seeds at price 0 (frozen trend).
+- **Fund NAV / rank history dirty-row defense (R7-8)**: bad timestamps / missing fields are filtered per row instead of losing the whole result or emitting ghost rows.
+- **Truncated Tencent quote rows no longer fabricate zeros (R7-9)**: truncated rows are dropped (were fabricated as 0); HK `currency` gains a check.
+- **Datacenter symbol normalization covers all shapes (R7-12)**: `SH600519` / `600519.SH` / `1.600519` no longer silently return empty.
+- **Cross-instance cache leakage (R7-11)**: code lists / calendar / board maps are now instance-scoped.
+- **`evictLRU` empty-string key**: eviction no longer stalls once `''` is the LRU entry.
 
 ### Behavior changes (read before upgrading)
 
-- **`FundNavPoint.nav`: `number` → `number | null`** — `null` when the upstream row's NAV is missing/non-numeric, matching `accNav` / `dailyReturn`. Migration: null-check before arithmetic (previously such rows either threw `RangeError` or silently carried dirty values).
-- **Invalid US tickers: silent empty array → `NotFoundError`.** Migration: catch `NotFoundError` or validate codes first.
-- **Truncated Tencent quote rows: fabricated zeros → dropped rows** (result counts may shrink; what's gone was dirty data).
+- **`FundNavPoint.nav`: `number` → `number | null`**; null-check before arithmetic.
+- **Invalid US tickers: silent empty array → `NotFoundError`.**
+- **Truncated Tencent quote rows: fabricated zeros → dropped rows.**
 - **Garbage symbols in dividend / dragonTiger / northbound: silent empty array → `InvalidSymbolError`.**
-- **`clearSharedCaches()` no longer covers instance-scoped caches** (code lists / calendar / board maps / us-secid) — use the new `sdk.clearCaches()`.
-- **`getSharedCache(ns, options)` warns once when hitting an existing namespace with non-equivalent options** (previously silently ignored); use the new `configureSharedCache()` for runtime reconfiguration.
-- **Datacenter pagination is now concurrent (R7-14)**: 3-way waves by default (`DatacenterQuery.concurrency`; set 1 for strictly serial). Multi-page endpoints get significantly faster; bad pages keep the "contiguous prefix" semantics (no silent holes in the middle). Note the default deployment has no RateLimiter (created only when explicitly configured) — configure `rateLimit` (a top-level option applying to all providers) if upstream throttling is a concern.
-- **All-uppercase prefix + letters no longer strips (R7-1's documented trade-off)**: `'USAAPL'` now parses as the full ticker `US/USAAPL` (previously stripped to `AAPL`). Migration: use the canonical `'usAAPL'`, dotted `'AAPL.US'`, or a `market` hint.
+- **`clearSharedCaches()` no longer covers instance-scoped caches** — use the new `sdk.clearCaches()`.
+- **`getSharedCache` warns on non-equivalent options**; use `configureSharedCache()` for runtime reconfig.
+- **Datacenter pagination is now concurrent (R7-14)**: 3-way waves by default; no RateLimiter by default — configure `rateLimit` if throttling matters.
+- **All-uppercase prefix + letters no longer strips (R7-1)**: `'USAAPL'` → `US/USAAPL`; use `usAAPL` / `AAPL.US` / a `market` hint.
 
 ### Added
 
-- `StockSDK.clearCaches()`: clears all of this instance's internal caches (code lists / calendar / board maps / us-secid).
-- `configureSharedCache(namespace, options)`: runtime reconfiguration of shared caches (new TTL affects subsequent writes; shrinking maxSize evicts immediately).
-- `tryToTencentSymbols(codes, market)` (`stock-sdk/symbols`): batch fault-tolerant normalization to Tencent quote keys, returning `{ keys, invalid }`.
+- **Hang Seng family & the three major US indices in `quotes` / `kline` (unified bare codes)**: adds `HSI` / `HSCEI` / `HSTECH` and `DJI` / `INX` / `IXIC`, one code on both ends (K-line previously needed a raw secid like `100.HSI`); `DJIA` and other real tickers are not hijacked, `HSTECH` is Tencent-`quotes`-only.
+- `StockSDK.clearCaches()`: clears all of this instance's internal caches.
+- `configureSharedCache(namespace, options)`: runtime reconfiguration of shared caches.
+- `tryToTencentSymbols(codes, market)` (`stock-sdk/symbols`): batch fault-tolerant normalization to Tencent quote keys.
 - `DatacenterQuery.concurrency`: wave size for datacenter pagination.
-- **5 MCP tools for block trades / margin trading**: `get_block_trade_market_stat` / `get_block_trade_detail` / `get_block_trade_daily_stat` / `get_margin_account_info` / `get_margin_target_list`. These two data domains were previously CLI / SDK-only with no MCP exposure; LLMs can now query block-trade overview/detail/daily-stats and margin account/target lists (the capability was already in the SDK — this only adds the MCP derivation).
-- **MCP Skills (Prompts) — 7 scenario analysis skills**: the server declares `capabilities.prompts` and implements `prompts/list` + `prompts/get`, turning the previously doc-only "built-in skills" into real MCP Prompts that Prompts-aware clients (Claude Desktop / Claude Code / Cursor / Cline) can trigger from a slash-command / template. Ships core 4 (`analyze_stock` / `screen_stocks` / `market_overview` / `monitor_watchlist`) + full 3 (`analyze_capital_flow` / `analyze_fund` / `diagnose_stock`); `STOCK_SDK_MCP_PROMPTS` (core / full / list) controls the set, filtered independently from tools. Orchestration instructions are in English with every template ending "respond in the user's language". The server only delivers a task briefing — multi-step execution is the client model's `tools/call` loop; all read-only, never places orders or moves funds. See [AI Skills](/en/mcp/skills).
-- **`get_kline_signals` MCP tool + `sdk.kline.signals(symbol, options)`**: detects 14 technical-indicator signals (MA / MACD / KDJ golden/death crosses, KDJ / RSI overbought/oversold, BOLL breakouts, SAR reversals) by chaining `withIndicators` + `calcSignals` with matched indicator/signal periods, returning each signal's type / date / close. `maFast` / `maSlow` (default 5 / 20) tune the cross periods. Delivers the signals capability skills.md always claimed but MCP couldn't reach (`calcSignals` lived only in the `stock-sdk/signals` subpath), and closes the data loop for the technical skills.
-- Full spec ↔ SDK contract tests (R7-15): method paths and MCP options key sets are mechanically pinned; renames can no longer drift silently. A same-style `prompts-contract` was added for skills: every tool a skill references must exist, core skills must not reference full-tier tools, and templates must actually name the tools they declare.
+- **5 MCP tools for block trades / margin trading**: `get_block_trade_market_stat` / `_detail` / `_daily_stat` / `get_margin_account_info` / `_target_list`.
+- **MCP Skills (Prompts) — 7 scenario analysis skills**: the server implements `prompts/list` + `prompts/get`; core 4 + full 3, scoped by `STOCK_SDK_MCP_PROMPTS`, read-only. See [AI Skills](/en/mcp/skills).
+- **`get_kline_signals` + `sdk.kline.signals(symbol, options)`**: detects 14 technical signals (golden/death crosses, overbought/oversold, BOLL breakouts, SAR reversals); `maFast` / `maSlow` tunable.
+- **Full spec ↔ SDK contract tests (R7-15)**: method paths and MCP options keys are mechanically pinned; a `prompts-contract` was added for skills.
 
 ::: tip Long-lived processes should reuse a singleton SDK
 Since v2.4.0 instance-scoped caches are isolated per `StockSDK` instance (fixing cross-instance leakage). A "new StockSDK() per request" pattern makes every instance start cache-cold (the 6h code-list cache degrades to one fetch per request) — reuse a singleton in long-lived services.
