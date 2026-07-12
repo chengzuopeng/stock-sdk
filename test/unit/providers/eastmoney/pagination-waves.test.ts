@@ -67,6 +67,8 @@ describe('fetchDatacenter 波次并发', () => {
       Array.from({ length: 21 }, (_, i) => i)
     );
     expect(maxInflight()).toBeLessThanOrEqual(3);
+    // 下界：真并发（≥2 同时在飞），否则退化成串行也能过上界断言（review 指出）
+    expect(maxInflight()).toBeGreaterThanOrEqual(2);
     expect(pages[0]).toBe(1); // 首页串行先行
   });
 

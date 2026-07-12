@@ -89,9 +89,12 @@ describe('R7-7 SAR 前导无效 bar 播种', () => {
   });
 
   it('部分 null 前导 bar（half-parsed 行）：残留一侧不再经 clamp 泄漏', () => {
-    // {high:3.2, low:null} 会被播种扫描跳过，但绝对下标回看（修复前
-    // Math.max(0, i-2)）会让 high=3.2 参与 trend=-1 的 clamp
-    const partial: OHLCV = { open: null, high: 3.2, low: null, close: null, volume: null };
+    // {high:999, low:null} 会被播种扫描跳过，但绝对下标回看（修复前
+    // Math.max(0, i-2)）会在 i=seed+1 读到 data[seed-1].high=999 参与 trend=-1
+    // 的 Math.max clamp → newSar 被拉到 999，偏离 trim 等价。
+    // high 必须【明显超出】后续价格区间才能触发分歧：3.2 在 ~150 序列里被
+    // prev.high 盖过、测不出回归（review 指出的钉不住点），用 999。
+    const partial: OHLCV = { open: null, high: 999, low: null, close: null, volume: null };
     // 用下跌开局的序列诱发 trend=-1 路径
     const down = Array.from({ length: 60 }, (_, i) => bar(150 - i));
     const data = [partial, ...down];
