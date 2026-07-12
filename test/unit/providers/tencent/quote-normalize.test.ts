@@ -144,9 +144,10 @@ describe('R7-9 一致性：7 个腾讯行情入口全部走 filterTencentRows（
 
   it.each(SITES)('%s 调用 filterTencentRows 且无裸 .fields.length 手写过滤', async (relPath) => {
     const { readFileSync } = await import('node:fs');
-    const { fileURLToPath } = await import('node:url');
-    const root = fileURLToPath(new URL('../../../../', import.meta.url));
-    const src = readFileSync(root + relPath, 'utf8');
+    const { join } = await import('node:path');
+    // SITES 是 repo-root 相对路径；vitest 从 repo root 运行，用 cwd 而非从
+    // 测试文件位置爬固定层数（后者在测试文件移动时会静默读到错误路径）
+    const src = readFileSync(join(process.cwd(), relPath), 'utf8');
     expect(src).toContain('filterTencentRows');
     // 手写过滤的特征：直接对 d.fields.length 做数字比较
     expect(/\.fields\.length\s*[><]/.test(src), '不应保留手写长度过滤').toBe(false);

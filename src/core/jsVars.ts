@@ -188,11 +188,16 @@ function browserFetchJsVars<T extends object>(
         }
         // 无论脚本是否定义，都清理该名：presetUndefined 建的 configurable own
         // 属性会被 delete 掉（不残留 window 命名空间污染），脚本声明的
-        // non-configurable var 删不掉则置 undefined 兜底
+        // non-configurable var 删不掉则置 undefined 兜底（兜底赋值本身也可能
+        // 撞上只读全局，再包一层 try 避免 onload 抛错致 promise 永不 settle）
         try {
           delete win[name];
         } catch {
-          win[name] = undefined;
+          try {
+            win[name] = undefined;
+          } catch {
+            /* 只读全局：无法清理，忽略（读取侧已取到值） */
+          }
         }
       }
       cleanup();

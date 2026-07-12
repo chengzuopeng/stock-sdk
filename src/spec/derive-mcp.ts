@@ -53,9 +53,12 @@ function positionalProp(p: SpecPositional): JsonSchemaProp {
 }
 
 /**
- * 代码数组属性（codes[] / codes+options 形态共用的默认文案；
- * 非股票命名空间用 spec.codesDesc 覆盖）。
- * R7-2 后该承诺为真：8 个 codes 入口全部经 tryToTencentSymbols 容错归一。
+ * 代码数组属性（codes[] / codes+options 形态的默认文案）。
+ *
+ * 注意：当前 8 个 codes 入口【全部】用 spec.codesDesc 给出市场专属文案
+ * （见 methods.ts），故此默认 description 目前是不渲染的兜底——三市场混合
+ * 文案曾误导 LLM 对单市场工具传跨市场代码（review 修正）。新增 codes 工具
+ * 请一并声明 codesDesc；provider 层已由 tryToTencentSymbols 容错归一。
  */
 const CODES_PROP: JsonSchemaProp = {
   type: 'array',
