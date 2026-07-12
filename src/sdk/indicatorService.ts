@@ -29,6 +29,7 @@ import type { QuoteService } from './quoteService';
 import { marketOf } from '../symbols';
 import { InvalidArgumentError } from '../core/errors';
 import { addDays } from '../core/time';
+import { calcSignals, type Signal } from '../signals';
 
 export type MarketType = 'A' | 'HK' | 'US';
 
@@ -59,6 +60,50 @@ export interface KlineWithIndicatorsOptions {
    * - 完整选项参见 `IndicatorOptions`
    */
   indicators?: IndicatorOptions;
+}
+
+/**
+ * `getKlineSignals` 的请求参数。
+ *
+ * 复用 K 线的取数选项（market / period / adjust / startDate / endDate），
+ * 额外用 `maFast` / `maSlow` 指定 MA 金叉/死叉的快慢线周期。其余信号族
+ * （MACD / KDJ / RSI / BOLL / SAR）用固定的常用默认阈值，一次性全部识别。
+ */
+export interface KlineSignalsOptions {
+  /** 市场类型；不传由 `symbol` 自动识别（同 {@link KlineWithIndicatorsOptions.market}） */
+  market?: MarketType;
+  /** K 线周期，默认 `'daily'` */
+  period?: 'daily' | 'weekly' | 'monthly';
+  /** 复权方式：`''` 不复权 / `'qfq'` 前复权 / `'hfq'` 后复权 */
+  adjust?: '' | 'qfq' | 'hfq';
+  /**
+   * 起始日期（`YYYYMMDD` 或 `YYYY-MM-DD`）。
+   * 不传则在全部历史上识别信号；只关心近期请传起始日期收窄窗口。
+   */
+  startDate?: string;
+  /** 结束日期（`YYYYMMDD` 或 `YYYY-MM-DD`） */
+  endDate?: string;
+  /** MA 金叉/死叉快线周期，默认 5（须为正整数且小于 `maSlow`） */
+  maFast?: number;
+  /** MA 金叉/死叉慢线周期，默认 20（须为正整数且大于 `maFast`） */
+  maSlow?: number;
+}
+
+/**
+ * 一条识别出的指标信号 —— 在原始 {@link Signal} 上补充**日期与收盘价**，
+ * 让 LLM / 调用方无需回查 K 线即可解读（如「MACD 金叉 · 2026-06-15 · 收 1720」）。
+ */
+export interface KlineSignal {
+  /** 信号类型（14 种：MA/MACD/KDJ 金叉死叉、KDJ/RSI 超买超卖、BOLL 突破、SAR 反转） */
+  type: Signal['type'];
+  /** 信号发生 K 线的日期（原始 `date`，通常 `YYYY-MM-DD`） */
+  date: string;
+  /** 信号发生 K 线的时间戳（epoch 毫秒，= {@link Signal.at}） */
+  timestamp: number;
+  /** 信号发生 K 线的收盘价 */
+  close: number | null;
+  /** 附加信息（如金叉的快慢周期、超买超卖的指标值） */
+  detail?: Record<string, number>;
 }
 
 export class IndicatorService {
@@ -340,4 +385,99 @@ export class IndicatorService {
 
     return addIndicators(allKlines, indicators);
   }
+
+  /**
+   * 识别一只标的的技术指标信号（金叉/死叉、超买/超卖、突破、反转）。
+   *
+   * 内部串联两步：先 `getKlineWithIndicators` 取带指标 K 线，再 `calcSignals`
+   * 识别 14 种信号。指标周期与信号周期一致（MA 用 `maFast`/`maSlow`；RSI 固定
+   * period=6，与 addIndicators 默认 rsi6 对齐），避免 calcSignals 因周期不匹配
+   * 静默零信号或抛错。
+   */
+  async getKlineSignals(
+    symbol: string,
+    options: KlineSignalsOptions = {}
+  ): Promise<KlineSignal[]> {
+    const maFast = options.maFast ?? 5;
+    const maSlow = options.maSlow ?? 20;
+    if (
+      !Number.isInteger(maFast) ||
+      !Number.isInteger(maSlow) ||
+      maFast <= 0 ||
+      maSlow <= 0
+    ) {
+      throw new InvalidArgumentError(
+        `maFast / maSlow 必须为正整数，得到 fast=${maFast} slow=${maSlow}`,
+        { maFast, maSlow }
+      );
+    }
+    if (maFast >= maSlow) {
+      throw new InvalidArgumentError(
+        `maFast(${maFast}) 必须小于 maSlow(${maSlow})，否则无法定义金叉/死叉`,
+        { maFast, maSlow }
+      );
+    }
+
+    // 边界修复：calcSignals 从 i=1 起逐日比对前后两根 K 线。若直接把 startDate 传给
+    // getKlineWithIndicators，它会先按 date>=startDate 裁掉窗口外的行 —— 于是窗口首日
+    // 失去前一根、当天的金叉/死叉永远无法产出。故向前多取一个「锚点缓冲区」
+    // （足以覆盖长假 / 常规停牌，保证窗口首日在 calcSignals 里有前驱），信号算完再按
+    // 用户 startDate 过滤。缓冲区仅提供前驱锚点、不进最终结果。
+    // 残留边界：若窗口首日恰好是一段【超过缓冲区】的停牌后首个交易日，其"前驱"是停牌前
+    // 的行、跨大缺口的交叉本就意义有限，仍可能不产出——属可接受取舍。
+    const startNorm = options.startDate
+      ? this.normalizeUserDate(options.startDate)
+      : undefined;
+    const fetchStartDate = startNorm
+      ? addDays(startNorm, -signalAnchorBufferDays(options.period ?? 'daily'))
+      : undefined;
+
+    const klines = await this.getKlineWithIndicators(symbol, {
+      market: options.market,
+      period: options.period,
+      adjust: options.adjust,
+      startDate: fetchStartDate,
+      endDate: options.endDate,
+      // 指标周期须与下方 calcSignals 的信号周期严格对齐（rsi6 是 calcSignals 默认命中键）
+      indicators: {
+        ma: { periods: [maFast, maSlow] },
+        macd: true,
+        kdj: true,
+        rsi: { periods: [6] },
+        boll: true,
+        sar: true,
+      },
+    });
+
+    const signals = calcSignals(klines, {
+      ma: { fast: maFast, slow: maSlow },
+      macd: true,
+      kdj: {},
+      rsi: { period: 6 },
+      boll: true,
+      sar: true,
+    });
+
+    // 用信号所在 K 线补全 date/close（signal.index 恒落在 klines 范围内）
+    const enriched: KlineSignal[] = signals.map((s) => {
+      const k = klines[s.index];
+      return {
+        type: s.type,
+        date: k?.date ?? '',
+        timestamp: s.at,
+        close: k?.close ?? null,
+        ...(s.detail !== undefined ? { detail: s.detail } : {}),
+      };
+    });
+
+    // 锚点缓冲区里的信号（早于用户 startDate）只用于给窗口首日提供前驱，不返回
+    return startNorm
+      ? enriched.filter((sig) => this.normalizeRowDate(sig.date) >= startNorm)
+      : enriched;
+  }
+}
+
+/** 信号识别的「前驱锚点」缓冲天数：向前多取足够覆盖长假 / 停牌，保证窗口首日有前一根可比。 */
+function signalAnchorBufferDays(period: 'daily' | 'weekly' | 'monthly'): number {
+  return period === 'monthly' ? 95 : period === 'weekly' ? 35 : 20;
 }

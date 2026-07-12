@@ -23,6 +23,7 @@ import {
   TradingCalendarService,
   FundService,
   type KlineWithIndicatorsOptions,
+  type KlineSignalsOptions,
 } from './sdk/index';
 
 // 重新导出配置类型
@@ -162,6 +163,7 @@ export class StockSDK {
         us: k.getUSHistoryKline.bind(k),
         usMinute: k.getUSMinuteKline.bind(k),
         withIndicators: ind.getKlineWithIndicators.bind(ind),
+        signals: ind.getKlineSignals.bind(ind),
       };
     });
   }
@@ -376,6 +378,8 @@ export class StockSDK {
 export type {
   MarketType,
   KlineWithIndicatorsOptions,
+  KlineSignalsOptions,
+  KlineSignal,
   ChipDistributionRequestOptions,
   IndividualChangesOptions,
   IndividualChangesHistoryOptions,

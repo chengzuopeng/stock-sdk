@@ -451,7 +451,7 @@ export const COMMANDS: CommandSpec[] = [...ALIAS_COMMANDS, ...NAMESPACE_COMMANDS
 
 /** 命名空间方法路径数（用于 manifest 完整性测试；顶层 search 不计入）。 */
 export function namespaceMethodCount(): number {
-  return METHOD_SPECS.filter((s) => s.path.join('.') !== 'search').length; // 84
+  return METHOD_SPECS.filter((s) => s.path.join('.') !== 'search').length; // 93
 }
 
 /** 全部命名空间方法路径（点分），含顶层 search。 */

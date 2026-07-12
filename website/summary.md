@@ -66,6 +66,7 @@
 - `kline.usMinute`
 - `quotes.timeline`
 - `kline.withIndicators`
+- `kline.signals`
 
 ### 筹码分布
 

@@ -92,12 +92,16 @@ src/
 ├── cache/                   # 对外缓存 subpath（MemoryCache / cacheThrough）
 ├── errors/                  # 对外错误 subpath（re-export core/errors）
 ├── spec/                    # CLI / MCP / Playground 的 SSOT
-│   ├── methods.ts           # MethodSpec 单一事实来源
+│   ├── methods.ts           # MethodSpec 单一事实来源（工具）
+│   ├── prompts.ts           # PromptSpec 单一事实来源（MCP Skills / 7 技能）
 │   ├── derive-cli.ts        # 派生 CLI manifest
 │   ├── derive-mcp.ts        # 派生 MCP 工具清单
+│   ├── derive-prompt.ts     # 派生 MCP 技能清单（PromptDef + render）
 │   └── resolve.ts           # 路径 / 参数解析
 ├── cli/                     # stock-sdk 命令行
 ├── mcp/                     # 内置 MCP server（零依赖手写协议）
+│   ├── tools/               # 工具注册表（自 methods.ts 派生）
+│   └── prompts/             # 技能注册表（自 prompts.ts 派生）
 ├── providers/               # 数据源适配层(只负责"取数 + 解析")
 │   ├── index.ts             # 聚合导出 tencent / eastmoney / sina
 │   ├── tencent/             # 行情、批量、搜索、交易日历、资金流
@@ -108,7 +112,7 @@ src/
 │   ├── quoteService.ts      # 实时行情
 │   ├── klineService.ts      # K 线 / 分时(A / HK / US)
 │   ├── boardService.ts      # 行业 / 概念板块
-│   ├── indicatorService.ts  # 带指标 K 线(组合 kline + quote)
+│   ├── indicatorService.ts  # 带指标 K 线 + 指标信号识别(组合 kline + quote + calcSignals)
 │   ├── chipService.ts       # 筹码分布(组合 kline + 本地 CYQ 计算)
 │   ├── futuresService.ts    # 期货
 │   ├── optionsService.ts    # 期权

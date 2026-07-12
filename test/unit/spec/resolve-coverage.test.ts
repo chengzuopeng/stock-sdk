@@ -88,7 +88,7 @@ describe('R7-15②: MCP invoke 的 path / 位置参数 / options 键集快照', 
     };
   }
 
-  it('92 个 MCP 工具的调用契约与快照一致', () => {
+  it('93 个 MCP 工具的调用契约与快照一致', () => {
     const specs = METHOD_SPECS.filter((s) => s.mcp !== false && !s.mcpCustom);
     const contract: Record<string, Record<string, unknown>> = {};
     for (const spec of specs) {

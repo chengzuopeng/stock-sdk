@@ -72,6 +72,18 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集（默认 `core`）。
 **MCP tools/call 大结果会自动裁剪**（数组 >200 条、序列化 >80KB）；**SDK 直连不受此限**。详见 https://stock-sdk.linkdiary.cn/mcp/
 
+#### MCP Skills（Prompts）
+
+除工具外，server 还暴露 **7 个场景化技能**（MCP Prompts，`prompts/list` + `prompts/get`）。支持的客户端（Claude Desktop / Claude Code / Cursor / Cline）把技能渲染成斜杠命令 / 模板，用户一键触发；server 只下发「任务说明书」，多步取数由客户端 model 走 `tools/call` 完成，全程只读。`STOCK_SDK_MCP_PROMPTS=core|full|<逗号分隔技能名>` 控制（默认 `core`，与工具集独立）。
+
+- `analyze_stock` (core; args: symbol, period?) — Full technical analysis of one symbol: klines + indicators + signals, summarized.
+- `screen_stocks` (core; args: criteria, scope?) — Build a candidate shortlist over a chosen universe by natural-language criteria, coarse-filtering before per-symbol indicator work.
+- `market_overview` (core; args: 无参数) — Today's A-share snapshot: market status, limit-up breadth, northbound flow, main-force money direction.
+- `monitor_watchlist` (core; args: symbols) — Single-shot check of a watchlist: batch quotes, then drill into names that crossed a threshold.
+- `analyze_capital_flow` (full; args: symbol?) — Smart-money / main-force read for one stock or the broad market: fund flow + dragon-tiger + block trades + margin + northbound.
+- `analyze_fund` (full; args: fundCode) — Mutual-fund review: profile + NAV history + category ranking + intraday estimate.
+- `diagnose_stock` (full; args: symbol) — Cross-dimension diagnosis of one stock: technicals + capital + chips, scored and combined.
+
 ### 行情类型说明
 
 - `quotes.cn()` → `FullQuote[]`；`quotes.cnSimple()` → `SimpleQuote[]`（简要字段）
@@ -96,7 +108,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ---
 
-## 一、命名空间方法（共 93 个）
+## 一、命名空间方法（共 94 个）
 
 > 形如 `sdk.quotes.cn(codes)` / `sdk.kline.cn(symbol, options?)`；`codes[]` 形态的方法第一个参数为 **string[]**。
 > 标注 **CLI 专属** 的参数/flag 不应传入 SDK options（除非文档明确说明 SDK 消费）。
@@ -215,6 +227,15 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `--dmi → options.dmi` (boolean, CLI 专属): 启用 DMI
     - `--sar → options.sar` (boolean, CLI 专属): 启用 SAR
     - `--kc → options.kc` (boolean, CLI 专属): 启用 KC
+- **`sdk.kline.signals(symbol, options?)`** — 识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；只看近期请传 startDate 收窄窗口。周期默认 daily，复权默认 qfq。
+    - `symbol` (位置参数, 必填): 股票代码（A 股 / 港股 / 美股）
+    - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
+    - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
+    - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
+    - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
+    - `options.market` (A | HK | US, SDK / MCP): 市场类型 A / HK / US；不传则由 symbol 自动识别
+    - `options.maFast` (number, 默认 5, SDK / MCP): MA 金叉/死叉的快线周期，默认 5（须为正整数且小于 maSlow）
+    - `options.maSlow` (number, 默认 20, SDK / MCP): MA 金叉/死叉的慢线周期，默认 20（须为正整数且大于 maFast）
 
 ### `sdk.chips`
 

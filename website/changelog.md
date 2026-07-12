@@ -45,7 +45,9 @@ pageClass: changelog-page
 - `tryToTencentSymbols(codes, market)`（`stock-sdk/symbols`）：行情键批量容错归一，返回 `{ keys, invalid }`。
 - `DatacenterQuery.concurrency`：datacenter 系接口翻页并发波次大小。
 - **大宗交易 / 融资融券的 5 个 MCP 工具**：`get_block_trade_market_stat` / `get_block_trade_detail` / `get_block_trade_daily_stat` / `get_margin_account_info` / `get_margin_target_list`。此前这两个数据域仅 CLI / SDK 可用、MCP 未暴露；现在 LLM 也能查大宗交易总览/明细/每日统计与两融账户/标的（能力早已在 SDK，本次仅补 MCP 派生）。
-- spec ↔ SDK 全量 contract 测试（R7-15）：方法路径与 MCP options 键集机械钉住，重命名不再静默漂移。
+- **MCP Skills（Prompts）——7 个场景化分析技能**：server 声明 `capabilities.prompts`，实现 `prompts/list` + `prompts/get`，把此前只是文档概念的「内置技能」落地为 MCP 协议真正的 Prompts 能力，支持的客户端（Claude Desktop / Claude Code / Cursor / Cline）可在斜杠命令 / 模板里一键触发。内置 core 4（`analyze_stock` / `screen_stocks` / `market_overview` / `monitor_watchlist`）+ full 3（`analyze_capital_flow` / `analyze_fund` / `diagnose_stock`）；`STOCK_SDK_MCP_PROMPTS`（core / full / 名单）控制范围，与工具集独立过滤。编排指令为英文、模板末尾统一指示模型「用用户语言作答」。server 只下发「任务说明书」，多步执行由客户端模型 + `tools/call` 循环完成，全程只读、不下单不移动资金。见 [AI Skills](/mcp/skills)。
+- **`get_kline_signals` MCP 工具 + `sdk.kline.signals(symbol, options)`**：识别 14 类技术指标信号（MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 突破、SAR 反转），内部串 `withIndicators` + `calcSignals` 并对齐指标/信号周期，返回每条信号的类型 / 日期 / 收盘价。`maFast` / `maSlow`（默认 5 / 20）可调交叉周期。兑现 skills.md 一直宣称、但此前 MCP 拿不到的 signals 能力（`calcSignals` 原仅在 `stock-sdk/signals` subpath），也是技术类技能的取数闭环。
+- spec ↔ SDK 全量 contract 测试（R7-15）：方法路径与 MCP options 键集机械钉住，重命名不再静默漂移。技能侧同风格新增 `prompts-contract`：技能引用的工具必须真实存在、core 技能不越级引用 full 工具、模板确实点了名。
 
 ::: tip 长驻进程建议复用单例 SDK
 v2.4.0 起实例级缓存按 `StockSDK` 实例隔离（修复跨实例串数据）。"每请求 `new StockSDK()`"的写法会让每个实例冷启缓存（代码表 6h 缓存失效为每请求一次）——长驻服务请复用单例。

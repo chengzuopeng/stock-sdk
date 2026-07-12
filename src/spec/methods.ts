@@ -262,6 +262,22 @@ export const MARKET_ENUM: ParamSpec = {
   desc: '市场(默认自动识别)',
   mcpDesc: '市场类型 A / HK / US；不传则由 symbol 自动识别',
 };
+/** MA 金叉/死叉快线周期（get_kline_signals）。 */
+const MA_FAST: ParamSpec = {
+  flag: 'maFast',
+  type: 'number',
+  default: 5,
+  desc: 'MA 金叉/死叉快线周期(默认 5)',
+  mcpDesc: 'MA 金叉/死叉的快线周期，默认 5（须为正整数且小于 maSlow）',
+};
+/** MA 金叉/死叉慢线周期（get_kline_signals）。 */
+const MA_SLOW: ParamSpec = {
+  flag: 'maSlow',
+  type: 'number',
+  default: 20,
+  desc: 'MA 金叉/死叉慢线周期(默认 20)',
+  mcpDesc: 'MA 金叉/死叉的慢线周期，默认 20（须为正整数且大于 maFast）',
+};
 const BATCH_SIZE: ParamSpec = {
   flag: 'batchSize',
   type: 'number',
@@ -708,6 +724,22 @@ export const METHOD_SPECS: MethodSpec[] = [
     positional: [SYMBOL_REQ('股票代码（A 股 / 港股 / 美股）')],
     params: [PERIOD_DWM, ADJUST, START, END, MARKET_ENUM, ...INDICATOR_PARAMS],
     mcpCustom: true,
+  },
+  {
+    path: ['kline', 'signals'],
+    toolName: 'get_kline_signals',
+    tier: 'core',
+    summary: '指标信号识别(金叉/死叉/超买超卖/突破/反转)',
+    mcpDesc:
+      '识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：' +
+      'MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。' +
+      '内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。' +
+      'MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值' +
+      '（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；' +
+      '只看近期请传 startDate 收窄窗口。周期默认 daily，复权默认 qfq。',
+    argShape: 'symbol+options',
+    positional: [SYMBOL_REQ('股票代码（A 股 / 港股 / 美股）')],
+    params: [PERIOD_DWM, ADJUST, START, END, MARKET_ENUM, MA_FAST, MA_SLOW],
   },
   // ===== chips (3) =====
   {
