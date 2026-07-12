@@ -24,6 +24,17 @@ function series(n: number, start = 100): OHLCV[] {
   return Array.from({ length: n }, (_, i) => bar(start + Math.sin(i / 3) * 10));
 }
 
+describe('ATR 非法 period 防护（reseed 重写后 period:0 曾产全 NaN 序列）', () => {
+  it.each([0, -1, 1.5, NaN])('period=%s → atr 全 null（不产 NaN），tr 照常', (period) => {
+    const result = calcATR(series(10), { period: period as number });
+    expect(result).toHaveLength(10);
+    for (const r of result) {
+      expect(r.atr).toBeNull();
+      expect(r.tr === null || Number.isFinite(r.tr)).toBe(true);
+    }
+  });
+});
+
 describe('R7-6 ATR 暖机脏数据恢复', () => {
   it('暖机期一根 null bar：窗口滑过脏点后恢复播种（此前整条序列永远 null）', () => {
     const data = series(40);

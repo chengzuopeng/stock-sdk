@@ -364,18 +364,22 @@ export function normalizeSymbol(
       const restOk =
         s.market === 'CN' ? /^\d+$/.test(rest) : /^\d+$/.test(rest) || caseCanonical;
       if (restOk) {
-        // 特殊指数码形与 sh/sz/bj/hk 前缀断言矛盾 → 与后缀/hint 轴同口径拒绝
-        // 并指引(us 前缀除外:纯字母码属真实美股 ticker 命名空间)
-        if (s.market === 'CN' || s.market === 'HK') {
-          // 碰撞码放行:'hkHSI' 维持既有 HK/00HSI 解析(前缀已提供 HK 上下文,
-          // 不必再抛"用裸码"指引);非碰撞码(hkHSHCI 等)照旧拒绝并指引。
-          const idx = lookupSpecialIndex(rest);
-          if (idx && !idx.collision) {
-            throw new InvalidSymbolError(
-              `${rawInput} (special index code '${idx.code}' conflicts with exchange prefix '${p}'; ` +
-                `use bare '${idx.code}' or secid '${idx.secidPrefix}.${idx.code}')`
-            );
-          }
+        // 特殊指数与前缀的交互:前缀即市场断言,与 market hint 同语义。
+        // - 碰撞码且前缀市场匹配(hkHSI/hkHSCEI/hkHSTECH/usDJI/usINX/usIXIC):
+        //   按指数解析 —— 这些是 toTencentSymbol 自身的产出形态,必须可回读
+        //   (此前 'hkHSI' 被解成港股股票 '00HSI',quotes.hk 静默返空);
+        //   显式 assetType:'stock' hint 仍维持 ticker 命名空间(最强消歧优先)。
+        // - CN/HK 前缀 + 非碰撞码(hkHSHCI/sh930955 等):照旧拒绝并指引
+        //   (这些码腾讯无行情映射,前缀形不是任何一端的产出,放行只会静默空)。
+        const idx = lookupSpecialIndex(rest);
+        if (idx && idx.collision && idx.market === s.market && hintAsset !== 'stock') {
+          return finishSpecialIndex(idx);
+        }
+        if ((s.market === 'CN' || s.market === 'HK') && idx && !idx.collision) {
+          throw new InvalidSymbolError(
+            `${rawInput} (special index code '${idx.code}' conflicts with exchange prefix '${p}'; ` +
+              `use bare '${idx.code}' or secid '${idx.secidPrefix}.${idx.code}')`
+          );
         }
         const code =
           s.market === 'HK'
@@ -398,8 +402,15 @@ export function normalizeSymbol(
   // 维持原命名空间:裸 'HSI' 无 hint → 落到纯字母分支归 US ticker(向后兼容),
   // quotes.hk(['HSI']) 传 {market:'HK'} → 恒生指数。非碰撞码(HSHCI/CSI/GDAXI)
   // 裸码即解析(与历史一致)。
+  // 显式 assetType:'stock' hint 对碰撞码维持 ticker 命名空间 —— 碰撞门的设计
+  // 本意就是不劫持真实 ticker,最强的消歧声明({code:'DJI',market:'US',
+  // assetType:'stock'})必须放行为股票,而非按指数解析后在 finish 里矛盾抛错。
   const specialIdx = lookupSpecialIndex(code0);
-  if (specialIdx && (!specialIdx.collision || hintMarket === specialIdx.market)) {
+  if (
+    specialIdx &&
+    (!specialIdx.collision ||
+      (hintMarket === specialIdx.market && hintAsset !== 'stock'))
+  ) {
     return finishSpecialIndex(specialIdx);
   }
 

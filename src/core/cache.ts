@@ -314,7 +314,14 @@ export function getClientScopedCache<T = unknown>(
 
 /**
  * 清空某 client 的全部作用域缓存（测试 teardown / 手动强制失效用；
- * 面向 SDK 用户的入口是 `StockSDK.clearCaches()`）。
+ * 面向 SDK 用户的入口是 `StockSDK.clearCaches()`；不经 StockSDK、直接以
+ * 自建 RequestClient 调 provider 函数的用户，从 `stock-sdk/cache` 导入本函数
+ * 传入该 client 即可 —— v2.4.0 起代码表/日历/板块映射迁到实例级后,
+ * `clearSharedCaches()` 不再覆盖它们。
+ *
+ * 已知残留:清空瞬间仍在途的 getOrFetch 解析完成后会写进被丢弃的旧缓存
+ * 实例(无害,首次新调用会重新解析),清空窗口内的"强制重解析"对该 key
+ * 可能晚一拍生效。
  */
 export function clearClientScopedCaches(client: object): void {
   clientScopedCaches.delete(client);

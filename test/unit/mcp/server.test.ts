@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { dispatchMessage, type DispatchContext } from '../../../src/mcp/server';
+import { resolveTierFilter } from '../../../src/mcp/types';
 import { listTools } from '../../../src/mcp/tools';
 import { listPrompts } from '../../../src/mcp/prompts';
 import { StockSDK } from '../../../src/sdk';
@@ -284,5 +285,39 @@ describe('mcp/server · dispatchMessage', () => {
     expect(r?.error?.code).toBe(RPC_INVALID_PARAMS);
     expect(r?.error?.message).toContain('symbol');
     expect(r?.result).toBeUndefined();
+  });
+});
+
+describe('resolveTierFilter 环境变量解析（大小写/空列表/名单）', () => {
+  const ENV = 'STOCK_SDK_MCP_TEST_FILTER';
+  afterEach(() => {
+    delete process.env[ENV];
+  });
+
+  it("tier 关键字大小写容错：'FULL'/' Core ' 不再被当名单过滤成 0 集合", () => {
+    process.env[ENV] = 'FULL';
+    expect(resolveTierFilter(undefined, ENV)).toBe('full');
+    process.env[ENV] = ' Core ';
+    expect(resolveTierFilter(undefined, ENV)).toBe('core');
+  });
+
+  it('名单形态原样返回（未知名由 startMcpServer 对照注册表告警）', () => {
+    process.env[ENV] = 'get_a_share_quotes, analyze_stok';
+    expect(resolveTierFilter(undefined, ENV)).toEqual([
+      'get_a_share_quotes',
+      'analyze_stok',
+    ]);
+  });
+
+  it('空串 env 与显式空数组同语义：回退 core（不再产出零集合 server）', () => {
+    process.env[ENV] = '  ,  ';
+    expect(resolveTierFilter(undefined, ENV)).toBe('core');
+    expect(resolveTierFilter([], ENV)).toBe('core');
+  });
+
+  it('显式参数优先于环境变量', () => {
+    process.env[ENV] = 'full';
+    expect(resolveTierFilter('core', ENV)).toBe('core');
+    expect(resolveTierFilter(['analyze_stock'], ENV)).toEqual(['analyze_stock']);
   });
 });

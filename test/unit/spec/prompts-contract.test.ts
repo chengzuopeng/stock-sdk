@@ -6,6 +6,8 @@
  * 就是缺这层机械兜底。见 mcp-skills-prompts-td.md §8 / §11.2。
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { PROMPT_SPECS, type PromptSpec } from '../../../src/spec/prompts';
 import { toPromptDef } from '../../../src/spec/derive-prompt';
 import { PROMPTS, listPrompts } from '../../../src/mcp/prompts';
@@ -51,12 +53,17 @@ describe('prompts-contract③: 模板确实引用了它声明的每个工具', (
     }
   });
 
-  it('模板末尾统一带「用用户语言作答」纪律', () => {
+  it('派生后的 render 统一带「用用户语言作答」+ 只读纪律（FOOTER 收敛在 derive 层）', () => {
     for (const spec of PROMPT_SPECS) {
-      const text = spec.render(mockArgs(spec));
-      expect(text, `技能 ${spec.name} 模板缺少语言指令`).toContain(
+      const text = toPromptDef(spec).render(mockArgs(spec));
+      expect(text, `技能 ${spec.name} 缺少语言指令`).toContain(
         'Respond in the same language'
       );
+      expect(text, `技能 ${spec.name} 缺少只读纪律`).toContain(
+        'never place orders or move funds'
+      );
+      // 模板本体不再自带 FOOTER —— derive 层统一追加,新增技能不可能漏
+      expect(spec.render(mockArgs(spec))).not.toContain('Respond in the same language');
     }
   });
 });
@@ -117,6 +124,18 @@ describe('prompts-contract⑥: name 唯一 + snake_case + 非空展示字段', (
 
   it('PROMPT_MAP/PROMPTS 与 spec 一一对应', () => {
     expect(PROMPTS.length).toBe(PROMPT_SPECS.length);
+  });
+});
+
+describe('prompts-contract⑧: 技能目录文档与 spec 一致（防 4 处手维护漂移）', () => {
+  it('website/skills/catalog.md（中英）包含每个技能名', () => {
+    const root = join(__dirname, '../../..');
+    for (const rel of ['website/skills/catalog.md', 'website/en/skills/catalog.md']) {
+      const content = readFileSync(join(root, rel), 'utf8');
+      for (const spec of PROMPT_SPECS) {
+        expect(content, `${rel} 缺技能 ${spec.name}`).toContain(`\`${spec.name}\``);
+      }
+    }
   });
 });
 

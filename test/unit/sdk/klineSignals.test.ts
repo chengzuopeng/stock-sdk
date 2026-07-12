@@ -13,34 +13,15 @@ import { IndicatorService } from '../../../src/sdk/indicatorService';
 import type { KlineService } from '../../../src/sdk/klineService';
 import type { QuoteService } from '../../../src/sdk/quoteService';
 import type { HistoryKline } from '../../../src/types';
+import { makeHistoryKline, shiftDateISO } from './helpers';
 
 /** V 形收盘序列：前 20 根 120→101 下行，后 20 根 102→140 上行 → 上行段必现 MA 金叉。 */
 function makeSeries(): HistoryKline[] {
-  const base = Date.UTC(2026, 0, 1);
-  const bars: HistoryKline[] = [];
-  for (let i = 0; i < 40; i++) {
+  // 单调递增的真实日期（不回绕），使 startDate 窗口过滤可被正确测试
+  return Array.from({ length: 40 }, (_, i) => {
     const close = i < 20 ? 120 - i : 100 + (i - 19) * 2;
-    const ts = base + i * 86_400_000;
-    // 单调递增的真实日期（不回绕），使 startDate 窗口过滤可被正确测试
-    const date = new Date(ts).toISOString().slice(0, 10);
-    bars.push({
-      date,
-      timestamp: ts,
-      tz: 'Asia/Shanghai',
-      code: '600519',
-      open: close,
-      high: close + 1,
-      low: close - 1,
-      close,
-      volume: 1000 + i,
-      amount: null,
-      amplitude: null,
-      changePercent: null,
-      change: null,
-      turnoverRate: null,
-    } as HistoryKline);
-  }
-  return bars;
+    return makeHistoryKline(shiftDateISO('2026-01-01', i), close);
+  });
 }
 
 function makeService(klines: HistoryKline[]): IndicatorService {
@@ -86,6 +67,31 @@ describe('IndicatorService.getKlineSignals', () => {
     const signals = await svc.getKlineSignals('600519', { maFast: 3, maSlow: 8 });
     // 更短的快慢线在 V 形上更早交叉，仍应识别到金叉（不因周期改变而抛错）
     expect(signals.some((s) => s.type === 'ma_golden_cross')).toBe(true);
+  });
+
+  it('超长停牌缺口后的 startDate 首日交叉仍产出（leadingBars 按下标锚定，不受缺口天数限制）', async () => {
+    // 旧实现按「天数缓冲区」回推（daily 20 天）：缺口 > 缓冲区时窗口首日无前驱,
+    // 交叉静默丢失。leadingBars 按下标保留前一根,90 天缺口同样成立。
+    const bars = makeSeries();
+    // 在金叉发生 bar 之前制造 90 天日期缺口（下标连续、日期跳跃）
+    const all = await makeService(bars).getKlineSignals('600519', { maFast: 3, maSlow: 8 });
+    const golden = all.find((s) => s.type === 'ma_golden_cross');
+    expect(golden).toBeDefined();
+    const gapIdx = bars.findIndex((b) => b.date === golden!.date);
+    const gapped = bars.map((b, i) =>
+      i >= gapIdx ? makeHistoryKline(shiftDateISO(b.date, 90), b.close!) : b
+    );
+    const svc = makeService(gapped);
+    const startDate = gapped[gapIdx].date;
+    const windowed = await svc.getKlineSignals('600519', {
+      maFast: 3,
+      maSlow: 8,
+      startDate,
+    });
+    expect(
+      windowed.some((s) => s.type === 'ma_golden_cross' && s.date === startDate),
+      '90 天缺口后的窗口首日金叉必须仍被返回'
+    ).toBe(true);
   });
 
   it('恰好落在 startDate 当天的金叉不被漏掉（边界修复）', async () => {

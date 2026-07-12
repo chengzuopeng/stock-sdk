@@ -526,7 +526,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 缓存层（MemoryCache / cacheThrough 等）
 
-导出：`MemoryCache`, `getSharedCache`, `clearSharedCaches`, `configureSharedCache`, `createCacheKey`, `CacheOptions`, `MaybePromise`, `CacheStore`, `MemoryCacheStore`, `cacheThrough`
+导出：`MemoryCache`, `getSharedCache`, `clearSharedCaches`, `configureSharedCache`, `clearClientScopedCaches`, `createCacheKey`, `CacheOptions`, `MaybePromise`, `CacheStore`, `MemoryCacheStore`, `cacheThrough`
 
 ### `stock-sdk/errors`
 
@@ -813,7 +813,8 @@ export interface HKQuote {
   totalMarketCap: number | null;
   currency: string;
   market: 'HK';
-  assetType: 'stock';
+  /** 命中特殊指数注册表(HSI/HSCEI/HSTECH)的行标 'index'(港股真码恒为数字,无碰撞面) */
+  assetType: 'stock' | 'index';
   source: ProviderName;
 }
 
@@ -866,7 +867,8 @@ export interface USQuote {
   /** 52周最低价 */
   low52w: number | null;
   market: 'US';
-  assetType: 'stock';
+  /** 命中特殊指数注册表(DJI/INX/IXIC)的行标 'index'，code 归一为注册表规范形 */
+  assetType: 'stock' | 'index';
   source: ProviderName;
 }
 
@@ -4205,7 +4207,6 @@ export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
   if (position > 0 && lastPrice > 0) {
     cash += position * lastPrice * (1 - feeSell);
     recordTrade(lastPriceIndex, lastPrice, pending !== 'sell');
-    position = 0;
     // 结算记账在出场 bar（与 exitIndex 同根，卖出费即刻体现），其后的无效尾 bar
     // 一律标为现金 —— 否则 exitIndex 与权益结算落点分离，停牌尾部会出现幽灵费差
     for (let j = Math.max(lastPriceIndex, 0); j < equityCurve.length; j++) {

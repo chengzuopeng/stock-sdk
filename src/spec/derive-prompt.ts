@@ -7,6 +7,15 @@
 import { InvalidArgumentError } from '../core/errors';
 import type { PromptSpec } from './prompts';
 
+/**
+ * 所有技能模板统一的收尾（在 derive 层追加，模板本体保持纯任务内容 ——
+ * 新增技能不可能漏掉语言指令与只读纪律；prompts-contract 断言其存在）。
+ */
+const FOOTER =
+  '\n\nIMPORTANT: Respond in the same language the user is using.\n' +
+  'Read and analyze only — never place orders or move funds. ' +
+  'If data is missing or a source returns nothing, say so honestly; do not fabricate numbers.';
+
 /** MCP `prompts/list` 里单个 argument 的形状。 */
 export interface PromptArgumentDef {
   name: string;
@@ -56,7 +65,7 @@ export function toPromptDef(spec: PromptSpec): PromptDef {
           filled[a.name] = typeof v === 'string' ? v : String(v);
         }
       }
-      return spec.render(filled);
+      return spec.render(filled) + FOOTER;
     },
   };
 }

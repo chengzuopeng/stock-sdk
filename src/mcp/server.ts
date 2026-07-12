@@ -22,7 +22,7 @@ import {
 import { listTools } from './tools';
 import { listPrompts } from './prompts';
 import type { PromptDef } from '../spec/derive-prompt';
-import type { ToolDef, ToolTier } from './types';
+import { resolveTierFilter, type ToolDef, type ToolTier } from './types';
 import { toToolResult, toolErrorResult } from './result';
 
 /** 技能集范围：'core'(默认) / 'full' / 指定 name 列表（与工具集独立过滤）。 */
@@ -237,19 +237,6 @@ export interface McpServerOptions {
   sdk?: RequestClientOptions;
 }
 
-/** 通用集合范围解析：显式参数 > 环境变量 > 'core'（空列表回退 core，避免零集合）。 */
-function resolveTierFilter(
-  explicit: 'core' | 'full' | string[] | undefined,
-  envName: string
-): 'core' | 'full' | string[] {
-  if (explicit) return explicit;
-  const env = process.env[envName];
-  if (!env) return 'core';
-  if (env === 'core' || env === 'full') return env;
-  const names = env.split(',').map((s) => s.trim()).filter(Boolean);
-  return names.length > 0 ? names : 'core';
-}
-
 /** 工具集范围：显式 > STOCK_SDK_MCP_TOOLS 环境变量 > core。 */
 function resolveFilter(explicit?: ToolTier | string[]): ToolTier | string[] {
   return resolveTierFilter(explicit, 'STOCK_SDK_MCP_TOOLS');
@@ -271,8 +258,10 @@ function resolveSdkOptions(explicit?: RequestClientOptions): RequestClientOption
 /** 启动 MCP server（监听 stdin，直到 stdin 关闭后 event loop 自然退出） */
 export function startMcpServer(options: McpServerOptions = {}): void {
   const sdk = new StockSDK(resolveSdkOptions(options.sdk));
-  const tools = listTools(resolveFilter(options.tools));
-  const prompts = listPrompts(resolvePromptFilter(options.prompts));
+  const toolFilter = resolveFilter(options.tools);
+  const promptFilter = resolvePromptFilter(options.prompts);
+  const tools = listTools(toolFilter);
+  const prompts = listPrompts(promptFilter);
   const ctx: DispatchContext = {
     sdk,
     tools,
@@ -284,6 +273,25 @@ export function startMcpServer(options: McpServerOptions = {}): void {
   logStderr(
     `[stock-sdk mcp] ready · ${tools.length} tools · ${prompts.length} prompts · ${SERVER_INFO.name}@${SERVER_INFO.version}`
   );
+
+  // 名单过滤的未知名告警：笔误的工具/技能名此前静默产出 0 集合,
+  // 只有 ready 行的计数可察 —— 现对照注册结果显式点名
+  const warnUnknownNames = (
+    kind: string,
+    filter: 'core' | 'full' | string[],
+    resolved: ReadonlyArray<{ name: string }>
+  ) => {
+    if (!Array.isArray(filter)) return;
+    const known = new Set(resolved.map((x) => x.name));
+    const unknown = filter.filter((n) => !known.has(n));
+    if (unknown.length > 0) {
+      logStderr(
+        `[stock-sdk mcp] ⚠ ${kind} 名单中有 ${unknown.length} 个未知名（已忽略）：${unknown.join(', ')}`
+      );
+    }
+  };
+  warnUnknownNames('工具', toolFilter, tools);
+  warnUnknownNames('技能', promptFilter, prompts);
 
   // 配置校验：技能集与工具集各自独立过滤。若启用的技能点名了当前工具集之外的工具
   // （典型：prompts=full 但 tools 仍为默认 core），客户端 model 编排到该步会拿到

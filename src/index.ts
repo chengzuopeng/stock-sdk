@@ -209,6 +209,7 @@ export {
   MemoryCache,
   getSharedCache,
   configureSharedCache,
+  clearClientScopedCaches,
   createCacheKey,
 } from './cache';
 export type { CacheStore, MaybePromise, CacheOptions } from './cache';

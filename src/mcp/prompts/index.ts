@@ -4,22 +4,13 @@
  */
 import { PROMPT_SPECS } from '../../spec/prompts';
 import { toPromptDef, type PromptDef } from '../../spec/derive-prompt';
+import { filterByTier } from '../types';
 
 export const PROMPTS: PromptDef[] = PROMPT_SPECS.map(toPromptDef);
 
 export const PROMPT_MAP = new Map<string, PromptDef>(PROMPTS.map((p) => [p.name, p]));
 
-/**
- * 按范围过滤技能：
- * - `'core'`：仅默认高频集
- * - `'full'`：全部
- * - `string[]`：精确 name 列表
- */
+/** 按范围过滤技能（core / full / 名单;与 tools 共用 filterByTier）。 */
 export function listPrompts(filter: 'core' | 'full' | string[]): PromptDef[] {
-  if (Array.isArray(filter)) {
-    const set = new Set(filter);
-    return PROMPTS.filter((p) => set.has(p.name));
-  }
-  if (filter === 'full') return PROMPTS;
-  return PROMPTS.filter((p) => p.tier === 'core');
+  return filterByTier(PROMPTS, filter);
 }

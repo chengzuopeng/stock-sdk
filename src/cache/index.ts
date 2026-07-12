@@ -10,6 +10,7 @@ import {
   getSharedCache,
   clearSharedCaches,
   configureSharedCache,
+  clearClientScopedCaches,
   createCacheKey,
   type CacheOptions,
 } from '../core/cache';
@@ -19,6 +20,9 @@ export {
   getSharedCache,
   clearSharedCaches,
   configureSharedCache,
+  // 实例级缓存的公共清空口(v2.4.0 缓存迁移后 clearSharedCaches 不再覆盖
+  // 代码表/日历/板块映射;不经 StockSDK 的裸 RequestClient 用户由此强刷)
+  clearClientScopedCaches,
   createCacheKey,
   type CacheOptions,
 };

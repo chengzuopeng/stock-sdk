@@ -238,7 +238,6 @@ export function backtest<T>(options: BacktestOptions<T>): BacktestReport {
   if (position > 0 && lastPrice > 0) {
     cash += position * lastPrice * (1 - feeSell);
     recordTrade(lastPriceIndex, lastPrice, pending !== 'sell');
-    position = 0;
     // 结算记账在出场 bar（与 exitIndex 同根，卖出费即刻体现），其后的无效尾 bar
     // 一律标为现金 —— 否则 exitIndex 与权益结算落点分离，停牌尾部会出现幽灵费差
     for (let j = Math.max(lastPriceIndex, 0); j < equityCurve.length; j++) {

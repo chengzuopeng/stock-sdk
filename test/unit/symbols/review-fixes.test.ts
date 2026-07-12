@@ -405,15 +405,21 @@ describe('R7-1 裸前缀不吞真实 US*/HK* ticker（2026-07 review）', () => 
     expect(normalizeSymbol('usAAPL')).toMatchObject({ market: 'US', code: 'AAPL' });
     expect(normalizeSymbol('usBRK.A')).toMatchObject({ market: 'US', code: 'BRK.A' });
     expect(normalizeSymbol('usAAPL.OQ')).toMatchObject({ market: 'US', code: 'AAPL.OQ' });
+    // 前缀照剥且 rest 命中指数注册表 → 恒生指数(规范形回读修复后,不再是 00HSI 股票)
     expect(normalizeSymbol('hkHSI')).toMatchObject({
       market: 'HK',
-      code: '00HSI', // padStart 与 externalLinks 既有行为一致
+      assetType: 'index',
+      code: 'HSI',
     });
   });
 
   it('全小写手输形（rest ≥3）继续剥前缀', () => {
     expect(normalizeSymbol('usaapl').code).toBe('AAPL');
-    expect(normalizeSymbol('hkhsi')).toMatchObject({ market: 'HK', code: '00HSI' });
+    expect(normalizeSymbol('hkhsi')).toMatchObject({
+      market: 'HK',
+      assetType: 'index',
+      code: 'HSI',
+    });
   });
 
   it('数字 rest 任意大小写前缀都剥（与历史一致）', () => {
@@ -447,7 +453,12 @@ describe('R7-1 小写手输形收紧为纯字母（review 修正）', () => {
 
   it('全小写纯字母手输形仍剥前缀（钉死行为不变）', () => {
     expect(normalizeSymbol('usaapl').code).toBe('AAPL');
-    expect(normalizeSymbol('hkhsi')).toMatchObject({ market: 'HK', code: '00HSI' });
+    // 剥前缀后 rest 命中指数注册表 → 指数(回读修复);剥前缀机制本身不变
+    expect(normalizeSymbol('hkhsi')).toMatchObject({
+      market: 'HK',
+      assetType: 'index',
+      code: 'HSI',
+    });
   });
 
   it('规范形的点分 rest 仍剥（usBRK.A → BRK.A）', () => {

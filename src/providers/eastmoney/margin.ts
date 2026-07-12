@@ -5,6 +5,7 @@
 import { type RequestClient, toNumberSafe } from '../../core';
 import type { MarginAccountItem, MarginTargetItem } from '../../types';
 import { fetchDatacenterList, parseDcDate } from './datacenter';
+import { toIsoDate } from './utils';
 
 /**
  * 融资融券账户统计（按日）
@@ -38,13 +39,15 @@ export async function getMarginAccountInfo(
 /**
  * 融资融券标的明细
  *
- * @param date - 指定交易日 YYYY-MM-DD（默认服务端最新交易日）
+ * @param date - 指定交易日 `YYYYMMDD` 或 `YYYY-MM-DD`（默认服务端最新交易日）
  */
 export async function getMarginTargetList(
   client: RequestClient,
   date?: string
 ): Promise<MarginTargetItem[]> {
-  const filter = date ? `(TRADE_DATE='${date}')` : undefined;
+  // TRADE_DATE filter 只认 ISO 形;不归一时 '20260630' 会静默零行(与 blockTrade
+  // 的 buildDateFilter→toIsoDate 同源做法,MCP 工具文案本就宣称两种格式均可)
+  const filter = date ? `(TRADE_DATE='${toIsoDate(date)}')` : undefined;
 
   return fetchDatacenterList(
     client,

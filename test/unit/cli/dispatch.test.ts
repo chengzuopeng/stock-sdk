@@ -180,6 +180,22 @@ describe('dispatch — argShape 实参组装', () => {
     expect(hk).toHaveBeenCalledWith(['00700', '@@']);
   });
 
+  it('quote 特殊指数拦截仅限腾讯无码项:hkHSI/usDJI 放行分组,HSHCI 仍拦截', async () => {
+    // 前缀回读修复后 hkHSI/usDJI 解析为指数;拦截一刀切会把可用行情误报为
+    // 「无行情接口」(HSTECH 还与 kline 侧 fail-fast 指引循环)
+    const hk = vi.fn().mockResolvedValue([]);
+    const us = vi.fn().mockResolvedValue([]);
+    const sdk = { quotes: { hk, us } } as unknown as StockSDK;
+    const m = findCommand(['quote', 'hkHSI'])!;
+    await dispatch(sdk, m.spec, { positional: ['hkHSI', 'usDJI'], options: {} });
+    expect(hk).toHaveBeenCalledWith(['HSI']);
+    expect(us).toHaveBeenCalledWith(['DJI']);
+    // 无腾讯码的注册项(HSHCI)维持拦截
+    await expect(
+      dispatch(sdk, m.spec, { positional: ['HSHCI'], options: {} })
+    ).rejects.toBeInstanceOf(CliUsageError);
+  });
+
   it('P2-2 call quotes.cn --args 原始直通', async () => {
     const fn = vi.fn().mockResolvedValue([]);
     const sdk = { quotes: { cn: fn } } as unknown as StockSDK;

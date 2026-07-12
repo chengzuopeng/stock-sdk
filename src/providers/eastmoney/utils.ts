@@ -207,6 +207,21 @@ export async function fetchPaginatedData<T>(
     appendRows(rows);
   }
 
+  // 短页补抓(恢复串行版"length < total 即继续翻"的不变式):服务端过滤/去重
+  // 产生【非空短页】时,ceil(total/pageSize) 的页数上限会漏掉尾部行 —— 仅当
+  // 波次全部按计划返回(未被空页/坏页前缀截断,截断时串行版同样在此止步)且
+  // 行数仍不足 total 时,串行续翻至空页或补齐。每轮至少进 1 行,必然终止。
+  const wavesCompleted = restPages.length === totalPages - 1;
+  if (wavesCompleted) {
+    let page = totalPages + 1;
+    while (allData.length < total) {
+      const extra = await fetchPage(page);
+      if (!extra || extra.diff.length === 0) break;
+      appendRows(extra.diff);
+      page++;
+    }
+  }
+
   return allData;
 }
 

@@ -60,6 +60,13 @@ export interface KlineWithIndicatorsOptions {
    * - 完整选项参见 `IndicatorOptions`
    */
   indicators?: IndicatorOptions;
+  /**
+   * 窗口前额外保留的 bar 数（内部选项，信号闭环用；默认 0）。
+   * `getKlineSignals` 传 1：交叉识别需要窗口首日的前一根做锚点，按**下标**多留
+   * 一根已算好指标的 bar —— 对任意长度的停牌缺口都精确（区别于按天数回推的
+   * 启发式）。仅 `startDate` 存在时生效；保留的 bar 日期早于 startDate。
+   */
+  leadingBars?: number;
 }
 
 /**
@@ -242,6 +249,18 @@ export class IndicatorService {
     const ratioMap = { A: 1.5, HK: 1.46, US: 1.45 };
     let actualStartDate: string | undefined;
 
+    // requiredBars 是【bar 数】,回推自然日/日历步长必须按周期换算 ——
+    // 此前不看周期,周/月线 + startDate 的首次抓取只覆盖 requiredBars 个
+    // 自然日(≈1/5、1/21 的 bar 数),必然不足 → F35 全量 refetch 每次都触发,
+    // 首次抓取整个作废(get_kline_signals 的默认指标集含 MACD,默认档即中招)。
+    const reqPeriod = options.period ?? 'daily';
+    // 自然日/bar:周线 1 bar=7 天(+缓冲),月线 ≈31 天;日线维持按市场的经验比率
+    const daysPerBar =
+      reqPeriod === 'weekly' ? 7.5 : reqPeriod === 'monthly' ? 31.5 : ratioMap[market];
+    // A 股日历(日粒度)步长:周线 1 bar ≈5 交易日,月线 ≈21 交易日
+    const calendarStepPerBar =
+      reqPeriod === 'weekly' ? 5 : reqPeriod === 'monthly' ? 21 : 1;
+
     if (startNorm) {
       if (market === 'A') {
         // 入口已归一,calcActualStartDateByCalendar 不会再因日期格式抛错,
@@ -249,20 +268,23 @@ export class IndicatorService {
         try {
           const calendar = await this.quoteService.getTradingCalendar();
           actualStartDate =
-            this.calcActualStartDateByCalendar(startNorm, requiredBars, calendar) ??
-            this.calcActualStartDate(startNorm, requiredBars, ratioMap[market]);
+            this.calcActualStartDateByCalendar(
+              startNorm,
+              requiredBars * calendarStepPerBar,
+              calendar
+            ) ?? this.calcActualStartDate(startNorm, requiredBars, daysPerBar);
         } catch {
           actualStartDate = this.calcActualStartDate(
             startNorm,
             requiredBars,
-            ratioMap[market]
+            daysPerBar
           );
         }
       } else {
         actualStartDate = this.calcActualStartDate(
           startNorm,
           requiredBars,
-          ratioMap[market]
+          daysPerBar
         );
       }
     }
@@ -302,9 +324,8 @@ export class IndicatorService {
     //   P1-4 曾因"固定容差必误判"一律保守 refetch;R3-14 把期末标签的最大
     //   滞后并入公式(30 + 7/31),恢复 F35 短路对周/月线生效 —— 真 IPO
     //   (首根晚于容差)不再每次双请求,误判方向仍是多 refetch。
-    const period = options.period ?? 'daily';
     const toleranceDays =
-      30 + (period === 'weekly' ? 7 : period === 'monthly' ? 31 : 0);
+      30 + (reqPeriod === 'weekly' ? 7 : reqPeriod === 'monthly' ? 31 : 0);
     const mayHaveEarlierData =
       allKlines.length === 0 ||
       actualStartDate === undefined ||
@@ -360,6 +381,7 @@ export class IndicatorService {
       }
 
       let toCompute = allKlines;
+      let windowStartInCompute = windowStartIdx;
       // 累计型指标(OBV)依赖序列起点,切片会改变绝对值 —— 由 registry 的
       // cumulative 标记驱动(P2-7),新增累计型指标时无需改这里
       if (refetchedFullHistory && !hasCumulativeIndicator(indicators)) {
@@ -375,7 +397,23 @@ export class IndicatorService {
                 WARMUP_LOOKBACK_MULTIPLIER * maxRecursiveLookback
               )
             : requiredBars;
-        toCompute = allKlines.slice(Math.max(0, windowStartIdx - lookback));
+        const sliceStart = Math.max(0, windowStartIdx - lookback);
+        toCompute = allKlines.slice(sliceStart);
+        windowStartInCompute = windowStartIdx - sliceStart;
+      }
+      const leadingBars =
+        Number.isInteger(options.leadingBars) && options.leadingBars! > 0
+          ? options.leadingBars!
+          : 0;
+      if (leadingBars > 0) {
+        // 信号锚点路径:窗口前按【下标】多保留 N 根(对任意停牌长度精确),
+        // 尾部仍按 endNorm 过滤。行按时间升序,窗口起点之后无需再比 startNorm。
+        const computed = addIndicators(toCompute, indicators);
+        const outStart = Math.max(0, windowStartInCompute - leadingBars);
+        const windowed = computed.slice(outStart);
+        return endNorm === undefined
+          ? windowed
+          : windowed.filter((item) => this.normalizeRowDate(item.date) <= endNorm);
       }
       return addIndicators(toCompute, indicators).filter((item) => {
         const date = this.normalizeRowDate(item.date);
@@ -418,26 +456,21 @@ export class IndicatorService {
       );
     }
 
-    // 边界修复：calcSignals 从 i=1 起逐日比对前后两根 K 线。若直接把 startDate 传给
-    // getKlineWithIndicators，它会先按 date>=startDate 裁掉窗口外的行 —— 于是窗口首日
-    // 失去前一根、当天的金叉/死叉永远无法产出。故向前多取一个「锚点缓冲区」
-    // （足以覆盖长假 / 常规停牌，保证窗口首日在 calcSignals 里有前驱），信号算完再按
-    // 用户 startDate 过滤。缓冲区仅提供前驱锚点、不进最终结果。
-    // 残留边界：若窗口首日恰好是一段【超过缓冲区】的停牌后首个交易日，其"前驱"是停牌前
-    // 的行、跨大缺口的交叉本就意义有限，仍可能不产出——属可接受取舍。
+    // 边界修复：calcSignals 从 i=1 起逐日比对前后两根 K 线。若窗口按 date>=startDate
+    // 裁齐，窗口首日失去前一根、当天的金叉/死叉永远无法产出 —— 用 leadingBars:1
+    // 让 getKlineWithIndicators 按【下标】在窗口前多保留一根已算好指标的锚点 bar
+    // （对任意长度的停牌缺口精确成立），信号算完再按用户 startDate 过滤掉锚点上的信号。
     const startNorm = options.startDate
       ? this.normalizeUserDate(options.startDate)
-      : undefined;
-    const fetchStartDate = startNorm
-      ? addDays(startNorm, -signalAnchorBufferDays(options.period ?? 'daily'))
       : undefined;
 
     const klines = await this.getKlineWithIndicators(symbol, {
       market: options.market,
       period: options.period,
       adjust: options.adjust,
-      startDate: fetchStartDate,
+      startDate: options.startDate,
       endDate: options.endDate,
+      leadingBars: startNorm ? 1 : 0,
       // 指标周期须与下方 calcSignals 的信号周期严格对齐（rsi6 是 calcSignals 默认命中键）
       indicators: {
         ma: { periods: [maFast, maSlow] },
@@ -470,14 +503,9 @@ export class IndicatorService {
       };
     });
 
-    // 锚点缓冲区里的信号（早于用户 startDate）只用于给窗口首日提供前驱，不返回
+    // 锚点 bar 上的信号（早于用户 startDate）只用于给窗口首日提供前驱，不返回
     return startNorm
       ? enriched.filter((sig) => this.normalizeRowDate(sig.date) >= startNorm)
       : enriched;
   }
-}
-
-/** 信号识别的「前驱锚点」缓冲天数：向前多取足够覆盖长假 / 停牌，保证窗口首日有前一根可比。 */
-function signalAnchorBufferDays(period: 'daily' | 'weekly' | 'monthly'): number {
-  return period === 'monthly' ? 95 : period === 'weekly' ? 35 : 20;
 }

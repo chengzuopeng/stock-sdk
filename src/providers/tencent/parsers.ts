@@ -2,6 +2,7 @@
  * 腾讯财经数据解析器
  */
 import { safeNumber, safeNumberOrNull, buildTimeMeta, MARKET_TZ } from '../../core';
+import { lookupSpecialIndex } from '../../symbols/specialIndex';
 import type {
   FullQuote,
   SimpleQuote,
@@ -11,6 +12,25 @@ import type {
   USQuote,
   FundQuote,
 } from '../../types';
+
+/**
+ * HK/US 行情行的指数识别与 code 归一:命中特殊指数注册表(且市场一致)的行
+ * 标 assetType:'index',code 取注册表规范形(美股上游 f[2] 形如 '.DJI',
+ * 归一为 'DJI',与 kline 端对齐,跨端 join 不再失配)。
+ * 误伤面:HK 真码恒为数字,'HSI' 等字母码无碰撞;美股腾讯命名空间里
+ * usDJI/usINX/usIXIC 本就是指数(实测),真实同名 ticker 在腾讯侧不可达。
+ */
+function specialIndexMeta(
+  rawCode: string,
+  market: 'HK' | 'US'
+): { code: string; assetType: 'stock' | 'index' } {
+  const bare = rawCode.replace(/^\./, '');
+  const idx = bare ? lookupSpecialIndex(bare) : undefined;
+  if (idx && idx.market === market) {
+    return { code: idx.code, assetType: 'index' };
+  }
+  return { code: rawCode, assetType: 'stock' };
+}
 
 // ============================================================
 // R7-9: 行完整性过滤（与各解析器共置，阈值改动跟着解析器走；
@@ -189,10 +209,11 @@ export function parsePanelLargeOrder(f: string[]): PanelLargeOrder {
 export function parseHKQuote(f: string[]): HKQuote {
   const time = f[30] ?? '';
   const timeMeta = buildTimeMeta(time, MARKET_TZ.HK);
+  const meta = specialIndexMeta(f[2] ?? '', 'HK');
   return {
     marketId: f[0] ?? '',
     name: f[1] ?? '',
-    code: f[2] ?? '',
+    code: meta.code,
     price: safeNumber(f[3]),
     prevClose: safeNumber(f[4]),
     open: safeNumber(f[5]),
@@ -213,7 +234,7 @@ export function parseHKQuote(f: string[]): HKQuote {
     // 币种（3 位大写字母），否则置空而不是输出一个价格串
     currency: /^[A-Z]{3}$/.test(f[f.length - 3] ?? '') ? f[f.length - 3] : '',
     market: 'HK',
-    assetType: 'stock',
+    assetType: meta.assetType,
     source: 'tencent',
   };
 }
@@ -224,10 +245,11 @@ export function parseHKQuote(f: string[]): HKQuote {
 export function parseUSQuote(f: string[]): USQuote {
   const time = f[30] ?? '';
   const timeMeta = buildTimeMeta(time, MARKET_TZ.US);
+  const meta = specialIndexMeta(f[2] ?? '', 'US');
   return {
     marketId: f[0] ?? '',
     name: f[1] ?? '',
-    code: f[2] ?? '',
+    code: meta.code,
     price: safeNumber(f[3]),
     prevClose: safeNumber(f[4]),
     open: safeNumber(f[5]),
@@ -248,7 +270,7 @@ export function parseUSQuote(f: string[]): USQuote {
     high52w: safeNumberOrNull(f[48]),
     low52w: safeNumberOrNull(f[49]),
     market: 'US',
-    assetType: 'stock',
+    assetType: meta.assetType,
     source: 'tencent',
   };
 }

@@ -49,9 +49,13 @@ export function toTencentSymbol(ns: NormalizedSymbol): string {
   }
   // 特殊指数:注册表带腾讯码的(HSI→hkHSI / HSCEI→hkHSCEI 等)直接返回,不走
   // 下方市场分支的纯数字/前缀拼接(否则 HK 分支会因字母指数码非纯数字而抛错)。
+  // exchange 一致才路由(与 toEastmoneySecid 同款守卫):碰撞码被 hint 解成
+  // 其它市场时(如 'HSI'+{assetType:'index'} 无 market hint → US/index),
+  // 不得跨市场劫持返回 hkHSI —— 两个适配器必须对同一 NormalizedSymbol
+  // 给出同一市场的产出。
   if (ns.assetType === 'index') {
     const idx = lookupSpecialIndex(ns.code);
-    if (idx?.tencent) {
+    if (idx?.tencent && idx.exchange === ns.exchange) {
       return idx.tencent;
     }
   }
@@ -104,8 +108,18 @@ export function toEastmoneySecid(ns: NormalizedSymbol): string {
   // 未命中注册表的普通指数走交易所前缀 fall-through(沪市 000xxx 已知错宿主,待修)。
   if (ns.assetType === 'index') {
     const specialIdx = lookupSpecialIndex(ns.code);
-    if (specialIdx?.secidPrefix && specialIdx.exchange === ns.exchange) {
-      return `${specialIdx.secidPrefix}.${specialIdx.eastmoneyCode ?? specialIdx.code}`;
+    if (specialIdx && specialIdx.exchange === ns.exchange) {
+      if (specialIdx.secidPrefix) {
+        return `${specialIdx.secidPrefix}.${specialIdx.eastmoneyCode ?? specialIdx.code}`;
+      }
+      // 注册表命中但东财无码(如 HSTECH 仅腾讯) → fail-fast,与 toTencentSymbol
+      // 对 HSHCI 的镜像语义一致 —— 此前 fall-through 到 HK 分支拼出 '116.HSTECH'
+      // 这类垃圾 secid,上游 data:null 静默返空
+      throw new InvalidArgumentError(
+        `Eastmoney has no quote for special index '${specialIdx.code}' (Tencent-only); ` +
+          `use quotes.hk/quotes.us instead of kline for this index`,
+        { code: specialIdx.code, exchange: specialIdx.exchange }
+      );
     }
   }
   if (ns.market === 'HK') {

@@ -172,8 +172,20 @@ describe('normalizeSymbol — 特殊指数(specialIndex 注册表)', () => {
     expect(() => normalizeSymbol('HSI', { market: 'CN' })).toThrow(
       InvalidSymbolError
     );
-    // 'hkHSI' 维持既有 HK/00HSI(碰撞码放行前缀冲突检查,不改历史行为)
-    expect(normalizeSymbol('hkHSI')).toMatchObject({ market: 'HK', code: '00HSI' });
+    // 规范形回读:'hkHSI' 是 toTencentSymbol 自身的产出形态,必须解析回恒生指数
+    // (此前被解成港股股票 '00HSI',quotes.hk(['hkHSI']) 静默返空、kline.hk 拼死 secid)
+    expect(normalizeSymbol('hkHSI')).toMatchObject({
+      market: 'HK',
+      assetType: 'index',
+      code: 'HSI',
+    });
+    expect(normalizeSymbol('hkhsi')).toMatchObject({ assetType: 'index', code: 'HSI' });
+    // 显式 assetType:'stock' 维持 ticker 命名空间(最强消歧优先,不抛错)
+    expect(normalizeSymbol('hkHSI', { assetType: 'stock' })).toMatchObject({
+      market: 'HK',
+      assetType: 'stock',
+      code: '00HSI',
+    });
     // 显式 secid 回读:100.HSI → 恒生指数
     expect(normalizeSymbol('100.HSI')).toMatchObject({
       market: 'HK',
@@ -200,6 +212,31 @@ describe('normalizeSymbol — 特殊指数(specialIndex 注册表)', () => {
       market: 'US',
       assetType: 'stock',
       code: 'DJIA',
+    });
+    // 规范形回读:'usDJI' 是 toTencentSymbol 的产出形态,必须解析回指数
+    // (此前 us 前缀分支不查 specialIndex,kline.us('usDJI') 抛 NotFoundError)
+    for (const [prefixed, code] of [
+      ['usDJI', 'DJI'],
+      ['usINX', 'INX'],
+      ['usIXIC', 'IXIC'],
+    ] as const) {
+      expect(normalizeSymbol(prefixed)).toMatchObject({
+        market: 'US',
+        assetType: 'index',
+        code,
+      });
+    }
+    // 显式 assetType:'stock' hint:最强消歧,维持 ticker 命名空间且不抛错
+    // (此前碰撞门只看 market hint,{market:'US',assetType:'stock'} 反而抛错)
+    expect(normalizeSymbol('DJI', { market: 'US', assetType: 'stock' })).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+      code: 'DJI',
+    });
+    expect(normalizeSymbol('usDJI', { assetType: 'stock' })).toMatchObject({
+      market: 'US',
+      assetType: 'stock',
+      code: 'DJI',
     });
   });
 

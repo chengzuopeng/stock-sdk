@@ -218,11 +218,16 @@ export const ALIAS_COMMANDS: CommandSpec[] = [
             ? normalizeSymbol(c, { market: tagToMarket(forced) })
             : normalizeSymbol(c);
           if (!forced) tag = ns.market === 'HK' ? 'hk' : ns.market === 'US' ? 'us' : 'a';
-          // 特殊指数无腾讯行情映射(a 组会抛错被吞、hk 组会拼 hkHSHCI)→ 分组前拦截
-          if (ns.assetType === 'index' && lookupSpecialIndex(ns.code)) {
+          // 特殊指数拦截仅限【腾讯无行情映射】的注册项(CSI/HSHCI/GDAXI:a 组会
+          // 抛错被吞、hk 组会拼 hkHSHCI)。带腾讯码的(HSI/HSCEI/HSTECH/DJI/INX/
+          // IXIC)行情可用,放行走正常分组 —— 此前一刀切拦截,前缀形回读修复后
+          // `quotes hkHSI` 会收到与事实相反的报错(HSTECH 还与 kline 侧指引循环)。
+          const specialIdx =
+            ns.assetType === 'index' ? lookupSpecialIndex(ns.code) : undefined;
+          if (specialIdx && !specialIdx.tencent) {
             throw new CliUsageError(
               `特殊指数 ${ns.code} 无行情接口`,
-              `行情源(腾讯)不覆盖中证/恒生/海外特殊指数;K 线请用: stock-sdk kline ${ns.code}`
+              `行情源(腾讯)不覆盖该特殊指数;K 线请用: stock-sdk kline ${ns.code}`
             );
           }
           groups[tag].push(tag === 'a' ? toTencentSymbol(ns) : ns.code);

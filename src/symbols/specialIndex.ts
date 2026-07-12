@@ -87,3 +87,23 @@ export function lookupSpecialIndex(code: string): SpecialIndexInfo | undefined {
   const named = NAMED_INDICES[upper];
   return named ? { ...named, code: upper } : undefined;
 }
+
+/**
+ * 按东财 secid 反查特殊指数(kline 行 code 归一用):'100.DJIA' → DJI。
+ * 前缀必须与注册表一致才命中 —— 真实 ETF 'DJIA' 走 105/106/107 探测,
+ * secid 前缀不同,不会被误归一成指数码。
+ */
+export function lookupSpecialIndexByEastmoneySecid(
+  secid: string
+): SpecialIndexInfo | undefined {
+  const dot = secid.indexOf('.');
+  if (dot <= 0) return undefined;
+  const prefix = secid.slice(0, dot);
+  const emCode = secid.slice(dot + 1).toUpperCase();
+  for (const [code, info] of Object.entries(NAMED_INDICES)) {
+    if (info.secidPrefix === prefix && (info.eastmoneyCode ?? code) === emCode) {
+      return { ...info, code };
+    }
+  }
+  return undefined;
+}

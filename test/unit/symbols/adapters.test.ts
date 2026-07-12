@@ -51,6 +51,30 @@ describe('toTencentSymbol', () => {
       expected
     );
   });
+
+  it('exchange 守卫:被 hint 解成其它市场的碰撞码不得跨市场劫持', () => {
+    // 'HSI' + {assetType:'index'} 无 market hint → 解析为 US/index(碰撞门不劫持);
+    // 此前 toTencentSymbol 无守卫直接回 hkHSI(恒指),与 toEastmoneySecid 的
+    // 105.HSI(美股)对同一对象给出两个市场的数据
+    const usIdx = normalizeSymbol('HSI', { assetType: 'index' });
+    expect(usIdx.market).toBe('US');
+    expect(toTencentSymbol(usIdx)).toBe('usHSI'); // 按声明市场拼,不跨市场回 hkHSI
+  });
+
+  it('腾讯键规范形回读闭环:toTencentSymbol(normalize(自身产出)) 恒等', () => {
+    for (const [code, hint] of [
+      ['HSI', { market: 'HK' }],
+      ['HSCEI', { market: 'HK' }],
+      ['HSTECH', { market: 'HK' }],
+      ['DJI', { market: 'US' }],
+      ['INX', { market: 'US' }],
+      ['IXIC', { market: 'US' }],
+    ] as const) {
+      const key = toTencentSymbol(normalizeSymbol(code, hint));
+      // 产出形态直接回读(无 hint)必须还原同一个键 —— quotes.* 的静默返空即源于此断裂
+      expect(toTencentSymbol(normalizeSymbol(key))).toBe(key);
+    }
+  });
 });
 
 describe('toEastmoneySecid', () => {
@@ -93,14 +117,16 @@ describe('toEastmoneySecid', () => {
     );
   });
 
-  it('恒生系东财 secid:HSI/HSCEI 走 100. 前缀;HSTECH 东财无码回退 116.(仅腾讯可用)', () => {
+  it('恒生系东财 secid:HSI/HSCEI 走 100. 前缀;HSTECH 东财无码 fail-fast(仅腾讯可用)', () => {
     expect(toEastmoneySecid(normalizeSymbol('HSI', { market: 'HK' }))).toBe('100.HSI');
     expect(toEastmoneySecid(normalizeSymbol('HSCEI', { market: 'HK' }))).toBe(
       '100.HSCEI'
     );
-    expect(toEastmoneySecid(normalizeSymbol('HSTECH', { market: 'HK' }))).toBe(
-      '116.HSTECH'
-    );
+    // 此前 fall-through 拼出 '116.HSTECH' 垃圾 secid(上游 data:null 静默返空),
+    // 现与 toTencentSymbol 对 HSHCI 的 fail-fast 镜像一致
+    expect(() =>
+      toEastmoneySecid(normalizeSymbol('HSTECH', { market: 'HK' }))
+    ).toThrow(InvalidArgumentError);
   });
 
   it('美股指数东财 secid:规范码 DJI/INX/IXIC → 东财码 100.DJIA/100.SPX/100.NDX', () => {

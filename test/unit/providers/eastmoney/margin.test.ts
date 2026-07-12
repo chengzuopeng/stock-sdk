@@ -63,6 +63,20 @@ describe('Margin - getMarginTargetList', () => {
     await sdk.margin.targetList('2024-01-15');
   });
 
+  it("YYYYMMDD 形态归一为 ISO 再进 filter（此前 '20240115' 原样插入 → 上游静默零行）", async () => {
+    server.use(
+      http.get(DATACENTER_URL, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('filter')).toBe("(TRADE_DATE='2024-01-15')");
+        return HttpResponse.json({
+          result: { pages: 1, count: 0, data: [] },
+        });
+      })
+    );
+
+    await sdk.margin.targetList('20240115');
+  });
+
   it('omits filter when no date provided', async () => {
     server.use(
       http.get(DATACENTER_URL, ({ request }) => {

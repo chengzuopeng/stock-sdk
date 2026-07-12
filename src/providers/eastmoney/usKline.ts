@@ -20,6 +20,7 @@ import {
   toEastmoneySecid,
   EXCHANGE_TO_SECID_PREFIX,
 } from '../../symbols';
+import { lookupSpecialIndexByEastmoneySecid } from '../../symbols/specialIndex';
 import { getUSCodeList } from '../tencent/batch';
 import { fetchEmHistoryKline } from './utils';
 import {
@@ -63,23 +64,15 @@ function usSecidCache(client: RequestClient): MemoryCache<string> {
   });
 }
 
-// per-client 并发解析去重（single-flight）：N 个并发冷解析同一 ticker 时，
-// 若无此表每个都会独立跑代码表 find + 最多 3 发探测（3N 放大）。
-const inflightResolves = new WeakMap<RequestClient, Map<string, Promise<string>>>();
-
-function inflightResolveMap(client: RequestClient): Map<string, Promise<string>> {
-  let m = inflightResolves.get(client);
-  if (!m) {
-    m = new Map();
-    inflightResolves.set(client, m);
-  }
-  return m;
-}
-
 /**
  * 裸 ticker → 东财 secid。'105.AAPL' 等显式 secid（含 '100.GDAXI' raw-secid
  * 逃生口）直通；裸 ticker 经"代码表优先 → 105/106/107 探测兜底"解析，命中缓存
  * 7 天、未命中负缓存 1 小时。无效 ticker 抛 NotFoundError。
+ *
+ * 并发去重走 MemoryCache.getOrFetch 内置 single-flight（与 tencent/batch、
+ * tradeCalendar、boardCommon 同款,不再手搓 WeakMap 单飞表）:正向结论由
+ * getOrFetch 以 US_SECID_TTL 写入;负向哨兵在 probeUsSecid 内部按短 TTL
+ * 自写并抛错(抛错路径 getOrFetch 不落缓存,语义不变)。
  */
 async function resolveUsSecid(
   client: RequestClient,
@@ -96,24 +89,11 @@ async function resolveUsSecid(
   }
   const ticker = ns.code;
   const cache = usSecidCache(client);
-  const hit = cache.get(ticker);
-  if (hit === US_SECID_NOT_FOUND) {
+  // 负缓存哨兵与正向结论同表,须在 getOrFetch 之前拦截(否则哨兵串会被当 secid 返回)
+  if (cache.get(ticker) === US_SECID_NOT_FOUND) {
     throw new NotFoundError(`美股代码不存在或不支持: ${ticker}`, 'eastmoney');
   }
-  if (hit !== undefined) {
-    return hit;
-  }
-
-  const inflight = inflightResolveMap(client);
-  const pending = inflight.get(ticker);
-  if (pending) {
-    return pending;
-  }
-  const task = probeUsSecid(client, ticker, cache).finally(() =>
-    inflight.delete(ticker)
-  );
-  inflight.set(ticker, task);
-  return task;
+  return cache.getOrFetch(ticker, () => probeUsSecid(client, ticker, cache), US_SECID_TTL);
 }
 
 async function probeUsSecid(
@@ -130,8 +110,7 @@ async function probeUsSecid(
     codeListConsulted = true;
     const found = list.find((s) => s.slice(s.indexOf('.') + 1) === ticker);
     if (found) {
-      cache.set(ticker, found, US_SECID_TTL);
-      return found;
+      return found; // 正向写缓存由 getOrFetch 统一落(US_SECID_TTL)
     }
   } catch {
     // 代码表不可用（网络/上游异常）→ 退探测
@@ -147,8 +126,7 @@ async function probeUsSecid(
       buildEmKlineParams(secid, { klt: '101', fqt: '0', lmt: '1' })
     );
     if (resp.klines.length > 0) {
-      cache.set(ticker, secid, US_SECID_TTL);
-      return secid;
+      return secid; // 正向写缓存由 getOrFetch 统一落(US_SECID_TTL)
     }
   }
   // 仅在代码表【成功查询过且未收录】时才负缓存：代码表失败时探测全空可能是
@@ -160,6 +138,13 @@ async function probeUsSecid(
   throw new NotFoundError(`美股代码不存在或不支持: ${ticker}`, 'eastmoney');
 }
 
+// 特殊指数行 code 归一:secid '100.DJIA' 的行 code 应为规范形 'DJI'(与
+// quotes 端对齐,跨端 join 不失配)。按 secid 前缀反查注册表 —— 真实 ETF
+// 'DJIA'(105/106/107 前缀)不受影响。
+function canonicalUsRowCode(secid: string, rawCode: string): string {
+  return lookupSpecialIndexByEastmoneySecid(secid)?.code ?? rawCode;
+}
+
 const getUSHistoryKlineByFactory = createHistoryKlineProvider<USHistoryKline>({
   url: EM_US_KLINE_URL,
   tz: MARKET_TZ.US,
@@ -168,7 +153,10 @@ const getUSHistoryKlineByFactory = createHistoryKlineProvider<USHistoryKline>({
     fallbackCode: symbol.split('.')[1] || symbol,
   }),
   resolveResultMeta: (symbol, normalizedSymbol, response) => ({
-    code: response.code || normalizedSymbol.fallbackCode,
+    code: canonicalUsRowCode(
+      normalizedSymbol.secid,
+      response.code || normalizedSymbol.fallbackCode
+    ),
     name: response.name || '',
   }),
   enrichItem: (base) => ({
@@ -236,7 +224,7 @@ const getUSMinuteKlineByFactory = createMinuteKlineProvider<
   klineUrl: EM_US_KLINE_URL,
   resolveTarget: (symbol) => ({
     secid: symbol,
-    code: symbol.split('.')[1] || symbol,
+    code: canonicalUsRowCode(symbol, symbol.split('.')[1] || symbol),
   }),
   defaultPeriod: '1',
   ndays: 'option',

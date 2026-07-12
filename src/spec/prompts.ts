@@ -15,7 +15,6 @@
  * 收敛（如选股/市场概览改用 core 的 get_fund_flow_rank / 成分股 / 批量行情，
  * 不再引用 full 的 get_all_a_share_quotes / get_stock_changes / get_industry_spot）。
  */
-import { InvalidArgumentError } from '../core/errors';
 
 /** 一个技能参数（对应 MCP prompt argument：只有 name/description/required，无类型/枚举）。 */
 export interface PromptArgSpec {
@@ -47,12 +46,6 @@ export interface PromptSpec {
    */
   render: (args: Record<string, string>) => string;
 }
-
-/** 所有技能模板统一的收尾：用用户语言作答 + 只读安全纪律 + 数据缺失诚实。 */
-const FOOTER =
-  '\n\nIMPORTANT: Respond in the same language the user is using.\n' +
-  'Read and analyze only — never place orders or move funds. ' +
-  'If data is missing or a source returns nothing, say so honestly; do not fabricate numbers.';
 
 export const PROMPT_SPECS: PromptSpec[] = [
   // ============================ Core（4，默认启用） ============================
@@ -90,8 +83,7 @@ export const PROMPT_SPECS: PromptSpec[] = [
 - Signals: list recent valid signals (type + date) and judge reliability — corroborate with price/volume, don't just name them.
 
 [Output]
-Give (1) a one-line verdict (bullish / bearish / range-bound); (2) per-dimension points (trend / momentum / signals / risk); (3) an explicit note that this is technical analysis of public market data and not investment advice.` +
-      FOOTER,
+Give (1) a one-line verdict (bullish / bearish / range-bound); (2) per-dimension points (trend / momentum / signals / risk); (3) an explicit note that this is technical analysis of public market data and not investment advice.`,
   },
   {
     name: 'screen_stocks',
@@ -132,8 +124,7 @@ Give (1) a one-line verdict (bullish / bearish / range-bound); (2) per-dimension
 3. Confirm on the subset only: for each surviving candidate call \`get_kline_with_indicators\` and \`get_kline_signals\` to check the technical part of the criteria (e.g. MACD golden cross, RSI not overbought).
 
 [Output]
-Return a ranked shortlist — code, name, why it matched (the specific criteria met), and any caveat. State how many symbols you scanned vs. shortlisted. Never run per-symbol klines across thousands of names; always coarse-filter first.` +
-      FOOTER,
+Return a ranked shortlist — code, name, why it matched (the specific criteria met), and any caveat. State how many symbols you scanned vs. shortlisted. Never run per-symbol klines across thousands of names; always coarse-filter first.`,
   },
   {
     name: 'market_overview',
@@ -158,8 +149,7 @@ Return a ranked shortlist — code, name, why it matched (the specific criteria 
 4. \`get_fund_flow_rank\` — where main-force money is flowing (leaders by net inflow).
 
 [Output]
-A short brief: (1) market status line; (2) risk appetite read from limit-up breadth; (3) capital direction (northbound + main-force leaders); (4) a one-line takeaway. Note this is a single snapshot, not continuous monitoring.` +
-      FOOTER,
+A short brief: (1) market status line; (2) risk appetite read from limit-up breadth; (3) capital direction (northbound + main-force leaders); (4) a one-line takeaway. Note this is a single snapshot, not continuous monitoring.`,
   },
   {
     name: 'monitor_watchlist',
@@ -192,8 +182,7 @@ A short brief: (1) market status line; (2) risk appetite read from limit-up brea
    - \`get_kline_signals\` — any fresh technical signal (cross / breakout) on the daily.
 
 [Output]
-One line per symbol (price, change%, notable flag). Then call out the 1–3 names that crossed a threshold (big move / volume / main-force inflow / new signal) with a short why. This is a single snapshot — for continuous watching, re-run this skill on a schedule from your client.` +
-      FOOTER,
+One line per symbol (price, change%, notable flag). Then call out the 1–3 names that crossed a threshold (big move / volume / main-force inflow / new signal) with a short why. This is a single snapshot — for continuous watching, re-run this skill on a schedule from your client.`,
   },
 
   // ============================ Full（3，需 prompts=full 或点名） ============================
@@ -236,7 +225,7 @@ For a specific stock, lean on get_individual_fund_flow + get_dragon_tiger_detail
 For a market-wide read, lean on get_market_fund_flow + get_margin_account_info + the northbound picture.
 
 [Output]
-Read main-force intent — accumulation vs. distribution — corroborated across at least two independent flow sources (don't over-read a single day). List the concrete evidence per source, then a net judgment and key caveats.${FOOTER}`;
+Read main-force intent — accumulation vs. distribution — corroborated across at least two independent flow sources (don't over-read a single day). List the concrete evidence per source, then a net judgment and key caveats.`;
     },
   },
   {
@@ -268,8 +257,7 @@ Read main-force intent — accumulation vs. distribution — corroborated across
 4. \`get_fund_estimate\` — today's intraday NAV estimate (note: QDII / non-trading days / niche funds may return null or stale estimates — say so rather than guess).
 
 [Output]
-A structured review: (1) what it is (type / manager / size); (2) performance (returns across horizons, worst drawdown, volatility); (3) ranking percentile and whether it's consistent; (4) today's estimate with its caveat; (5) a balanced takeaway on strengths / risks. Public data only, not investment advice.` +
-      FOOTER,
+A structured review: (1) what it is (type / manager / size); (2) performance (returns across horizons, worst drawdown, volatility); (3) ranking percentile and whether it's consistent; (4) today's estimate with its caveat; (5) a balanced takeaway on strengths / risks. Public data only, not investment advice.`,
   },
   {
     name: 'diagnose_stock',
@@ -300,7 +288,6 @@ A structured review: (1) what it is (type / manager / size); (2) performance (re
 - Chips: \`get_chip_distribution\` (profit ratio, 90/70 cost range, concentration).
 
 [Output]
-Score each dimension (technical / capital / chips) as bullish / neutral / bearish with the evidence, then a combined read and the key risks. Be explicit where dimensions disagree. Public-data technical analysis, not investment advice.` +
-      FOOTER,
+Score each dimension (technical / capital / chips) as bullish / neutral / bearish with the evidence, then a combined read and the key risks. Be explicit where dimensions disagree. Public-data technical analysis, not investment advice.`,
   },
 ];

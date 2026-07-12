@@ -56,9 +56,9 @@ describe('F40 对拍:重构前后输出一致(旧实现快照)', () => {
       ['116', 'hk700', 'https://quote.eastmoney.com/hk/00700.html', 'https://xueqiu.com/S/00700'],
       ['116', '700', 'https://quote.eastmoney.com/hk/00700.html', 'https://xueqiu.com/S/00700'],
       ['116', 'HK00700', 'https://quote.eastmoney.com/hk/00700.html', 'https://xueqiu.com/S/00700'],
-      // 带 hk 前缀的字母代码:旧实现剥前缀后 padStart 得 '00HSI',
-      // symbols 层 hk 前缀路径同样补零 → 输出一致
-      ['116', 'hkHSI', 'https://quote.eastmoney.com/hk/00HSI.html', 'https://xueqiu.com/S/00HSI'],
+      // 'hkHSI' 规范形回读修复后解析为恒生指数(assetType:index) → 非 stock
+      // 统一走搜索兜底 —— 此前拼出的 hk/00HSI 本就是必失效死链,兜底是改善
+      ['116', 'hkHSI', 'https://so.eastmoney.com/web/s?keyword=hkHSI', 'https://xueqiu.com/k?q=hkHSI'],
     ]);
   });
 

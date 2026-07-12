@@ -23,6 +23,10 @@ export function calcATR(
   options: ATROptions = {}
 ): ATRResult[] {
   const { period = 14, decimals } = options;
+  // 非正整数 period(0 / 负数 / 小数 / NaN)会让播种在空窗口上"集齐"
+  // (0===0 → atr=0/0=NaN 传染整条序列),与修复前的全 null 行为回归 ——
+  // 非法周期统一产出 atr 全 null(tr 仍逐根计算),与其余指标的宽容语义一致
+  const validPeriod = Number.isInteger(period) && period >= 1;
 
   const result: ATRResult[] = [];
   const tr: (number | null)[] = [];
@@ -61,7 +65,7 @@ export function calcATR(
   let atr: number | null = null;
 
   for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) {
+    if (!validPeriod || i < period - 1) {
       result.push({ tr: tr[i] !== null ? round(tr[i]!, decimals) : null, atr: null });
       continue;
     }
