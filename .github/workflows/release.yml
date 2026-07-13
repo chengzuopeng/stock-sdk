@@ -29,13 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           # Node 24:npm@12(latest)要求 node ^22.22.2 || ^24.15.0 || >=26 ——
           # 此前钉 20 时 npm@latest 升到 12.0.1 直接 EBADENGINE,v2.4.0 发布因此失败
