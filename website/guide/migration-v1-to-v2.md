@@ -83,7 +83,7 @@ v2 是一次**架构跃迁**而非「再加接口」：在不扩展数据源的�
 | `sdk.getDragonTigerDetail(...)` / `getDragonTigerInstitution(...)` … | `sdk.dragonTiger.detail(...)` / `.institution(...)` … |
 | `sdk.getBlockTradeDetail(...)` / `getBlockTradeDailyStat(...)` | `sdk.blockTrade.detail(...)` / `.dailyStat(...)` |
 | `sdk.getMarginAccountInfo(...)` / `getMarginTargetList(...)` | `sdk.margin.accountInfo(...)` / `.targetList(...)` |
-| `sdk.getFundNavHistory(...)` / `getFundEstimate(...)` … | `sdk.fund.navHistory(...)` / `.estimate(...)` … |
+| `sdk.getFundNavHistory(...)` / `getFundRankHistory(...)` … | `sdk.fund.navHistory(...)` / `.rankHistory(...)` … |
 | `sdk.isTradingDay(...)` / `nextTradingDay(...)` … | `sdk.calendar.isTradingDay(...)` / `.nextTradingDay(...)` … |
 | `sdk.getDividendDetail(symbol)` / `getTradingCalendar()` | `sdk.reference.dividendDetail(symbol)` / `.tradingCalendar()` |
 | `sdk.search(keyword)` | `sdk.search(keyword)`（顶层保留） |

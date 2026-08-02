@@ -20,7 +20,7 @@
 | 技能 | 参数 | 底层工具 | 做什么 |
 |---|---|---|---|
 | `analyze_capital_flow` | `symbol`(可选) | 个股/大盘资金流 / 龙虎榜 + 席位 / 大宗 / 两融 / 北向 | 主力动向研判：多资金源交叉验证吸筹 vs 派发 |
-| `analyze_fund` | `fundCode`(必填，6 位) | `get_fund_profile` / `get_fund_nav_history` / `get_fund_rank_history` / `get_fund_estimate` | 基金综合评估：档案 + 净值走势 + 同类排名 + 当日估值 |
+| `analyze_fund` | `fundCode`(必填，6 位) | `get_fund_profile` / `get_fund_nav_history` / `get_fund_rank_history` | 基金综合评估：档案 + 净值走势 + 同类排名 |
 | `diagnose_stock` | `symbol`(必填) | 指标 + 信号 / 资金流 / 龙虎榜统计 / 筹码分布 | 个股综合诊断：技术 + 资金 + 筹码三维打分 |
 
 > `analyze_capital_flow` 正好用上大宗交易 / 融资融券工具，是它们最自然的消费场景。

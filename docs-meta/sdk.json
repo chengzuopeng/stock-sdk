@@ -247,7 +247,6 @@
         "methods": [
           "fund.dividendList",
           "fund.navHistory",
-          "fund.estimate",
           "fund.rankHistory",
           "fund.profile",
           "fund.theme.getThemeList",

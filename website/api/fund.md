@@ -1,6 +1,6 @@
 # fund · 公募基金扩展
 
-公募基金深度数据：分红送配、历史净值、实时估值、同类排名走势、主题基金。
+公募基金深度数据：分红送配、历史净值、同类排名走势、主题基金。
 
 基金的实时行情请走 [`sdk.quotes.fund()`](./quotes.md)，本命名空间是它的扩展。所有方法挂在 `sdk.fund` 命名空间下，由内部 `FundService` 承载，数据来源为东方财富 / 天天基金。
 
@@ -10,12 +10,15 @@
 |---|---|
 | `sdk.fund.dividendList(options?)` | 按年份分页查询全市场基金分红送配明细 |
 | `sdk.fund.navHistory(code)` | 单只基金完整历史净值（单位净值 + 累计净值） |
-| `sdk.fund.estimate(code)` | 当日盘中实时估值 + 最新已结算净值 |
 | `sdk.fund.rankHistory(code)` | 同类排名走势（近三月排名 + 百分位） |
 | `sdk.fund.profile(code)` | 基金深度资料（重仓股 / 资产配置 / 基金经理 / 业绩评价等，一次返回） |
 | `sdk.fund.theme.*` | 主题基金：主题列表、热门排行、主题下基金排行 |
 
 > 符号入参遵循 v2 统一约定：基金代码为纯数字字符串（如 `'110011'`）。具体字段以实现为准。
+
+::: warning sdk.fund.estimate 已于 v2.4.1 移除
+当日盘中实时估值依赖的上游接口 `fundgz.1234567.com.cn` 已下线（返回 HTML 错误页而非数据），暂未找到可替代的估值数据源，故移除 `sdk.fund.estimate` / `get_fund_estimate` / CLI `fund estimate`。已结算净值请改用 [`sdk.fund.navHistory(code)`](#sdk-fund-navhistory)。
+:::
 
 ## sdk.fund.dividendList
 
@@ -148,43 +151,6 @@ interface FundNavPoint {
 ::: tip 数据量提示
 单次响应较大（约 600KB / gzip 后约 120KB）。同一基金多次使用建议借助 [统一缓存层](../guide/installation.md) 或自行缓存。
 :::
-
-## sdk.fund.estimate
-
-获取基金当日盘中实时估值（来自天天基金 fundgz 接口）。
-
-同时返回最新已结算的单位净值（`nav` + `navDate`）和盘中实时估算（`estimatedNav` + `estimatedChangePercent` + `estimateTime`），适合做「当日实时表现 vs 上一收盘」对比。
-
-QDII / 非交易日 / 部分小众基金的盘中估算字段可能为空，会返回 `null`。
-
-### 参数
-
-| 参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `code` | `string` | 是 | 基金代码（纯数字，如 `'005827'`） |
-
-### 调用示例
-
-```ts
-const e = await sdk.fund.estimate('005827');
-console.log(`${e.name}  最新净值 ${e.nav}（${e.navDate}）`);
-console.log(`盘中估算 ${e.estimatedNav}  (${e.estimatedChangePercent}%)`);
-console.log(`估算时间 ${e.estimateTime}`);
-```
-
-### 返回说明
-
-```ts
-interface FundEstimate {
-  code: string;
-  name: string | null;
-  navDate: string | null;                // 已结算净值日期 YYYY-MM-DD
-  nav: number | null;                    // 已结算单位净值
-  estimatedNav: number | null;           // 盘中实时估值
-  estimatedChangePercent: number | null; // 估算涨跌幅（百分数，如 1.23）
-  estimateTime: string | null;           // 估算时间，如 "2026-05-26 15:00"
-}
-```
 
 ## sdk.fund.rankHistory
 

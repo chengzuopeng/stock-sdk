@@ -1,6 +1,6 @@
 # fund · Mutual Fund Extended Data
 
-Deep data for mutual funds: dividends & bonuses, NAV history, intraday estimates, same-category rank history, and theme funds.
+Deep data for mutual funds: dividends & bonuses, NAV history, same-category rank history, and theme funds.
 
 For real-time fund quotes, use [`sdk.quotes.fund()`](./quotes.md); this namespace is its extension. All methods live under `sdk.fund`, served by the internal `FundService`. Data sources: EastMoney / Tian Tian Fund.
 
@@ -10,12 +10,15 @@ For real-time fund quotes, use [`sdk.quotes.fund()`](./quotes.md); this namespac
 |---|---|
 | `sdk.fund.dividendList(options?)` | Paginated, by-year dividend & bonus events across the whole market |
 | `sdk.fund.navHistory(code)` | Full NAV history of a single fund (unit NAV + accumulated NAV) |
-| `sdk.fund.estimate(code)` | Today's intraday estimate + latest settled NAV |
 | `sdk.fund.rankHistory(code)` | Same-category rank trend (trailing-3-month rank + percentile) |
 | `sdk.fund.profile(code)` | Fund deep profile (holdings / asset allocation / managers / evaluation, in one call) |
 | `sdk.fund.theme.*` | Theme funds: theme list, hot themes, funds by theme |
 
 > Symbol inputs follow the v2 convention: a fund code is a plain numeric string (e.g. `'110011'`). Exact fields follow the final implementation.
+
+::: warning sdk.fund.estimate was removed in v2.4.1
+The upstream endpoint behind intraday NAV estimates (`fundgz.1234567.com.cn`) has shut down — it now returns an HTML error page instead of data — and no replacement source is available, so `sdk.fund.estimate` / `get_fund_estimate` / CLI `fund estimate` were removed. For settled NAV, use [`sdk.fund.navHistory(code)`](#sdk-fund-navhistory) instead.
+:::
 
 ## sdk.fund.dividendList
 
@@ -148,43 +151,6 @@ interface FundNavPoint {
 ::: tip Payload size
 A single response is large (~600KB, ~120KB gzipped). For repeated use of the same fund, lean on the [unified cache layer](../guide/installation.md) or cache it yourself.
 :::
-
-## sdk.fund.estimate
-
-Get a fund's intraday estimate for today (from Tian Tian Fund's fundgz endpoint).
-
-Returns both the latest settled unit NAV (`nav` + `navDate`) and the intraday estimate (`estimatedNav` + `estimatedChangePercent` + `estimateTime`) — handy for a "live today vs. last close" comparison.
-
-Intraday estimate fields may be empty (returned as `null`) for QDII / non-trading days / certain niche funds.
-
-### Parameters
-
-| Param | Type | Required | Description |
-|---|---|---|---|
-| `code` | `string` | Yes | Fund code (numeric, e.g. `'005827'`) |
-
-### Example
-
-```ts
-const e = await sdk.fund.estimate('005827');
-console.log(`${e.name}  latest NAV ${e.nav} (${e.navDate})`);
-console.log(`intraday est. ${e.estimatedNav} (${e.estimatedChangePercent}%)`);
-console.log(`est. time ${e.estimateTime}`);
-```
-
-### Returns
-
-```ts
-interface FundEstimate {
-  code: string;
-  name: string | null;
-  navDate: string | null;                // settled NAV date YYYY-MM-DD
-  nav: number | null;                    // settled unit NAV
-  estimatedNav: number | null;           // intraday estimate
-  estimatedChangePercent: number | null; // estimated change (percent, e.g. 1.23)
-  estimateTime: string | null;           // estimate time, e.g. "2026-05-26 15:00"
-}
-```
 
 ## sdk.fund.rankHistory
 

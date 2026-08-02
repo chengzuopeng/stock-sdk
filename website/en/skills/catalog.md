@@ -20,7 +20,7 @@ Example:
 | Skill | Arguments | Underlying tools | What it does |
 |---|---|---|---|
 | `analyze_capital_flow` | `symbol` (optional) | per-stock/market fund flow / dragon-tiger + seats / block trades / margin / northbound | Smart-money read: cross-confirm accumulation vs. distribution across sources |
-| `analyze_fund` | `fundCode` (required, 6-digit) | `get_fund_profile` / `get_fund_nav_history` / `get_fund_rank_history` / `get_fund_estimate` | Fund review: profile + NAV history + category ranking + intraday estimate |
+| `analyze_fund` | `fundCode` (required, 6-digit) | `get_fund_profile` / `get_fund_nav_history` / `get_fund_rank_history` | Fund review: profile + NAV history + category ranking |
 | `diagnose_stock` | `symbol` (required) | indicators + signals / fund flow / dragon-tiger stats / chip distribution | Multi-factor diagnosis: technical + capital + chips, scored |
 
 > `analyze_capital_flow` is the natural consumer of the block-trade / margin tools.

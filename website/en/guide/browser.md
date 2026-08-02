@@ -45,7 +45,7 @@ You cannot "disable" CORS from frontend code. Requesting an endpoint that doesn'
 
 ## `<script>`-injected data sources
 
-Some upstream sources (e.g. parts of Sina quotes, Tencent search smartbox, fund-valuation fundgz) provide data as **JSONP / global variables**. These sources **don't go through standard `fetch`**; instead the browser dynamically inserts a `<script>` tag and reads the global variable the script attaches to `window`—because `<script>` loading is exempt from the same-origin policy, this bypasses CORS.
+Some upstream sources (e.g. parts of Sina quotes, Tencent search smartbox, Tian Tian Fund pingzhongdata) provide data as **JSONP / global variables**. These sources **don't go through standard `fetch`**; instead the browser dynamically inserts a `<script>` tag and reads the global variable the script attaches to `window`—because `<script>` loading is exempt from the same-origin policy, this bypasses CORS.
 
 stock-sdk wraps this mechanism internally (`core/jsVars.ts` + `core/scriptMutex.ts`), transparently to the caller: call the method as usual, and the SDK picks the correct fetch path for the current environment.
 

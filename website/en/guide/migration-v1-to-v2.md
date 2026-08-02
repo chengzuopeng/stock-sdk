@@ -83,7 +83,7 @@ All methods move into namespaces, with **no compatibility aliases**. The tables 
 | `sdk.getDragonTigerDetail(...)` / `getDragonTigerInstitution(...)` … | `sdk.dragonTiger.detail(...)` / `.institution(...)` … |
 | `sdk.getBlockTradeDetail(...)` / `getBlockTradeDailyStat(...)` | `sdk.blockTrade.detail(...)` / `.dailyStat(...)` |
 | `sdk.getMarginAccountInfo(...)` / `getMarginTargetList(...)` | `sdk.margin.accountInfo(...)` / `.targetList(...)` |
-| `sdk.getFundNavHistory(...)` / `getFundEstimate(...)` … | `sdk.fund.navHistory(...)` / `.estimate(...)` … |
+| `sdk.getFundNavHistory(...)` / `getFundRankHistory(...)` … | `sdk.fund.navHistory(...)` / `.rankHistory(...)` … |
 | `sdk.isTradingDay(...)` / `nextTradingDay(...)` … | `sdk.calendar.isTradingDay(...)` / `.nextTradingDay(...)` … |
 | `sdk.getDividendDetail(symbol)` / `getTradingCalendar()` | `sdk.reference.dividendDetail(symbol)` / `.tradingCalendar()` |
 | `sdk.search(keyword)` | `sdk.search(keyword)` (kept at top level) |

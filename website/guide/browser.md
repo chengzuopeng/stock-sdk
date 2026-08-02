@@ -45,7 +45,7 @@ const quotes = await sdk.quotes.cn(['600519', '000001'])
 
 ## `<script>` 注入式数据源
 
-部分上游数据源（如新浪的部分行情、腾讯搜索 smartbox、基金估值 fundgz）以 **JSONP / 全局变量** 形式提供数据。这类源**不走标准 `fetch`**，而是浏览器端通过动态插入 `<script>` 标签、读取脚本执行后挂在 `window` 上的全局变量来取数——因为 `<script>` 加载不受同源策略限制，从而绕过 CORS。
+部分上游数据源（如新浪的部分行情、腾讯搜索 smartbox、天天基金 pingzhongdata）以 **JSONP / 全局变量** 形式提供数据。这类源**不走标准 `fetch`**，而是浏览器端通过动态插入 `<script>` 标签、读取脚本执行后挂在 `window` 上的全局变量来取数——因为 `<script>` 加载不受同源策略限制，从而绕过 CORS。
 
 stock-sdk 内部封装了这套机制（`core/jsVars.ts` + `core/scriptMutex.ts`），对调用方透明：你照常调用对应方法即可，SDK 自动按当前环境选取正确的取数路径。
 

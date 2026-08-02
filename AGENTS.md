@@ -21,7 +21,7 @@
 - 涨停跌停股池（含连板数）、盘口异动（支持多类型/all + 个股当日与近 N 天异动历史）、板块异动
 - 龙虎榜（详情 / 个股统计 / 机构 / 营业部 / 席位明细）
 - 大宗交易、融资融券
-- 公募基金扩展（分红 / 历史净值 / 实时估值 / 同类排名 / 档案 / 主题基金）
+- 公募基金扩展（分红 / 历史净值 / 同类排名 / 档案 / 主题基金）
 - 交易日历、市场开休市状态、股票搜索、分红数据
 - 期货数据、期权数据
 - 技术指标计算、指标信号识别、链式选股器、本地回测
@@ -120,7 +120,7 @@ src/
 │   ├── northboundService.ts # 沪深港通 / 北向
 │   ├── marketEventService.ts# 涨停 / 盘口异动
 │   ├── dragonTigerService.ts# 龙虎榜
-│   ├── fundService.ts       # 公募基金扩展(分红/净值/估值/排名/档案)
+│   ├── fundService.ts       # 公募基金扩展(分红/净值/排名/档案)
 │   ├── tradingCalendarService.ts # 交易日历 / 市场状态
 │   ├── dataService.ts       # 代码列表/批量/搜索/分红/大宗/融资融券
 │   └── index.ts             # 导出全部 service
@@ -243,8 +243,9 @@ export async function getQuotes(codes: string[]): Promise<Quote[]> {
 
    | 状态 | Host |
    |------|------|
-   | ✅ 已验证可用 | 腾讯 `qt.gtimg.cn` / `web.ifzq.gtimg.cn` / `smartbox.gtimg.cn`；东财 `push2*.eastmoney.com`（含 push2his / push2ex）、`datacenter-web.eastmoney.com`、`futsseapi.eastmoney.com`、`fund.eastmoney.com`（pingzhongdata 等）、`fundgz.1234567.com.cn`；新浪 `stock.finance.sina.com.cn` |
+   | ✅ 已验证可用 | 腾讯 `qt.gtimg.cn` / `web.ifzq.gtimg.cn` / `smartbox.gtimg.cn`；东财 `push2*.eastmoney.com`（含 push2his / push2ex）、`datacenter-web.eastmoney.com`、`futsseapi.eastmoney.com`、`fund.eastmoney.com`（pingzhongdata 等）；新浪 `stock.finance.sina.com.cn` |
    | ❌ 已知封锁 | `fundmobapi.eastmoney.com`（天天基金 App 专用，反爬；非 App 客户端仅返回"网络繁忙"业务错误或 404，`fund.theme.getHotThemes` 因此下线） |
+   | 💀 已下线 | `fundgz.1234567.com.cn`（基金实时估值；2026-07 起全量返回 HTML 错误页而非 JSONP，`fund.estimate` 因此在 v2.4.1 移除。注意它是 **HTTP 200 + HTML**，不是 4xx，判活必须看 content-type） |
 
 5. **浏览器端真验证**：浏览器专用 / 双端数据源要在真实浏览器里打通一次（CORS / Referer 校验只有浏览器环境能暴露）。
 6. **网络不可达不是豁免**：本机网络访问不到上游时（部分办公网屏蔽财经接口），换网络实测或贴可复现的 curl 证据，不要跳过验证直接合并。
@@ -584,7 +585,6 @@ stock-sdk mcp
 |------|------|
 | `fund.dividendList(options)` | 基金 / ETF 分红明细 |
 | `fund.navHistory(code)` | 基金历史净值（单位 + 累计） |
-| `fund.estimate(code)` | 当日实时估值（T-1 净值 + 盘中估算） |
 | `fund.rankHistory(code)` | 同类排名走势 |
 | `fund.profile(code)` | 基金档案 / 基本概况 |
 | `fund.theme.getThemeList(options?)` | 主题基金列表（行业 / 概念，各阶段收益率，排序分页） |
