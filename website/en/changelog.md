@@ -6,6 +6,22 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.4.1
+
+> Released: Unreleased
+
+### Breaking changes
+
+> Shipped as a patch release: the removed method was already **100% non-functional** because its upstream shut down (every call either threw or returned nulls), so removing it breaks no code that previously worked.
+
+- **Removed `fund.estimate` (intraday fund NAV estimate)**: the upstream `fundgz.1234567.com.cn` has shut down — every fund request now returns **HTTP 200 with an HTML error page** instead of JSONP data ([#64](https://github.com/chengzuopeng/stock-sdk/issues/64)). Alternative sources (`pingzhongdata`, `fundmobapi`) were evaluated and none serve intraday estimates, so the method was removed outright rather than left as an endpoint guaranteed to fail.
+
+  Affected public surface: SDK `sdk.fund.estimate()`, MCP tool `get_fund_estimate` (core tier, so the core tool count goes 27 → 26), CLI `fund estimate`, the `FundEstimate` type, and the reference to that tool in the `analyze_fund` skill.
+
+  **Migration**: for settled NAV (`nav` / `navDate`), use the last entry of `sdk.fund.navHistory(code)`. There is no replacement for the intraday estimate — it will return if a reliable source is found.
+
+  > The outage surfaced differently per environment: browsers threw `SdkError: fundgz JSONP script load failed`, while Node **silently returned an all-null result**, indistinguishable from the documented "QDII / non-trading day estimates may be null" case.
+
 ## v2.4.0
 
 > Released: Unreleased

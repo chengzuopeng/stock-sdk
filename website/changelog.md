@@ -6,6 +6,22 @@ pageClass: changelog-page
 
 本页记录 Stock SDK 的版本更新历史。v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
 
+## v2.4.1
+
+> 发布时间：待发布
+
+### 破坏性变更
+
+> 按 patch 版本发布：被移除的方法因上游下线已 **100% 不可用**（调用必然报错或返回空值），移除它不会让任何原本能跑通的代码失效。
+
+- **移除 `fund.estimate`（基金当日实时估值）**：上游 `fundgz.1234567.com.cn` 已下线——全量基金请求返回 **HTTP 200 + HTML 错误页**而非 JSONP 数据（[#64](https://github.com/chengzuopeng/stock-sdk/issues/64)）。已排查 `pingzhongdata` / `fundmobapi` 等替代源，均不提供盘中估值，故整体移除而非留一个必然失败的接口。
+
+  受影响的对外表面：SDK `sdk.fund.estimate()`、MCP 工具 `get_fund_estimate`（core 层，core 工具数 27 → 26）、CLI `fund estimate`、类型 `FundEstimate`，以及 `analyze_fund` 技能中对该工具的引用。
+
+  **迁移**：已结算净值（`nav` / `navDate`）改用 `sdk.fund.navHistory(code)` 取最后一项。盘中估值暂无替代方案——找到可靠数据源后会重新提供。
+
+  > 此前该接口的失效在两端表现不同：浏览器端抛 `SdkError: fundgz JSONP script load failed`，Node 端则**静默返回全 null**，与文档里「QDII / 非交易日估算可能为 null」的正常情况无法区分。
+
 ## v2.4.0
 
 > 发布时间：待发布
