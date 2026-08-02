@@ -102,7 +102,6 @@ exports[`prompts-contract⑦: 技能清单快照（name/tier/args/usesTools 变�
       "get_fund_profile",
       "get_fund_nav_history",
       "get_fund_rank_history",
-      "get_fund_estimate",
     ],
   },
   {

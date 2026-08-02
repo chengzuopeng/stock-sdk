@@ -2,8 +2,7 @@
  * 浏览器全局名级互斥锁
  *
  * 用于"通过 `<script>` 注入读固定全局变量 / 固定 callback 名"这种本质上无法并发的
- * 接口（典型：东方财富 pingzhongdata.js 的固定 `Data_netWorthTrend` 等变量，
- * 天天基金 fundgz 的固定 `jsonpgz` callback）。
+ * 接口（典型：东方财富 pingzhongdata.js 的固定 `Data_netWorthTrend` 等变量）。
  *
  * 工作方式：每个 key 维护一个 promise 队列，同 key 的请求串行执行；不同 key
  * 的请求互不阻塞。前一次任务无论成功失败都会释放队列，不阻断后续。

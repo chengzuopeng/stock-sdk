@@ -102,30 +102,6 @@ export interface FundNavHistory {
   items: FundNavPoint[];
 }
 
-/**
- * 基金当日实时估值（来自天天基金 fundgz 接口）。
- *
- * 含两类净值：
- * - `nav` / `navDate`：最新已结算的单位净值（T-1 或当日盘后）
- * - `estimatedNav` / `estimatedChangePercent` / `estimateTime`：盘中实时估值
- */
-export interface FundEstimate {
-  /** 基金代码 */
-  code: string;
-  /** 基金简称 */
-  name: string | null;
-  /** 最新已结算单位净值的日期 `YYYY-MM-DD`，无则 `null` */
-  navDate: string | null;
-  /** 最新已结算单位净值，无则 `null` */
-  nav: number | null;
-  /** 当日实时估值（盘中刷新），无则 `null`（如非交易日、QDII 等） */
-  estimatedNav: number | null;
-  /** 估算涨跌幅 `%`，无则 `null` */
-  estimatedChangePercent: number | null;
-  /** 估算时间原始字符串（如 `"2026-05-26 15:00"`，A 股时区），无则 `null` */
-  estimateTime: string | null;
-}
-
 /** 单条同类排名点（与 `Data_rateInSimilarType` 一一对应） */
 export interface FundRankPoint {
   /** 报告日期 `YYYY-MM-DD` */

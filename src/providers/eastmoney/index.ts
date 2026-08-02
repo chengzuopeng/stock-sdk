@@ -51,11 +51,10 @@ export {
 // 分红派送
 export { getDividendDetail } from './dividend';
 
-// 公募基金扩展数据（分红 / 历史净值 / 估值 / 排名 / 深度资料 等）
+// 公募基金扩展数据（分红 / 历史净值 / 排名 / 深度资料 等）
 export {
   getFundDividendList,
   getFundNavHistory,
-  getFundEstimate,
   getFundRankHistory,
   getFundProfile,
 } from './fund';

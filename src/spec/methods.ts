@@ -1372,17 +1372,6 @@ export const METHOD_SPECS: MethodSpec[] = [
     positional: [CODE_REQ('基金代码，纯数字，如 110011')],
   },
   {
-    path: ['fund', 'estimate'],
-    toolName: 'get_fund_estimate',
-    tier: 'core',
-    summary: '基金当日估值',
-    mcpDesc:
-      '获取基金当日实时估值（天天基金 fundgz 接口）。同时返回最新已结算单位净值（nav/navDate）与盘中实时估算' +
-      '（estimatedNav/estimatedChangePercent/estimateTime，涨跌幅单位 %）。QDII / 非交易日 / 部分小众基金的估算字段可能为 null。',
-    argShape: 'positional',
-    positional: [CODE_REQ('基金代码，纯数字，如 005827')],
-  },
-  {
     path: ['fund', 'rankHistory'],
     toolName: 'get_fund_rank_history',
     summary: '基金同类排名走势',

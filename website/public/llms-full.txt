@@ -4,7 +4,7 @@
 > 单一事实源）与 `src/types` 自动生成，目的是让 AI 工具**一次性读取** stock-sdk 的全部
 > 命名空间方法、参数与返回数据结构。**请勿手改本文件**——改 spec / types 后重新生成。
 >
-> 版本：v2.4.0 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
+> 版本：v2.4.1 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
 
 ## 这是什么
 
@@ -44,7 +44,7 @@ import { screen, backtest } from 'stock-sdk/screener';
 
 ### 安装与模块格式
 
-- 最新版：`npm i stock-sdk`（当前 v2.4.0）
+- 最新版：`npm i stock-sdk`（当前 v2.4.1）
 - v1 旧版（已封存）：`npm i stock-sdk@legacy`
 - **ESM + CommonJS** 双格式；主包 `import { StockSDK } from 'stock-sdk'`
 - 纯计算 subpath：`stock-sdk/{indicators,signals,symbols,screener,cache,errors,mcp}`（tree-shake 友好，不拖入全部 provider）
@@ -81,7 +81,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 - `market_overview` (core; args: 无参数) — Today's A-share snapshot: market status, limit-up breadth, northbound flow, main-force money direction.
 - `monitor_watchlist` (core; args: symbols) — Single-shot check of a watchlist: batch quotes, then drill into names that crossed a threshold.
 - `analyze_capital_flow` (full; args: symbol?) — Smart-money / main-force read for one stock or the broad market: fund flow + dragon-tiger + block trades + margin + northbound.
-- `analyze_fund` (full; args: fundCode) — Mutual-fund review: profile + NAV history + category ranking + intraday estimate.
+- `analyze_fund` (full; args: fundCode) — Mutual-fund review: profile + NAV history + category ranking.
 - `diagnose_stock` (full; args: symbol) — Cross-dimension diagnosis of one stock: technicals + capital + chips, scored and combined.
 
 ### 行情类型说明
@@ -108,7 +108,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ---
 
-## 一、命名空间方法（共 94 个）
+## 一、命名空间方法（共 93 个）
 
 > 形如 `sdk.quotes.cn(codes)` / `sdk.kline.cn(symbol, options?)`；`codes[]` 形态的方法第一个参数为 **string[]**。
 > 标注 **CLI 专属** 的参数/flag 不应传入 SDK options（除非文档明确说明 SDK 消费）。
@@ -446,8 +446,6 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `options.code` (string, SDK / MCP): 按基金代码过滤（客户端过滤），一般搭配 page='all' 使用
 - **`sdk.fund.navHistory(code)`** — 获取基金历史净值（单位净值 + 累计净值，全历史一次返回，按日期升序）。开放式 / ETF / LOF / 货币 / QDII 均通用。⚠️ 体积大：全历史数千条、响应体约 600KB，建议应用层缓存。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
-- **`sdk.fund.estimate(code)`** — 获取基金当日实时估值（天天基金 fundgz 接口）。同时返回最新已结算单位净值（nav/navDate）与盘中实时估算（estimatedNav/estimatedChangePercent/estimateTime，涨跌幅单位 %）。QDII / 非交易日 / 部分小众基金的估算字段可能为 null。
-    - `code` (位置参数, 必填): 基金代码，纯数字，如 005827
 - **`sdk.fund.rankHistory(code)`** — 获取基金同类排名走势（每日近三月排名 + 同类总数 + 排名百分位 %，按日期升序）。适合画「该基金在同类里的相对表现」折线图。数据源同 get_fund_nav_history。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
 - **`sdk.fund.profile(code)`** — 一次请求获取基金深度资料（东方财富 pingzhongdata 全量字段）：前十大重仓股、前五大债券、季度资产配置、每日股票仓位测算、基金经理（含星级与能力评分）、业绩评价、持有人结构、规模变动、申购赎回、阶段收益率（近1月/3月/6月/1年）、同类基金等。字段随基金类型与数据完整度可能为空。与 navHistory / rankHistory 同源（同一份 pingzhongdata 文件，约 600KB），建议应用层缓存。
@@ -1606,30 +1604,6 @@ export interface FundNavHistory {
   name: string | null;
   /** 历史净值序列；按日期升序（与数据源一致） */
   items: FundNavPoint[];
-}
-
-/**
- * 基金当日实时估值（来自天天基金 fundgz 接口）。
- *
- * 含两类净值：
- * - `nav` / `navDate`：最新已结算的单位净值（T-1 或当日盘后）
- * - `estimatedNav` / `estimatedChangePercent` / `estimateTime`：盘中实时估值
- */
-export interface FundEstimate {
-  /** 基金代码 */
-  code: string;
-  /** 基金简称 */
-  name: string | null;
-  /** 最新已结算单位净值的日期 `YYYY-MM-DD`，无则 `null` */
-  navDate: string | null;
-  /** 最新已结算单位净值，无则 `null` */
-  nav: number | null;
-  /** 当日实时估值（盘中刷新），无则 `null`（如非交易日、QDII 等） */
-  estimatedNav: number | null;
-  /** 估算涨跌幅 `%`，无则 `null` */
-  estimatedChangePercent: number | null;
-  /** 估算时间原始字符串（如 `"2026-05-26 15:00"`，A 股时区），无则 `null` */
-  estimateTime: string | null;
 }
 
 /** 单条同类排名点（与 `Data_rateInSimilarType` 一一对应） */

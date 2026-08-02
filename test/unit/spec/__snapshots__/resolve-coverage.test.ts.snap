@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`R7-15②: MCP invoke 的 path / 位置参数 / options 键集快照 > 93 个 MCP 工具的调用契约与快照一致 1`] = `
+exports[`R7-15②: MCP invoke 的 path / 位置参数 / options 键集快照 > 92 个 MCP 工具的调用契约与快照一致 1`] = `
 {
   "get_a_share_code_list": {
     "argCount": 1,
@@ -230,11 +230,6 @@ exports[`R7-15②: MCP invoke 的 path / 位置参数 / options 键集快照 > 9
       "year",
     ],
     "path": "fund.dividendList",
-  },
-  "get_fund_estimate": {
-    "argCount": 1,
-    "argShape": "positional",
-    "path": "fund.estimate",
   },
   "get_fund_flow": {
     "argCount": 1,

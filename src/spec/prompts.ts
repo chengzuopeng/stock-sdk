@@ -232,7 +232,7 @@ Read main-force intent — accumulation vs. distribution — corroborated across
     name: 'analyze_fund',
     title: 'Analyze fund',
     description:
-      'Mutual-fund review: profile + NAV history + category ranking + intraday estimate.',
+      'Mutual-fund review: profile + NAV history + category ranking.',
     tier: 'full',
     args: [
       {
@@ -245,7 +245,6 @@ Read main-force intent — accumulation vs. distribution — corroborated across
       'get_fund_profile',
       'get_fund_nav_history',
       'get_fund_rank_history',
-      'get_fund_estimate',
     ],
     render: (a) =>
       `You are a mutual-fund analyst. Assess fund ${a.fundCode}.
@@ -254,10 +253,9 @@ Read main-force intent — accumulation vs. distribution — corroborated across
 1. \`get_fund_profile\` — type, manager, size, strategy.
 2. \`get_fund_nav_history\` — historical NAV trend: cumulative return, drawdown, volatility.
 3. \`get_fund_rank_history\` — same-category ranking percentile over time (consistency vs. one-off).
-4. \`get_fund_estimate\` — today's intraday NAV estimate (note: QDII / non-trading days / niche funds may return null or stale estimates — say so rather than guess).
 
 [Output]
-A structured review: (1) what it is (type / manager / size); (2) performance (returns across horizons, worst drawdown, volatility); (3) ranking percentile and whether it's consistent; (4) today's estimate with its caveat; (5) a balanced takeaway on strengths / risks. Public data only, not investment advice.`,
+A structured review: (1) what it is (type / manager / size); (2) performance (returns across horizons, worst drawdown, volatility); (3) ranking percentile and whether it's consistent; (4) a balanced takeaway on strengths / risks. Note that NAV data is settled (T-1 or later) — there is no intraday estimate available, so don't imply live pricing. Public data only, not investment advice.`,
   },
   {
     name: 'diagnose_stock',

@@ -7,9 +7,6 @@
  * 通过 fetchJsVars 双端解析。
  */
 import { fetchJsVars } from '../../core/jsVars';
-import { extractJsonFromJsonp } from '../../core/jsonp';
-import { SdkError } from '../../core/errors';
-import { withScriptMutex } from '../../core/scriptMutex';
 import { toFiniteNumberOrNull } from '../../core/parser';
 import {
   todayInTz,
@@ -22,7 +19,6 @@ import type {
   FundDividend,
   FundDividendListOptions,
   FundDividendListResult,
-  FundEstimate,
   FundNavHistory,
   FundNavPoint,
   FundRankHistory,
@@ -46,19 +42,6 @@ const FUND_DATA_INDEX_URL =
   'https://fund.eastmoney.com/Data/funddataIndex_Interface.aspx';
 
 const FUND_PINGZHONGDATA_URL = 'https://fund.eastmoney.com/pingzhongdata';
-
-/** 天天基金实时估值接口（JSONP，callback 名固定为 `jsonpgz`） */
-const FUND_GZ_URL = 'https://fundgz.1234567.com.cn/js';
-
-/**
- * 运行时检查是否在浏览器环境。
- * 写成函数（而非 module-level const）是为了让单测能通过 `vi.stubGlobal` 动态切换环境。
- */
-function isBrowserEnv(): boolean {
-  return typeof document !== 'undefined' && typeof window !== 'undefined';
-}
-
-const DEFAULT_FUNDGZ_TIMEOUT_MS = 10000;
 
 interface FundDividendRaw {
   /** `[总页数, 每页条数, 当前页]` */
@@ -210,9 +193,8 @@ function isFiniteTs(v: unknown): v is number {
 
 function timestampToDate(ts: number): string {
   // pingzhongdata 的 x 是「北京时间当日 00:00」的毫秒数（= 16:00 UTC，每条对应 A 股
-  // 一个交易日）。必须按北京时区取日期：直接切 UTC ISO 会得到前一天（早 8 小时），
-  // 用 fundgz 权威 jzrq 已实测验证此前 UTC 口径偏早一天。复用 core/time 的 todayInTz
-  // （夏令时安全），与全库日期口径一致。
+  // 一个交易日）。必须按北京时区取日期：直接切 UTC ISO 会得到前一天（早 8 小时）。
+  // 复用 core/time 的 todayInTz（夏令时安全），与全库日期口径一致。
   return todayInTz(MARKET_TZ.CN, ts);
 }
 
@@ -284,159 +266,6 @@ export async function getFundNavHistory(
     code: vars.fS_code ?? code,
     name: vars.fS_name ?? null,
     items,
-  };
-}
-
-// ============================================================
-// 实时估值（fundgz.1234567.com.cn）
-// ============================================================
-
-interface FundGzPayload {
-  fundcode?: string;
-  name?: string;
-  jzrq?: string; // 净值日期
-  dwjz?: string; // 单位净值
-  gsz?: string; // 估算净值
-  gszzl?: string; // 估算涨跌幅 %
-  gztime?: string; // 估算时间
-}
-
-/**
- * 双端拉取并解析 fundgz JSONP（固定 callback 名 `jsonpgz`）。
- *
- * 浏览器端：因 fundgz.1234567.com.cn 无 CORS 头，必须走 `<script>` 注入；
- * 利用其固定 callback 名 `jsonpgz`，临时挂在 window 上读返回。
- *
- * Node 端：直接 fetch 文本 + `extractJsonFromJsonp` 剥离包装。
- */
-function fetchFundGz(
-  client: RequestClient,
-  code: string,
-  timeout = DEFAULT_FUNDGZ_TIMEOUT_MS
-): Promise<FundGzPayload> {
-  const url = `${FUND_GZ_URL}/${encodeURIComponent(code)}.js?rt=${Date.now()}`;
-  if (isBrowserEnv()) {
-    // 浏览器：必须串行（fundgz 强制返回 `jsonpgz(...)`，callback 名无法动态化，
-    // 同时刻多请求会互相覆盖 window.jsonpgz）。
-    return withScriptMutex('fundgz:jsonpgz', () =>
-      browserFetchFundGz(url, timeout)
-    );
-  }
-  // Node：超时 / 重试 / 限流交给 client 治理，不再透传本地 timeout
-  return nodeFetchFundGz(client, url);
-}
-
-function browserFetchFundGz(
-  url: string,
-  timeout: number
-): Promise<FundGzPayload> {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    const win = window as unknown as Record<string, unknown>;
-    const prevCb = win.jsonpgz;
-    let settled = false;
-
-    const cleanup = () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-      // 恢复 jsonpgz 原值，避免污染用户的全局空间
-      if (prevCb === undefined) {
-        try {
-          delete win.jsonpgz;
-        } catch {
-          /* ignore */
-        }
-      } else {
-        win.jsonpgz = prevCb;
-      }
-    };
-
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(
-        new SdkError({
-          code: 'TIMEOUT',
-          message: `fundgz JSONP timed out after ${timeout}ms: ${url}`,
-          url,
-          details: { timeout },
-        })
-      );
-    }, timeout);
-
-    win.jsonpgz = (data: FundGzPayload) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      cleanup();
-      resolve(data ?? {});
-    };
-
-    script.onerror = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      cleanup();
-      reject(
-        new SdkError({
-          code: 'NETWORK_ERROR',
-          message: `fundgz JSONP script load failed: ${url}`,
-          url,
-        })
-      );
-    };
-
-    script.src = url;
-    document.head.appendChild(script);
-  });
-}
-
-async function nodeFetchFundGz(
-  client: RequestClient,
-  url: string
-): Promise<FundGzPayload> {
-  // 走 SDK RequestClient：享受 retry / rateLimit / circuitBreaker / fallback host
-  // fundgz.1234567.com.cn 不在 inferProviderFromUrl 名单，需显式归为 eastmoney
-  // 以应用 providerPolicies.eastmoney 的策略
-  const text = await client.get<string>(url, {
-    responseType: 'text',
-    provider: 'eastmoney',
-  });
-  const trimmed = text.trim();
-  if (!trimmed) return {};
-  try {
-    return extractJsonFromJsonp(trimmed) as FundGzPayload;
-  } catch {
-    return {};
-  }
-}
-
-/**
- * 获取基金当日实时估值（来自天天基金 fundgz 接口）。
- *
- * 同时返回最新已结算的单位净值（`nav` + `navDate`）和盘中估算
- * （`estimatedNav` + `estimatedChangePercent` + `estimateTime`），
- * 方便对比当日表现。
- *
- * QDII / 非交易日 / 部分小众基金的盘中估算字段可能为空，将返回 `null`。
- *
- * @param code 基金代码（纯数字，如 `'005827'`）
- */
-export async function getFundEstimate(
-  client: RequestClient,
-  code: string
-): Promise<FundEstimate> {
-  const raw = await fetchFundGz(client, code);
-  return {
-    code: raw.fundcode ?? code,
-    name: raw.name ?? null,
-    navDate: raw.jzrq?.trim() ? raw.jzrq.trim() : null,
-    nav: toFiniteNumberOrNull(raw.dwjz),
-    estimatedNav: toFiniteNumberOrNull(raw.gsz),
-    estimatedChangePercent: toFiniteNumberOrNull(raw.gszzl),
-    estimateTime: raw.gztime?.trim() ? raw.gztime.trim() : null,
   };
 }
 

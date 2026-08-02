@@ -332,7 +332,6 @@ export class StockSDK {
       return {
         dividendList: f.getFundDividendList.bind(f),
         navHistory: f.getFundNavHistory.bind(f),
-        estimate: f.getFundEstimate.bind(f),
         rankHistory: f.getFundRankHistory.bind(f),
         profile: f.getFundProfile.bind(f),
         theme: f.theme,

@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RequestClient, clearClientScopedCaches } from '../../../../src/core';
 import {
   getFundDividendList,
-  getFundEstimate,
   getFundNavHistory,
   getFundProfile,
   getFundRankHistory,
@@ -331,85 +330,6 @@ describe('getFundNavHistory', () => {
     stubPingzhongdata('var Data_netWorthTrend = [];');
     await getFundNavHistory(client,'110/011');
     expect(lastUrl).toContain('/pingzhongdata/110%2F011.js');
-  });
-});
-
-describe('getFundEstimate', () => {
-  let lastUrl: string | undefined;
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    lastUrl = undefined;
-  });
-
-  function stubFundGz(jsonpBody: string): void {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
-        lastUrl = String(input);
-        return new Response(jsonpBody, {
-          status: 200,
-          headers: { 'content-type': 'application/javascript' },
-        });
-      })
-    );
-  }
-
-  it('builds fundgz URL with rt cache-buster and parses full payload', async () => {
-    stubFundGz(
-      'jsonpgz({"fundcode":"005827","name":"易方达蓝筹精选混合","jzrq":"2026-05-25","dwjz":"1.6210","gsz":"1.6114","gszzl":"-0.59","gztime":"2026-05-26 15:00"});'
-    );
-    const r = await getFundEstimate(client,'005827');
-    expect(lastUrl).toContain('https://fundgz.1234567.com.cn/js/005827.js?rt=');
-    expect(r).toEqual({
-      code: '005827',
-      name: '易方达蓝筹精选混合',
-      navDate: '2026-05-25',
-      nav: 1.621,
-      estimatedNav: 1.6114,
-      estimatedChangePercent: -0.59,
-      estimateTime: '2026-05-26 15:00',
-    });
-  });
-
-  it('returns null estimates when fields are "--" or missing', async () => {
-    stubFundGz(
-      'jsonpgz({"fundcode":"005827","name":"X","jzrq":"2026-05-25","dwjz":"1.0000","gsz":"--","gszzl":"","gztime":""});'
-    );
-    const r = await getFundEstimate(client,'005827');
-    expect(r.nav).toBe(1);
-    expect(r.estimatedNav).toBeNull();
-    expect(r.estimatedChangePercent).toBeNull();
-    expect(r.estimateTime).toBeNull();
-  });
-
-  it('returns all-null payload when response body is empty', async () => {
-    stubFundGz('');
-    const r = await getFundEstimate(client,'999999');
-    expect(r).toEqual({
-      code: '999999',
-      name: null,
-      navDate: null,
-      nav: null,
-      estimatedNav: null,
-      estimatedChangePercent: null,
-      estimateTime: null,
-    });
-  });
-
-  it('throws on non-2xx HTTP status', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('', { status: 500 }))
-    );
-    // 走 RequestClient 后错误由 SDK 统一 normalize 成 HttpError，message 含 status
-    await expect(getFundEstimate(client, '005827')).rejects.toThrow(/500/);
-  });
-
-  it('encodes special characters in fund code', async () => {
-    stubFundGz('jsonpgz({});');
-    await getFundEstimate(client,'00/01');
-    expect(lastUrl).toContain('/js/00%2F01.js?');
   });
 });
 
