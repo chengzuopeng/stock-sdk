@@ -426,6 +426,12 @@ export default defineConfig({
         // 允许访问上级目录（用于引用 src）
         allow: ['../..'],
       },
+      // 本地开发时把问答助手的请求反代到本地跑的 api-worker（edgeone makers dev，端口 8088），
+      // 这样前端走同源、不触发 CORS 预检。生产走 api.linkdiary.cn，见 chat/useChatEndpoint.ts。
+      proxy: {
+        '/chat': { target: 'http://localhost:8088', changeOrigin: true },
+        '/stop': { target: 'http://localhost:8088', changeOrigin: true },
+      },
     },
     // 生产构建出 sourcemap，配合 faroUploader 上传后线上错误可映射回源码
     build: {

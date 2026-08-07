@@ -3,6 +3,7 @@ import { defineComponent, h, onMounted, onBeforeUnmount } from 'vue'
 import HeroMeta from './components/HeroMeta.vue'
 import HeroLinks from './components/HeroLinks.vue'
 import LiveTicker from './components/LiveTicker.vue'
+import ChatBot from './components/chat/ChatBot.vue'
 import { initFaro } from './faro'
 import './custom.css'
 
@@ -15,6 +16,7 @@ import './custom.css'
 //    - home-hero-info-after    → HeroMeta（版本 / star / 下载量 / MIT / 零依赖徽章）
 //    - home-hero-image         → LiveTicker（替换浮动 logo 的实时行情终端卡片）
 //    - home-hero-actions-after → HeroLinks（API / MCP / 迁移 / GitHub 次级链接）
+// 3. 注入 layout-bottom → ChatBot（右下角悬浮文档问答助手，全站每页都有）
 const Layout = defineComponent({
   name: 'StockSdkV2Layout',
   setup() {
@@ -45,6 +47,7 @@ const Layout = defineComponent({
         'home-hero-info-after': () => h(HeroMeta),
         'home-hero-image': () => h(LiveTicker),
         'home-hero-actions-after': () => h(HeroLinks),
+        'layout-bottom': () => h(ChatBot),
       })
   },
 })
