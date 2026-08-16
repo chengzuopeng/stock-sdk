@@ -311,7 +311,28 @@ export default defineConfig({
               { text: 'Skills', link: '/skills/' },
             ],
           },
-          { text: '演练场', link: '/playground/' },
+          // 演示下拉：站内演练场 + 分隔线 + 两个独立部署的示例站外链
+          {
+            text: '演示',
+            activeMatch: '^/playground/',
+            items: [
+              { items: [{ text: '演练场', link: '/playground/' }] },
+              {
+                items: [
+                  {
+                    text: 'A 股看板',
+                    link: 'https://stock-dashboard.linkdiary.cn',
+                    target: '_blank',
+                  },
+                  {
+                    text: 'K 线图表',
+                    link: 'https://kline-charts.linkdiary.cn',
+                    target: '_blank',
+                  },
+                ],
+              },
+            ],
+          },
           // 版本下拉：导航展示 latest 版本号，hover 出更新日志与 v1 文档外链
           {
             text: `v${sdkVersion}`,
@@ -357,7 +378,27 @@ export default defineConfig({
               { text: 'Skills', link: '/en/skills/' },
             ],
           },
-          { text: 'Playground', link: '/en/playground/' },
+          {
+            text: 'Demos',
+            activeMatch: '^/en/playground/',
+            items: [
+              { items: [{ text: 'Playground', link: '/en/playground/' }] },
+              {
+                items: [
+                  {
+                    text: 'A-Share Dashboard',
+                    link: 'https://stock-dashboard.linkdiary.cn',
+                    target: '_blank',
+                  },
+                  {
+                    text: 'K-Line Charts',
+                    link: 'https://kline-charts.linkdiary.cn',
+                    target: '_blank',
+                  },
+                ],
+              },
+            ],
+          },
           {
             text: `v${sdkVersion}`,
             items: [
