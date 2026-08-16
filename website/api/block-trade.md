@@ -19,6 +19,10 @@ const stat = await sdk.blockTrade.marketStat()
 
 > 所有金额字段以人民币元（CNY）为单位；含日期的返回项遵循统一数据契约，带 `date` / `timestamp`（`number | null`）/ `tz`。具体字段以实现为准。
 
+::: warning 大宗交易是盘后数据
+大宗交易在**收盘后统计发布**，因此盘中查当天日期取不到当天数据，`marketStat` 的最新一条通常是**上一个交易日**。这是数据源的正常时效，不是调用出错。
+:::
+
 ## blockTrade.marketStat
 
 获取大宗交易市场每日总览，反映每日大宗成交规模与溢价 / 折价结构。

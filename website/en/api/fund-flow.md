@@ -21,6 +21,12 @@ Capital-flow fields follow a uniform **main / super-large / large / medium / sma
 
 > Exact parameters and return fields follow the final implementation; the field tables below reflect the current data contract.
 
+::: warning Daily fund-flow series is post-close data
+The **daily series** (`individual` / `market`, ...) is compiled by the upstream **after the close**, so an intraday query will not include today's entry — the latest point in the series is usually the **previous trading day**. That is the source's normal timing, not a call failure.
+
+Fetch **after the close that evening** if you need today's entry; the same applies to scheduled jobs.
+:::
+
 ---
 
 ## fundFlow.individual

@@ -351,10 +351,10 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ### `sdk.fundFlow`
 
-- **`sdk.fundFlow.individual(symbol, options?)`** — 获取个股资金流历史（日 / 周 / 月）：主力 / 超大单 / 大单 / 中单 / 小单净流入（金额单位元、占比为百分比）。
+- **`sdk.fundFlow.individual(symbol, options?)`** — 获取个股资金流历史（日 / 周 / 月）：主力 / 超大单 / 大单 / 中单 / 小单净流入（金额单位元、占比为百分比）。⏰ 盘后数据：上游收盘后统计发布，盘中查当天取不到当天数据，最新通常为上一交易日——属正常时效，如实说明即可，不要报错或臆测原因。
     - `symbol` (位置参数, 必填): 股票代码，带不带 sh/sz/bj 前缀均可，如 600519 / sh600519
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 资金流统计周期（日 / 周 / 月）
-- **`sdk.fundFlow.market()`** — 获取大盘资金流（上证综指 + 深证成指(399001)）：各分类资金净流入金额（元）与占比（%）。
+- **`sdk.fundFlow.market()`** — 获取大盘资金流（上证综指 + 深证成指(399001)）：各分类资金净流入金额（元）与占比（%）。⏰ 盘后数据：上游收盘后统计发布，盘中查当天取不到当天数据，最新通常为上一交易日——属正常时效，如实说明即可，不要报错或臆测原因。
 - **`sdk.fundFlow.rank(options?)`** — 获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。⚠️ MCP tools/call 大数组会被裁剪至前 200 条（按主力净流入降序）；SDK 直连返回全量。
     - `options.indicator` (today | 3day | 5day | 10day, 默认 today, SDK / MCP): 排名周期：today=今日(默认) / 3day / 5day / 10day
 - **`sdk.fundFlow.sectorRank(options?)`** — 获取板块资金流排名（行业 / 概念 / 地域）：按板块主力净流入排序，金额单位元、占比为百分比。
@@ -390,7 +390,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ### `sdk.marketEvent`
 
-- **`sdk.marketEvent.ztPool(type?, date?)`** — 获取涨停股池（东方财富）：涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停。字段含价格(元)、涨跌幅(%)、成交额(元)、流通/总市值(元)、换手率(%)、连板数、封板时间(HHMMSS) 等。type 默认 zt；date 不传为最新交易日。
+- **`sdk.marketEvent.ztPool(type?, date?)`** — 获取涨停股池（东方财富）：涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停。字段含价格(元)、涨跌幅(%)、成交额(元)、流通/总市值(元)、换手率(%)、连板数、封板时间(HHMMSS) 等。type 默认 zt；date 不传为最新交易日。⏰ 盘中实时数据：交易时段内滚动更新，同一天不同时点查询条数会不同（早盘少、尾盘多），属正常现象；要当日最终结果请收盘后查询。
     - `type` (位置参数, 可选 取值 zt | yesterday | strong | sub_new | broken | dt): 股池类型：zt=涨停 / yesterday=昨日涨停 / strong=强势 / sub_new=次新 / broken=炸板 / dt=跌停
     - `date` (位置参数, 可选): 日期 YYYYMMDD 或 YYYY-MM-DD，不传为最新交易日
 - **`sdk.marketEvent.stockChanges(type?)`** — 获取当日盘口异动列表（东方财富）：每条含发生时间(HH:MM:SS)、代码、名称、异动类型(changeType/typeCode)及中文标签、相关信息。type 不传默认 large_buy(大笔买入);传 'all' 一次拉取全部 22 类(总量可达上万条,自动翻页收全,MCP tools/call 超 200 条会被裁剪)。
@@ -405,23 +405,23 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ### `sdk.dragonTiger`
 
-- **`sdk.dragonTiger.detail(options?)`** — 获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。
+- **`sdk.dragonTiger.detail(options?)`** — 获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。⏰ 龙虎榜是盘后数据：交易所收盘后统计、傍晚才发布，因此盘中查询当天日期必然没有当天数据——这是正常时效，不要报错或臆测原因，如实说明「当日数据要等收盘后傍晚发布」即可。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。
     - `options.startDate` (string, 必填, SDK / MCP): 起始日期 YYYYMMDD
     - `options.endDate` (string, 必填, SDK / MCP): 结束日期 YYYYMMDD
 - **`sdk.dragonTiger.stockStats(period?)`** — 获取龙虎榜个股上榜统计（按周期聚合）：代码、名称、最近上榜日、收盘价、涨跌幅(%)、上榜次数、累计买入/卖出/净额/成交额(元)、累计买/卖方机构次数。period 可选，默认 1month。⚠️ MCP tools/call 超 200 条会被裁剪；SDK 直连返回全量。
     - `period` (位置参数, 可选 取值 1month | 3month | 6month | 1year): 统计周期：1month / 3month / 6month / 1year，默认 1month
-- **`sdk.dragonTiger.institution(options?)`** — 获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。
+- **`sdk.dragonTiger.institution(options?)`** — 获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。⏰ 龙虎榜是盘后数据：交易所收盘后统计、傍晚才发布，因此盘中查询当天日期必然没有当天数据——这是正常时效，不要报错或臆测原因，如实说明「当日数据要等收盘后傍晚发布」即可。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。
     - `options.startDate` (string, 必填, SDK / MCP): 起始日期 YYYYMMDD
     - `options.endDate` (string, 必填, SDK / MCP): 结束日期 YYYYMMDD
 - **`sdk.dragonTiger.branchRank(period?)`** — 获取龙虎榜营业部（席位）排行（按周期聚合）：营业部代码、名称、买入总额/卖出总额(元)、买入/卖出次数、上榜次数。period 可选，默认 1month。⚠️ MCP tools/call 超 200 条会被裁剪；SDK 直连返回全量。
     - `period` (位置参数, 可选 取值 1month | 3month | 6month | 1year): 统计周期：1month / 3month / 6month / 1year，默认 1month
-- **`sdk.dragonTiger.seatDetail(symbol, date)`** — 获取个股某日龙虎榜席位明细：排名、营业部名称、买入额/卖出额/净额(元)、买入/卖出占总成交比(%)、买卖方向(buy/sell)。symbol 与 date 均必填；date 支持 YYYYMMDD 或 YYYY-MM-DD。
+- **`sdk.dragonTiger.seatDetail(symbol, date)`** — 获取个股某日龙虎榜席位明细：排名、营业部名称、买入额/卖出额/净额(元)、买入/卖出占总成交比(%)、买卖方向(buy/sell)。symbol 与 date 均必填；date 支持 YYYYMMDD 或 YYYY-MM-DD。⏰ 龙虎榜是盘后数据（收盘后统计、傍晚发布），date 传当天且在盘中查询必然为空，属正常时效。
     - `symbol` (位置参数, 必填): 单只股票代码，如 600519 / sh600519
     - `date` (位置参数, 必填): 上榜日期，YYYYMMDD 或 YYYY-MM-DD
 
 ### `sdk.blockTrade`
 
-- **`sdk.blockTrade.marketStat()`** — 获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。
+- **`sdk.blockTrade.marketStat()`** — 获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。⏰ 盘后数据：上游收盘后统计发布，盘中查当天取不到当天数据，最新通常为上一交易日——属正常时效，如实说明即可，不要报错或臆测原因。
 - **`sdk.blockTrade.detail(options?)`** — 获取大宗交易明细（按日期范围筛选）：成交价、成交量、买卖营业部等。省略日期则默认最近一段时间。
     - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD 或 YYYY-MM-DD
     - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD 或 YYYY-MM-DD
@@ -431,7 +431,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 
 ### `sdk.margin`
 
-- **`sdk.margin.accountInfo()`** — 获取融资融券账户统计（融资余额、融券余量、两融余额等）。
+- **`sdk.margin.accountInfo()`** — 获取融资融券账户统计（融资余额、融券余量、两融余额等）。⏰ 两融数据滞后一个交易日：交易所次一交易日才公布，最新一条通常是上一交易日——属正常时效，不要报错或臆测原因。
 - **`sdk.margin.targetList(date?)`** — 获取融资融券标的明细列表（可融资 / 可融券标志、折算率等）。
     - `date` (位置参数, 可选): 交易日 YYYYMMDD 或 YYYY-MM-DD；不传则取最新可用日期
 

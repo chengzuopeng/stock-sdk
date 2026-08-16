@@ -18,6 +18,10 @@ const account = await sdk.margin.accountInfo()
 
 > 金额字段以人民币元（CNY）为单位、`loanBalance`（融券余量）等数量字段以股为单位；含日期的返回项遵循统一数据契约，带 `date` / `timestamp`（`number | null`）/ `tz`。具体字段以实现为准。
 
+::: warning 两融数据滞后一个交易日
+交易所在**次一交易日**才公布融资融券数据，因此 `accountInfo` 的最新一条通常是**上一个交易日**，盘中查不到当天数据。这是数据源的正常时效，不是调用出错。
+:::
+
 ## margin.accountInfo
 
 获取融资融券账户的市场宏观统计，按日返回，反映整体杠杆水平与担保比例。

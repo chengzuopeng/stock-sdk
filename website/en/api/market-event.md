@@ -14,6 +14,12 @@
 
 > Exact parameters and return fields follow the final implementation; the field tables below reflect the current data contract.
 
+::: tip Market events are real-time intraday data
+Unlike **post-close** datasets such as Dragon-Tiger or fund flow, the limit-up pool and intraday changes **update live during the session**: querying today during trading hours returns the stocks that have hit the limit / triggered a change *so far*, and the set grows as the session progresses.
+
+So the same day queried at different times returns different row counts (fewer in the morning, more near the close) — that is expected. For the day's **final** result, query **after the close**.
+:::
+
 ---
 
 ## marketEvent.ztPool

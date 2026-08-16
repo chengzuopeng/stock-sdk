@@ -21,6 +21,14 @@ const detail = await sdk.dragonTiger.detail({ startDate: '20240101', endDate: '2
 
 > All amount fields are in CNY. Items with a date follow the unified data contract and carry `date` / `timestamp` (`number | null`) / `tz`. Exact fields follow the implementation.
 
+::: warning Dragon-Tiger is post-close data — today's rows arrive in the evening
+The exchanges compile the Dragon-Tiger list **after the close and publish it in the evening**. Querying today's date **during trading hours (before the 15:00 close) will never return today's rows** — that is the source's normal timing, not a call failure.
+
+For example, querying `{ startDate: '20260730', endDate: '20260803' }` intraday on Monday returns only 07-30 and 07-31; 08-03 shows up once it is published that evening.
+
+Schedule jobs to run **after the close that evening** (the next day is safer still), or check the market state first with [`sdk.calendar.marketStatus()`](./calendar.md).
+:::
+
 ## dragonTiger.detail
 
 Fetch daily Dragon-Tiger listings over a date range. Each record represents one stock's listing on one day.

@@ -1063,7 +1063,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     tier: 'core',
     summary: '个股资金流历史',
     mcpDesc:
-      '获取个股资金流历史（日 / 周 / 月）：主力 / 超大单 / 大单 / 中单 / 小单净流入（金额单位元、占比为百分比）。',
+      '获取个股资金流历史（日 / 周 / 月）：主力 / 超大单 / 大单 / 中单 / 小单净流入（金额单位元、占比为百分比）。' +
+      '⏰ 盘后数据：上游收盘后统计发布，盘中查当天取不到当天数据，最新通常为上一交易日——属正常时效，如实说明即可，不要报错或臆测原因。',
     argShape: 'symbol+options',
     positional: [SYMBOL_REQ('股票代码，带不带 sh/sz/bj 前缀均可，如 600519 / sh600519')],
     params: [{ ...PERIOD_FUND_FLOW, cli: false }], // CLI 现状未声明 --period（透传可达），仅 MCP 声明
@@ -1072,7 +1073,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     path: ['fundFlow', 'market'],
     toolName: 'get_market_fund_flow',
     summary: '大盘资金流',
-    mcpDesc: '获取大盘资金流（上证综指 + 深证成指(399001)）：各分类资金净流入金额（元）与占比（%）。',
+    mcpDesc: '获取大盘资金流（上证综指 + 深证成指(399001)）：各分类资金净流入金额（元）与占比（%）。' +
+      '⏰ 盘后数据：上游收盘后统计发布，盘中查当天取不到当天数据，最新通常为上一交易日——属正常时效，如实说明即可，不要报错或臆测原因。',
     argShape: 'none',
   },
   {
@@ -1167,7 +1169,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     mcpDesc:
       '获取涨停股池（东方财富）：涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停。' +
       '字段含价格(元)、涨跌幅(%)、成交额(元)、流通/总市值(元)、换手率(%)、连板数、封板时间(HHMMSS) 等。' +
-      'type 默认 zt；date 不传为最新交易日。',
+      'type 默认 zt；date 不传为最新交易日。' +
+      '⏰ 盘中实时数据：交易时段内滚动更新，同一天不同时点查询条数会不同（早盘少、尾盘多），属正常现象；要当日最终结果请收盘后查询。',
     argShape: 'positional',
     positional: [
       {
@@ -1261,7 +1264,9 @@ export const METHOD_SPECS: MethodSpec[] = [
     tier: 'core',
     summary: '龙虎榜详情(必填 --start/--end)',
     mcpDesc:
-      '获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。',
+      '获取龙虎榜上榜个股明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、净买额/买入额/卖出额/成交额(元)、占总成交比(%)、换手率(%)、流通市值(元)、上榜原因、上榜后 1/2/5/10 日涨跌幅(%)。日期格式 YYYYMMDD，startDate / endDate 均必填。' +
+      '⏰ 龙虎榜是盘后数据：交易所收盘后统计、傍晚才发布，因此盘中查询当天日期必然没有当天数据——这是正常时效，不要报错或臆测原因，如实说明「当日数据要等收盘后傍晚发布」即可。' +
+      '日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。',
     argShape: 'options',
     params: [START_REQ, END_REQ],
   },
@@ -1279,7 +1284,9 @@ export const METHOD_SPECS: MethodSpec[] = [
     toolName: 'get_dragon_tiger_institution',
     summary: '机构买卖统计(必填 --start/--end)',
     mcpDesc:
-      '获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。',
+      '获取龙虎榜机构买卖明细（按日期范围）：代码、名称、上榜日期、收盘价、涨跌幅(%)、买/卖方机构数、机构买入额/卖出额/净额(元)。日期格式 YYYYMMDD，startDate / endDate 均必填。' +
+      '⏰ 龙虎榜是盘后数据：交易所收盘后统计、傍晚才发布，因此盘中查询当天日期必然没有当天数据——这是正常时效，不要报错或臆测原因，如实说明「当日数据要等收盘后傍晚发布」即可。' +
+      '日期区间过大时 MCP tools/call 超 200 条会被裁剪，请收窄区间；SDK 直连返回全量。',
     argShape: 'options',
     params: [START_REQ, END_REQ],
   },
@@ -1297,7 +1304,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     toolName: 'get_dragon_tiger_seat_detail',
     summary: '个股席位明细',
     mcpDesc:
-      '获取个股某日龙虎榜席位明细：排名、营业部名称、买入额/卖出额/净额(元)、买入/卖出占总成交比(%)、买卖方向(buy/sell)。symbol 与 date 均必填；date 支持 YYYYMMDD 或 YYYY-MM-DD。',
+      '获取个股某日龙虎榜席位明细：排名、营业部名称、买入额/卖出额/净额(元)、买入/卖出占总成交比(%)、买卖方向(buy/sell)。symbol 与 date 均必填；date 支持 YYYYMMDD 或 YYYY-MM-DD。' +
+      '⏰ 龙虎榜是盘后数据（收盘后统计、傍晚发布），date 传当天且在盘中查询必然为空，属正常时效。',
     argShape: 'positional',
     positional: [
       { name: 'symbol', required: true, desc: STOCK_SYMBOL_DESC },
@@ -1309,7 +1317,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     path: ['blockTrade', 'marketStat'],
     toolName: 'get_block_trade_market_stat',
     summary: '大宗交易市场统计',
-    mcpDesc: '获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。',
+    mcpDesc: '获取大宗交易市场每日总览（成交额、溢价率、买卖方统计等）。' +
+      '⏰ 盘后数据：上游收盘后统计发布，盘中查当天取不到当天数据，最新通常为上一交易日——属正常时效，如实说明即可，不要报错或臆测原因。',
     argShape: 'none',
   },
   {
@@ -1333,7 +1342,8 @@ export const METHOD_SPECS: MethodSpec[] = [
     path: ['margin', 'accountInfo'],
     toolName: 'get_margin_account_info',
     summary: '融资融券账户统计',
-    mcpDesc: '获取融资融券账户统计（融资余额、融券余量、两融余额等）。',
+    mcpDesc: '获取融资融券账户统计（融资余额、融券余量、两融余额等）。' +
+      '⏰ 两融数据滞后一个交易日：交易所次一交易日才公布，最新一条通常是上一交易日——属正常时效，不要报错或臆测原因。',
     argShape: 'none',
   },
   {

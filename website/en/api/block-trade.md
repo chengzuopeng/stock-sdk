@@ -19,6 +19,10 @@ const stat = await sdk.blockTrade.marketStat()
 
 > All amount fields are in CNY. Items with a date follow the unified data contract and carry `date` / `timestamp` (`number | null`) / `tz`. Exact fields follow the implementation.
 
+::: warning Block trades are post-close data
+Block trades are **compiled and published after the close**, so querying today's date intraday returns nothing for today and the latest `marketStat` entry is usually the **previous trading day**. That is the source's normal timing, not a call failure.
+:::
+
 ## blockTrade.marketStat
 
 Daily market-wide block-trade overview, showing daily volume and the premium / discount structure.

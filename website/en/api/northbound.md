@@ -20,6 +20,12 @@ Most methods take a `direction` argument to select the flow direction: `'north'`
 
 > Exact parameters and return fields follow the final implementation; the field tables below reflect the current data contract. **Amount units follow each field's comment (`minute` is in units of 10k, others in yuan); v2 targets a unified "yuan" convention — follow the implementation.**
 
+::: warning Northbound (Shanghai / Shenzhen Connect) net amounts are no longer disclosed live
+Since 2024 the upstream stopped publishing real-time northbound net-buy figures, so in `summary` the net-amount fields (`netInflow` / `netBuyAmount`, ...) for the **Shanghai / Shenzhen Connect** directions **may be constantly `0`** — the data is no longer provided upstream, this is not a fetch failure in the SDK.
+
+**Southbound (Hong Kong Connect)** net amounts in the same response still carry values, and non-net-amount northbound fields (advance/decline counts, index change, ...) are returned as usual — today's record is available intraday.
+:::
+
 ---
 
 ## northbound.minute

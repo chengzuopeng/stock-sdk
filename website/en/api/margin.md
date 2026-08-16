@@ -18,6 +18,10 @@ const account = await sdk.margin.accountInfo()
 
 > Amount fields are in CNY; quantity fields such as `loanBalance` (short-sell balance, in shares) are in shares. Items with a date follow the unified data contract and carry `date` / `timestamp` (`number | null`) / `tz`. Exact fields follow the implementation.
 
+::: warning Margin data lags by one trading day
+The exchanges publish margin-trading figures on the **next trading day**, so the latest entry from `accountInfo` is usually the **previous trading day** and today's data is not available intraday. That is the source's normal timing, not a call failure.
+:::
+
 ## margin.accountInfo
 
 Market-wide margin account stats, returned by day, reflecting overall leverage and guarantee ratios.
