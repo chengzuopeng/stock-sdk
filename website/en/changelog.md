@@ -6,6 +6,19 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.4.2
+
+> Released: Unreleased
+
+### Fixed
+
+- **Sector list / constituents / fund-flow ranking failing to fetch** ([#71](https://github.com/chengzuopeng/stock-sdk/pull/71), thanks [@Cossack9989](https://github.com/Cossack9989)): EastMoney's bare `push2.eastmoney.com` measured 0/6 available, so `push2delay.eastmoney.com` was added to the host pool. It is a delayed mirror, so it sits after every real-time node as a last resort.
+
+### Documentation
+
+- **Per-dataset timing semantics documented** ([#68](https://github.com/chengzuopeng/stock-sdk/issues/68)): Dragon-Tiger, block trades and daily fund flow are post-close; margin lags one trading day; northbound net amounts are no longer disclosed live; the limit-up pool and intraday changes are real-time. MCP tool descriptions annotated too.
+- Docs nav: "Playground" became a "Demos" dropdown with two demo-site entries.
+
 ## v2.4.1
 
 > Released: Unreleased

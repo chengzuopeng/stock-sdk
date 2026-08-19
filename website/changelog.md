@@ -6,6 +6,19 @@ pageClass: changelog-page
 
 本页记录 Stock SDK 的版本更新历史。v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
 
+## v2.4.2
+
+> 发布时间：待发布
+
+### 修复
+
+- **板块列表 / 成分股 / 资金流排行取数失败**（[#71](https://github.com/chengzuopeng/stock-sdk/pull/71)，感谢 [@Cossack9989](https://github.com/Cossack9989)）：东财 `push2.eastmoney.com` 主域实测 0/6 不可用，主机池新增 `push2delay.eastmoney.com`。它是延迟镜像，故排在全部实时节点之后兜底。
+
+### 文档
+
+- **补充各数据集时效口径**（[#68](https://github.com/chengzuopeng/stock-sdk/issues/68)）：龙虎榜 / 大宗交易 / 日度资金流为盘后数据，两融滞后一个交易日，北向沪深股通净额已停止实时披露，涨停池与盘口异动为盘中实时；MCP 工具描述同步标注。
+- 导航「演练场」改为「演示」下拉框，新增两个示例站入口。
+
 ## v2.4.1
 
 > 发布时间：待发布
