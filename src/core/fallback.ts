@@ -29,12 +29,11 @@ const EASTMONEY_PUSH2_HIS_HOSTS = [
 ];
 
 const EASTMONEY_PUSH2_HOSTS = [
-  // push2delay 为延迟行情镜像，主 push2 节点故障（如 502）时优先回退到这里。
-  'push2delay.eastmoney.com',
   '17.push2.eastmoney.com',
   '29.push2.eastmoney.com',
   '79.push2.eastmoney.com',
   '91.push2.eastmoney.com',
+  'push2delay.eastmoney.com',
 ];
 
 function resolveHostPool(host: string, provider: ProviderName): string[] {
