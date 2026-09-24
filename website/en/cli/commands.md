@@ -1,6 +1,6 @@
 # Command reference
 
-The CLI has two command layers: **high-frequency aliases** (single-token, enhanced) and **namespace direct** (reach any method). This page lists each alias's usage and gives a quick-reference table of all 84 namespaced methods.
+The CLI has two command layers: **high-frequency aliases** (single-token, enhanced) and **namespace direct** (reach any method). This page lists each alias's usage and gives a quick-reference table of all 93 namespaced methods.
 
 > Global options (`--format` / `--pretty` / `--timeout` / `--quiet` / `--help` / `--version`), parsing rules and exit codes are covered in the [CLI overview](/en/cli/).
 
@@ -202,24 +202,25 @@ stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 
 ### Namespace method quick-reference
 
-The table below covers all **84** namespaced methods (plus top-level `search`). Method semantics and return fields follow the [API docs](/en/api/) — here we only give the reachable command tokens.
+The table below covers all **93** namespaced methods (plus top-level `search`). Method semantics and return fields follow the [API docs](/en/api/) — here we only give the reachable command tokens.
 
 | Namespace | Methods (`stock-sdk <ns> <method>`) |
 |---|---|
 | `quotes` (8) | `cn` · `cnSimple` · `hk` · `us` · `fund` · `fundFlow` · `largeOrder` · `timeline` |
 | `codes` (4) | `cn` · `us` · `hk` · `fund` |
 | `batch` (5) | `cn` · `hk` · `us` · `byCodes` · `raw` |
-| `kline` (7) | `cn` · `cnMinute` · `hk` · `hkMinute` · `us` · `usMinute` · `withIndicators` |
+| `kline` (8) | `cn` · `cnMinute` · `hk` · `hkMinute` · `us` · `usMinute` · `withIndicators` · `signals` |
+| `chips` (3) | `cn` · `hk` · `us` |
 | `board` (10) | `industry list/spot/constituents/kline/minuteKline` · `concept list/spot/constituents/kline/minuteKline` |
 | `options` (11) | `index spot/kline` · `etf months/expireDay/minute/dailyKline/fiveDayMinute` · `commodity spot/kline` · `cffex quotes` · `lhb` |
 | `futures` (6) | `kline` · `globalSpot` · `globalKline` · `inventorySymbols` · `inventory` · `comexInventory` |
 | `fundFlow` (5) | `individual` · `market` · `rank` · `sectorRank` · `sectorHistory` |
 | `northbound` (5) | `minute` · `summary` · `holdingRank` · `history` · `individual` |
-| `marketEvent` (3) | `ztPool` · `stockChanges` · `boardChanges` |
+| `marketEvent` (6) | `ztPool` · `stockChanges` · `individualChanges` · `individualChangesHistory` · `boardChanges` · `unusualFluctuation` |
 | `dragonTiger` (5) | `detail` · `stockStats` · `institution` · `branchRank` · `seatDetail` |
 | `blockTrade` (3) | `marketStat` · `detail` · `dailyStat` |
 | `margin` (2) | `accountInfo` · `targetList` |
-| `fund` (5) | `dividendList` · `navHistory` · `estimate` · `rankHistory` · `profile` |
+| `fund` (6) | `dividendList` · `navHistory` · `rankHistory` · `profile` · `theme getThemeList/getThemeFunds` |
 | `calendar` (4) | `isTradingDay` · `nextTradingDay` · `prevTradingDay` · `marketStatus` |
 | `reference` (2) | `dividendDetail` · `tradingCalendar` |
 | top-level | `search <keyword>` |

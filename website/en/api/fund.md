@@ -412,7 +412,7 @@ interface ThemeFundItem {
 
 ## Notes
 
-1. **Data sources**: dividends via `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`; NAV history / rank history / deep profile via `fund.eastmoney.com/pingzhongdata/{code}.js`; intraday estimate via `fundgz.1234567.com.cn/js/{code}.js`.
+1. **Data sources**: dividends via `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`; NAV history / rank history / deep profile via `fund.eastmoney.com/pingzhongdata/{code}.js`.
 2. **Same file, multiple methods**: `navHistory` / `rankHistory` / `profile` all download the same pingzhongdata file (~600KB), only reading different fields. If you need several, use the cache layer to avoid re-downloading.
 3. **Serialized in browsers**: in the browser these endpoints load via `<script>` injection (sources lack CORS headers). The SDK guards against concurrent global-variable clobbering with a script mutex, so `Promise.all([...])` runs serially in the browser. Node is unaffected.
 4. **Request-governance difference**: in Node these methods go through `RequestClient` (`retry` / `providerPolicies` apply). In the browser the `<script>` path bypasses `fetch`, so `headers` / `rateLimit` / `circuitBreaker` do not apply; `timeout` is honored via internal parameters. See [Request Governance](../guide/request-governance.md).
