@@ -73,6 +73,19 @@ describe('Eastmoney - Stock Changes (multi-type / all / 个股)', () => {
     }
   }, 60000);
 
+  it('分页 (#65):page / pageSize 只取一页,第 2 页与第 1 页不同', async () => {
+    const key = (c: { time: string; code: string; typeCode: string }) =>
+      `${c.time}|${c.code}|${c.typeCode}`;
+    const page1 = await sdk.marketEvent.stockChanges('all', { page: 1, pageSize: 50 });
+    expect(page1.length).toBeLessThanOrEqual(50);
+    if (page1.length === 50) {
+      const page2 = await sdk.marketEvent.stockChanges('all', { page: 2, pageSize: 50 });
+      expect(page2.length).toBeGreaterThan(0);
+      expect(page2.length).toBeLessThanOrEqual(50);
+      expect(page2.map(key)).not.toEqual(page1.map(key));
+    }
+  }, 30000);
+
   it('个股当日异动:从涨停池动态取一只当日有事件的标的', async () => {
     const pool = await sdk.marketEvent.ztPool('zt');
     if (pool.length === 0) return; // 非交易时段/极端行情兜底

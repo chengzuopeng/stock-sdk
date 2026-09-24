@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
 import { dispatchMessage, type DispatchContext } from '../../../src/mcp/server';
 import { resolveTierFilter } from '../../../src/mcp/types';
 import { listTools } from '../../../src/mcp/tools';
@@ -319,5 +321,82 @@ describe('resolveTierFilter 环境变量解析（大小写/空列表/名单）',
     process.env[ENV] = 'full';
     expect(resolveTierFilter('core', ENV)).toBe('core');
     expect(resolveTierFilter(['analyze_stock'], ENV)).toEqual(['analyze_stock']);
+  });
+});
+
+describe('tools/call 分页参数直达 provider (#65)', () => {
+  it('get_fund_flow_rank { page, pageSize } 只请求一页', async () => {
+    const seen: Array<[string | null, string | null]> = [];
+    server.use(
+      http.get('https://*.push2.eastmoney.com/api/qt/clist/get', ({ request }) => {
+        const url = new URL(request.url);
+        seen.push([url.searchParams.get('pn'), url.searchParams.get('pz')]);
+        return HttpResponse.json({
+          data: { total: 5600, diff: [{ f12: '600519', f14: '贵州茅台', f62: 1 }] },
+        });
+      })
+    );
+    const r = await dispatchMessage(
+      {
+        jsonrpc: '2.0',
+        id: 30,
+        method: 'tools/call',
+        params: { name: 'get_fund_flow_rank', arguments: { page: 2, pageSize: 20 } },
+      },
+      makeCtx()
+    );
+    const result = r?.result as CallResult;
+    expect(result.isError).toBeFalsy();
+    expect(seen).toEqual([['2', '20']]);
+    expect(JSON.parse(result.content[0].text)[0].code).toBe('600519');
+  });
+
+  it('get_stock_changes { type, page, pageSize } → stockChanges(type, { page, pageSize })', async () => {
+    const seen: Array<Record<string, string | null>> = [];
+    server.use(
+      http.get('https://push2ex.eastmoney.com/getAllStockChanges', ({ request }) => {
+        const url = new URL(request.url);
+        seen.push({
+          type: url.searchParams.get('type'),
+          pageindex: url.searchParams.get('pageindex'),
+          pagesize: url.searchParams.get('pagesize'),
+        });
+        return HttpResponse.json({
+          data: { tc: 1, allstock: [{ tm: 93000, c: '600519', n: '贵州茅台', t: 4, i: '' }] },
+        });
+      })
+    );
+    const r = await dispatchMessage(
+      {
+        jsonrpc: '2.0',
+        id: 31,
+        method: 'tools/call',
+        params: {
+          name: 'get_stock_changes',
+          arguments: { type: 'limit_up_seal', page: 3, pageSize: 40 },
+        },
+      },
+      makeCtx()
+    );
+    const result = r?.result as CallResult;
+    expect(result.isError).toBeFalsy();
+    // limit_up_seal → 类型码 4;对外 page 3 → 上游 pageindex 2
+    expect(seen).toEqual([{ type: '4', pageindex: '2', pagesize: '40' }]);
+  });
+
+  it('pageSize 超上游单页上限 → 工具错误 INVALID_ARGUMENT', async () => {
+    const r = await dispatchMessage(
+      {
+        jsonrpc: '2.0',
+        id: 32,
+        method: 'tools/call',
+        params: { name: 'get_fund_flow_rank', arguments: { pageSize: 500 } },
+      },
+      makeCtx()
+    );
+    const result = r?.result as CallResult;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('INVALID_ARGUMENT');
+    expect(result.content[0].text).toContain('pageSize 需为 1-100 的整数');
   });
 });

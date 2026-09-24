@@ -43,7 +43,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // 二级命名空间
 |---|---|---|
 | `sdk.fundFlow` | 资金流向(深度)：个股 / 大盘 / 排名 / 板块排名 / 板块历史 | [fundFlow](/api/fund-flow) |
 | `sdk.northbound` | 沪深港通 / 北向资金：分时 / 概览 / 持股排名 / 历史 / 个股 | [northbound](/api/northbound) |
-| `sdk.marketEvent` | 市场异动：涨停池 / 盘口异动 / 板块异动 | [marketEvent](/api/market-event) |
+| `sdk.marketEvent` | 市场异动：涨停池 / 盘口异动 / 个股异动（当日 / 近 N 天） / 板块异动 / 监管异动 | [marketEvent](/api/market-event) |
 | `sdk.dragonTiger` | 龙虎榜：明细 / 个股统计 / 机构 / 营业部排名 / 席位明细 | [dragonTiger](/api/dragon-tiger) |
 | `sdk.blockTrade` | 大宗交易：市场统计 / 明细 / 每日统计 | [blockTrade](/api/block-trade) |
 | `sdk.margin` | 融资融券：账户信息 / 标的列表 | [margin](/api/margin) |
@@ -52,7 +52,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // 二级命名空间
 
 | 命名空间 | 用途 | 文档 |
 |---|---|---|
-| `sdk.fund` | 公募基金扩展：分红列表 / 净值历史 / 估值 / 排名历史 | [fund](/api/fund) |
+| `sdk.fund` | 公募基金扩展：分红列表 / 净值历史 / 排名历史 / 深度资料 / 主题基金 | [fund](/api/fund) |
 | `sdk.calendar` | 交易日历：是否交易日 / 下一交易日 / 上一交易日 / 市场状态 | [calendar](/api/calendar) |
 | `sdk.reference` | 参考数据：分红明细 / A股交易日历 | [reference](/api/reference) |
 | `sdk.search(keyword)` | 股票搜索（顶层快捷方法） | [search](/api/search) |

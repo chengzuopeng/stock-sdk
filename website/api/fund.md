@@ -426,7 +426,7 @@ interface ThemeFundItem {
 
 ## 注意事项
 
-1. **数据源**：分红走 `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`；历史净值 / 同类排名 / 深度资料走 `fund.eastmoney.com/pingzhongdata/{code}.js`；实时估值走 `fundgz.1234567.com.cn/js/{code}.js`。
+1. **数据源**：分红走 `fund.eastmoney.com/Data/funddataIndex_Interface.aspx`；历史净值 / 同类排名 / 深度资料走 `fund.eastmoney.com/pingzhongdata/{code}.js`。
 2. **同基金同接口**：`navHistory` / `rankHistory` / `profile` 实际下载同一份 pingzhongdata 文件（约 600KB），只是取不同字段。如同时需要多类数据，建议借助缓存层避免重复下载。
 3. **浏览器端串行**：浏览器端这些接口通过 `<script>` 注入加载（数据源无 CORS 头），SDK 内部用脚本互斥锁兜底并发覆盖，因此 `Promise.all([...])` 在浏览器端实际是串行的。Node 端不受此限制。
 4. **请求治理差异**：Node 端这些方法已接入 `RequestClient`（`retry` / `providerPolicies` 生效）；浏览器端 `<script>` 注入路径不走 `fetch`，`headers` / `rateLimit` / `circuitBreaker` 不生效，`timeout` 通过内部参数生效。详见 [请求治理](../guide/request-governance.md)。

@@ -89,6 +89,20 @@ describe('Eastmoney - Fund Flow Rank', () => {
       console.warn('[Skipped] FundFlowRank 5d network unstable:', (err as Error).message);
     }
   }, 90_000);
+
+  it('分页 (#65):page / pageSize 只取一页，按主力净流入降序', async () => {
+    const page1 = await sdk.fundFlow.rank({ page: 1, pageSize: 20 });
+    const page2 = await sdk.fundFlow.rank({ page: 2, pageSize: 20 });
+    expect(page1).toHaveLength(20);
+    expect(page2).toHaveLength(20);
+    // 页内降序；第 1 页头部不低于第 2 页头部（盘中排名实时变动，只比较头部）
+    for (let i = 1; i < page1.length; i++) {
+      expect(page1[i - 1].mainNetInflow!).toBeGreaterThanOrEqual(page1[i].mainNetInflow!);
+    }
+    expect(page1[0].mainNetInflow!).toBeGreaterThanOrEqual(page2[0].mainNetInflow!);
+    // 上游单页上限 100：pz=100 恰好回满页
+    expect(await sdk.fundFlow.rank({ page: 1, pageSize: 100 })).toHaveLength(100);
+  }, 30_000);
 });
 
 describe('Eastmoney - Sector Fund Flow Rank', () => {
@@ -117,4 +131,14 @@ describe('Eastmoney - Sector Fund Flow Rank', () => {
       console.warn('[Skipped] SectorFundFlowRank concept network unstable:', (err as Error).message);
     }
   }, 90_000);
+
+  it('分页 (#65):概念板块第 2 页 10 条', async () => {
+    const sectors = await sdk.fundFlow.sectorRank({
+      sectorType: 'concept',
+      page: 2,
+      pageSize: 10,
+    });
+    expect(sectors).toHaveLength(10);
+    expect(sectors[0].code).toMatch(/^BK\d+$/);
+  }, 30_000);
 });

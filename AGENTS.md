@@ -535,8 +535,8 @@ stock-sdk mcp
 |------|------|
 | `fundFlow.individual(symbol, options)` | 个股资金流历史（日 / 周 / 月） |
 | `fundFlow.market()` | 大盘资金流（上证 + 深证） |
-| `fundFlow.rank(options)` | 个股资金流排名（沪深北全市场） |
-| `fundFlow.sectorRank(options)` | 板块资金流排名（行业 / 概念 / 地域） |
+| `fundFlow.rank(options)` | 个股资金流排名（沪深北全市场；`page` / `pageSize` 单页取数，不传返回全量） |
+| `fundFlow.sectorRank(options)` | 板块资金流排名（行业 / 概念 / 地域；支持 `page` / `pageSize`） |
 | `fundFlow.sectorHistory(symbol, options)` | 单个板块历史资金流 |
 
 ### 沪深港通 / 北向资金
@@ -554,7 +554,7 @@ stock-sdk mcp
 | 方法 | 说明 |
 |------|------|
 | `marketEvent.ztPool(type, date?)` | 涨停 / 跌停 / 强势等股池（含连板数） |
-| `marketEvent.stockChanges(type)` | 盘口异动（22 种类型;支持数组多类型 / 'all' 自动翻页收全） |
+| `marketEvent.stockChanges(type, options?)` | 盘口异动（22 种类型;支持数组多类型 / 'all' 自动翻页收全;`page` / `pageSize` 单页取数） |
 | `marketEvent.individualChanges(symbol, options)` | 个股当日异动事件流（全类型;服务端窗口约最近 17 个交易日） |
 | `marketEvent.individualChangesHistory(symbol, options)` | 个股近 N 天异动历史（逐交易日聚合,coverage/available 标注 + stats 计数） |
 | `marketEvent.boardChanges()` | 当日板块异动 |

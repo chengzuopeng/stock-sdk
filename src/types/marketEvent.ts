@@ -102,6 +102,17 @@ export interface StockChangeItem {
   info: string;
 }
 
+/** 全市场盘口异动查询选项 */
+export interface StockChangesOptions {
+  /**
+   * 页码，从 1 开始。`page` / `pageSize` 任传其一即只请求这一页（单次请求）；
+   * 两者都不传时自动翻页返回当日全量（默认行为不变）。
+   */
+  page?: number;
+  /** 每页条数，1–5000，默认 100（上游单页上限 5000）；仅在分页时生效 */
+  pageSize?: number;
+}
+
 /**
  * 个股盘口异动事件(个股按日接口,字段比全市场接口更丰富)
  */

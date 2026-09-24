@@ -83,6 +83,24 @@ describe('dispatch — argShape 实参组装', () => {
     expect(fn).toHaveBeenCalledWith(expect.objectContaining({ period: 'today' }));
   });
 
+  it('symbol+options：marketEvent stockChanges all --page 2 --pageSize 50（#65 分页 flag 透传）', async () => {
+    const { fn, done } = call(
+      ['marketEvent', 'stockChanges', 'all'],
+      { page: '2', pageSize: '50' },
+      (f) => ({ marketEvent: { stockChanges: f } })
+    );
+    await done;
+    expect(fn).toHaveBeenCalledWith('all', { page: '2', pageSize: '50' });
+  });
+
+  it('marketEvent stockChanges 不带 type：首参 undefined（SDK 落地默认 large_buy）', async () => {
+    const { fn, done } = call(['marketEvent', 'stockChanges'], {}, (f) => ({
+      marketEvent: { stockChanges: f },
+    }));
+    await done;
+    expect(fn).toHaveBeenCalledWith(undefined, {});
+  });
+
   it('enum+upper：kline withIndicators --market a 先 upper 后 enum（不拒收小写）', async () => {
     const fn = vi.fn().mockResolvedValue([]);
     const sdk = { kline: { withIndicators: fn } } as unknown as StockSDK;

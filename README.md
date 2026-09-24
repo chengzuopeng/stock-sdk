@@ -64,7 +64,7 @@
 - ✅ **筹码分布（CYQ）**：`sdk.chips.cn/hk/us` 获利比例 / 平均成本 / 90-70 成本区间与集中度 / 筹码峰直方图（东财算法本地计算，零新增数据源）
 - ✅ **信号 / 选股 / 回测**：`calcSignals`（金叉死叉/超买超卖等事件识别）、链式选股器、本地回测
 - ✅ **期货 / 期权 / 资金流 / 龙虎榜 / 北向 / 大宗交易 / 融资融券 / 涨停板** 等全套扩展数据
-- ✅ **基金深度数据**：历史净值、实时估值、同类排名走势、基金/ETF 分红送配、**主题基金**
+- ✅ **基金深度数据**：历史净值、同类排名走势、深度资料（重仓股 / 基金经理 / 规模等）、基金/ETF 分红送配、**主题基金**
 - ✅ **subpath 导出**：`stock-sdk/{indicators,signals,symbols,screener,cache,errors}`，纯计算不拖入网络层，tree-shake 友好
 - ✅ **统一错误体系**：对外只抛 `SdkError`，带标准 `code`，可从 `stock-sdk/errors` 导入
 - ✅ **请求治理**：provider 级重试 / 限流 / 熔断 + 可注入 `fetchImpl` / `signal` / 生命周期 `hooks`
@@ -291,12 +291,12 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 | `sdk.board` | `.industry.*` / `.concept.*`（`list` / `spot` / `constituents` / `kline` / `minuteKline`） |
 | `sdk.options` | `.index.*` / `.etf.*` / `.commodity.*` / `.cffex.*` / `.lhb` |
 | `sdk.futures` | `.kline` / `.globalSpot` / `.globalKline` / `.inventory` / `.comexInventory` … |
-| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` / `.sectorHistory` |
+| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank`（排名均支持 `page` / `pageSize` 分页） / `.sectorHistory` |
 | `sdk.northbound` | `.minute` / `.summary` / `.holdingRank` / `.history` / `.individual` |
-| `sdk.marketEvent` | `.ztPool` / `.stockChanges`(支持多类型 / `'all'`) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory`(个股异动) |
+| `sdk.marketEvent` | `.ztPool` / `.stockChanges`(支持多类型 / `'all'` / `page` 分页) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory`(个股异动) / `.unusualFluctuation`(监管异动) |
 | `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
 | `sdk.blockTrade` / `sdk.margin` | 大宗交易 / 融资融券 |
-| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` / `.theme` |
+| `sdk.fund` | `.dividendList` / `.navHistory` / `.rankHistory` / `.profile` / `.theme.*`（`getThemeList` / `getThemeFunds`） |
 | `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
 | `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
 | 顶层 | `sdk.search(keyword)` |

@@ -8,7 +8,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.4
 
-> Released: Unreleased
+> Released: 2026-09-12
 
 ### Added
 
@@ -21,7 +21,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.3
 
-> Released: Unreleased
+> Released: 2026-09-09
 
 ### Fixed
 
@@ -30,7 +30,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.2
 
-> Released: Unreleased
+> Released: 2026-08-19
 
 ### Fixed
 
@@ -43,7 +43,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.1
 
-> Released: Unreleased
+> Released: 2026-08-02
 
 ### Breaking changes
 
@@ -59,7 +59,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.0
 
-> Released: Unreleased
+> Released: 2026-07-12
 
 This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 ~ R7-15): symbol contracts, data robustness, browser concurrency safety, cache governance, and pagination performance.
 

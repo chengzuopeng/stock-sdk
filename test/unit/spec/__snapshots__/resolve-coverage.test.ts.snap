@@ -241,6 +241,8 @@ exports[`R7-15②: MCP invoke 的 path / 位置参数 / options 键集快照 > 9
     "argShape": "options",
     "optionKeys": [
       "indicator",
+      "page",
+      "pageSize",
     ],
     "path": "fundFlow.rank",
   },
@@ -546,13 +548,19 @@ exports[`R7-15②: MCP invoke 的 path / 位置参数 / options 键集快照 > 9
     "argShape": "options",
     "optionKeys": [
       "indicator",
+      "page",
+      "pageSize",
       "sectorType",
     ],
     "path": "fundFlow.sectorRank",
   },
   "get_stock_changes": {
-    "argCount": 1,
-    "argShape": "positional",
+    "argCount": 2,
+    "argShape": "symbol+options",
+    "optionKeys": [
+      "page",
+      "pageSize",
+    ],
     "path": "marketEvent.stockChanges",
   },
   "get_theme_funds": {

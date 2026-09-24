@@ -250,6 +250,86 @@ describe('TopicData - getStockChanges', () => {
   });
 });
 
+describe('TopicData - getStockChanges 分页 (#65)', () => {
+  interface ChangesCall {
+    type: string;
+    pageindex: string | null;
+    pagesize: string | null;
+  }
+
+  /** 按 pageindex / pagesize 回页(tc = total),记录每次请求参数 */
+  function mockChanges(total: number): ChangesCall[] {
+    const calls: ChangesCall[] = [];
+    server.use(
+      http.get(`${ZT_BASE}/getAllStockChanges`, ({ request }) => {
+        const url = new URL(request.url);
+        const pageIndex = Number(url.searchParams.get('pageindex'));
+        const pageSize = Number(url.searchParams.get('pagesize'));
+        calls.push({
+          type: url.searchParams.get('type') ?? '',
+          pageindex: url.searchParams.get('pageindex'),
+          pagesize: url.searchParams.get('pagesize'),
+        });
+        const offset = pageIndex * pageSize;
+        const size = Math.max(0, Math.min(pageSize, total - offset));
+        return HttpResponse.json({
+          data: {
+            tc: total,
+            allstock: Array.from({ length: size }, (_, i) => ({
+              tm: 93000,
+              c: String(600000 + offset + i),
+              n: `股票${offset + i}`,
+              t: 8193,
+              i: '',
+            })),
+          },
+        });
+      })
+    );
+    return calls;
+  }
+
+  it('传 page + pageSize 只请求该页:对外 page 从 1 开始,映射为上游 pageindex 从 0 开始', async () => {
+    const calls = mockChanges(12000);
+    const result = await new StockSDK().marketEvent.stockChanges('all', {
+      page: 2,
+      pageSize: 50,
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].type.split(',')).toHaveLength(22);
+    expect(calls[0]).toMatchObject({ pageindex: '1', pagesize: '50' });
+    expect(result).toHaveLength(50);
+    expect(result[0].code).toBe('600050');
+    expect(result[0].changeType).toBe('large_buy');
+  });
+
+  it('只传 page 时 pageSize 默认 100;type 缺省仍为 large_buy', async () => {
+    const calls = mockChanges(12000);
+    const result = await new StockSDK().marketEvent.stockChanges(undefined, { page: 1 });
+    expect(calls).toEqual([{ type: '8193', pageindex: '0', pagesize: '100' }]);
+    expect(result).toHaveLength(100);
+  });
+
+  it('越界页返回空数组', async () => {
+    const calls = mockChanges(30);
+    const result = await new StockSDK().marketEvent.stockChanges('large_buy', { page: 5 });
+    expect(result).toEqual([]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('非法分页参数(含 pageSize 超上游单页上限 5000)在请求前抛 InvalidArgumentError', async () => {
+    const calls = mockChanges(100);
+    const sdk = new StockSDK();
+    await expect(
+      sdk.marketEvent.stockChanges('all', { pageSize: 5001 })
+    ).rejects.toThrow(/marketEvent\.stockChanges: pageSize 需为 1-5000 的整数/);
+    await expect(
+      sdk.marketEvent.stockChanges('large_buy', { page: -1 })
+    ).rejects.toThrow(/marketEvent\.stockChanges: page/);
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe('TopicData - getIndividualStockChanges(个股按日异动)', () => {
   const sdk = new StockSDK();
 

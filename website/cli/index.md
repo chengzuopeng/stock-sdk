@@ -53,7 +53,7 @@ stock-sdk indicators 600519 --ma 5,10,20 --macd --kdj
 
 ### ② 命名空间直达
 
-库里 **84 个命名空间方法**（外加顶层 `search`）都能用 `<namespace> <method>` 直接点到，无需为每个都做别名：
+库里 **93 个命名空间方法**（外加顶层 `search`）都能用 `<namespace> <method>` 直接点到，无需为每个都做别名：
 
 ```bash
 stock-sdk board industry list --format table
