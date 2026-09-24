@@ -355,11 +355,15 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `symbol` (位置参数, 必填): 股票代码，带不带 sh/sz/bj 前缀均可，如 600519 / sh600519
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 资金流统计周期（日 / 周 / 月）
 - **`sdk.fundFlow.market()`** — 获取大盘资金流（上证综指 + 深证成指(399001)）：各分类资金净流入金额（元）与占比（%）。⏰ 盘后数据：上游收盘后统计发布，盘中查当天取不到当天数据，最新通常为上一交易日——属正常时效，如实说明即可，不要报错或臆测原因。
-- **`sdk.fundFlow.rank(options?)`** — 获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。⚠️ MCP tools/call 大数组会被裁剪至前 200 条（按主力净流入降序）；SDK 直连返回全量。
+- **`sdk.fundFlow.rank(options?)`** — 获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。用 page / pageSize 分页（page 从 1 开始，每页最多 100 条），只请求一页；都不传时拉取全市场全量（约 5600 条、数十次请求），MCP tools/call 会裁剪至前 200 条。
     - `options.indicator` (today | 3day | 5day | 10day, 默认 today, SDK / MCP): 排名周期：today=今日(默认) / 3day / 5day / 10day
-- **`sdk.fundFlow.sectorRank(options?)`** — 获取板块资金流排名（行业 / 概念 / 地域）：按板块主力净流入排序，金额单位元、占比为百分比。
+    - `options.page` (number, SDK / MCP): 页码，从 1 开始；传 page / pageSize 任一即只请求这一页，都不传则自动翻页返回全量
+    - `options.pageSize` (number, SDK / MCP): 每页条数，1-100，默认 100（仅分页时生效）
+- **`sdk.fundFlow.sectorRank(options?)`** — 获取板块资金流排名（行业 / 概念 / 地域）：按板块主力净流入排序，金额单位元、占比为百分比。可用 page / pageSize 分页（page 从 1 开始，每页最多 100 条）；不传返回全部板块。
     - `options.indicator` (today | 3day | 5day | 10day, 默认 today, SDK / MCP): 排名周期：today=今日(默认) / 3day / 5day / 10day
     - `options.sectorType` (industry | concept | region, 默认 industry, SDK / MCP): 板块类型：industry=行业(默认) / concept=概念 / region=地域
+    - `options.page` (number, SDK / MCP): 页码，从 1 开始；传 page / pageSize 任一即只请求这一页，都不传则自动翻页返回全量
+    - `options.pageSize` (number, SDK / MCP): 每页条数，1-100，默认 100（仅分页时生效）
 - **`sdk.fundFlow.sectorHistory(symbol, options?)`** — 获取单个板块的历史资金流（日 / 周 / 月）：各分类资金净流入金额（元）与占比（%）。symbol 为板块编号，如 BK0438 或全前缀 90.BK0438。
     - `symbol` (位置参数, 必填): 板块编号，如 BK0438 或全前缀 90.BK0438
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 资金流统计周期（日 / 周 / 月）
@@ -393,8 +397,10 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
 - **`sdk.marketEvent.ztPool(type?, date?)`** — 获取涨停股池（东方财富）：涨停 / 昨日涨停 / 强势 / 次新 / 炸板 / 跌停。字段含价格(元)、涨跌幅(%)、成交额(元)、流通/总市值(元)、换手率(%)、连板数、封板时间(HHMMSS) 等。type 默认 zt；date 不传为最新交易日。⏰ 盘中实时数据：交易时段内滚动更新，同一天不同时点查询条数会不同（早盘少、尾盘多），属正常现象；要当日最终结果请收盘后查询。
     - `type` (位置参数, 可选 取值 zt | yesterday | strong | sub_new | broken | dt): 股池类型：zt=涨停 / yesterday=昨日涨停 / strong=强势 / sub_new=次新 / broken=炸板 / dt=跌停
     - `date` (位置参数, 可选): 日期 YYYYMMDD 或 YYYY-MM-DD，不传为最新交易日
-- **`sdk.marketEvent.stockChanges(type?)`** — 获取当日盘口异动列表（东方财富）：每条含发生时间(HH:MM:SS)、代码、名称、异动类型(changeType/typeCode)及中文标签、相关信息。type 不传默认 large_buy(大笔买入);传 'all' 一次拉取全部 22 类(总量可达上万条,自动翻页收全,MCP tools/call 超 200 条会被裁剪)。
+- **`sdk.marketEvent.stockChanges(type?, options?)`** — 获取当日盘口异动列表（东方财富）：每条含发生时间(HH:MM:SS)、代码、名称、异动类型(changeType/typeCode)及中文标签、相关信息。type 不传默认 large_buy(大笔买入);传 'all' 一次拉取全部 22 类(总量可达上万条,自动翻页收全,MCP tools/call 超 200 条会被裁剪)。数据量大时用 page / pageSize 分页(page 从 1 开始)逐页获取。
     - `type` (位置参数, 可选 取值 rocket_launch | quick_rebound | large_buy | limit_up_seal | limit_down_open | big_buy_order | auction_up | high_open_5d | gap_up | high_60d | surge_60d | accelerate_down | high_dive | large_sell | limit_down_seal | limit_up_open | big_sell_order | auction_down | low_open_5d | gap_down | low_60d | drop_60d | all): 异动类型筛选(all=全部 22 类)：rocket_launch=火箭发射 / quick_rebound=快速反弹 / large_buy=大笔买入 / limit_up_seal=封涨停板 / limit_down_open=打开跌停板 / big_buy_order=有大买盘 / auction_up=竞价上涨 / high_open_5d=高开5日线 / gap_up=向上缺口 / high_60d=60日新高 / surge_60d=60日大幅上涨 / accelerate_down=加速下跌 / high_dive=高台跳水 / large_sell=大笔卖出 / limit_down_seal=封跌停板 / limit_up_open=打开涨停板 / big_sell_order=有大卖盘 / auction_down=竞价下跌 / low_open_5d=低开5日线 / gap_down=向下缺口 / low_60d=60日新低 / drop_60d=60日大幅下跌
+    - `options.page` (number, SDK / MCP): 页码，从 1 开始；传 page / pageSize 任一即只请求这一页，都不传则自动翻页返回全量
+    - `options.pageSize` (number, SDK / MCP): 每页条数，1-5000，默认 100（仅分页时生效）；MCP 单次最多返回 200 条，建议不超过 200
 - **`sdk.marketEvent.individualChanges(symbol, options?)`** — 获取单只 A 股某个交易日的盘口异动事件流（东方财富）：时间、类型(changeType/typeCode,含中文标签)、触发价(元)、涨跌幅(%)、相关信息;全部类型一次返回,最新在前。date 不传为今天。注意:服务端仅保留约最近数周数据(且可能有个别日期空洞),无数据日期返回空数组;需要区分"超窗"与"当日无异动"请用 get_individual_stock_changes_history(逐日带 available 标记)。
     - `symbol` (位置参数, 必填): 股票代码，如 600519 / sh600519
     - `options.date` (string, SDK / MCP): 交易日 YYYYMMDD 或 YYYY-MM-DD;不传为北京时间今天
@@ -2648,6 +2654,17 @@ export interface StockChangeItem {
   changeTypeLabel: string;
   /** 相关信息（来自原始接口） */
   info: string;
+}
+
+/** 全市场盘口异动查询选项 */
+export interface StockChangesOptions {
+  /**
+   * 页码，从 1 开始。`page` / `pageSize` 任传其一即只请求这一页（单次请求）；
+   * 两者都不传时自动翻页返回当日全量（默认行为不变）。
+   */
+  page?: number;
+  /** 每页条数，1–5000，默认 100（上游单页上限 5000）；仅在分页时生效 */
+  pageSize?: number;
 }
 
 /**

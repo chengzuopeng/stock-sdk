@@ -183,6 +183,8 @@ stock-sdk quotes cn 600519 000858
 stock-sdk board industry constituents 银行
 stock-sdk options etf dailyKline 10004336
 stock-sdk dragonTiger detail --start 20240101 --end 20240131
+stock-sdk fundFlow rank --page 1 --pageSize 20        # 主力净流入前 20，只发一次请求
+stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 ```
 
 **参数形态**：每个方法按其签名归入 6 种 argShape 之一，决定 argv 如何映射成实参：

@@ -19,7 +19,7 @@ import {
   toNumberSafe,
   InvalidArgumentError,
 } from '../../core';
-import { fetchPagesInWaves } from './utils';
+import { fetchPagesInWaves, resolvePageQuery } from './utils';
 import type {
   FundFlow,
   StockFundFlowDaily,
@@ -43,6 +43,13 @@ export interface FundFlowRankOptions {
   indicator?: 'today' | '3day' | '5day' | '10day';
   /** 板块类型（仅 getSectorFundFlowRank 使用）: 'industry' | 'concept' | 'region' */
   sectorType?: 'industry' | 'concept' | 'region';
+  /**
+   * 页码，从 1 开始。`page` / `pageSize` 任传其一即只请求这一页（单次请求）；
+   * 两者都不传时自动翻页返回全量（默认行为不变）。
+   */
+  page?: number;
+  /** 每页条数，1–100，默认 100（上游单页上限）；仅在分页时生效 */
+  pageSize?: number;
 }
 
 /** 资金流周期对应的 klt 参数 */
@@ -319,6 +326,32 @@ const SECTOR_TYPE_MAP: Record<NonNullable<FundFlowRankOptions['sectorType']>, st
 /** 个股资金流排名 fs 参数（沪深北 A 股全部） */
 const STOCK_FS = 'm:0+t:6+f:!2,m:0+t:13+f:!2,m:0+t:80+f:!2,m:1+t:2+f:!2,m:1+t:23+f:!2,m:0+t:7+f:!2,m:1+t:3+f:!2';
 
+/** push2 clist 单页上限：全量拉取与对外分页都按 100 条/页取数 */
+const CLIST_MAX_PAGE_SIZE = 100;
+
+/**
+ * push2 clist 单页拉取（pn 从 1 开始）；响应缺 data / diff 时返回 null。
+ */
+async function fetchClistPage(
+  client: RequestClient,
+  baseParams: Record<string, string>,
+  page: number,
+  pageSize: number
+): Promise<{ total?: number; diff: Record<string, unknown>[] } | null> {
+  const params = new URLSearchParams({
+    ...baseParams,
+    pn: String(page),
+    pz: String(pageSize),
+  });
+  const url = `${EM_CLIST_URL}?${params.toString()}`;
+  const json = await client.get<ClistResponse>(url, { responseType: 'json' });
+  const data = json?.data;
+  if (!data || !Array.isArray(data.diff)) {
+    return null;
+  }
+  return { total: data.total, diff: data.diff };
+}
+
 /**
  * 通用 push2 clist 全分页拉取。
  *
@@ -330,26 +363,12 @@ const STOCK_FS = 'm:0+t:6+f:!2,m:0+t:13+f:!2,m:0+t:80+f:!2,m:1+t:2+f:!2,m:1+t:23
 async function fetchClistAllPages(
   client: RequestClient,
   baseParams: Record<string, string>,
-  pageSize = 100,
+  pageSize = CLIST_MAX_PAGE_SIZE,
   maxPages = 1000,
   concurrency = 3
 ): Promise<Record<string, unknown>[]> {
-  const fetchPage = async (
-    page: number
-  ): Promise<{ total?: number; diff: Record<string, unknown>[] } | null> => {
-    const params = new URLSearchParams({
-      ...baseParams,
-      pn: String(page),
-      pz: String(pageSize),
-    });
-    const url = `${EM_CLIST_URL}?${params.toString()}`;
-    const json = await client.get<ClistResponse>(url, { responseType: 'json' });
-    const data = json?.data;
-    if (!data || !Array.isArray(data.diff)) {
-      return null;
-    }
-    return { total: data.total, diff: data.diff };
-  };
+  const fetchPage = (page: number) =>
+    fetchClistPage(client, baseParams, page, pageSize);
 
   // R7-14: 首页串行探明 total（ClistResponse 无 pages 字段，页数由
   // ceil(total/pageSize) 推导），其余页波次并发；短页 = 终止页（已到结尾），
@@ -392,6 +411,28 @@ async function fetchClistAllPages(
   }
 
   return allItems;
+}
+
+/**
+ * 排名类 clist 取数（#65）：传了 `page` / `pageSize` 只请求该页（上游已按 fid 排好序，
+ * 第 1 页即排名最前的一段）；都不传则自动翻页拉全量，保持既有行为。
+ */
+async function fetchClistRows(
+  client: RequestClient,
+  baseParams: Record<string, string>,
+  options: Pick<FundFlowRankOptions, 'page' | 'pageSize'>,
+  label: string
+): Promise<Record<string, unknown>[]> {
+  const paging = resolvePageQuery(
+    options,
+    { defaultPageSize: CLIST_MAX_PAGE_SIZE, maxPageSize: CLIST_MAX_PAGE_SIZE },
+    label
+  );
+  if (!paging) {
+    return fetchClistAllPages(client, baseParams);
+  }
+  const result = await fetchClistPage(client, baseParams, paging.page, paging.pageSize);
+  return result?.diff ?? [];
 }
 
 /**
@@ -487,7 +528,7 @@ export async function getMarketFundFlow(
  * 获取个股资金流排名（沪深北 A 股全市场）
  *
  * @param client - 请求客户端
- * @param options - 排名周期
+ * @param options - 排名周期；`page` / `pageSize` 分页（不传则翻页拉全量，约 5600 条）
  * @returns 资金流排名数组（按主力净额降序）
  */
 export async function getFundFlowRank(
@@ -511,7 +552,7 @@ export async function getFundFlowRank(
     fields: config.fields,
   };
 
-  const items = await fetchClistAllPages(client, baseParams, 100);
+  const items = await fetchClistRows(client, baseParams, options, 'fundFlow.rank');
 
   return items.map((item) => ({
     code: String(item.f12 ?? ''),
@@ -535,7 +576,7 @@ export async function getFundFlowRank(
  * 获取板块资金流排名（行业 / 概念 / 地域）
  *
  * @param client - 请求客户端
- * @param options - 排名周期、板块类型
+ * @param options - 排名周期、板块类型；`page` / `pageSize` 分页（不传则翻页拉全量）
  * @returns 板块资金流排名数组
  */
 export async function getSectorFundFlowRank(
@@ -565,7 +606,7 @@ export async function getSectorFundFlowRank(
     fields,
   };
 
-  const items = await fetchClistAllPages(client, baseParams, 100);
+  const items = await fetchClistRows(client, baseParams, options, 'fundFlow.sectorRank');
 
   return items.map((item) => ({
     code: String(item.f12 ?? ''),

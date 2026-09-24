@@ -183,6 +183,8 @@ stock-sdk quotes cn 600519 000858
 stock-sdk board industry constituents "Banking"
 stock-sdk options etf dailyKline 10004336
 stock-sdk dragonTiger detail --start 20240101 --end 20240131
+stock-sdk fundFlow rank --page 1 --pageSize 20        # top 20 by main net inflow, a single request
+stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 ```
 
 **Argument shapes**: each method falls into one of 6 argShapes by its signature, deciding how argv maps to arguments:

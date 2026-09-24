@@ -291,9 +291,9 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 | `sdk.board` | `.industry.*` / `.concept.*`（`list` / `spot` / `constituents` / `kline` / `minuteKline`） |
 | `sdk.options` | `.index.*` / `.etf.*` / `.commodity.*` / `.cffex.*` / `.lhb` |
 | `sdk.futures` | `.kline` / `.globalSpot` / `.globalKline` / `.inventory` / `.comexInventory` … |
-| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` / `.sectorHistory` |
+| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank`（排名均支持 `page` / `pageSize` 分页） / `.sectorHistory` |
 | `sdk.northbound` | `.minute` / `.summary` / `.holdingRank` / `.history` / `.individual` |
-| `sdk.marketEvent` | `.ztPool` / `.stockChanges`(支持多类型 / `'all'`) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory`(个股异动) |
+| `sdk.marketEvent` | `.ztPool` / `.stockChanges`(支持多类型 / `'all'` / `page` 分页) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory`(个股异动) |
 | `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
 | `sdk.blockTrade` / `sdk.margin` | 大宗交易 / 融资融券 |
 | `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` / `.theme` |

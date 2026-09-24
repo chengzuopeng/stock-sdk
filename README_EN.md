@@ -291,9 +291,9 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 | `sdk.board` | `.industry.*` / `.concept.*` (`list` / `spot` / `constituents` / `kline` / `minuteKline`) |
 | `sdk.options` | `.index.*` / `.etf.*` / `.commodity.*` / `.cffex.*` / `.lhb` |
 | `sdk.futures` | `.kline` / `.globalSpot` / `.globalKline` / `.inventory` / `.comexInventory` … |
-| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` / `.sectorHistory` |
+| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` (both rankings support `page` / `pageSize`) / `.sectorHistory` |
 | `sdk.northbound` | `.minute` / `.summary` / `.holdingRank` / `.history` / `.individual` |
-| `sdk.marketEvent` | `.ztPool` / `.stockChanges` (multi-type / `'all'`) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory` (per-stock changes) |
+| `sdk.marketEvent` | `.ztPool` / `.stockChanges` (multi-type / `'all'` / `page` paging) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory` (per-stock changes) |
 | `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
 | `sdk.blockTrade` / `sdk.margin` | block trades / margin trading |
 | `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` / `.profile` / `.theme.*` |

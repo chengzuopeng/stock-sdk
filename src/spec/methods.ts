@@ -375,6 +375,27 @@ const FF_SECTOR_TYPE: ParamSpec = {
   desc: '板块类型 industry/concept/region',
   mcpDesc: '板块类型：industry=行业(默认) / concept=概念 / region=地域',
 };
+// #65 单页取数：page / pageSize 任传其一只请求一页，都不传时 SDK 翻页返回全量
+// （与同方法其余参数一致，CLI 现状未声明 → 保持透传）
+const PAGE_OR_ALL: ParamSpec = {
+  flag: 'page',
+  type: 'number',
+  cli: false,
+  desc: '页码，从 1 开始；传 page / pageSize 任一即只请求这一页，都不传则自动翻页返回全量',
+};
+const FF_PAGE_SIZE: ParamSpec = {
+  flag: 'pageSize',
+  type: 'number',
+  cli: false,
+  desc: '每页条数，1-100，默认 100（仅分页时生效）',
+};
+const CHANGES_PAGE_SIZE: ParamSpec = {
+  flag: 'pageSize',
+  type: 'number',
+  cli: false,
+  desc: '每页条数，1-5000，默认 100（仅分页时生效）',
+  mcpDesc: '每页条数，1-5000，默认 100（仅分页时生效）；MCP 单次最多返回 200 条，建议不超过 200',
+};
 // northbound.holdingRank 参数（CLI 现状未声明 → 保持透传）
 const NB_HOLDING_MARKET: ParamSpec = {
   flag: 'market',
@@ -1090,17 +1111,20 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '个股资金流排名',
     mcpDesc:
       '获取个股资金流排名（沪深北 A 股全市场）：按主力净流入排序，金额单位元、占比为百分比。' +
-      '⚠️ MCP tools/call 大数组会被裁剪至前 200 条（按主力净流入降序）；SDK 直连返回全量。',
+      '用 page / pageSize 分页（page 从 1 开始，每页最多 100 条），只请求一页；' +
+      '都不传时拉取全市场全量（约 5600 条、数十次请求），MCP tools/call 会裁剪至前 200 条。',
     argShape: 'options',
-    params: [FF_INDICATOR],
+    params: [FF_INDICATOR, PAGE_OR_ALL, FF_PAGE_SIZE],
   },
   {
     path: ['fundFlow', 'sectorRank'],
     toolName: 'get_sector_fund_flow_rank',
     summary: '板块资金流排名',
-    mcpDesc: '获取板块资金流排名（行业 / 概念 / 地域）：按板块主力净流入排序，金额单位元、占比为百分比。',
+    mcpDesc:
+      '获取板块资金流排名（行业 / 概念 / 地域）：按板块主力净流入排序，金额单位元、占比为百分比。' +
+      '可用 page / pageSize 分页（page 从 1 开始，每页最多 100 条）；不传返回全部板块。',
     argShape: 'options',
-    params: [FF_INDICATOR, FF_SECTOR_TYPE],
+    params: [FF_INDICATOR, FF_SECTOR_TYPE, PAGE_OR_ALL, FF_PAGE_SIZE],
   },
   {
     path: ['fundFlow', 'sectorHistory'],
@@ -1194,8 +1218,9 @@ export const METHOD_SPECS: MethodSpec[] = [
     summary: '盘口异动(type 可传 all 拉全类型)',
     mcpDesc:
       '获取当日盘口异动列表（东方财富）：每条含发生时间(HH:MM:SS)、代码、名称、异动类型(changeType/typeCode)及中文标签、相关信息。' +
-      "type 不传默认 large_buy(大笔买入);传 'all' 一次拉取全部 22 类(总量可达上万条,自动翻页收全,MCP tools/call 超 200 条会被裁剪)。",
-    argShape: 'positional',
+      "type 不传默认 large_buy(大笔买入);传 'all' 一次拉取全部 22 类(总量可达上万条,自动翻页收全,MCP tools/call 超 200 条会被裁剪)。" +
+      '数据量大时用 page / pageSize 分页(page 从 1 开始)逐页获取。',
+    argShape: 'symbol+options',
     positional: [
       {
         name: 'type',
@@ -1210,6 +1235,7 @@ export const METHOD_SPECS: MethodSpec[] = [
           'gap_down=向下缺口 / low_60d=60日新低 / drop_60d=60日大幅下跌',
       },
     ],
+    params: [PAGE_OR_ALL, CHANGES_PAGE_SIZE],
   },
   {
     path: ['marketEvent', 'individualChanges'],
