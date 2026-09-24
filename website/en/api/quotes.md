@@ -51,6 +51,10 @@ const hk = await sdk.quotes.hk(['00700', '09988']) // 5-digit → HK
 const us = await sdk.quotes.us(['AAPL', 'TSLA']) // pure letters → US
 ```
 
+::: tip HK quote freshness
+HK stock quotes come from Tencent's real-time quote keys (such as `r_hk00700`), so they are live during trading hours. Indices such as the Hang Seng Index (`HSI`) still use the original keys and may be delayed.
+:::
+
 ### Fund
 
 ```ts

@@ -7,6 +7,15 @@ import { tryToTencentSymbols } from '../../symbols';
 import { parseHKQuote, filterTencentRows, HK_QUOTE_MIN_FIELDS } from './parsers';
 
 /**
+ * #78:腾讯港股行情键 `hkXXXXX` 返回的是延时行情,`r_hkXXXXX` 才是实时行情
+ * (响应变量名随之变为 `v_r_hkXXXXX`,字段布局不变)。仅对数字股票码加 `r_`;
+ * 字母指数键(hkHSI 等)的 `r_` 形态未经实测,保持原样。
+ */
+function toRealtimeHKKey(key: string): string {
+  return /^hk\d+$/.test(key) ? `r_${key}` : key;
+}
+
+/**
  * 获取港股行情
  * @param client 请求客户端
  * @param codes 港股代码数组，带不带 hk 前缀均可（'00700' / 'hk00700' /
@@ -25,9 +34,10 @@ export async function getHKQuotes(
   if (keys.length === 0) {
     return [];
   }
-  const data = await client.getTencentQuote(keys.join(','));
+  const requestKeys = keys.map(toRealtimeHKKey);
+  const data = await client.getTencentQuote(requestKeys.join(','));
   // 腾讯无匹配时会回 v_pv_none_match="1"，按 key 精确过滤
-  const wanted = new Set(keys);
+  const wanted = new Set(requestKeys);
   return filterTencentRows(data, wanted, HK_QUOTE_MIN_FIELDS).map((d) =>
     parseHKQuote(d.fields)
   );

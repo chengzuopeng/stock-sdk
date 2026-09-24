@@ -82,9 +82,20 @@ describe('quotes 入口归一（R7-2）', () => {
 
 describe('hk/us 入口归一（R7-3）', () => {
   it('getHKQuotes：带前缀输入不再双拼成 hkhk00700', async () => {
-    const { client, getTencentQuote } = fakeClient([row('hk00700', 50), row('hk09988', 50)]);
+    const { client, getTencentQuote } = fakeClient([row('r_hk00700', 50), row('r_hk09988', 50)]);
     const result = await getHKQuotes(client, ['hk00700', '09988']);
-    expect(getTencentQuote).toHaveBeenCalledWith('hk00700,hk09988');
+    expect(getTencentQuote).toHaveBeenCalledWith('r_hk00700,r_hk09988');
+    expect(result).toHaveLength(2);
+  });
+
+  it('#78 getHKQuotes：股票请求 r_hk 实时键，只认 v_r_hk 行；字母指数键保持 hk 前缀', async () => {
+    const { client, getTencentQuote } = fakeClient([
+      row('hk00700', 50), // 延时键的行（不再请求）不应被当作结果
+      row('r_hk00700', 50),
+      row('hkHSI', 50),
+    ]);
+    const result = await getHKQuotes(client, ['00700', 'HSI']);
+    expect(getTencentQuote).toHaveBeenCalledWith('r_hk00700,hkHSI');
     expect(result).toHaveLength(2);
   });
 
@@ -126,9 +137,9 @@ describe('R7-9 入口级：截断行丢弃、合法短行保留（回归钉住�
   });
 
   it('getHKQuotes：37 字段截断行丢弃，50 字段完整行保留', async () => {
-    const { client: c1 } = fakeClient([row('hk00700', 37)]);
+    const { client: c1 } = fakeClient([row('r_hk00700', 37)]);
     expect(await getHKQuotes(c1, ['hk00700'])).toEqual([]);
-    const { client: c2 } = fakeClient([row('hk00700', 50)]);
+    const { client: c2 } = fakeClient([row('r_hk00700', 50)]);
     expect(await getHKQuotes(c2, ['hk00700'])).toHaveLength(1);
   });
 });
