@@ -95,7 +95,33 @@ describe('hk/us 入口归一（R7-3）', () => {
       row('hkHSI', 50),
     ]);
     const result = await getHKQuotes(client, ['00700', 'HSI']);
+    expect(getTencentQuote).toHaveBeenCalledTimes(1);
     expect(getTencentQuote).toHaveBeenCalledWith('r_hk00700,hkHSI');
+    expect(result).toHaveLength(2);
+  });
+
+  it('#78 getHKQuotes：r_hk 键无有效行时回退原 hk 键，不静默返回空', async () => {
+    const getTencentQuote = vi
+      .fn()
+      .mockResolvedValueOnce([{ key: 'pv_none_match', fields: ['1'] }])
+      .mockResolvedValueOnce([row('hk00700', 50)]);
+    const client = { getTencentQuote } as unknown as RequestClient;
+    const result = await getHKQuotes(client, ['00700']);
+    expect(getTencentQuote).toHaveBeenNthCalledWith(1, 'r_hk00700');
+    expect(getTencentQuote).toHaveBeenNthCalledWith(2, 'hk00700');
+    expect(result).toHaveLength(1);
+  });
+
+  it('#78 getHKQuotes：只对缺失的股票回退；指数键缺失不回退', async () => {
+    const getTencentQuote = vi
+      .fn()
+      .mockResolvedValueOnce([row('r_hk09988', 50)])
+      .mockResolvedValueOnce([row('hk00700', 50)]);
+    const client = { getTencentQuote } as unknown as RequestClient;
+    const result = await getHKQuotes(client, ['00700', '09988', 'HSI']);
+    expect(getTencentQuote).toHaveBeenNthCalledWith(1, 'r_hk00700,r_hk09988,hkHSI');
+    expect(getTencentQuote).toHaveBeenNthCalledWith(2, 'hk00700');
+    expect(getTencentQuote).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(2);
   });
 
