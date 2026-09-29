@@ -80,6 +80,26 @@ describe('TencentStockSDK - Quotes', () => {
       expect(res.length).toBe(2);
     });
 
+    it('#78 持续交易时段内报价为实时(报价时间距今 < 5 分钟)', async () => {
+      // 非持续交易时段无法区分实时 / 延时,跳过
+      if (sdk.calendar.marketStatus('HK') !== 'open') return;
+      const [q] = await sdk.quotes.hk(['00700']);
+      expect(q.timestamp).not.toBeNull();
+      // HK 无官方日历,marketStatus 不识别法定假日:报价日期不是今天(当天无成交)时跳过
+      const todayHK = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Hong_Kong' }).format(
+        new Date()
+      );
+      if (!q.time.replace(/\//g, '-').startsWith(todayHK)) return;
+      // 延时键 hk00700 的报价时间明显落后;实时键 r_hk00700 应在数分钟内
+      expect(Date.now() - q.timestamp!).toBeLessThan(5 * 60_000);
+    });
+
+    it('恒生指数 HSI 仍可取(字母指数键保持 hk 前缀)', async () => {
+      const res = await sdk.quotes.hk(['HSI']);
+      expect(res).toHaveLength(1);
+      expect(typeof res[0].price).toBe('number');
+    });
+
     it('should return empty for empty codes', async () => {
       const res = await sdk.quotes.hk([]);
       expect(res).toEqual([]);

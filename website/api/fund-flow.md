@@ -115,6 +115,11 @@ const rank = await sdk.fundFlow.rank({ indicator: '5day' });
 rank.slice(0, 10).forEach((item, i) => {
   console.log(`#${i + 1} ${item.name}(${item.code}) 主力净流入 ${item.mainNetInflow} 元`);
 });
+
+// 只取主力净流入前 20 名（单次请求）
+const top20 = await sdk.fundFlow.rank({ page: 1, pageSize: 20 });
+// 第 21–40 名
+const next20 = await sdk.fundFlow.rank({ page: 2, pageSize: 20 });
 ```
 
 ### 参数
@@ -122,6 +127,14 @@ rank.slice(0, 10).forEach((item, i) => {
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | 统计周期，默认 `'today'` |
+| `options.page` | `number` | 页码，从 1 开始；传 `page` / `pageSize` 任一即只请求这一页 |
+| `options.pageSize` | `number` | 每页条数，1–100，默认 100 |
+
+::: tip 分页与全量
+不传 `page` / `pageSize` 时返回全市场全量（约 5600 条）：SDK 按每页 100 条自动翻页，一次调用要发出 50 多次请求。只需要榜单前段时传分页参数，一次请求即可，也更不容易触发上游限流。
+
+返回值仍是数组，不含总条数；某页条数少于 `pageSize` 即为最后一页。盘中排名实时变动，逐页翻取时相邻页之间可能出现少量重复或遗漏。
+:::
 
 ### 返回说明
 
@@ -160,6 +173,9 @@ const sectors = await sdk.fundFlow.sectorRank({
 sectors.slice(0, 5).forEach(s => {
   console.log(`${s.name}: 净流入 ${s.mainNetInflow} 元，领涨 ${s.topStockName}`);
 });
+
+// 概念板块主力净流入前 10
+const topConcepts = await sdk.fundFlow.sectorRank({ sectorType: 'concept', page: 1, pageSize: 10 });
 ```
 
 ### 参数
@@ -168,6 +184,8 @@ sectors.slice(0, 5).forEach(s => {
 |---|---|---|
 | `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | 统计周期，默认 `'today'` |
 | `options.sectorType` | `'industry' \| 'concept' \| 'region'` | 板块维度，默认 `'industry'` |
+| `options.page` | `number` | 页码，从 1 开始；传 `page` / `pageSize` 任一即只请求这一页，都不传返回全部板块 |
+| `options.pageSize` | `number` | 每页条数，1–100，默认 100 |
 
 ### 返回说明
 

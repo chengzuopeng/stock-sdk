@@ -6,6 +6,7 @@ import {
   type GetOptions,
   addDays,
   asyncPool,
+  InvalidArgumentError,
 } from '../../core';
 
 /** {@link fetchPagesInWaves} 单页取数结果。 */
@@ -65,6 +66,46 @@ export async function fetchPagesInWaves<T>(
     }
   }
   return out;
+}
+
+/** 对外分页参数：`page` 从 1 开始。 */
+export interface PageQuery {
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * 解析对外分页参数（#65 单页模式）。
+ *
+ * - `page` / `pageSize` 都未传（或为 null）→ 返回 `null`，调用方保持自动翻页拉全量的既有行为；
+ * - 任传其一 → 单页模式：`page` 缺省 1，`pageSize` 缺省 `defaultPageSize`；
+ * - 接受数字字符串（CLI 未声明的 flag 以原始字符串透传）；非正整数或超过上游单页上限
+ *   `maxPageSize` 时抛 InvalidArgumentError —— 不静默截断，避免翻页错位。
+ *
+ * @param label - 错误信息前缀（对外方法名），如 `'fundFlow.rank'`
+ */
+export function resolvePageQuery(
+  query: PageQuery,
+  limits: { defaultPageSize: number; maxPageSize: number },
+  label: string
+): { page: number; pageSize: number } | null {
+  const { page, pageSize } = query;
+  if (page == null && pageSize == null) return null;
+  const p = page == null ? 1 : Number(page);
+  if (!Number.isInteger(p) || p < 1) {
+    throw new InvalidArgumentError(
+      `${label}: page 需为 >= 1 的整数（收到 ${String(page)}）。`,
+      { page }
+    );
+  }
+  const size = pageSize == null ? limits.defaultPageSize : Number(pageSize);
+  if (!Number.isInteger(size) || size < 1 || size > limits.maxPageSize) {
+    throw new InvalidArgumentError(
+      `${label}: pageSize 需为 1-${limits.maxPageSize} 的整数（收到 ${String(pageSize)}）。`,
+      { pageSize, maxPageSize: limits.maxPageSize }
+    );
+  }
+  return { page: p, pageSize: size };
 }
 
 /**

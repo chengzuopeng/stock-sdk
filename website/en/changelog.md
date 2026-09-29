@@ -6,9 +6,26 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.4.5
+
+> Released: 2026-09-29
+
+### Added
+
+- **Pagination for fund-flow rankings and intraday stock changes** ([#65](https://github.com/chengzuopeng/stock-sdk/issues/65), thanks [@iarjian](https://github.com/iarjian)): `fundFlow.rank` / `fundFlow.sectorRank` accept `page` / `pageSize` (1–100 per page, default 100), and `marketEvent.stockChanges(type?, options?)` gains a second argument with the same `page` / `pageSize` (1–5000 per page, default 100). Passing either one fetches just that page; passing neither keeps the previous fetch-everything behavior, and the return value is still an array. Fetching only the top 20 of the stock fund-flow ranking now takes 1 request instead of 50+. Invalid page numbers or sizes throw `InvalidArgumentError` before any request is sent. The CLI and the MCP tools `get_fund_flow_rank` / `get_sector_fund_flow_rank` / `get_stock_changes` support them too.
+
+### Fixed
+
+- **Hong Kong stock quotes switch to Tencent's real-time keys** ([#78](https://github.com/chengzuopeng/stock-sdk/issues/78), thanks [@ystarlongzi](https://github.com/ystarlongzi)): `quotes.hk` / `batch.hk` previously requested Tencent's `hk` quote keys, which serve delayed quotes; individual stocks now use the real-time `r_hk` keys. If a real-time key returns no usable row, the SDK retries with the original key, so the worst case matches the previous behavior. Letter-coded index keys such as `HSI` are unchanged.
+
+### Documentation
+
+- Synced stale method lists and counts: the CLI command list, README and the API / MCP overviews drop the retired `fund.estimate` and add `chips`, `kline.signals`, the per-stock and regulatory `marketEvent` methods, and `fund.profile` / `fund.theme.*`; the namespace method count is corrected to 93.
+- Filled in the release dates for v2.4.0–v2.4.4.
+
 ## v2.4.4
 
-> Released: Unreleased
+> Released: 2026-09-12
 
 ### Added
 
@@ -21,7 +38,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.3
 
-> Released: Unreleased
+> Released: 2026-09-09
 
 ### Fixed
 
@@ -30,7 +47,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.2
 
-> Released: Unreleased
+> Released: 2026-08-19
 
 ### Fixed
 
@@ -43,7 +60,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.1
 
-> Released: Unreleased
+> Released: 2026-08-02
 
 ### Breaking changes
 
@@ -59,7 +76,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.0
 
-> Released: Unreleased
+> Released: 2026-07-12
 
 This release lands the Top-15 fixes from the 2026-07 whole-project review (R7-1 ~ R7-15): symbol contracts, data robustness, browser concurrency safety, cache governance, and pagination performance.
 

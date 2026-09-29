@@ -29,14 +29,14 @@ export class FundFlowService extends BaseService {
     return eastmoney.getMarketFundFlow(this.client);
   }
 
-  /** 获取个股资金流排名 */
+  /** 获取个股资金流排名（支持 page / pageSize 单页取数，不传则返回全量） */
   getFundFlowRank(
     options?: eastmoney.FundFlowRankOptions
   ): Promise<FundFlowRankItem[]> {
     return eastmoney.getFundFlowRank(this.client, options);
   }
 
-  /** 获取板块资金流排名（行业 / 概念 / 地域） */
+  /** 获取板块资金流排名（行业 / 概念 / 地域；支持 page / pageSize 单页取数） */
   getSectorFundFlowRank(
     options?: eastmoney.FundFlowRankOptions
   ): Promise<SectorFundFlowItem[]> {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../mocks/server';
 import StockSDK from '../../../../src/index';
+import { InvalidArgumentError } from '../../../../src/core';
 
 const FFLOW_URL = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get';
 const REALTIME_FFLOW_URL = 'https://push2delay.eastmoney.com/api/qt/stock/get';
@@ -290,6 +291,108 @@ describe('FundFlow - getSectorFundFlowRank', () => {
     expect(result[0].name).toBe('银行');
     expect(result[0].topStockCode).toBe('601398');
     expect(result[0].topStockName).toBe('工商银行');
+  });
+});
+
+describe('FundFlow - rank / sectorRank 分页 (#65)', () => {
+  interface ClistCall {
+    pn: string | null;
+    pz: string | null;
+    fs: string | null;
+  }
+
+  /** 按 pn / pz 回满页(上游按主力净流入降序),记录每次请求参数 */
+  function mockClist(total: number): ClistCall[] {
+    const calls: ClistCall[] = [];
+    server.use(
+      http.get(CLIST_URL, ({ request }) => {
+        const url = new URL(request.url);
+        const pn = Number(url.searchParams.get('pn'));
+        const pz = Number(url.searchParams.get('pz'));
+        calls.push({
+          pn: url.searchParams.get('pn'),
+          pz: url.searchParams.get('pz'),
+          fs: url.searchParams.get('fs'),
+        });
+        const offset = (pn - 1) * pz;
+        const size = Math.max(0, Math.min(pz, total - offset));
+        return HttpResponse.json({
+          data: {
+            total,
+            diff: Array.from({ length: size }, (_, i) => ({
+              f12: String(600000 + offset + i),
+              f14: `股票${offset + i}`,
+              f62: total - offset - i,
+            })),
+          },
+        });
+      })
+    );
+    return calls;
+  }
+
+  it('rank 传 page + pageSize 只请求该页,不再翻页拉全量', async () => {
+    const calls = mockClist(5600);
+    const result = await new StockSDK().fundFlow.rank({ page: 2, pageSize: 20 });
+    expect(calls.map((c) => [c.pn, c.pz])).toEqual([['2', '20']]);
+    expect(result).toHaveLength(20);
+    expect(result[0].code).toBe('600020');
+    expect(result[19].code).toBe('600039');
+  });
+
+  it('只传 page 时 pageSize 默认 100;只传 pageSize 时 page 默认 1', async () => {
+    const calls = mockClist(5600);
+    const sdk = new StockSDK();
+    expect(await sdk.fundFlow.rank({ indicator: '5day', page: 3 })).toHaveLength(100);
+    expect(await sdk.fundFlow.rank({ pageSize: 10 })).toHaveLength(10);
+    expect(calls.map((c) => [c.pn, c.pz])).toEqual([
+      ['3', '100'],
+      ['1', '10'],
+    ]);
+  });
+
+  it('不传分页参数时仍自动翻页返回全量(默认行为不变)', async () => {
+    const calls = mockClist(150);
+    const result = await new StockSDK().fundFlow.rank();
+    expect(result).toHaveLength(150);
+    expect(calls.map((c) => [c.pn, c.pz])).toEqual([
+      ['1', '100'],
+      ['2', '100'],
+    ]);
+  });
+
+  it('越界页(上游空 diff 或 data:null)返回空数组', async () => {
+    const calls = mockClist(150);
+    const sdk = new StockSDK();
+    expect(await sdk.fundFlow.rank({ page: 9 })).toEqual([]);
+    expect(calls).toHaveLength(1);
+
+    server.use(http.get(CLIST_URL, () => HttpResponse.json({ data: null })));
+    expect(await sdk.fundFlow.rank({ page: 99 })).toEqual([]);
+  });
+
+  it('非法分页参数(含 pageSize 超上游单页上限 100)在请求前抛 InvalidArgumentError', async () => {
+    const calls = mockClist(5600);
+    const sdk = new StockSDK();
+    await expect(sdk.fundFlow.rank({ pageSize: 200 })).rejects.toThrow(
+      /fundFlow\.rank: pageSize 需为 1-100 的整数/
+    );
+    await expect(sdk.fundFlow.rank({ page: 0 })).rejects.toThrow(InvalidArgumentError);
+    await expect(sdk.fundFlow.sectorRank({ page: 1.5 })).rejects.toThrow(
+      /fundFlow\.sectorRank: page/
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it('sectorRank 同样只请求指定页(板块维度 fs 不受影响)', async () => {
+    const calls = mockClist(480);
+    const result = await new StockSDK().fundFlow.sectorRank({
+      sectorType: 'concept',
+      page: 1,
+      pageSize: 10,
+    });
+    expect(calls).toEqual([{ pn: '1', pz: '10', fs: 'm:90+t:3' }]);
+    expect(result).toHaveLength(10);
   });
 });
 

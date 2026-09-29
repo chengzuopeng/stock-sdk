@@ -7,7 +7,7 @@
 | Method | Description |
 |---|---|
 | `marketEvent.ztPool(type?, date?)` | Limit-up themed stock pools (6 pools) |
-| `marketEvent.stockChanges(type?)` | Market-wide intraday changes (22 types; array multi-type / `'all'` supported) |
+| `marketEvent.stockChanges(type?, opts?)` | Market-wide intraday changes (22 types; array multi-type / `'all'` supported; pageable) |
 | `marketEvent.individualChanges(symbol, opts?)` | Single stock's change-event stream for one trading day (all types) |
 | `marketEvent.individualChangesHistory(symbol, opts?)` | Single stock's changes over the last N days (per-day aggregation + coverage + stats) |
 | `marketEvent.boardChanges()` | Sector-change details for the day |
@@ -95,7 +95,7 @@ interface ZTPoolItem {
 
 ## marketEvent.stockChanges
 
-Market-wide intraday changes — 22 types in total. `type` accepts a single type, an array (multiple types in one request), or `'all'` (all 22 types; auto-paginates when the total exceeds the 5000-per-page server limit).
+Market-wide intraday changes — 22 types in total. `type` accepts a single type, an array (multiple types in one request), or `'all'` (all 22 types; auto-paginates when the total exceeds the 5000-per-page server limit). Pass `page` / `pageSize` to fetch a single page instead.
 
 ```ts
 // Monitor large buys
@@ -109,6 +109,9 @@ const seals = await sdk.marketEvent.stockChanges(['limit_up_seal', 'limit_down_s
 
 // All 22 types (can exceed 10k rows on a trading day; auto-paginated)
 const all = await sdk.marketEvent.stockChanges('all');
+
+// Paging: 100 rows per page, fetch only page 2 (a single request)
+const page2 = await sdk.marketEvent.stockChanges('all', { page: 2, pageSize: 100 });
 ```
 
 ### Parameters
@@ -116,6 +119,12 @@ const all = await sdk.marketEvent.stockChanges('all');
 | Param | Type | Description |
 |---|---|---|
 | `type` | `StockChangeType \| StockChangeType[] \| 'all'` | Change type, defaults to `'large_buy'`; array for multi-type, `'all'` for everything |
+| `options.page` | `number` | Page number, starting at 1; passing either `page` or `pageSize` requests only that page, passing neither returns the whole day |
+| `options.pageSize` | `number` | Rows per page, 1–5000, defaults to 100 |
+
+::: tip Paging
+The result is still an array with no total count; a page shorter than `pageSize` is the last one. New changes keep arriving during trading hours, so paging through them can show duplicates or gaps between adjacent pages; for a complete point-in-time result, omit the paging options and fetch everything at once.
+:::
 
 #### Change type `StockChangeType`
 

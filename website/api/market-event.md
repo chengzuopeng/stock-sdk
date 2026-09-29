@@ -7,7 +7,7 @@
 | 方法 | 说明 |
 |---|---|
 | `marketEvent.ztPool(type?, date?)` | 涨停板专题股池（6 个池子） |
-| `marketEvent.stockChanges(type?)` | 全市场盘口异动（22 种类型;支持数组多类型 / `'all'` 一次拉全） |
+| `marketEvent.stockChanges(type?, opts?)` | 全市场盘口异动（22 种类型;支持数组多类型 / `'all'` 一次拉全;可分页） |
 | `marketEvent.boardChanges()` | 当日板块异动详情 |
 | `marketEvent.individualChanges(symbol, opts?)` | 个股某交易日的异动事件流（全类型） |
 | `marketEvent.individualChangesHistory(symbol, opts?)` | 个股近 N 天异动历史（逐交易日聚合 + 覆盖标注 + 类型计数） |
@@ -95,7 +95,7 @@ interface ZTPoolItem {
 
 ## marketEvent.stockChanges
 
-获取全市场盘口异动，共 22 种异动类型;`type` 支持单类型、数组（一次请求多类型）与 `'all'`（全部 22 类,总量超单页 5000 时自动翻页收全）。
+获取全市场盘口异动，共 22 种异动类型;`type` 支持单类型、数组（一次请求多类型）与 `'all'`（全部 22 类,总量超单页 5000 时自动翻页收全）。传 `page` / `pageSize` 可只取其中一页。
 
 ```ts
 // 监控大笔买入
@@ -110,6 +110,9 @@ const seals = await sdk.marketEvent.stockChanges(['limit_up_seal', 'limit_down_s
 // 全部 22 类(交易日总量可达上万条,自动翻页)
 const all = await sdk.marketEvent.stockChanges('all');
 console.log(`今日异动事件共 ${all.length} 条`);
+
+// 分页:每页 100 条,只取第 2 页(单次请求)
+const page2 = await sdk.marketEvent.stockChanges('all', { page: 2, pageSize: 100 });
 ```
 
 ### 参数
@@ -117,6 +120,12 @@ console.log(`今日异动事件共 ${all.length} 条`);
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `type` | `StockChangeType \| StockChangeType[] \| 'all'` | 异动类型，默认 `'large_buy'`（见下表）;数组一次请求多类型,`'all'` 拉全部 |
+| `options.page` | `number` | 页码,从 1 开始;传 `page` / `pageSize` 任一即只请求这一页,都不传则翻页返回当日全量 |
+| `options.pageSize` | `number` | 每页条数,1–5000,默认 100 |
+
+::: tip 分页
+返回值仍是数组,不含总条数;某页条数少于 `pageSize` 即为最后一页。盘中异动持续产生,逐页翻取时相邻页之间可能出现重复或遗漏;需要某一时刻的完整结果请不传分页参数,一次拉全。
+:::
 
 #### 异动类型 `StockChangeType`
 

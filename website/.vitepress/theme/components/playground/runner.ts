@@ -38,8 +38,9 @@ export function buildArgs(method: PlaygroundMethod, values: Record<string, strin
   const positionals = method.fields.filter((f) => f.kind === 'positional');
   const params = method.fields.filter((f) => f.kind === 'param');
 
-  const posArgs = positionals.map((f) => fieldValue(f, values[f.key]));
+  const allPosArgs = positionals.map((f) => fieldValue(f, values[f.key]));
   // 尾部连续空 positional 裁掉（可选位置参数留空时不传）
+  const posArgs = [...allPosArgs];
   while (posArgs.length > 0 && posArgs[posArgs.length - 1] === undefined) posArgs.pop();
 
   const options: Record<string, unknown> = {};
@@ -59,7 +60,9 @@ export function buildArgs(method: PlaygroundMethod, values: Record<string, strin
     case 'codes+options':
       return hasOptions ? [codes, options] : [codes];
     case 'symbol+options':
-      return hasOptions ? [...posArgs, options] : [...posArgs];
+      // options 必须落在全部位置参数之后：可选位置参数留空时以 undefined 占位
+      // （如 marketEvent.stockChanges 不填 type 只填 page → (undefined, { page })，由 SDK 落地默认类型）
+      return hasOptions ? [...allPosArgs, options] : [...posArgs];
     case 'options':
       return hasOptions ? [options] : [];
     case 'positional':

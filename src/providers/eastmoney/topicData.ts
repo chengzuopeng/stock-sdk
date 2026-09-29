@@ -17,13 +17,14 @@ import {
   toEastmoneySecid,
   type NormalizedSymbol,
 } from '../../symbols';
-import { toIsoDate } from './utils';
+import { toIsoDate, resolvePageQuery } from './utils';
 import { fetchDatacenterList, parseDcDate } from './datacenter';
 import type {
   ZTPoolType,
   ZTPoolItem,
   StockChangeType,
   StockChangeItem,
+  StockChangesOptions,
   BoardChangeItem,
   IndividualStockChangeItem,
   IndividualChangesDay,
@@ -302,6 +303,8 @@ export async function getZTPool(
 const STOCK_CHANGES_PAGE_SIZE = 5000;
 /** 翻页安全上限(5 万条,远超实测全类型单日总量,防服务端 tc 异常导致死循环) */
 const STOCK_CHANGES_MAX_PAGES = 10;
+/** 对外分页(#65)未传 pageSize 时的每页条数 */
+const STOCK_CHANGES_DEFAULT_PAGE_SIZE = 100;
 
 /**
  * 获取全市场盘口异动
@@ -309,11 +312,13 @@ const STOCK_CHANGES_MAX_PAGES = 10;
  * @param client - 请求客户端
  * @param type - 异动类型:单个(如 'large_buy')/ 数组(一次请求多类型)/ 'all'(全部 22 类)。
  *               总量超单页 5000 时自动按服务端 tc 翻页收全。
+ * @param options - `page` / `pageSize` 分页:任传其一只请求该页;都不传则翻页收全(默认)
  * @returns 当日异动列表(每条的实际类型由响应 t 码标注,见 changeType / typeCode)
  */
 export async function getStockChanges(
   client: RequestClient,
-  type: StockChangeType | StockChangeType[] | 'all' = 'large_buy'
+  type: StockChangeType | StockChangeType[] | 'all' = 'large_buy',
+  options: StockChangesOptions = {}
 ): Promise<StockChangeItem[]> {
   const types: StockChangeType[] =
     type === 'all'
@@ -331,15 +336,22 @@ export async function getStockChanges(
     }
     return c;
   });
+  const paging = resolvePageQuery(
+    options,
+    {
+      defaultPageSize: STOCK_CHANGES_DEFAULT_PAGE_SIZE,
+      maxPageSize: STOCK_CHANGES_PAGE_SIZE,
+    },
+    'marketEvent.stockChanges'
+  );
   // 单类型请求且响应缺 t 字段时,回退到请求的类型码(兼容旧行为)
   const singleCodeFallback = codes.length === 1 ? codes[0] : '';
 
-  const all: StockChangeItem[] = [];
-  let total: number | null = null;
-  for (let page = 0; page < STOCK_CHANGES_MAX_PAGES; page++) {
+  /** 拉取服务端第 pageIndex 页(从 0 开始),返回事件总数 tc 与本页原始行 */
+  const fetchPage = async (pageIndex: number, pageSize: number) => {
     const params = new URLSearchParams({
-      pageindex: String(page),
-      pagesize: String(STOCK_CHANGES_PAGE_SIZE),
+      pageindex: String(pageIndex),
+      pagesize: String(pageSize),
       ut: EM_PUSH_TOKEN,
       dpt: 'wzchanges',
     });
@@ -349,23 +361,43 @@ export async function getStockChanges(
     // codes 均为纯数字串,直拼无注入风险。
     const url = `${EM_TOPIC_BASE_URL}/getAllStockChanges?type=${codes.join(',')}&${params.toString()}`;
     const json = await client.get<StockChangesResponse>(url, { responseType: 'json' });
-
-    const tc = toNumberSafe(json?.data?.tc);
-    if (tc !== null) total = tc;
     const list = json?.data?.allstock;
-    if (!Array.isArray(list) || list.length === 0) break;
+    return {
+      tc: toNumberSafe(json?.data?.tc),
+      list: Array.isArray(list) ? list : [],
+    };
+  };
+
+  const toItem = (
+    item: NonNullable<NonNullable<StockChangesResponse['data']>['allstock']>[number]
+  ): StockChangeItem => {
+    const tCode = String(item.t ?? singleCodeFallback);
+    return {
+      time: formatTime(item.tm),
+      code: String(item.c ?? ''),
+      name: String(item.n ?? ''),
+      typeCode: tCode,
+      changeType: STOCK_CHANGE_CODE_TO_TYPE[tCode] ?? 'unknown',
+      changeTypeLabel: STOCK_CHANGE_CODE_TO_LABEL[tCode] ?? '',
+      info: String(item.i ?? ''),
+    };
+  };
+
+  // 分页(#65):只请求调用方指定的一页;对外 page 从 1 开始,服务端 pageindex 从 0 开始
+  if (paging) {
+    const { list } = await fetchPage(paging.page - 1, paging.pageSize);
+    return list.map(toItem);
+  }
+
+  const all: StockChangeItem[] = [];
+  let total: number | null = null;
+  for (let page = 0; page < STOCK_CHANGES_MAX_PAGES; page++) {
+    const { tc, list } = await fetchPage(page, STOCK_CHANGES_PAGE_SIZE);
+    if (tc !== null) total = tc;
+    if (list.length === 0) break;
 
     for (const item of list) {
-      const tCode = String(item.t ?? singleCodeFallback);
-      all.push({
-        time: formatTime(item.tm),
-        code: String(item.c ?? ''),
-        name: String(item.n ?? ''),
-        typeCode: tCode,
-        changeType: STOCK_CHANGE_CODE_TO_TYPE[tCode] ?? 'unknown',
-        changeTypeLabel: STOCK_CHANGE_CODE_TO_LABEL[tCode] ?? '',
-        info: String(item.i ?? ''),
-      });
+      all.push(toItem(item));
     }
 
     // 非满页 → 已到末页;已知总数且收满 → 提前结束

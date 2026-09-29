@@ -115,6 +115,11 @@ const rank = await sdk.fundFlow.rank({ indicator: '5day' });
 rank.slice(0, 10).forEach((item, i) => {
   console.log(`#${i + 1} ${item.name}(${item.code}) main net inflow ${item.mainNetInflow}`);
 });
+
+// Only the top 20 by main net inflow (a single request)
+const top20 = await sdk.fundFlow.rank({ page: 1, pageSize: 20 });
+// Ranks 21–40
+const next20 = await sdk.fundFlow.rank({ page: 2, pageSize: 20 });
 ```
 
 ### Parameters
@@ -122,6 +127,14 @@ rank.slice(0, 10).forEach((item, i) => {
 | Param | Type | Description |
 |---|---|---|
 | `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | Stat window, defaults to `'today'` |
+| `options.page` | `number` | Page number, starting at 1; passing either `page` or `pageSize` requests only that page |
+| `options.pageSize` | `number` | Rows per page, 1–100, defaults to 100 |
+
+::: tip Paging vs. the full list
+Without `page` / `pageSize` you get the whole market (about 5,600 rows): the SDK pages through it 100 rows at a time, so one call sends 50+ requests. If you only need the top of the ranking, pass paging options: it takes a single request and is less likely to hit upstream rate limits.
+
+The result is still an array with no total count; a page shorter than `pageSize` is the last one. Rankings move during trading hours, so paging through them can show a few duplicates or gaps between adjacent pages.
+:::
 
 ### Returns
 
@@ -160,6 +173,9 @@ const sectors = await sdk.fundFlow.sectorRank({
 sectors.slice(0, 5).forEach(s => {
   console.log(`${s.name}: net inflow ${s.mainNetInflow}, top stock ${s.topStockName}`);
 });
+
+// Top 10 concept sectors by main net inflow
+const topConcepts = await sdk.fundFlow.sectorRank({ sectorType: 'concept', page: 1, pageSize: 10 });
 ```
 
 ### Parameters
@@ -168,6 +184,8 @@ sectors.slice(0, 5).forEach(s => {
 |---|---|---|
 | `options.indicator` | `'today' \| '3day' \| '5day' \| '10day'` | Stat window, defaults to `'today'` |
 | `options.sectorType` | `'industry' \| 'concept' \| 'region'` | Sector dimension, defaults to `'industry'` |
+| `options.page` | `number` | Page number, starting at 1; passing either `page` or `pageSize` requests only that page, passing neither returns every sector |
+| `options.pageSize` | `number` | Rows per page, 1–100, defaults to 100 |
 
 ### Returns
 

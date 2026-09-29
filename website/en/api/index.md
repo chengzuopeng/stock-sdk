@@ -43,7 +43,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // nested namespace
 |---|---|---|
 | `sdk.fundFlow` | Fund flow (deep): individual / market / rank / sector rank / sector history | [fundFlow](/en/api/fund-flow) |
 | `sdk.northbound` | Stock Connect / northbound: minute / summary / holding rank / history / individual | [northbound](/en/api/northbound) |
-| `sdk.marketEvent` | Market events: limit-up pool / stock changes / board changes | [marketEvent](/en/api/market-event) |
+| `sdk.marketEvent` | Market events: limit-up pool / stock changes / per-stock changes (one day / last N days) / board changes / regulatory fluctuation alerts | [marketEvent](/en/api/market-event) |
 | `sdk.dragonTiger` | Dragon-Tiger list: detail / stock stats / institution / branch rank / seat detail | [dragonTiger](/en/api/dragon-tiger) |
 | `sdk.blockTrade` | Block trades: market stat / detail / daily stat | [blockTrade](/en/api/block-trade) |
 | `sdk.margin` | Margin trading: account info / target list | [margin](/en/api/margin) |
@@ -52,7 +52,7 @@ const k = await sdk.options.etf.dailyKline('10004336') // nested namespace
 
 | Namespace | Purpose | Docs |
 |---|---|---|
-| `sdk.fund` | Mutual fund extensions: dividend list / NAV history / estimate / rank history | [fund](/en/api/fund) |
+| `sdk.fund` | Mutual fund extensions: dividend list / NAV history / rank history / deep profile / theme funds | [fund](/en/api/fund) |
 | `sdk.calendar` | Trading calendar: is-trading-day / next / prev / market status | [calendar](/en/api/calendar) |
 | `sdk.reference` | Reference data: dividend detail / A-share trading calendar | [reference](/en/api/reference) |
 | `sdk.search(keyword)` | Stock search (top-level shortcut) | [search](/en/api/search) |

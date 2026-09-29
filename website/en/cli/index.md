@@ -53,7 +53,7 @@ Available aliases: `quote` / `kline` / `minute` / `indicators` / `search` / `tim
 
 ### ② Namespace direct
 
-All **84 namespaced methods** in the library (plus top-level `search`) can be reached directly with `<namespace> <method>`, no per-method alias required:
+All **93 namespaced methods** in the library (plus top-level `search`) can be reached directly with `<namespace> <method>`, no per-method alias required:
 
 ```bash
 stock-sdk board industry list --format table

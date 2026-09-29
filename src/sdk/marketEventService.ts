@@ -7,6 +7,7 @@ import type {
   ZTPoolItem,
   StockChangeType,
   StockChangeItem,
+  StockChangesOptions,
   BoardChangeItem,
   UnusualFluctuationItem,
   UnusualFluctuationOptions,
@@ -60,11 +61,13 @@ export class MarketEventService extends BaseService {
    *
    * @param type 单类型 / 类型数组(一次请求多类型) / 'all'(全部 22 类);
    *             总量超单页 5000 时自动翻页收全
+   * @param options `page` / `pageSize` 分页:任传其一只请求该页;都不传则翻页收全
    */
   getStockChanges(
-    type?: StockChangeType | StockChangeType[] | 'all'
+    type?: StockChangeType | StockChangeType[] | 'all',
+    options?: StockChangesOptions
   ): Promise<StockChangeItem[]> {
-    return eastmoney.getStockChanges(this.client, type);
+    return eastmoney.getStockChanges(this.client, type, options);
   }
 
   /** 获取板块异动详情 */

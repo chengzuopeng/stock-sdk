@@ -64,7 +64,7 @@ If you're a frontend engineer, you may have encountered these problems:
 - ✅ **Chip distribution (CYQ)**: `sdk.chips.cn/hk/us` — profit ratio / average cost / 90-70 cost ranges & concentration / chip-peak histogram (Eastmoney's algorithm computed locally, no new data source)
 - ✅ **Signals / screener / backtest**: `calcSignals` (golden/death cross, overbought/oversold, etc.), a chainable screener, local backtesting
 - ✅ **Futures / options / fund flow / dragon-tiger list / northbound / block trades / margin / limit-up pool** and more
-- ✅ **Mutual-fund deep data**: NAV history, intraday estimates, peer-ranking trends, fund/ETF dividends, **theme funds**
+- ✅ **Mutual-fund deep data**: NAV history, peer-ranking trends, deep profiles (top holdings / managers / scale), fund/ETF dividends, **theme funds**
 - ✅ **Subpath exports**: `stock-sdk/{indicators,signals,symbols,screener,cache,errors}` — pure-compute imports don't pull in the network layer (tree-shake friendly)
 - ✅ **Unified error system**: only `SdkError` is thrown to callers, each with a stable `code`, importable from `stock-sdk/errors`
 - ✅ **Request governance**: per-provider retry / rate-limit / circuit-breaker + injectable `fetchImpl` / `signal` / lifecycle `hooks`
@@ -291,12 +291,12 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 | `sdk.board` | `.industry.*` / `.concept.*` (`list` / `spot` / `constituents` / `kline` / `minuteKline`) |
 | `sdk.options` | `.index.*` / `.etf.*` / `.commodity.*` / `.cffex.*` / `.lhb` |
 | `sdk.futures` | `.kline` / `.globalSpot` / `.globalKline` / `.inventory` / `.comexInventory` … |
-| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` / `.sectorHistory` |
+| `sdk.fundFlow` | `.individual` / `.market` / `.rank` / `.sectorRank` (both rankings support `page` / `pageSize`) / `.sectorHistory` |
 | `sdk.northbound` | `.minute` / `.summary` / `.holdingRank` / `.history` / `.individual` |
-| `sdk.marketEvent` | `.ztPool` / `.stockChanges` (multi-type / `'all'`) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory` (per-stock changes) |
+| `sdk.marketEvent` | `.ztPool` / `.stockChanges` (multi-type / `'all'` / `page` paging) / `.boardChanges` / `.individualChanges` / `.individualChangesHistory` (per-stock changes) / `.unusualFluctuation` (regulatory fluctuation alerts) |
 | `sdk.dragonTiger` | `.detail` / `.stockStats` / `.institution` / `.branchRank` / `.seatDetail` |
 | `sdk.blockTrade` / `sdk.margin` | block trades / margin trading |
-| `sdk.fund` | `.dividendList` / `.navHistory` / `.estimate` / `.rankHistory` / `.profile` / `.theme.*` |
+| `sdk.fund` | `.dividendList` / `.navHistory` / `.rankHistory` / `.profile` / `.theme.*` (`getThemeList` / `getThemeFunds`) |
 | `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
 | `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
 | top-level | `sdk.search(keyword)` |

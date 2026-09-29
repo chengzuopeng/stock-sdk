@@ -1,6 +1,6 @@
 # 命令清单
 
-CLI 有两层命令：**高频别名**（单 token、带增强）与**命名空间直达**（点到任意方法）。本页逐条列出别名用法，并给出全部 84 个命名空间方法的速查表。
+CLI 有两层命令：**高频别名**（单 token、带增强）与**命名空间直达**（点到任意方法）。本页逐条列出别名用法，并给出全部 93 个命名空间方法的速查表。
 
 > 全局选项（`--format` / `--pretty` / `--timeout` / `--quiet` / `--help` / `--version`）、参数解析规则与退出码见 [CLI 概览](/cli/)。
 
@@ -183,6 +183,8 @@ stock-sdk quotes cn 600519 000858
 stock-sdk board industry constituents 银行
 stock-sdk options etf dailyKline 10004336
 stock-sdk dragonTiger detail --start 20240101 --end 20240131
+stock-sdk fundFlow rank --page 1 --pageSize 20        # 主力净流入前 20，只发一次请求
+stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 ```
 
 **参数形态**：每个方法按其签名归入 6 种 argShape 之一，决定 argv 如何映射成实参：
@@ -200,24 +202,25 @@ stock-sdk dragonTiger detail --start 20240101 --end 20240131
 
 ### 命名空间方法速查
 
-下表覆盖全部 **84 个**命名空间方法（外加顶层 `search`）。方法语义与返回字段以 [API 文档](/api/)为准——这里只给可直达的命令 token。
+下表覆盖全部 **93 个**命名空间方法（外加顶层 `search`）。方法语义与返回字段以 [API 文档](/api/)为准——这里只给可直达的命令 token。
 
 | 命名空间 | 方法（`stock-sdk <ns> <method>`） |
 |---|---|
 | `quotes`（8） | `cn` · `cnSimple` · `hk` · `us` · `fund` · `fundFlow` · `largeOrder` · `timeline` |
 | `codes`（4） | `cn` · `us` · `hk` · `fund` |
 | `batch`（5） | `cn` · `hk` · `us` · `byCodes` · `raw` |
-| `kline`（7） | `cn` · `cnMinute` · `hk` · `hkMinute` · `us` · `usMinute` · `withIndicators` |
+| `kline`（8） | `cn` · `cnMinute` · `hk` · `hkMinute` · `us` · `usMinute` · `withIndicators` · `signals` |
+| `chips`（3） | `cn` · `hk` · `us` |
 | `board`（10） | `industry list/spot/constituents/kline/minuteKline` · `concept list/spot/constituents/kline/minuteKline` |
 | `options`（11） | `index spot/kline` · `etf months/expireDay/minute/dailyKline/fiveDayMinute` · `commodity spot/kline` · `cffex quotes` · `lhb` |
 | `futures`（6） | `kline` · `globalSpot` · `globalKline` · `inventorySymbols` · `inventory` · `comexInventory` |
 | `fundFlow`（5） | `individual` · `market` · `rank` · `sectorRank` · `sectorHistory` |
 | `northbound`（5） | `minute` · `summary` · `holdingRank` · `history` · `individual` |
-| `marketEvent`（3） | `ztPool` · `stockChanges` · `boardChanges` |
+| `marketEvent`（6） | `ztPool` · `stockChanges` · `individualChanges` · `individualChangesHistory` · `boardChanges` · `unusualFluctuation` |
 | `dragonTiger`（5） | `detail` · `stockStats` · `institution` · `branchRank` · `seatDetail` |
 | `blockTrade`（3） | `marketStat` · `detail` · `dailyStat` |
 | `margin`（2） | `accountInfo` · `targetList` |
-| `fund`（5） | `dividendList` · `navHistory` · `estimate` · `rankHistory` · `profile` |
+| `fund`（6） | `dividendList` · `navHistory` · `rankHistory` · `profile` · `theme getThemeList/getThemeFunds` |
 | `calendar`（4） | `isTradingDay` · `nextTradingDay` · `prevTradingDay` · `marketStatus` |
 | `reference`（2） | `dividendDetail` · `tradingCalendar` |
 | 顶层 | `search <keyword>` |

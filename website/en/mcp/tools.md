@@ -25,7 +25,7 @@
 | Margin | `sdk.margin.accountInfo` / `targetList` | Margin account info and target list |
 | Options | `sdk.options.index.*` / `etf.*` / `commodity.*` / `cffex.*` / `lhb` | Index / ETF / commodity / CFFEX options |
 | Futures | `sdk.futures.kline` / `globalSpot` / `globalKline` / `inventory` | Domestic/global futures quotes and inventory |
-| Fund extras | `sdk.fund.dividendList` / `navHistory` / `estimate` / `rankHistory` / `profile` | Fund dividends / NAV / estimate / ranking / deep profile |
+| Fund extras | `sdk.fund.dividendList` / `navHistory` / `rankHistory` / `profile` / `theme.*` | Fund dividends / NAV / ranking / deep profile / theme funds |
 | Trading calendar | `sdk.calendar.isTradingDay` / `nextTradingDay` / `marketStatus` | Trading-day checks and market status |
 | Reference | `sdk.reference.dividendDetail` / `tradingCalendar` | Dividend detail / A-share trading calendar |
 | Search | `sdk.search(keyword)` | Search stocks / funds by keyword |
