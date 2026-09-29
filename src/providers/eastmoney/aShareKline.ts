@@ -15,16 +15,16 @@ import {
   buildTimeMeta,
   MARKET_TZ,
   UpstreamEmptyError,
-  type GetOptions,
   type SdkErrorCode,
 } from '../../core';
 import type { HistoryKline, MinuteTimeline, MinuteKline } from '../../types';
 import { normalizeSymbol, toEastmoneySecid } from '../../symbols';
+import { createMinuteKlineProvider } from './minuteKlineFactory';
 import {
-  createMinuteKlineProvider,
-  type MinuteKlineProviderConfig,
-} from './minuteKlineFactory';
-import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
+  fetchEmHistoryKline,
+  parseEmKlineCsv,
+  type EmKlineRequestOptions,
+} from './utils';
 import {
   getTencentHistoryKline,
   getTencentMinuteKline,
@@ -54,12 +54,11 @@ export interface KlineSourceOptions {
   /**
    * 东方财富失败时是否按腾讯、新浪顺序切换备用源 @default true
    *
-   * 关闭后只请求东方财富，按 `retry` / `providerPolicies.eastmoney` 配置重试。
+   * 关闭后只请求东方财富，断连 / 超时等按 `retry` / `providerPolicies.eastmoney` 重试；
+   * 软限流返回的 `data:null` 是 HTTP 200，不会重试，直接抛 `UPSTREAM_EMPTY`。
    */
   fallback?: boolean;
 }
-
-type EmKlineRequestOptions = Pick<GetOptions, 'retry' | 'hostFallback'>;
 
 // push2his 的所有数字子域实际落到同一出口，遭频控时逐域重试只会放大请求，
 // 所以两种模式都只请求主域名。开启备用源时东财只探测一次，失败即切腾讯；
@@ -200,10 +199,10 @@ export async function getHistoryKline(
 // F45:分钟K线流程收编进 createMinuteKlineProvider 工厂,A 股差异点:
 // secid 走 symbols 层 CN 归一、ndays 固定 '5'、行时间即北京时间
 // (buildTimeMeta CN 解析,F34 的 beg/end 日期可整天直推,无需 endExtraDays)。
-const cnMinuteKlineConfig: MinuteKlineProviderConfig<
+const getMinuteKlineByFactory = createMinuteKlineProvider<
   MinuteTimeline,
   MinuteKline
-> = {
+>({
   trendsUrl: EM_TRENDS_URL,
   klineUrl: EM_KLINE_URL,
   resolveTarget: (symbol) => {
@@ -229,18 +228,7 @@ const cnMinuteKlineConfig: MinuteKlineProviderConfig<
       tz: meta.tz,
     } as MinuteKline;
   },
-};
-
-// 两者只差 kline 分支的请求治理(见 EM_PROBE_ONCE / EM_POLICY_RETRY);
-// 1 分钟分时走 trends2,不受影响。
-const getMinuteKlineProbeOnce = createMinuteKlineProvider<
-  MinuteTimeline,
-  MinuteKline
->({ ...cnMinuteKlineConfig, klineRequestOptions: EM_PROBE_ONCE });
-const getMinuteKlineWithRetry = createMinuteKlineProvider<
-  MinuteTimeline,
-  MinuteKline
->({ ...cnMinuteKlineConfig, klineRequestOptions: EM_POLICY_RETRY });
+});
 
 /**
  * 获取 A 股分钟 K 线或分时数据
@@ -254,20 +242,22 @@ export async function getMinuteKline(
   options: MinuteKlineOptions = {},
   source: KlineSourceOptions = {}
 ): Promise<MinuteTimeline[] | MinuteKline[]> {
+  const useFallback = source.fallback !== false;
   const period = options.period ?? '1';
   assertMinutePeriod(period);
   if (period !== '1') {
     assertAdjustType(options.adjust ?? 'qfq');
   }
 
-  if (source.fallback === false) {
-    return getMinuteKlineWithRetry(client, symbol, options);
-  }
-
   try {
-    return await getMinuteKlineProbeOnce(client, symbol, options);
+    return await getMinuteKlineByFactory(
+      client,
+      symbol,
+      options,
+      useFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY
+    );
   } catch (primaryError) {
-    if (period === '1' || !shouldUseKlineFallback(primaryError)) {
+    if (!useFallback || period === '1' || !shouldUseKlineFallback(primaryError)) {
       throw primaryError;
     }
     try {

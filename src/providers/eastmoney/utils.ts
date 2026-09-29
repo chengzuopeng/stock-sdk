@@ -326,6 +326,9 @@ export function parseEmKlineCsv(line: string): EmKlineItem {
   };
 }
 
+/** 东财 K 线单次请求的治理覆盖（重试次数 / 是否切同源备用 host）。 */
+export type EmKlineRequestOptions = Pick<GetOptions, 'retry' | 'hostFallback'>;
+
 /**
  * 获取东方财富历史 K 线通用函数
  */
@@ -333,7 +336,7 @@ export async function fetchEmHistoryKline(
   client: RequestClient,
   url: string,
   params: URLSearchParams,
-  requestOptions: Pick<GetOptions, 'retry' | 'hostFallback'> = {}
+  requestOptions: EmKlineRequestOptions = {}
 ): Promise<{
   klines: string[];
   name?: string;

@@ -48,8 +48,9 @@ export interface StockSDKOptions extends RequestClientOptions {
    * 新浪顺序切换；影响 `kline.cn` / `kline.cnMinute`（5/15/30/60 分钟）以及基于它们的
    * `kline.withIndicators` / `kline.signals` / `chips.cn`。
    *
-   * 设为 `false` 时只请求东方财富，按 `retry` / `providerPolicies.eastmoney` 配置重试，
-   * 失败时直接抛出东方财富的错误（`data:null` 为 `UPSTREAM_EMPTY`）。
+   * 设为 `false` 时只请求东方财富，断连 / 超时等按 `retry` / `providerPolicies.eastmoney`
+   * 重试，失败时直接抛出东方财富的错误。软限流返回的 `data:null` 是 HTTP 200，不会重试，
+   * 以 `UPSTREAM_EMPTY` 抛出（东财对不存在的代码也返回 `data:null`，两者无法区分）。
    */
   klineFallback?: boolean;
 }
@@ -78,12 +79,13 @@ export class StockSDK {
    * `klineFallback: false` 可关闭 A 股 K 线的备用源切换。
    */
   constructor(options: StockSDKOptions = {}) {
-    const { klineFallback, ...clientOptions } = options;
-    this.client = new RequestClient(clientOptions);
+    // 整体透传而非解构剔除 klineFallback：RequestClient 忽略未知字段，
+    // 解构只复制自有可枚举属性，会丢掉原型 getter / 继承来的配置。
+    this.client = new RequestClient(options);
     this.quoteService = new QuoteService(this.client);
     this.boardService = new BoardService(this.client);
     this.klineService = new KlineService(this.client, {
-      fallback: klineFallback,
+      fallback: options.klineFallback,
     });
     this.futuresService = new FuturesService(this.client);
     this.optionsService = new OptionsService(this.client);

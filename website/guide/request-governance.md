@@ -133,19 +133,21 @@ const sdk = new StockSDK({
 | `klineFallback` | 东方财富请求 | 东方财富失败时 |
 |---|---|---|
 | `true`（默认） | 只请求一次，不重试 | 按腾讯、新浪顺序切换；都失败时抛出东方财富的原始错误 |
-| `false` | 按 `retry` / `providerPolicies.eastmoney` 重试 | 直接抛出东方财富的错误；返回 `data:null`（多为软限流）时错误码为 `UPSTREAM_EMPTY` |
+| `false` | 断连 / 超时等按 `retry` / `providerPolicies.eastmoney` 重试 | 直接抛出东方财富的错误 |
 
 两种模式都只请求 `push2his` 主域名：它的数字子域落在同一后端，逐个切换只会放大请求。
 
-批量拉取大量股票时，备用源同样会被频控。这时可以关闭备用源，用限流和重试自己控制节奏：
+东方财富软限流时一般不报错，而是返回 HTTP 200 + `data:null`。这种响应不会触发 `retry`，会以 `UPSTREAM_EMPTY` 抛出；东财对不存在的代码同样返回 `data:null`，SDK 无法区分两者。
+
+批量拉取大量股票时，备用源同样会被频控。这时可以关闭备用源，用限流控制请求节奏，遇到 `UPSTREAM_EMPTY` 时在应用层降速后重试（写法可参考 [错误处理与重试](/guide/retry)）：
 
 ```ts
 const sdk = new StockSDK({
   klineFallback: false,
   providerPolicies: {
     eastmoney: {
-      rateLimit: { requestsPerSecond: 2 },
-      retry: { maxRetries: 2 },
+      rateLimit: { requestsPerSecond: 2 }, // 控制节奏，减少软限流
+      retry: { maxRetries: 2 },            // 只覆盖断连、超时和可重试的 HTTP 状态码
     },
   },
 })

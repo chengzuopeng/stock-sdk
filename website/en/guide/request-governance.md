@@ -133,19 +133,21 @@ Some data sources have multiple usable domains. When the primary host fails, the
 | `klineFallback` | Eastmoney request | When Eastmoney fails |
 |---|---|---|
 | `true` (default) | Sent once, no retries | Switches to Tencent, then Sina; if both fail, throws the original Eastmoney error |
-| `false` | Retried per `retry` / `providerPolicies.eastmoney` | Throws the Eastmoney error directly; a `data:null` response (usually soft rate limiting) throws `UPSTREAM_EMPTY` |
+| `false` | Disconnects, timeouts, etc. are retried per `retry` / `providerPolicies.eastmoney` | Throws the Eastmoney error directly |
 
 Both modes request only the primary `push2his` host: its numbered subdomains reach the same backend, so switching between them only multiplies requests.
 
-When you download K-lines for many stocks, the fallback sources get rate-limited too. In that case, turn fallback off and pace the requests yourself with rate limiting and retries:
+When Eastmoney soft-limits a client, it usually doesn't return an error. It returns HTTP 200 with `data:null` instead. That response does not trigger `retry` and is thrown as `UPSTREAM_EMPTY`. Eastmoney also returns `data:null` for codes that don't exist, and the SDK cannot tell the two apart.
+
+When you download K-lines for many stocks, the fallback sources get rate-limited too. In that case, turn fallback off, pace the requests with rate limiting, and when you get `UPSTREAM_EMPTY`, slow down and retry in your own code (see [Error Handling & Retry](/en/guide/retry) for the pattern):
 
 ```ts
 const sdk = new StockSDK({
   klineFallback: false,
   providerPolicies: {
     eastmoney: {
-      rateLimit: { requestsPerSecond: 2 },
-      retry: { maxRetries: 2 },
+      rateLimit: { requestsPerSecond: 2 }, // pace requests to avoid soft limits
+      retry: { maxRetries: 2 },            // covers disconnects, timeouts, retryable HTTP statuses only
     },
   },
 })

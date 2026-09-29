@@ -445,6 +445,53 @@ describe('A-share K-line with klineFallback: false', () => {
     expect(backup).not.toHaveBeenCalled();
   });
 
+  it('retries 5-minute K-lines per the retry policy on the primary host only', async () => {
+    const backup = trackBackupSources();
+    const hosts: string[] = [];
+    server.use(
+      http.get('*/api/qt/stock/kline/get', ({ request }) => {
+        hosts.push(new URL(request.url).host);
+        return HttpResponse.error();
+      })
+    );
+
+    await expect(
+      new StockSDK({
+        klineFallback: false,
+        retry: { maxRetries: 1, baseDelay: 1 },
+      }).kline.cnMinute('600519', { period: '5' })
+    ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+
+    expect(hosts).toEqual(['push2his.eastmoney.com', 'push2his.eastmoney.com']);
+    expect(backup).not.toHaveBeenCalled();
+  });
+
+  it('keeps other constructor options supplied through the prototype', async () => {
+    const backup = trackBackupSources();
+    const timeouts: number[] = [];
+    server.use(
+      http.get(EASTMONEY_KLINE_URL, () =>
+        HttpResponse.json({
+          data: { klines: ['2024-05-13,11,12,13,10,110,1200,25,9.09,1,2'] },
+        })
+      )
+    );
+    // 非自有属性（原型 / getter）上的请求配置也要透传给请求层
+    const inherited = Object.create({
+      timeout: 1234,
+      hooks: { onRequest: (ctx: { timeout: number }) => timeouts.push(ctx.timeout) },
+    });
+    inherited.klineFallback = false;
+
+    await new StockSDK(inherited).kline.cn('600519', {
+      startDate: '20240513',
+      endDate: '20240513',
+    });
+
+    expect(timeouts).toEqual([1234]);
+    expect(backup).not.toHaveBeenCalled();
+  });
+
   it('does not fall back for 5-minute K-lines either', async () => {
     const backup = trackBackupSources();
     server.use(
