@@ -507,7 +507,7 @@ describe('A-share K-line with klineFallback: false', () => {
     expect(backup).not.toHaveBeenCalled();
   });
 
-  it('applies to methods built on A-share K-lines', async () => {
+  it('applies to methods built on A-share daily K-lines', async () => {
     const backup = trackBackupSources();
     server.use(http.get(EASTMONEY_KLINE_URL, () => HttpResponse.error()));
     const sdk = new StockSDK({
@@ -521,10 +521,37 @@ describe('A-share K-line with klineFallback: false', () => {
         indicators: { ma: { periods: [2] } },
       })
     ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
-    await expect(sdk.chips.cn('600519')).rejects.toMatchObject({
-      code: 'NETWORK_ERROR',
-    });
+    await expect(
+      sdk.kline.signals('600519', { market: 'A' })
+    ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
 
     expect(backup).not.toHaveBeenCalled();
+  });
+});
+
+describe('chips.cn and A-share K-line fallback', () => {
+  it('stays on Eastmoney by default because backups have no turnover rate', async () => {
+    const tencentHandler = vi.fn();
+    let eastmoneyCalls = 0;
+    server.use(
+      http.get(EASTMONEY_KLINE_URL, () => {
+        eastmoneyCalls++;
+        return HttpResponse.json({ data: null });
+      }),
+      http.get(TENCENT_KLINE_URL, () => {
+        tencentHandler();
+        return HttpResponse.json(
+          tencentPayload([['2024-05-13', '11', '12', '13', '10', '110']])
+        );
+      })
+    );
+
+    // 以前会切到腾讯，拿到没有换手率的 K 线，静默算出全是 null 的分布
+    await expect(new StockSDK().chips.cn('600519')).rejects.toMatchObject({
+      code: 'UPSTREAM_EMPTY',
+    });
+
+    expect(eastmoneyCalls).toBeGreaterThan(0);
+    expect(tencentHandler).not.toHaveBeenCalled();
   });
 });

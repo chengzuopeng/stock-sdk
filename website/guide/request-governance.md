@@ -128,7 +128,7 @@ const sdk = new StockSDK({
 
 ## A 股 K 线备用源 {#kline-fallback}
 
-`klineFallback` 控制 A 股 K 线在东方财富失败时是否切换到其他数据源，默认开启。它作用于 `kline.cn`、`kline.cnMinute`（5/15/30/60 分钟），以及基于 A 股日 K 的 `kline.withIndicators`、`kline.signals`、`chips.cn`；1 分钟分时没有备用源，不受影响。
+`klineFallback` 控制 A 股 K 线在东方财富失败时是否切换到其他数据源，默认开启。它作用于 `kline.cn`、`kline.cnMinute`（5/15/30/60 分钟），以及基于 A 股日 K 的 `kline.withIndicators`、`kline.signals`。1 分钟分时没有备用源，不受影响；`chips.cn` 需要换手率，而备用源不提供，所以始终只请求东方财富。
 
 | `klineFallback` | 东方财富请求 | 东方财富失败时 |
 |---|---|---|

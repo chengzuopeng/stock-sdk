@@ -31,6 +31,21 @@ export class KlineService extends BaseService {
     return eastmoney.getHistoryKline(this.client, symbol, options, this.source);
   }
 
+  /**
+   * A 股历史 K 线，只请求东方财富、不切备用源（不受 `klineFallback` 影响）。
+   *
+   * 供依赖换手率的计算（筹码分布）使用：腾讯、新浪备用源不提供换手率，
+   * 切过去只会算出全是 `null` 的结果。
+   */
+  getEastmoneyHistoryKline(
+    symbol: string,
+    options?: eastmoney.HistoryKlineOptions
+  ): Promise<HistoryKline[]> {
+    return eastmoney.getHistoryKline(this.client, symbol, options, {
+      fallback: false,
+    });
+  }
+
   getMinuteKline(
     symbol: string,
     options?: eastmoney.MinuteKlineOptions

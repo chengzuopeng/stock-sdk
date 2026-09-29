@@ -40,7 +40,7 @@ const peak = withPeak.at(-1)!.histogram!
 | `chips.hk(symbol, opts?)` | HK-stock chip distribution (e.g. `'00700'` / `'hk00700'`) |
 | `chips.us(symbol, opts?)` | US-stock chip distribution (bare ticker `'AAPL'` or secid `'105.AAPL'`) |
 
-> Raw material: Eastmoney daily K-lines (with turnover rate) of the corresponding market. Indices / ETFs have no turnover-rate concept and are out of scope for this model.
+> Raw material: Eastmoney daily K-lines (with turnover rate) of the corresponding market. Indices / ETFs have no turnover-rate concept and are out of scope for this model. The Tencent / Sina fallback sources for CN K-lines don't provide turnover rates, so when Eastmoney fails, `chips.cn` throws the Eastmoney error instead of switching sources.
 
 ## Options
 

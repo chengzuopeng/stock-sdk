@@ -45,8 +45,9 @@ export interface StockSDKOptions extends RequestClientOptions {
    * A 股 K 线在东方财富失败时是否切换备用源 @default true
    *
    * 开启时东方财富只请求一次，失败（断连 / 超时 / `data:null` 软限流等）即按腾讯、
-   * 新浪顺序切换；影响 `kline.cn` / `kline.cnMinute`（5/15/30/60 分钟）以及基于它们的
-   * `kline.withIndicators` / `kline.signals` / `chips.cn`。
+   * 新浪顺序切换；影响 `kline.cn` / `kline.cnMinute`（5/15/30/60 分钟）以及基于日 K 的
+   * `kline.withIndicators` / `kline.signals`。`chips.cn` 需要备用源没有的换手率，
+   * 始终只请求东方财富。
    *
    * 设为 `false` 时只请求东方财富，断连 / 超时等按 `retry` / `providerPolicies.eastmoney`
    * 重试，失败时直接抛出东方财富的错误。软限流返回的 `data:null` 是 HTTP 200，不会重试，

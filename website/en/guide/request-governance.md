@@ -128,7 +128,7 @@ Some data sources have multiple usable domains. When the primary host fails, the
 
 ## CN K-line fallback sources {#kline-fallback}
 
-`klineFallback` controls whether CN K-lines switch to other data sources when Eastmoney fails. It is on by default. It applies to `kline.cn`, `kline.cnMinute` (5/15/30/60-minute), and the methods built on CN daily K-lines: `kline.withIndicators`, `kline.signals`, and `chips.cn`. The 1-minute timeline has no fallback source and is not affected.
+`klineFallback` controls whether CN K-lines switch to other data sources when Eastmoney fails. It is on by default. It applies to `kline.cn`, `kline.cnMinute` (5/15/30/60-minute), and the methods built on CN daily K-lines: `kline.withIndicators` and `kline.signals`. The 1-minute timeline has no fallback source and is not affected. `chips.cn` needs turnover rates, which the fallback sources don't provide, so it always requests Eastmoney only.
 
 | `klineFallback` | Eastmoney request | When Eastmoney fails |
 |---|---|---|

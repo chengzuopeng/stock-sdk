@@ -45,12 +45,15 @@ export class ChipService {
   constructor(
     private readonly klineService: Pick<
       KlineService,
-      'getHistoryKline' | 'getHKHistoryKline' | 'getUSHistoryKline'
+      'getEastmoneyHistoryKline' | 'getHKHistoryKline' | 'getUSHistoryKline'
     >
   ) {}
 
   /**
    * A 股筹码分布(基于日 K 线 + 换手率本地计算,东财 CYQ 算法)。
+   *
+   * 只用东方财富日 K:腾讯、新浪备用源没有换手率,东财失败时直接抛出其错误,
+   * 不受 `klineFallback` 影响。
    *
    * @param symbol 股票代码,如 `'600519'` / `'sh600519'`
    * @param options 见 {@link ChipDistributionRequestOptions}
@@ -137,7 +140,7 @@ export class ChipService {
         case 'US':
           return this.klineService.getUSHistoryKline(symbol, opts);
         default:
-          return this.klineService.getHistoryKline(symbol, opts);
+          return this.klineService.getEastmoneyHistoryKline(symbol, opts);
       }
     };
 
