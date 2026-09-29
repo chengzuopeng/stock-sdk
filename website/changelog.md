@@ -6,6 +6,23 @@ pageClass: changelog-page
 
 本页记录 Stock SDK 的版本更新历史。v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
 
+## v2.4.5
+
+> 发布时间：2026-09-29
+
+### 新增
+
+- **资金流排名与盘口异动支持分页**（[#65](https://github.com/chengzuopeng/stock-sdk/issues/65)，感谢 [@iarjian](https://github.com/iarjian)）：`fundFlow.rank` / `fundFlow.sectorRank` 新增 `page` / `pageSize`（每页 1–100，默认 100）；`marketEvent.stockChanges(type?, options?)` 新增第二个参数，同样支持 `page` / `pageSize`（每页 1–5000，默认 100）。传其中任一即只请求这一页，都不传时保持原有的全量行为，返回值仍是数组。个股资金流排名只取前 20 条时，请求数从 50 多次降到 1 次。页码或每页条数不合法时在请求前抛 `InvalidArgumentError`。CLI 与 MCP 工具 `get_fund_flow_rank` / `get_sector_fund_flow_rank` / `get_stock_changes` 同步支持。
+
+### 修复
+
+- **港股个股行情改用腾讯实时行情键**（[#78](https://github.com/chengzuopeng/stock-sdk/issues/78)，感谢 [@ystarlongzi](https://github.com/ystarlongzi)）：`quotes.hk` / `batch.hk` 此前请求腾讯的 `hk` 行情键，拿到的是延时行情；个股改用实时键 `r_hk`。实时键没有返回有效数据时回退原键，最差与改动前一致。`HSI` 等字母指数键保持原样。
+
+### 文档
+
+- 同步过时的方法清单与计数：CLI 命令清单、README、API / MCP 总览去掉已下线的 `fund.estimate`，补上 `chips`、`kline.signals`、`marketEvent` 的个股异动与监管异动、`fund.profile` / `fund.theme.*`，命名空间方法数更正为 93。
+- 补齐 v2.4.0–v2.4.4 的发布日期。
+
 ## v2.4.4
 
 > 发布时间：2026-09-12
