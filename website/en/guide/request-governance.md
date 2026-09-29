@@ -12,7 +12,7 @@ const sdk = new StockSDK({
 })
 ```
 
-> All governance config goes through the `new StockSDK(options)` constructor (i.e. `RequestClientOptions`). Every field is optional and falls back to a built-in default.
+> All governance config goes through the `new StockSDK(options)` constructor (`StockSDKOptions`, i.e. `RequestClientOptions` plus [`klineFallback`](#kline-fallback)). Every field is optional and falls back to a built-in default.
 
 ## Config layers and precedence
 
@@ -125,6 +125,31 @@ While the breaker is open, requests fail immediately with the error code `CIRCUI
 ## Host fallback
 
 Some data sources have multiple usable domains. When the primary host fails, the request layer automatically switches to the next candidate host and retries. This is transparent to the caller and is reported via `hooks.trace('fallback', ctx)` (see below). The host candidates and switching strategy are built into the request layer; no manual configuration is needed.
+
+## CN K-line fallback sources {#kline-fallback}
+
+`klineFallback` controls whether CN K-lines switch to other data sources when Eastmoney fails. It is on by default. It applies to `kline.cn`, `kline.cnMinute` (5/15/30/60-minute), and the methods built on CN daily K-lines: `kline.withIndicators`, `kline.signals`, and `chips.cn`. The 1-minute timeline has no fallback source and is not affected.
+
+| `klineFallback` | Eastmoney request | When Eastmoney fails |
+|---|---|---|
+| `true` (default) | Sent once, no retries | Switches to Tencent, then Sina; if both fail, throws the original Eastmoney error |
+| `false` | Retried per `retry` / `providerPolicies.eastmoney` | Throws the Eastmoney error directly; a `data:null` response (usually soft rate limiting) throws `UPSTREAM_EMPTY` |
+
+Both modes request only the primary `push2his` host: its numbered subdomains reach the same backend, so switching between them only multiplies requests.
+
+When you download K-lines for many stocks, the fallback sources get rate-limited too. In that case, turn fallback off and pace the requests yourself with rate limiting and retries:
+
+```ts
+const sdk = new StockSDK({
+  klineFallback: false,
+  providerPolicies: {
+    eastmoney: {
+      rateLimit: { requestsPerSecond: 2 },
+      retry: { maxRetries: 2 },
+    },
+  },
+})
+```
 
 ## New in v2: fetchImpl
 

@@ -29,6 +29,8 @@ const us15 = await sdk.kline.us('AAPL', { period: '15' })
 
 > 数据主源为东方财富。普通 A 股历史 K 线及 5/15/30/60 分钟 K 线在 `push2his` 连接断开、超时或返回 `data:null` 时按腾讯、新浪顺序切换备用源；1 分钟分时保持原接口。港股 / 美股 K 线仅含常规交易时段，不含盘前 / 盘后。
 >
+> 不需要切换备用源时（例如批量拉取时不想连带触发腾讯、新浪的频控），用 `new StockSDK({ klineFallback: false })` 关闭，见 [请求治理 · A 股 K 线备用源](/guide/request-governance#kline-fallback)。
+>
 > 备用源提供 OHLCV，`change` / `changePercent` / `amplitude` 由相邻收盘价计算；上游未提供的 `amount` / `turnoverRate` 返回 `null`。腾讯历史备用源支持复权，新浪最终容灾源与两个分钟备用源均不提供复权能力。新浪 Node.js 入口最多取 10000 条日线或 5000 条分钟线；浏览器 JSONP 入口最多取最近 1023 条，窗口覆盖不足时保留东财原错误而不返回残缺数据。特殊中证指数无备用源映射时同样保留东财原错误。
 >
 > `kline.signals` 内部串 `withIndicators` + `calcSignals`（[`stock-sdk/signals`](/api/signals)），返回每条信号的 `type` / `date` / `close` / `detail`。`maFast` / `maSlow`（默认 5 / 20）调 MA 交叉周期，其余用常用默认阈值；不传 `startDate` 在全部历史上识别，传则收窄窗口。

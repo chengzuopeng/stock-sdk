@@ -15,11 +15,15 @@ import {
   buildTimeMeta,
   MARKET_TZ,
   UpstreamEmptyError,
+  type GetOptions,
   type SdkErrorCode,
 } from '../../core';
 import type { HistoryKline, MinuteTimeline, MinuteKline } from '../../types';
 import { normalizeSymbol, toEastmoneySecid } from '../../symbols';
-import { createMinuteKlineProvider } from './minuteKlineFactory';
+import {
+  createMinuteKlineProvider,
+  type MinuteKlineProviderConfig,
+} from './minuteKlineFactory';
 import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
 import {
   getTencentHistoryKline,
@@ -42,6 +46,29 @@ function shouldUseKlineFallback(error: unknown): boolean {
   const code = getSdkErrorCode(error);
   return code !== undefined && KLINE_FALLBACK_ERROR_CODES.has(code);
 }
+
+/**
+ * A 股 K 线的数据源策略，由 SDK 构造参数 `klineFallback` 决定，不属于单次调用参数。
+ */
+export interface KlineSourceOptions {
+  /**
+   * 东方财富失败时是否按腾讯、新浪顺序切换备用源 @default true
+   *
+   * 关闭后只请求东方财富，按 `retry` / `providerPolicies.eastmoney` 配置重试。
+   */
+  fallback?: boolean;
+}
+
+type EmKlineRequestOptions = Pick<GetOptions, 'retry' | 'hostFallback'>;
+
+// push2his 的所有数字子域实际落到同一出口，遭频控时逐域重试只会放大请求，
+// 所以两种模式都只请求主域名。开启备用源时东财只探测一次，失败即切腾讯；
+// 关闭时没有备用源可切，按 retry / providerPolicies 的配置重试。
+const EM_PROBE_ONCE: EmKlineRequestOptions = {
+  retry: { maxRetries: 0 },
+  hostFallback: false,
+};
+const EM_POLICY_RETRY: EmKlineRequestOptions = { hostFallback: false };
 
 export interface HistoryKlineOptions {
   /** K 线周期 @default 'daily' */
@@ -88,12 +115,16 @@ export interface MinuteKlineOptions {
  *
  * **复权说明:** 默认 `adjust='qfq'`(前复权)。回测、收益率计算请显式传 `'hfq'` 或 `''`。
  * 详见 [复权说明](https://stock-sdk.linkdiary.cn/guide/dividend-adjustment.html)。
+ *
+ * 东方财富失败时默认按腾讯、新浪顺序切换备用源；`source.fallback=false` 时只请求东方财富。
  */
 export async function getHistoryKline(
   client: RequestClient,
   symbol: string,
-  options: HistoryKlineOptions = {}
+  options: HistoryKlineOptions = {},
+  source: KlineSourceOptions = {}
 ): Promise<HistoryKline[]> {
+  const useFallback = source.fallback !== false;
   const {
     period = 'daily',
     adjust = 'qfq',
@@ -119,12 +150,12 @@ export async function getHistoryKline(
 
   let klines: string[];
   try {
-    const response = await fetchEmHistoryKline(client, EM_KLINE_URL, params, {
-      // push2his 的所有数字子域实际落到同一出口，遭频控时逐域重试只会放大
-      // 请求并延迟降级。历史 K 线先快速探测一次，失败即切腾讯备用源。
-      retry: { maxRetries: 0 },
-      hostFallback: false,
-    });
+    const response = await fetchEmHistoryKline(
+      client,
+      EM_KLINE_URL,
+      params,
+      useFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY
+    );
     if (!response.dataPresent) {
       throw new UpstreamEmptyError(
         'Eastmoney K-line response has no data payload',
@@ -134,7 +165,7 @@ export async function getHistoryKline(
     }
     klines = response.klines;
   } catch (primaryError) {
-    if (!shouldUseKlineFallback(primaryError)) throw primaryError;
+    if (!useFallback || !shouldUseKlineFallback(primaryError)) throw primaryError;
     try {
       return await getTencentHistoryKline(client, symbol, options);
     } catch (tencentError) {
@@ -169,10 +200,10 @@ export async function getHistoryKline(
 // F45:分钟K线流程收编进 createMinuteKlineProvider 工厂,A 股差异点:
 // secid 走 symbols 层 CN 归一、ndays 固定 '5'、行时间即北京时间
 // (buildTimeMeta CN 解析,F34 的 beg/end 日期可整天直推,无需 endExtraDays)。
-const getMinuteKlineByFactory = createMinuteKlineProvider<
+const cnMinuteKlineConfig: MinuteKlineProviderConfig<
   MinuteTimeline,
   MinuteKline
->({
+> = {
   trendsUrl: EM_TRENDS_URL,
   klineUrl: EM_KLINE_URL,
   resolveTarget: (symbol) => {
@@ -183,10 +214,6 @@ const getMinuteKlineByFactory = createMinuteKlineProvider<
   ndays: { fixed: '5' },
   fqt: 'option',
   includeUt: true,
-  klineRequestOptions: {
-    retry: { maxRetries: 0 },
-    hostFallback: false,
-  },
   requireKlineData: true,
   window: { mode: 'filter' },
   mapTrendRow: ({ time, ...nums }) => {
@@ -202,15 +229,30 @@ const getMinuteKlineByFactory = createMinuteKlineProvider<
       tz: meta.tz,
     } as MinuteKline;
   },
-});
+};
+
+// 两者只差 kline 分支的请求治理(见 EM_PROBE_ONCE / EM_POLICY_RETRY);
+// 1 分钟分时走 trends2,不受影响。
+const getMinuteKlineProbeOnce = createMinuteKlineProvider<
+  MinuteTimeline,
+  MinuteKline
+>({ ...cnMinuteKlineConfig, klineRequestOptions: EM_PROBE_ONCE });
+const getMinuteKlineWithRetry = createMinuteKlineProvider<
+  MinuteTimeline,
+  MinuteKline
+>({ ...cnMinuteKlineConfig, klineRequestOptions: EM_POLICY_RETRY });
 
 /**
  * 获取 A 股分钟 K 线或分时数据
+ *
+ * 5/15/30/60 分钟 K 线在东方财富失败时默认按腾讯、新浪顺序切换备用源；
+ * `source.fallback=false` 时只请求东方财富。1 分钟分时没有备用源。
  */
 export async function getMinuteKline(
   client: RequestClient,
   symbol: string,
-  options: MinuteKlineOptions = {}
+  options: MinuteKlineOptions = {},
+  source: KlineSourceOptions = {}
 ): Promise<MinuteTimeline[] | MinuteKline[]> {
   const period = options.period ?? '1';
   assertMinutePeriod(period);
@@ -218,8 +260,12 @@ export async function getMinuteKline(
     assertAdjustType(options.adjust ?? 'qfq');
   }
 
+  if (source.fallback === false) {
+    return getMinuteKlineWithRetry(client, symbol, options);
+  }
+
   try {
-    return await getMinuteKlineByFactory(client, symbol, options);
+    return await getMinuteKlineProbeOnce(client, symbol, options);
   } catch (primaryError) {
     if (period === '1' || !shouldUseKlineFallback(primaryError)) {
       throw primaryError;

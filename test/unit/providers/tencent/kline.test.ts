@@ -354,3 +354,130 @@ describe('A-share K-line provider fallback', () => {
     expect(tencentHandler).not.toHaveBeenCalled();
   });
 });
+
+describe('A-share K-line with klineFallback: false', () => {
+  /** 备用源一律记账，断言关闭开关后它们一次都没被请求。 */
+  function trackBackupSources() {
+    const backup = vi.fn();
+    server.use(
+      http.get(TENCENT_KLINE_URL, () => {
+        backup('tencent');
+        return HttpResponse.json(tencentPayload([]));
+      }),
+      http.get(TENCENT_MINUTE_KLINE_URL, () => {
+        backup('tencent-minute');
+        return HttpResponse.json({ code: 0, data: {} });
+      }),
+      http.get(SINA_KLINE_URL, () => {
+        backup('sina');
+        return HttpResponse.json([]);
+      })
+    );
+    return backup;
+  }
+
+  it('throws UPSTREAM_EMPTY on Eastmoney data:null without trying backups', async () => {
+    const backup = trackBackupSources();
+    let eastmoneyCalls = 0;
+    server.use(
+      http.get(EASTMONEY_KLINE_URL, () => {
+        eastmoneyCalls++;
+        return HttpResponse.json({ data: null });
+      })
+    );
+
+    await expect(
+      new StockSDK({ klineFallback: false }).kline.cn('600519', {
+        startDate: '20240513',
+        endDate: '20240514',
+      })
+    ).rejects.toMatchObject({ code: 'UPSTREAM_EMPTY', provider: 'eastmoney' });
+
+    expect(eastmoneyCalls).toBe(1);
+    expect(backup).not.toHaveBeenCalled();
+  });
+
+  it('retries Eastmoney per the retry policy on the primary host only', async () => {
+    const backup = trackBackupSources();
+    const hosts: string[] = [];
+    server.use(
+      // 通配所有 push2his 子域：若请求层切了备用 host，这里会记下来
+      http.get('*/api/qt/stock/kline/get', ({ request }) => {
+        hosts.push(new URL(request.url).host);
+        return HttpResponse.error();
+      })
+    );
+
+    await expect(
+      new StockSDK({
+        klineFallback: false,
+        retry: { maxRetries: 1, baseDelay: 1 },
+      }).kline.cn('600519')
+    ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+
+    expect(hosts).toEqual(['push2his.eastmoney.com', 'push2his.eastmoney.com']);
+    expect(backup).not.toHaveBeenCalled();
+  });
+
+  it('returns Eastmoney data once a retry succeeds', async () => {
+    const backup = trackBackupSources();
+    let eastmoneyCalls = 0;
+    server.use(
+      http.get(EASTMONEY_KLINE_URL, () => {
+        eastmoneyCalls++;
+        if (eastmoneyCalls === 1) return HttpResponse.error();
+        return HttpResponse.json({
+          data: {
+            klines: ['2024-05-13,11,12,13,10,110,1200,25,9.09,1,2'],
+          },
+        });
+      })
+    );
+
+    const result = await new StockSDK({
+      klineFallback: false,
+      providerPolicies: { eastmoney: { retry: { maxRetries: 2, baseDelay: 1 } } },
+    }).kline.cn('600519', { startDate: '20240513', endDate: '20240513' });
+
+    expect(eastmoneyCalls).toBe(2);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ date: '2024-05-13', amount: 1200 });
+    expect(backup).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back for 5-minute K-lines either', async () => {
+    const backup = trackBackupSources();
+    server.use(
+      http.get(EASTMONEY_KLINE_URL, () => HttpResponse.json({ data: null }))
+    );
+
+    await expect(
+      new StockSDK({ klineFallback: false }).kline.cnMinute('600519', {
+        period: '5',
+      })
+    ).rejects.toMatchObject({ code: 'UPSTREAM_EMPTY' });
+
+    expect(backup).not.toHaveBeenCalled();
+  });
+
+  it('applies to methods built on A-share K-lines', async () => {
+    const backup = trackBackupSources();
+    server.use(http.get(EASTMONEY_KLINE_URL, () => HttpResponse.error()));
+    const sdk = new StockSDK({
+      klineFallback: false,
+      retry: { maxRetries: 0 },
+    });
+
+    await expect(
+      sdk.kline.withIndicators('600519', {
+        market: 'A',
+        indicators: { ma: { periods: [2] } },
+      })
+    ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+    await expect(sdk.chips.cn('600519')).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+    });
+
+    expect(backup).not.toHaveBeenCalled();
+  });
+});

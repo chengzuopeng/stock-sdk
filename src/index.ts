@@ -5,6 +5,7 @@
 // 默认导出 SDK 类
 export { StockSDK, default } from './sdk';
 export type {
+  StockSDKOptions,
   MarketType,
   ChipDistributionRequestOptions,
   IndividualChangesOptions,

@@ -4,8 +4,8 @@
  *
  * 分发逻辑抽成纯函数 `dispatchMessage`（可单测）；`startMcpServer` 负责 transport 绑定。
  */
-import { StockSDK } from '../sdk';
-import { InvalidArgumentError, type RequestClientOptions } from '../core';
+import { StockSDK, type StockSDKOptions } from '../sdk';
+import { InvalidArgumentError } from '../core';
 import { createLineReader, writeMessage, logStderr } from './transport';
 import {
   negotiateProtocolVersion,
@@ -231,10 +231,10 @@ export interface McpServerOptions {
   /** 技能集范围：'core'(默认) / 'full' / 指定 name 列表（与工具集独立） */
   prompts?: PromptTier | string[];
   /**
-   * 透传给 StockSDK 的请求治理配置（timeout / retry / rateLimit / circuitBreaker / providerPolicies 等）。
-   * 也可通过环境变量 STOCK_SDK_MCP_TIMEOUT 单独设置超时（毫秒）。
+   * 透传给 StockSDK 的构造参数（timeout / retry / rateLimit / circuitBreaker / providerPolicies /
+   * klineFallback 等）。也可通过环境变量 STOCK_SDK_MCP_TIMEOUT 单独设置超时（毫秒）。
    */
-  sdk?: RequestClientOptions;
+  sdk?: StockSDKOptions;
 }
 
 /** 工具集范围：显式 > STOCK_SDK_MCP_TOOLS 环境变量 > core。 */
@@ -248,7 +248,7 @@ function resolvePromptFilter(explicit?: PromptTier | string[]): PromptTier | str
 }
 
 /** 解析 SDK 请求治理配置：显式 > STOCK_SDK_MCP_TIMEOUT 环境变量 > 默认 */
-function resolveSdkOptions(explicit?: RequestClientOptions): RequestClientOptions {
+function resolveSdkOptions(explicit?: StockSDKOptions): StockSDKOptions {
   if (explicit) return explicit;
   const raw = process.env.STOCK_SDK_MCP_TIMEOUT;
   const timeout = raw ? Number(raw) : undefined;

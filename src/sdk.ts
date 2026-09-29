@@ -36,6 +36,24 @@ export type {
   GetAllUSQuotesOptions,
 } from './providers/tencent/batch';
 
+/**
+ * `new StockSDK(options)` 的构造参数：请求治理配置（{@link RequestClientOptions}）
+ * 加上 SDK 级的数据源开关。
+ */
+export interface StockSDKOptions extends RequestClientOptions {
+  /**
+   * A 股 K 线在东方财富失败时是否切换备用源 @default true
+   *
+   * 开启时东方财富只请求一次，失败（断连 / 超时 / `data:null` 软限流等）即按腾讯、
+   * 新浪顺序切换；影响 `kline.cn` / `kline.cnMinute`（5/15/30/60 分钟）以及基于它们的
+   * `kline.withIndicators` / `kline.signals` / `chips.cn`。
+   *
+   * 设为 `false` 时只请求东方财富，按 `retry` / `providerPolicies.eastmoney` 配置重试，
+   * 失败时直接抛出东方财富的错误（`data:null` 为 `UPSTREAM_EMPTY`）。
+   */
+  klineFallback?: boolean;
+}
+
 export class StockSDK {
   private readonly client: RequestClient;
   private readonly quoteService: QuoteService;
@@ -56,13 +74,17 @@ export class StockSDK {
   /**
    * 创建 Stock SDK 实例。
    * 旧的全局 `timeout` / `retry` / `rateLimit` / `circuitBreaker` 配置继续有效，
-   * 也可以通过 `providerPolicies` 为不同数据源覆盖请求治理策略而不影响既有 API。
+   * 也可以通过 `providerPolicies` 为不同数据源覆盖请求治理策略而不影响既有 API；
+   * `klineFallback: false` 可关闭 A 股 K 线的备用源切换。
    */
-  constructor(options: RequestClientOptions = {}) {
-    this.client = new RequestClient(options);
+  constructor(options: StockSDKOptions = {}) {
+    const { klineFallback, ...clientOptions } = options;
+    this.client = new RequestClient(clientOptions);
     this.quoteService = new QuoteService(this.client);
     this.boardService = new BoardService(this.client);
-    this.klineService = new KlineService(this.client);
+    this.klineService = new KlineService(this.client, {
+      fallback: klineFallback,
+    });
     this.futuresService = new FuturesService(this.client);
     this.optionsService = new OptionsService(this.client);
     this.indicatorService = new IndicatorService(
