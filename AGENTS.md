@@ -420,6 +420,8 @@ stock-sdk mcp
 | `kline.usMinute(symbol, options)` | 美股分钟 K 线 / 当日分时 |
 | `quotes.timeline(code)` | A 股当日分时走势 |
 
+> A 股 K 线备用源：`kline.cn` / `kline.cnMinute`（5/15/30/60 分钟）及基于日 K 的 `kline.withIndicators` / `kline.signals` 在东财失败时按腾讯、新浪顺序切换（备用源的 `amount` / `turnoverRate` 为 `null`）。构造参数 `new StockSDK({ klineFallback: false })` 关闭切换：只请求东财，断连 / 超时按 `retry` / `providerPolicies.eastmoney` 重试，`data:null`（软限流或代码不存在，无法区分）不重试、抛 `UPSTREAM_EMPTY`。`chips.cn` 需要换手率，始终只请求东财。
+
 ### 技术指标（主入口或 `stock-sdk/indicators`）
 
 | 方法 | 说明 |
