@@ -8,7 +8,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.4.6
 
-> Released: Unreleased
+> Released: 2026-10-03
 
 ### Added
 
