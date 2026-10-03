@@ -273,7 +273,7 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 
 > **数据延迟**：实时行情来自腾讯财经 / 东方财富等公开接口，**非实时撮合**，通常有数十秒到数分钟延迟，不适合高频交易决策。
 >
-> **K 线降级**：普通 A 股历史 K 线及 5/15/30/60 分钟 K 线以东方财富为主源；遇到 `push2his` 频控断连或软限流时按腾讯、新浪顺序切换 OHLCV 备用源。
+> **K 线降级**：普通 A 股历史 K 线及 5/15/30/60 分钟 K 线以东方财富为主源；遇到 `push2his` 频控断连或软限流时按腾讯、新浪顺序切换 OHLCV 备用源。不需要切换时用 `new StockSDK({ klineFallback: false })` 关闭，只请求东方财富。
 
 ---
 

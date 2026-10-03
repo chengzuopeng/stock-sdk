@@ -174,7 +174,7 @@ const q = await withBackoff(() => sdk.quotes.cn(['600519']))
 - **Branch on `code`, not `message`**: the message text may change; `code` is the stable contract.
 - **Prefer `getSdkErrorCode`**: it covers edge cases `instanceof` misses (e.g. native errors that were annotated with metadata).
 - **Distinguish user cancellation from timeout**: `ABORTED` (external `signal`) ≠ `TIMEOUT` (internal timeout); the former should usually be swallowed.
-- **Empty vs error**: `UPSTREAM_EMPTY` means "queried fine but no data", `UPSTREAM_ERROR` means "upstream explicitly errored" — handle them differently.
+- **Empty vs error**: `UPSTREAM_EMPTY` means "queried fine but no data", `UPSTREAM_ERROR` means "upstream explicitly errored" — handle them differently. Exception: for CN K-lines (`kline.cn`, `kline.cnMinute`, and the methods built on them), `UPSTREAM_EMPTY` can also mean Eastmoney soft rate limiting (HTTP 200 with `data:null`, indistinguishable from an unknown code). In bulk jobs, slowing down and retrying usually recovers. See [CN K-line fallback sources](/en/guide/request-governance#kline-fallback).
 
 > The v2 SDK is still being implemented: the error-code set, subclasses, and the behaviour of `getSdkErrorCode` / `isSdkError` are stable; the **exact classification of individual throw sites is subject to the final implementation**.
 

@@ -12,7 +12,7 @@ const sdk = new StockSDK({
 })
 ```
 
-> 治理配置全部走 `new StockSDK(options)` 的构造参数（即 `RequestClientOptions`）。所有字段皆为可选，不配则用内置默认值。
+> 治理配置全部走 `new StockSDK(options)` 的构造参数（`StockSDKOptions`，即 `RequestClientOptions` 加上 [`klineFallback`](#kline-fallback)）。所有字段皆为可选，不配则用内置默认值。
 
 ## 配置层级与优先级
 
@@ -125,6 +125,33 @@ const sdk = new StockSDK({
 ## host fallback
 
 部分数据源有多个可用域名。当主 host 失败时，请求层会自动切换到下一个候选 host 重试。这一过程对调用方透明，会通过 `hooks.trace('fallback', ctx)` 上报（见下文）。host 候选与切换策略内置在请求层，无需手动配置。
+
+## A 股 K 线备用源 {#kline-fallback}
+
+`klineFallback` 控制 A 股 K 线在东方财富失败时是否切换到其他数据源，默认开启。它作用于 `kline.cn`、`kline.cnMinute`（5/15/30/60 分钟），以及基于 A 股日 K 的 `kline.withIndicators`、`kline.signals`。1 分钟分时没有备用源，不受影响；`chips.cn` 需要换手率，而备用源不提供，所以始终只请求东方财富。
+
+| `klineFallback` | 东方财富请求 | 东方财富失败时 |
+|---|---|---|
+| `true`（默认） | 只请求一次，不重试 | 按腾讯、新浪顺序切换；都失败时抛出东方财富的原始错误 |
+| `false` | 断连 / 超时等按 `retry` / `providerPolicies.eastmoney` 重试 | 直接抛出东方财富的错误 |
+
+两种模式都只请求 `push2his` 主域名：它的数字子域落在同一后端，逐个切换只会放大请求。
+
+东方财富软限流时一般不报错，而是返回 HTTP 200 + `data:null`。这种响应不会触发 `retry`，会以 `UPSTREAM_EMPTY` 抛出；东财对不存在的代码同样返回 `data:null`，SDK 无法区分两者。
+
+批量拉取大量股票时，备用源同样会被频控。这时可以关闭备用源，用限流控制请求节奏，遇到 `UPSTREAM_EMPTY` 时在应用层降速后重试（写法可参考 [错误处理与重试](/guide/retry)）：
+
+```ts
+const sdk = new StockSDK({
+  klineFallback: false,
+  providerPolicies: {
+    eastmoney: {
+      rateLimit: { requestsPerSecond: 2 }, // 控制节奏，减少软限流
+      retry: { maxRetries: 2 },            // 只覆盖断连、超时和可重试的 HTTP 状态码
+    },
+  },
+})
+```
 
 ## v2 新增：fetchImpl
 

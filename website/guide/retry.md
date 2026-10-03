@@ -174,7 +174,7 @@ const q = await withBackoff(() => sdk.quotes.cn(['600519']))
 - **按 `code` 分支，而非 `message`**：`message` 文案可能变化，`code` 是稳定契约。
 - **首选 `getSdkErrorCode`**：覆盖 `instanceof` 漏判的边角（如被附加元数据的原生错误）。
 - **区分用户取消与超时**：`ABORTED`（外部 `signal`）≠ `TIMEOUT`（内部超时），前者通常应静默。
-- **空数据 vs 错误**：`UPSTREAM_EMPTY` 表示「查到了但没数据」，`UPSTREAM_ERROR` 表示「上游明确报错」，二者处理策略不同。
+- **空数据 vs 错误**：`UPSTREAM_EMPTY` 表示「查到了但没数据」，`UPSTREAM_ERROR` 表示「上游明确报错」，二者处理策略不同。例外：A 股 K 线（`kline.cn` / `kline.cnMinute` 等）的 `UPSTREAM_EMPTY` 也可能是东方财富软限流（HTTP 200 + `data:null`，与代码不存在无法区分），批量任务里降速后重试通常能恢复，见 [A 股 K 线备用源](/guide/request-governance#kline-fallback)。
 
 > v2 SDK 仍在实现中：错误码集合、子类与 `getSdkErrorCode` / `isSdkError` 行为稳定；**个别 throw 点的精确归类以最终实现为准**。
 

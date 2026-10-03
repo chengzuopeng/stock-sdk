@@ -337,7 +337,7 @@ ${renderSkills()}
 ### 数据延迟与请求治理
 
 - 数据来自腾讯 / 东财等**公开接口**，非交易所实时撮合，通常有**数十秒到数分钟延迟**，不适合高频交易。
-- \`new StockSDK({ retry, providerPolicies, fetchImpl, signal, hooks, ... })\` — \`RequestClientOptions\` 定义见第三节 \`src/core/request.ts\`。
+- \`new StockSDK({ retry, providerPolicies, fetchImpl, signal, hooks, klineFallback, ... })\` — 构造参数为 \`StockSDKOptions\`：\`RequestClientOptions\`（定义见第三节 \`src/core/request.ts\`）加上 \`klineFallback\`（A 股 K 线在东方财富失败时是否切换腾讯 / 新浪备用源，默认 \`true\`；\`false\` 时只请求东方财富）。
 
 ---`;
 }
@@ -364,7 +364,7 @@ A 股 / 港股 / 美股 / 公募基金 / 期货 / 期权。API 采用**命名空
 \`\`\`ts
 import { StockSDK } from 'stock-sdk';
 
-const sdk = new StockSDK(/* options?: RequestClientOptions — 见第三节 src/core/request.ts */);
+const sdk = new StockSDK(/* options?: StockSDKOptions — RequestClientOptions（第三节 src/core/request.ts）+ klineFallback */);
 
 // 命名空间方法：sdk.<namespace>.<method>(...)
 const quotes = await sdk.quotes.cn(['600519']);        // A 股实时行情（codes 为 string[]）

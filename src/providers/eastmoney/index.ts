@@ -8,6 +8,7 @@ export {
   getMinuteKline,
   type HistoryKlineOptions,
   type MinuteKlineOptions,
+  type KlineSourceOptions,
 } from './aShareKline';
 
 // 港股 K 线

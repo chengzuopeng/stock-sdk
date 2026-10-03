@@ -20,7 +20,11 @@ import {
 import type { HistoryKline, MinuteTimeline, MinuteKline } from '../../types';
 import { normalizeSymbol, toEastmoneySecid } from '../../symbols';
 import { createMinuteKlineProvider } from './minuteKlineFactory';
-import { fetchEmHistoryKline, parseEmKlineCsv } from './utils';
+import {
+  fetchEmHistoryKline,
+  parseEmKlineCsv,
+  type EmKlineRequestOptions,
+} from './utils';
 import {
   getTencentHistoryKline,
   getTencentMinuteKline,
@@ -42,6 +46,28 @@ function shouldUseKlineFallback(error: unknown): boolean {
   const code = getSdkErrorCode(error);
   return code !== undefined && KLINE_FALLBACK_ERROR_CODES.has(code);
 }
+
+/**
+ * A 股 K 线的数据源策略，由 SDK 构造参数 `klineFallback` 决定，不属于单次调用参数。
+ */
+export interface KlineSourceOptions {
+  /**
+   * 东方财富失败时是否按腾讯、新浪顺序切换备用源 @default true
+   *
+   * 关闭后只请求东方财富，断连 / 超时等按 `retry` / `providerPolicies.eastmoney` 重试；
+   * 软限流返回的 `data:null` 是 HTTP 200，不会重试，直接抛 `UPSTREAM_EMPTY`。
+   */
+  fallback?: boolean;
+}
+
+// push2his 的所有数字子域实际落到同一出口，遭频控时逐域重试只会放大请求，
+// 所以两种模式都只请求主域名。开启备用源时东财只探测一次，失败即切腾讯；
+// 关闭时没有备用源可切，按 retry / providerPolicies 的配置重试。
+const EM_PROBE_ONCE: EmKlineRequestOptions = {
+  retry: { maxRetries: 0 },
+  hostFallback: false,
+};
+const EM_POLICY_RETRY: EmKlineRequestOptions = { hostFallback: false };
 
 export interface HistoryKlineOptions {
   /** K 线周期 @default 'daily' */
@@ -88,12 +114,16 @@ export interface MinuteKlineOptions {
  *
  * **复权说明:** 默认 `adjust='qfq'`(前复权)。回测、收益率计算请显式传 `'hfq'` 或 `''`。
  * 详见 [复权说明](https://stock-sdk.linkdiary.cn/guide/dividend-adjustment.html)。
+ *
+ * 东方财富失败时默认按腾讯、新浪顺序切换备用源；`source.fallback=false` 时只请求东方财富。
  */
 export async function getHistoryKline(
   client: RequestClient,
   symbol: string,
-  options: HistoryKlineOptions = {}
+  options: HistoryKlineOptions = {},
+  source: KlineSourceOptions = {}
 ): Promise<HistoryKline[]> {
+  const useFallback = source.fallback !== false;
   const {
     period = 'daily',
     adjust = 'qfq',
@@ -119,12 +149,12 @@ export async function getHistoryKline(
 
   let klines: string[];
   try {
-    const response = await fetchEmHistoryKline(client, EM_KLINE_URL, params, {
-      // push2his 的所有数字子域实际落到同一出口，遭频控时逐域重试只会放大
-      // 请求并延迟降级。历史 K 线先快速探测一次，失败即切腾讯备用源。
-      retry: { maxRetries: 0 },
-      hostFallback: false,
-    });
+    const response = await fetchEmHistoryKline(
+      client,
+      EM_KLINE_URL,
+      params,
+      useFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY
+    );
     if (!response.dataPresent) {
       throw new UpstreamEmptyError(
         'Eastmoney K-line response has no data payload',
@@ -134,7 +164,7 @@ export async function getHistoryKline(
     }
     klines = response.klines;
   } catch (primaryError) {
-    if (!shouldUseKlineFallback(primaryError)) throw primaryError;
+    if (!useFallback || !shouldUseKlineFallback(primaryError)) throw primaryError;
     try {
       return await getTencentHistoryKline(client, symbol, options);
     } catch (tencentError) {
@@ -183,10 +213,6 @@ const getMinuteKlineByFactory = createMinuteKlineProvider<
   ndays: { fixed: '5' },
   fqt: 'option',
   includeUt: true,
-  klineRequestOptions: {
-    retry: { maxRetries: 0 },
-    hostFallback: false,
-  },
   requireKlineData: true,
   window: { mode: 'filter' },
   mapTrendRow: ({ time, ...nums }) => {
@@ -206,12 +232,17 @@ const getMinuteKlineByFactory = createMinuteKlineProvider<
 
 /**
  * 获取 A 股分钟 K 线或分时数据
+ *
+ * 5/15/30/60 分钟 K 线在东方财富失败时默认按腾讯、新浪顺序切换备用源；
+ * `source.fallback=false` 时只请求东方财富。1 分钟分时没有备用源。
  */
 export async function getMinuteKline(
   client: RequestClient,
   symbol: string,
-  options: MinuteKlineOptions = {}
+  options: MinuteKlineOptions = {},
+  source: KlineSourceOptions = {}
 ): Promise<MinuteTimeline[] | MinuteKline[]> {
+  const useFallback = source.fallback !== false;
   const period = options.period ?? '1';
   assertMinutePeriod(period);
   if (period !== '1') {
@@ -219,9 +250,14 @@ export async function getMinuteKline(
   }
 
   try {
-    return await getMinuteKlineByFactory(client, symbol, options);
+    return await getMinuteKlineByFactory(
+      client,
+      symbol,
+      options,
+      useFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY
+    );
   } catch (primaryError) {
-    if (period === '1' || !shouldUseKlineFallback(primaryError)) {
+    if (!useFallback || period === '1' || !shouldUseKlineFallback(primaryError)) {
       throw primaryError;
     }
     try {

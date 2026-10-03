@@ -21,7 +21,6 @@ import {
   formatInTz,
   toNumber,
   type MarketTz,
-  type GetOptions,
   UpstreamEmptyError,
 } from '../../core';
 import type { MinuteTimeline, MinuteKline } from '../../types';
@@ -31,6 +30,7 @@ import {
   normalizeMinuteWindow,
   resolveMinuteBegEnd,
   type EmKlineItem,
+  type EmKlineRequestOptions,
 } from './utils';
 
 /** 分钟 K 线周期 */
@@ -126,8 +126,6 @@ export interface MinuteKlineProviderConfig<
     | { mode: 'full'; beg: string; end: string };
   /** kline 分支额外参数(板块的 smplmt/lmt) */
   extraKlineParams?: Record<string, string>;
-  /** kline 分支单次请求治理覆盖（用于快速探测后切换多源备用）。 */
-  klineRequestOptions?: Pick<GetOptions, 'retry' | 'hostFallback'>;
   /** data:null 时抛出 UPSTREAM_EMPTY，而不是与合法空 klines 混为一谈。 */
   requireKlineData?: boolean;
 }
@@ -193,6 +191,9 @@ export function createOverseasMinuteRowMappers<C extends string>(
  *
  * `period='1'` 走 trends2/get(分时),其余走 kline/get(分钟 K 线);
  * 行为细节(参数、过滤、空数据返回 [])与收编前各市场实现一致。
+ *
+ * 返回函数的 `klineRequestOptions` 只作用于 kline 分支的单次请求治理
+ * (A 股按备用源开关选择,见 aShareKline.ts);未传时使用 client / provider 策略。
  */
 export function createMinuteKlineProvider<
   TTimeline extends { time: string },
@@ -201,7 +202,8 @@ export function createMinuteKlineProvider<
   return async function getMinuteKline(
     client: RequestClient,
     symbol: string,
-    options: MinuteKlineRequestOptions = {}
+    options: MinuteKlineRequestOptions = {},
+    klineRequestOptions?: EmKlineRequestOptions
   ): Promise<TTimeline[] | TKline[]> {
     const period = options.period ?? config.defaultPeriod;
     assertMinutePeriod(period);
@@ -279,7 +281,7 @@ export function createMinuteKlineProvider<
       client,
       config.klineUrl,
       params,
-      config.klineRequestOptions
+      klineRequestOptions
     );
     if (config.requireKlineData && !response.dataPresent) {
       throw new UpstreamEmptyError(
