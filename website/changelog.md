@@ -6,6 +6,22 @@ pageClass: changelog-page
 
 本页记录 Stock SDK 的版本更新历史。v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
 
+## v2.4.6
+
+> 发布时间：待发布
+
+### 新增
+
+- **A 股 K 线备用源开关 `klineFallback`**（[#80](https://github.com/chengzuopeng/stock-sdk/issues/80)，感谢 [@zhrenyue](https://github.com/zhrenyue)）：2.4.4 起 A 股 K 线在东方财富失败时会按腾讯、新浪顺序切换，但无法关闭，批量拉取时容易连带触发备用源的频控。现在可以用 `new StockSDK({ klineFallback: false })` 关闭：`kline.cn` / `kline.cnMinute`（5/15/30/60 分钟）以及 `kline.withIndicators` / `kline.signals` 只请求东方财富，连接断开、超时等按 `retry` / `providerPolicies.eastmoney` 重试，失败时直接抛出东方财富的错误。默认值为 `true`，不传时行为不变。东财软限流返回的 `data:null` 不会触发重试，以 `UPSTREAM_EMPTY` 抛出（与代码不存在无法区分）。构造参数类型同时导出为 `StockSDKOptions`。
+
+### 修复
+
+- **`chips.cn` 不再切换缺少换手率的 K 线备用源**：筹码分布依赖换手率，而 2.4.4 引入的腾讯、新浪备用源不提供换手率。此前东方财富失败时，`chips.cn` 会切到备用源，静默返回统计字段全为 `null` 的结果；现在始终只请求东方财富，失败时直接抛出东方财富的错误。
+
+### 文档
+
+- 请求治理新增「A 股 K 线备用源」一节；错误处理与重试补充说明：A 股 K 线的 `UPSTREAM_EMPTY` 也可能是东方财富软限流。
+
 ## v2.4.5
 
 > 发布时间：2026-09-29

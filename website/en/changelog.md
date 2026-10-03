@@ -6,6 +6,22 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.4.6
+
+> Released: Unreleased
+
+### Added
+
+- **`klineFallback` switch for CN K-line fallback sources** ([#80](https://github.com/chengzuopeng/stock-sdk/issues/80), thanks [@zhrenyue](https://github.com/zhrenyue)): since 2.4.4, CN K-lines switch to Tencent and then Sina when Eastmoney fails, with no way to turn it off, so bulk downloads could trip the fallback sources' rate limits too. Pass `new StockSDK({ klineFallback: false })` to turn it off: `kline.cn` / `kline.cnMinute` (5/15/30/60-minute) and `kline.withIndicators` / `kline.signals` then request Eastmoney only, retry disconnects and timeouts per `retry` / `providerPolicies.eastmoney`, and throw the Eastmoney error when it fails. The default is `true`, so existing code behaves as before. Eastmoney's soft-limit `data:null` response is not retried and is thrown as `UPSTREAM_EMPTY` (it cannot be told apart from an unknown code). The constructor options type is now exported as `StockSDKOptions`.
+
+### Fixed
+
+- **`chips.cn` no longer switches to K-line fallback sources that lack turnover rates**: chip distribution is derived from turnover rates, which the Tencent and Sina fallbacks added in 2.4.4 don't provide. Previously, when Eastmoney failed, `chips.cn` switched to a fallback and silently returned rows whose stats were all `null`; it now always requests Eastmoney and throws the Eastmoney error when it fails.
+
+### Documentation
+
+- Request Governance has a new "CN K-line fallback sources" section, and Error Handling & Retry notes that a CN K-line `UPSTREAM_EMPTY` can also mean Eastmoney soft rate limiting.
+
 ## v2.4.5
 
 > Released: 2026-09-29
