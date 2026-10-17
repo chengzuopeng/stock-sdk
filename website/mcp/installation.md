@@ -70,6 +70,26 @@ command = "npx"
 args = ["-y", "stock-sdk", "mcp"]
 ```
 
+### 可选：搭配 Parallel 研究公司新闻
+
+研究行情变动背后的新闻时，可以将 stock-sdk 的行情、K 线与 [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) 搭配使用。它提供网页搜索与页面抓取，无需账号或 API key；匿名搜索使用 Fast 模式，速率限制较低。
+
+保留上面的 stock-sdk 条目，在 `~/.codex/config.toml` 中添加以下独立 server，使用[支持 Streamable HTTP 的 Codex 客户端](https://developers.openai.com/codex/mcp)：
+
+```toml
+[mcp_servers.parallel-search]
+url = "https://search.parallel.ai/mcp"
+http_headers = { "User-Agent" = "stock-sdk-research/1.0" }
+```
+
+重启 Codex，确认工具列表同时包含 stock-sdk 的行情工具与 Parallel 的 `web_search`、`web_fetch`。客户端分别连接两个 server：stock-sdk 仍走 stdio，Parallel 走远程 HTTP。这套配置不增加 SDK 依赖，也不改变 stock-sdk 的工具选择。
+
+研究提问示例：
+
+> 用 stock-sdk 获取 sh600519 最新可用的 A 股行情与日 K 线。用 Parallel 搜索过去七天发布的公司公告和新闻，再抓取相关来源页面，优先使用公司和交易所公告。列出行情时间戳、各来源的发布日期和 URL，区分已报道的事实与对价格变动的可能解释；找不到近期来源时请明确说明。
+
+对比价格与新闻发布日期前，先检查行情时间戳和交易日历。网页用于补充研究背景，不能替代行情工具；日期相近本身不能证明价格变化的原因。
+
 ## Gemini
 
 在 Gemini CLI 的 `settings.json` 中加入 `mcpServers`：
