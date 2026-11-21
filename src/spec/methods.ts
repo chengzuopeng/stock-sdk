@@ -758,8 +758,9 @@ export const METHOD_SPECS: MethodSpec[] = [
       '带技术指标的历史 K 线（A 股 / 港股 / 美股，market 不传自动按 symbol 识别）。' +
       '周期默认 daily，复权默认按 SDK 默认（qfq）；日期支持 YYYYMMDD 或 YYYY-MM-DD。' +
       'indicators 为对象，键取自 14 个指标：ma / macd / boll / kdj / rsi / wr / bias / cci / ' +
-      'atr / obv / roc / dmi / sar / kc，每个键传 true 即用默认参数开启，或传配置对象' +
+      'atr / obv / roc / dmi / sar / kc。每个键接受布尔值或配置对象' +
       '（如 { ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }）。' +
+      'MA、RSI、WR 和 BIAS 也接受周期数组或 { period }。' +
       'A 股底层历史接口频控时按腾讯、新浪顺序切换备用源。' +
       'SDK 会按指标依赖自动向前多取若干 bar 保证首日有效。' +
       '舍入型指标(ma/macd/boll/kdj/rsi/wr/bias/cci/atr)可传 decimals 指定输出小数位' +

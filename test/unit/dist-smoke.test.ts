@@ -20,6 +20,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
 const DIST = join(__dirname, '../../dist');
 const SRC = join(__dirname, '../../src');
@@ -77,6 +78,26 @@ describe.skipIf(!hasDist || distStale)(
   it('CJS: mcp 入口可加载', () => {
     const require_ = createRequire(__filename);
     expect(() => require_(join(DIST, 'mcp.cjs'))).not.toThrow();
+  });
+
+  it('MCP stdio 在畸形 JSON-RPC 和超长 UTF-8 消息后仍能回应', () => {
+    const tooLong = JSON.stringify({
+      jsonrpc: '2.0', id: 1, method: 'ping', params: { info: '中'.repeat(340_000) },
+    });
+    const child = spawnSync(process.execPath, [join(DIST, 'cli.js'), 'mcp'], {
+      input: ['null', tooLong, '{"jsonrpc":"2.0","id":"next","method":"ping"}', ''].join('\n'),
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    expect(child.error).toBeUndefined();
+    expect(child.status, child.stderr).toBe(0);
+    const messages = child.stdout.trim().split('\n').map((line) => JSON.parse(line));
+    expect(messages).toHaveLength(3);
+    expect(messages).toEqual(expect.arrayContaining([
+      { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Request' } },
+      { jsonrpc: '2.0', id: null, error: { code: -32600, message: expect.stringContaining('Message too large') } },
+      { jsonrpc: '2.0', id: 'next', result: {} },
+    ]));
   });
 
   it('ESM: import 侧命名空间可访问', async () => {

@@ -150,7 +150,7 @@ function renderMethod(s: MethodSpec): string {
 
   if (s.mcpCustom && s.path.join('.') === 'kline.withIndicators') {
     lines.push(
-      '    - `options.indicators` (object, SDK / MCP): 指标配置。键：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc；传 `true` 用默认参数，或传配置对象（如 `{ ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }`）'
+      '    - `options.indicators` (object, SDK / MCP): 指标键接受布尔值或配置对象。MA、RSI、WR、BIAS 支持周期数组及 `{ period }` 简写。MCP 根据 `tools/list` 提供的 schema 校验嵌套字段。'
     );
   }
 

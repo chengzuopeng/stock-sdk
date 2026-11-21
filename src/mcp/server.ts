@@ -16,13 +16,12 @@ import {
   RPC_INVALID_PARAMS,
   RPC_INTERNAL_ERROR,
   type JsonRpcId,
-  type JsonRpcRequest,
   type JsonRpcResponse,
 } from './protocol';
 import { listTools } from './tools';
 import { listPrompts } from './prompts';
 import type { PromptDef } from '../spec/derive-prompt';
-import { resolveTierFilter, type ToolDef, type ToolTier } from './types';
+import { resolveTierFilter, type JsonSchemaProp, type ToolDef, type ToolTier } from './types';
 import { parseHistoryWindow, toToolResult, toolErrorResult } from './result';
 
 /** 技能集范围：'core'(默认) / 'full' / 指定 name 列表。 */
@@ -45,9 +44,13 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-type JsonSchemaType = NonNullable<ToolDef['inputSchema']['properties'][string]['type']>;
+function requestId(message: unknown): JsonRpcId {
+  if (!isObject(message)) return null;
+  const id = message.id;
+  return typeof id === 'string' || (typeof id === 'number' && Number.isInteger(id)) ? id : null;
+}
 
-function matchesJsonSchemaType(v: unknown, type: JsonSchemaType): boolean {
+function matchesJsonSchemaType(v: unknown, type: NonNullable<JsonSchemaProp['type']>): boolean {
   switch (type) {
     case 'array':
       return Array.isArray(v);
@@ -56,50 +59,52 @@ function matchesJsonSchemaType(v: unknown, type: JsonSchemaType): boolean {
     case 'integer':
       return Number.isInteger(v);
     case 'number':
-      return typeof v === 'number';
+      return typeof v === 'number' && Number.isFinite(v);
     case 'boolean':
       return typeof v === 'boolean';
     case 'object':
       return isObject(v);
-    default:
-      return true;
   }
 }
 
-/**
- * 按 tool.inputSchema 校验 args：unknown key / required 缺失 / 基本类型不符 / enum 取值非法
- * → 返回错误消息(否则 null)。
- * MCP server 此前完全不按 schema 校验 tools/call 入参,脏入参(如 codes 传字符串而非数组)会
- * 越过 provider 空值守卫、抛出 `codes.join is not a function` 这类泄漏实现细节的 Error[UNKNOWN]。
- * enum 校验与 CLI 的 enum 拒绝语义一致(spec 派生的 schema 自带 enum,在边界即拒绝非法值)。
- */
-function validateArgs(
-  schema: ToolDef['inputSchema'],
-  args: Record<string, unknown>
-): string | null {
-  if (schema.additionalProperties === false) {
-    const allowed = new Set(Object.keys(schema.properties));
-    for (const key of Object.keys(args)) {
-      if (!allowed.has(key)) {
-        return `未知参数 "${key}"`;
-      }
+/** 按工具声明的 JSON Schema 子集校验参数，并在错误信息中指出字段路径。 */
+function validateArgs(schema: JsonSchemaProp, value: unknown, path = ''): string | null {
+  if (schema.type && !matchesJsonSchemaType(value, schema.type)) {
+    return `参数 "${path}" 类型应为 ${schema.type}`;
+  }
+  if (schema.enum && !schema.enum.some((entry) => entry === value)) {
+    return `参数 "${path}" 取值非法「${String(value)}」，可选: ${schema.enum.join(' / ')}`;
+  }
+  if (schema.anyOf) {
+    const matches = schema.anyOf.filter((prop) => !prop.type || matchesJsonSchemaType(value, prop.type));
+    if (matches.length === 0) {
+      return `参数 "${path}" 类型应为 ${schema.anyOf.map((prop) => prop.type).join(' / ')}`;
+    }
+    const errors = matches.map((prop) => validateArgs(prop, value, path));
+    if (!errors.includes(null)) return errors[0];
+  }
+  if (schema.items && Array.isArray(value)) {
+    for (let index = 0; index < value.length; index++) {
+      const error = validateArgs(schema.items, value[index], `${path}[${index}]`);
+      if (error) return error;
     }
   }
-  for (const key of schema.required ?? []) {
-    if (args[key] === undefined || args[key] === null) {
-      return `缺少必填参数 "${key}"`;
-    }
-  }
-  for (const [key, prop] of Object.entries(schema.properties)) {
-    const v = args[key];
-    if (v === undefined) continue;
-    if (prop.type) {
-      if (!matchesJsonSchemaType(v, prop.type)) {
-        return `参数 "${key}" 类型应为 ${prop.type}`;
+  if (isObject(value)) {
+    const properties = schema.properties ?? {};
+    const fieldPath = (key: string) => path ? `${path}.${key}` : key;
+    for (const key of schema.required ?? []) {
+      if (!Object.prototype.hasOwnProperty.call(value, key) || value[key] == null) {
+        return `缺少必填参数 "${fieldPath(key)}"`;
       }
     }
-    if (prop.enum && !(prop.enum as readonly unknown[]).includes(v)) {
-      return `参数 "${key}" 取值非法「${String(v)}」，可选: ${prop.enum.join(' / ')}`;
+    for (const [key, item] of Object.entries(value)) {
+      if (!Object.prototype.hasOwnProperty.call(properties, key)) {
+        if (schema.additionalProperties === false) return `未知参数 "${fieldPath(key)}"`;
+        continue;
+      }
+      if (item === undefined) continue;
+      const error = validateArgs(properties[key], item, fieldPath(key));
+      if (error) return error;
     }
   }
   return null;
@@ -110,11 +115,10 @@ function validateArgs(
  * 纯函数（除工具内部 IO），便于单测。
  */
 export async function dispatchMessage(
-  msg: JsonRpcRequest,
+  msg: unknown,
   ctx: DispatchContext
 ): Promise<JsonRpcResponse | null> {
-  const id: JsonRpcId = msg.id ?? null;
-  const isRequest = msg.id !== undefined && msg.id !== null;
+  const id = requestId(msg);
   const ok = (result: unknown): JsonRpcResponse => ({ jsonrpc: '2.0', id, result });
   const err = (code: number, message: string): JsonRpcResponse => ({
     jsonrpc: '2.0',
@@ -122,20 +126,25 @@ export async function dispatchMessage(
     error: { code, message },
   });
 
-  // JSON-RPC 2.0 边界守卫：jsonrpc 必须为 '2.0'，method 必须为非空字符串
   if (
-    (msg as { jsonrpc?: unknown }).jsonrpc !== '2.0' ||
+    !isObject(msg) ||
+    msg.jsonrpc !== '2.0' ||
     typeof msg.method !== 'string' ||
-    msg.method.length === 0
+    msg.method.length === 0 ||
+    (msg.id !== undefined && id === null)
   ) {
-    return isRequest ? err(RPC_INVALID_REQUEST, 'Invalid Request') : null;
+    return err(RPC_INVALID_REQUEST, 'Invalid Request');
   }
+  if (id === null) return null;
 
-  const params: unknown = msg.params;
+  const params = msg.params;
+  if (params !== undefined && !isObject(params)) {
+    return err(RPC_INVALID_PARAMS, 'params must be an object');
+  }
 
   switch (msg.method) {
     case 'initialize': {
-      const pv = isObject(params) ? params.protocolVersion : undefined;
+      const pv = params?.protocolVersion;
       return ok({
         protocolVersion: negotiateProtocolVersion(pv),
         // prompts.listChanged 暂不支持（技能集是构建期静态的）
@@ -144,10 +153,9 @@ export async function dispatchMessage(
       });
     }
 
-    // 通知类（无需响应）
     case 'notifications/initialized':
     case 'notifications/cancelled':
-      return null;
+      return err(RPC_INVALID_REQUEST, 'Notifications must not include an id');
 
     case 'ping':
       return ok({});
@@ -162,7 +170,7 @@ export async function dispatchMessage(
       });
 
     case 'tools/call': {
-      if (!isObject(params)) return err(RPC_INVALID_PARAMS, 'params must be an object');
+      if (!params) return err(RPC_INVALID_PARAMS, 'params must be an object');
       const name = params.name;
       if (typeof name !== 'string') return err(RPC_INVALID_PARAMS, 'params.name must be a string');
       const tool = ctx.toolMap.get(name);
@@ -171,7 +179,7 @@ export async function dispatchMessage(
       if (rawArgs !== undefined && !isObject(rawArgs)) {
         return err(RPC_INVALID_PARAMS, 'params.arguments must be an object');
       }
-      const args = isObject(rawArgs) ? rawArgs : {};
+      const args = rawArgs ?? {};
       const argError = validateArgs(tool.inputSchema, args);
       if (argError) {
         // 入参不合规 → 干净的 INVALID_ARGUMENT(isError result,LLM 可见可纠正),
@@ -201,7 +209,7 @@ export async function dispatchMessage(
       });
 
     case 'prompts/get': {
-      if (!isObject(params)) return err(RPC_INVALID_PARAMS, 'params must be an object');
+      if (!params) return err(RPC_INVALID_PARAMS, 'params must be an object');
       const name = params.name;
       if (typeof name !== 'string') return err(RPC_INVALID_PARAMS, 'params.name must be a string');
       const prompt = ctx.promptMap.get(name);
@@ -231,8 +239,7 @@ export async function dispatchMessage(
     }
 
     default:
-      // 未知方法：请求回 METHOD_NOT_FOUND，通知（无 id）忽略
-      return isRequest ? err(RPC_METHOD_NOT_FOUND, `Unknown method: ${msg.method}`) : null;
+      return err(RPC_METHOD_NOT_FOUND, `Unknown method: ${msg.method}`);
   }
 }
 
@@ -324,9 +331,9 @@ export function startMcpServer(options: McpServerOptions = {}): void {
   process.stdin.on('end', () => logStderr('[stock-sdk mcp] stdin closed, exiting'));
 
   async function handleLine(line: string): Promise<void> {
-    let msg: JsonRpcRequest;
+    let msg: unknown;
     try {
-      msg = JSON.parse(line) as JsonRpcRequest;
+      msg = JSON.parse(line);
     } catch {
       writeMessage({ jsonrpc: '2.0', id: null, error: { code: RPC_PARSE_ERROR, message: 'Parse error' } });
       return;
@@ -336,10 +343,11 @@ export function startMcpServer(options: McpServerOptions = {}): void {
       if (res) writeMessage(res);
     } catch (e) {
       logStderr('[stock-sdk mcp] internal error:', (e as Error)?.message ?? String(e));
-      if (msg.id !== undefined && msg.id !== null) {
+      const id = requestId(msg);
+      if (id !== null) {
         writeMessage({
           jsonrpc: '2.0',
-          id: msg.id,
+          id,
           error: { code: RPC_INTERNAL_ERROR, message: String((e as Error)?.message ?? e) },
         });
       }

@@ -121,6 +121,29 @@ describe('mcp/server · dispatchMessage', () => {
     expect(r?.error?.code).toBe(RPC_INVALID_REQUEST);
   });
 
+  it.each([
+    { message: null },
+    { message: [] },
+    { message: {} },
+    { message: { jsonrpc: '2.0', id: false, method: 'ping' } },
+    { message: { jsonrpc: '2.0', id: null, method: 'ping' } },
+  ])('非法消息外壳 $message 返回 id:null 的 INVALID_REQUEST', async ({ message }) => {
+    const response = await dispatchMessage(message, makeCtx());
+    expect(response).toMatchObject({ id: null, error: { code: RPC_INVALID_REQUEST } });
+  });
+
+  it('无 id 的请求式通知既不回复，也不调用工具', async () => {
+    const ctx = makeCtx();
+    const tool = ctx.toolMap.get('get_market_status')!;
+    const invoke = vi.fn(() => 'open');
+    ctx.toolMap.set(tool.name, { ...tool, invoke });
+    const result = await dispatchMessage({
+      jsonrpc: '2.0', method: 'tools/call', params: { name: tool.name },
+    }, ctx);
+    expect(result).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it('tools/call params 非对象(数组) → INVALID_PARAMS', async () => {
     const r = await dispatchMessage(
       { jsonrpc: '2.0', id: 8, method: 'tools/call', params: ['x'] } as unknown as JsonRpcRequest,
@@ -206,6 +229,45 @@ describe('mcp/server · dispatchMessage', () => {
     expect(result.content[0].text).toContain('INVALID_ARGUMENT');
     expect(result.content[0].text).toContain('参数 "indicators" 类型应为 object');
     expect(result.content[0].text).not.toContain('UNKNOWN');
+  });
+
+  it.each([
+    { name: 'get_a_share_quotes', args: { codes: [600519] }, path: 'codes[0]' },
+    { name: 'get_kline_with_indicators', args: { indicators: { ma: { periods: ['5'] } } }, path: 'indicators.ma.periods[0]' },
+    { name: 'get_kline_with_indicators', args: { indicators: { boll: { typo: 1 } } }, path: 'indicators.boll.typo' },
+    { name: 'get_kline_with_indicators', args: { indicators: { typo: true } }, path: 'indicators.typo' },
+  ])('$path 类型或字段不合法时在调用 SDK 前报错', async ({ name, args, path }) => {
+    const ctx = makeCtx();
+    const invoke = vi.fn(() => []);
+    ctx.toolMap.set(name, { ...ctx.toolMap.get(name)!, invoke });
+    const result = await dispatchMessage({
+      jsonrpc: '2.0', id: 16, method: 'tools/call',
+      params: {
+        name,
+        arguments: name === 'get_kline_with_indicators' ? { symbol: '600519', ...args } : args,
+      },
+    }, ctx);
+    const toolResult = result?.result as CallResult;
+    expect(toolResult.isError).toBe(true);
+    expect(toolResult.content[0].text).toContain('INVALID_ARGUMENT');
+    expect(toolResult.content[0].text).toContain(path);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('指标 schema 接受布尔值、选项对象和周期简写', async () => {
+    const ctx = makeCtx();
+    const tool = ctx.toolMap.get('get_kline_with_indicators')!;
+    const invoke = vi.fn(() => []);
+    ctx.toolMap.set(tool.name, { ...tool, invoke });
+    const args = {
+      symbol: '600519',
+      indicators: { ma: [5, 20], rsi: { period: 14 }, boll: { period: 20, stdDev: 2.5 }, sar: false },
+    };
+    const response = await dispatchMessage({
+      jsonrpc: '2.0', id: 17, method: 'tools/call', params: { name: tool.name, arguments: args },
+    }, ctx);
+    expect((response?.result as CallResult).isError).toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith(ctx.sdk, args);
   });
 
   it('#11 serverInfo.version 走构建注入，不硬编码 2.0.0', async () => {

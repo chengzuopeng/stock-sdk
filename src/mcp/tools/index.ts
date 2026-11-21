@@ -4,7 +4,7 @@
  * 见 mcp.md §3 / §10。
  *
  * 仅 get_kline_with_indicators 保留手写 schema/invoke（嵌套 indicators 对象
- * 无法由扁平 ParamSpec 表达，原因见 ./kline.ts），其余 78 个工具全部派生。
+ * 无法由扁平 ParamSpec 表达，原因见 ./kline.ts），其余工具从 spec 派生。
  */
 import { filterByTier, type ToolDef, type ToolTier } from '../types';
 import { METHOD_SPECS } from '../../spec/methods';

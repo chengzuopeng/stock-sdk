@@ -1,6 +1,6 @@
 # MCP Tool Table
 
-`stock-sdk`'s MCP server exposes the SDK's **read-only namespace methods** as tools. Each tool is an explicitly declared `ToolDef` — `name`, `description`, a hand-written JSON Schema `inputSchema`, and an `invoke` that maps args explicitly onto the SDK call — all collected into one manifest as the single source of truth (SSOT), shared with the CLI.
+`stock-sdk` derives read-only MCP tools from the same `MethodSpec` definitions used by the CLI. Each tool provides a name, description, and `inputSchema` through `tools/list`.
 
 > **Exact tools follow the implementation.** The table below is an overview of tools derived from read-only namespace methods; tool names and input fields follow the final manifest. Write operations and debug-only `*Raw` methods are not exposed as tools.
 
@@ -32,7 +32,7 @@
 
 ## Tool call semantics
 
-- **Input**: symbol-like params take `string` as a first-class citizen; the server runs `normalizeSymbol` for tolerant parsing (e.g. `sh600519` / `600519` / `00700` / `hk00700` / `AAPL` / `105.AAPL`). The `inputSchema` is a hand-written JSON Schema literal declaring field names, types and `required`.
+- Pass stock codes as strings such as `"600519"` or `"AAPL"`. The server validates array entries and nested indicator fields against `inputSchema`. Errors identify the field path, such as `codes[0]` or `indicators.ma.periods[0]`.
 - **Argument mapping**: `tools/call` looks up the manifest by `name`, and `invoke(sdk, args)` maps named parameters **explicitly** onto the SDK method's positional arguments — no runtime reflection.
 - **Result**: a successful result is wrapped as `{ content: [{ type: 'text', text: JSON.stringify(result) }] }`; the text is the result serialized per the v2 data contract (unified `Quote` discriminated union, `timestamp: number | null`, percentages as percentage numbers, no `raw` field — exact fields follow the implementation).
 - **Error semantics**: a tool execution failure returns `{ content, isError: true }`, handing the error to the model; only unknown-tool / protocol-level errors use a JSON-RPC `error`.
@@ -47,7 +47,7 @@ The fund history tools accept optional, inclusive `startDate` and `endDate` in `
 
 ## Shared manifest with the CLI
 
-The same tool manifest drives both MCP's `tools/list` / `tools/call` and the CLI's subcommands, preventing two definitions from drifting apart. Adding a tool for a new read-only namespace method is just one more `ToolDef` in the manifest — MCP and CLI pick it up together.
+Register a `MethodSpec` in `src/spec/methods.ts` to derive both CLI and MCP entries. The indicator K-line tool defines a custom schema for its nested `indicators` object.
 
 ## Next steps
 

@@ -169,7 +169,7 @@ npx stock-sdk mcp
 }
 ```
 
-MCP 的 K 线和信号超限时保留最近记录。基金净值和同类排名工具支持 `startDate` / `endDate`，并在 `coverage` 中标注实际返回的区间。[MCP 工具文档](https://stock-sdk.linkdiary.cn/mcp/tools)
+MCP 在调用 SDK 前校验数组元素和嵌套指标配置。K 线和信号超限时保留最近记录。基金净值和同类排名工具支持 `startDate` / `endDate`，并在 `coverage` 中标注实际返回的区间。[MCP 工具文档](https://stock-sdk.linkdiary.cn/mcp/tools)
 
 内置 7 个场景化 AI Skills（MCP Prompts）。`STOCK_SDK_MCP_PROMPTS` 选择技能范围，客户端会发现当前工具集可以执行的技能。将工具和技能范围都设为 `full` 可使用全部 7 个。[AI Skills 文档](https://stock-sdk.linkdiary.cn/skills/)
 

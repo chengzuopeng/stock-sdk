@@ -27,7 +27,7 @@ export type JsonRpcId = string | number | null;
 
 export interface JsonRpcRequest {
   jsonrpc: '2.0';
-  id?: JsonRpcId;
+  id?: string | number;
   method: string;
   params?: Record<string, unknown>;
 }

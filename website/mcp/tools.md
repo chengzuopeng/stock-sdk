@@ -1,6 +1,6 @@
 # MCP 工具表
 
-`stock-sdk` 的 MCP server 把 SDK 的**只读命名空间方法**暴露为 tools。每个 tool 都是显式声明的 `ToolDef`——`name`、`description`、手写 JSON Schema 的 `inputSchema`，以及把参数显式映射到 SDK 调用的 `invoke`，统一收进一份 manifest 作为单一事实源（SSOT），与 CLI 共用。
+`stock-sdk` 从与 CLI 共用的 `MethodSpec` 派生只读 MCP 工具。每个工具在 `tools/list` 提供名称、描述和 `inputSchema`。
 
 > **具体工具以实现为准。** 下表是从只读命名空间方法派生的工具概览，工具名、入参字段以最终实现的 manifest 为准。写操作、调试用的 `*Raw` 方法不暴露为工具。
 
@@ -32,7 +32,7 @@
 
 ## 工具调用语义
 
-- **入参**：符号类参数以 `string` 为一等公民，server 端走 `normalizeSymbol` 容错解析（如 `sh600519` / `600519` / `00700` / `hk00700` / `AAPL` / `105.AAPL`）。`inputSchema` 为手写 JSON Schema 字面量，声明字段名、类型与 `required`。
+- 股票代码使用字符串，例如 `"600519"` 或 `"AAPL"`。服务器按 `inputSchema` 校验数组元素与嵌套指标字段，错误会指出字段路径，例如 `codes[0]` 或 `indicators.ma.periods[0]`。
 - **参数映射**：`tools/call` 按 `name` 查 manifest，由 `invoke(sdk, args)` 把命名参数**显式映射**到 SDK 方法的位置参数，不依赖运行时反射。
 - **返回**：成功结果包成 `{ content: [{ type: 'text', text: JSON.stringify(result) }] }`，文本即按 v2 数据契约序列化的结果（统一 `Quote` 可辨识联合、`timestamp: number | null`、百分比为百分数、无 `raw` 字段，具体字段以实现为准）。
 - **错误语义**：工具执行失败返回 `{ content, isError: true }`，把错误信息交给模型自行处理；只有未知工具 / 协议层错误才用 JSON-RPC `error`。
@@ -47,7 +47,7 @@
 
 ## 与 CLI 共用 manifest
 
-同一份工具 manifest 同时驱动 MCP 的 `tools/list` / `tools/call` 与 CLI 的子命令，避免两套定义漂移。新增一个只读命名空间方法的工具时，只需在 manifest 里加一条 `ToolDef`，MCP 与 CLI 同步生效。
+在 `src/spec/methods.ts` 登记 `MethodSpec` 可同步派生 CLI 和 MCP。带指标 K 线通过一个手写 schema 描述嵌套的 `indicators` 配置。
 
 ## 下一步
 

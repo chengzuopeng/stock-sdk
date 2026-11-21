@@ -16,14 +16,15 @@ export interface JsonSchemaProp {
   items?: JsonSchemaProp;
   default?: string | number | boolean;
   properties?: Record<string, JsonSchemaProp>;
+  required?: string[];
+  additionalProperties?: boolean;
+  anyOf?: JsonSchemaProp[];
 }
 
 /** 工具 inputSchema（对象型） */
-export interface JsonSchema {
+export interface JsonSchema extends JsonSchemaProp {
   type: 'object';
   properties: Record<string, JsonSchemaProp>;
-  required?: string[];
-  additionalProperties?: boolean;
 }
 
 /** 工具集分级：core = 默认高频集；full = 全量 */
