@@ -61,6 +61,20 @@ describe('mcp/result · toToolResult', () => {
     expect(JSON.parse(toToolResult(rows, 'recentSeries').content[0].text)).toEqual(rows);
   });
 
+  it('排名样本超过字符上限时继续缩减，保留榜首', () => {
+    const rows = Array.from({ length: 250 }, (_, index) => ({
+      rank: index + 1, detail: 'x'.repeat(600),
+    }));
+    const text = toToolResult(rows).content[0].text;
+    const parsed = JSON.parse(text);
+
+    expect(text.length).toBeLessThanOrEqual(MAX_TEXT_CHARS);
+    expect(parsed).toMatchObject({ truncated: true, total: 250 });
+    expect(parsed.returned).toBeGreaterThan(0);
+    expect(parsed.returned).toBeLessThan(MAX_ARRAY_ITEMS);
+    expect(parsed.sample).toEqual(rows.slice(0, parsed.returned));
+  });
+
   it('undefined → text 为字符串 "null"(不丢 text 键)', () => {
     const r = toToolResult(undefined);
     expect(r.content[0].text).toBe('null');

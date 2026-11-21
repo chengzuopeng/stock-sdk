@@ -68,9 +68,10 @@ interface Coverage {
   truncated: boolean;
 }
 
-/** 只序列化有界的样本，触及字符上限时继续缩小并保留最近一端。 */
-function serializeRecent(
+/** 只序列化有界的样本，触及字符上限时继续缩小。 */
+function serializeSample(
   items: unknown[],
+  recent: boolean,
   render: (sample: unknown[], coverage: Coverage) => unknown
 ): string {
   const serialize = (sample: unknown[]): string =>
@@ -82,36 +83,32 @@ function serializeRecent(
       truncated: sample.length < items.length,
     }));
 
-  let sample = items.length > MAX_ARRAY_ITEMS ? sortByTime(items).slice(-MAX_ARRAY_ITEMS) : items;
-  let text = serialize(sample);
-  while (sample.length > 1 && text.length > MAX_TEXT_CHARS) {
-    const count = Math.max(1, Math.floor(sample.length * MAX_TEXT_CHARS / text.length));
-    sample = (sample === items ? sortByTime(sample) : sample).slice(-count);
-    text = serialize(sample);
+  let ordered: unknown[] | undefined;
+  const take = (count: number): unknown[] => {
+    if (count === items.length) return items;
+    if (!recent) return items.slice(0, count);
+    ordered ??= sortByTime(items);
+    return ordered.slice(-count);
+  };
+
+  let count = Math.min(items.length, MAX_ARRAY_ITEMS);
+  let text = serialize(take(count));
+  while (count > 1 && text.length > MAX_TEXT_CHARS) {
+    count = Math.max(1, Math.floor(count * MAX_TEXT_CHARS / text.length));
+    text = serialize(take(count));
   }
   return text;
 }
 
-/** 大数组裁剪：返回前 N 条 + 总数 + 提示 */
-function clampLarge(data: unknown): unknown {
-  if (Array.isArray(data) && data.length > MAX_ARRAY_ITEMS) {
-    return {
-      total: data.length,
-      truncated: true,
-      note: `结果过大，仅返回前 ${MAX_ARRAY_ITEMS} 条；请用日期 / 分页 / 市场等参数缩小范围`,
-      sample: data.slice(0, MAX_ARRAY_ITEMS),
-    };
-  }
-  return data;
-}
-
 function serializeResult(data: unknown, output?: McpOutput, window?: HistoryWindow): string {
-  if (output === 'recentSeries' && Array.isArray(data)) {
-    return serializeRecent(data, (sample, coverage) => {
-      if (!coverage.truncated) return sample;
+  if (Array.isArray(data)) {
+    const recent = output === 'recentSeries';
+    return serializeSample(data, recent, (sample, { start, end, ...counts }) => {
+      if (!counts.truncated) return sample;
       return {
-        ...coverage,
-        note: `仅返回最近 ${sample.length} 条，可按工具支持的日期或周期缩小范围`,
+        ...counts,
+        ...(recent ? { start, end } : {}),
+        note: `仅返回${recent ? '最近' : '前'} ${sample.length} 条，可用工具支持的日期、周期或分页选项缩小范围`,
         sample,
       };
     });
@@ -128,10 +125,10 @@ function serializeResult(data: unknown, output?: McpOutput, window?: HistoryWind
         return date !== null && (!startDate || date >= startDate) && (!endDate || date <= endDate);
       })
       : data.items;
-    return serializeRecent(items, (sample, coverage) => ({ ...data, items: sample, coverage }));
+    return serializeSample(items, true, (sample, coverage) => ({ ...data, items: sample, coverage }));
   }
 
-  return JSON.stringify(clampLarge(data)) ?? 'null';
+  return JSON.stringify(data) ?? 'null';
 }
 
 /** 正常结果 → CallToolResult，按工具输出策略裁剪并保留大小兜底。 */

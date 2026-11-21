@@ -40,7 +40,7 @@
 ## 时间序列与大结果
 
 - K 线和信号超过 200 条或 80,000 字符时，返回最近一段记录，按时间升序放在 `sample` 中。`total` 是裁剪前的条数，`returned` 是实际返回条数，`start` / `end` 是首末记录的日期或时间，并标记 `truncated: true`。完整返回时保留数组形态。
-- 资金流等排名数组仍按原排名顺序取前 200 条。需要指定排名区间时，通过工具提供的 `page` / `pageSize` 取数。
+- 资金流等排名数组按原排名顺序取头部样本。样本最多 200 条，并按字符上限进一步缩减。需要指定排名区间时，通过工具提供的 `page` / `pageSize` 取数。
 - `get_fund_nav_history` 和 `get_fund_rank_history` 保留 `code`、`name`、`items`，并附加 `coverage: { total, returned, start, end, truncated }`。`total` 统计筛选后、裁剪前的条数。空区间返回空 `items`，`start` / `end` 为 `null`。
 
 基金历史的 `startDate` / `endDate` 均可省略，支持 `YYYY-MM-DD` 和 `YYYYMMDD`，包含首尾日期。例如 `get_fund_nav_history({ code: "110022", startDate: "2026-09-01", endDate: "2026-10-31" })`。日期筛选作用于 MCP 返回的数据。SDK 的 `fund.navHistory(code)` 和 `fund.rankHistory(code)` 可获取全量。
