@@ -128,7 +128,7 @@ npx stock-sdk search 茅台
 npx stock-sdk quotes cn sh600519 sz000001
 ```
 
-默认 JSON 输出，可加 `--format table|csv`、`--pretty`、`--limit N`。
+默认输出 JSON，可加 `--format table|csv`、`--pretty`、`--limit N`。参数格式错误会返回退出码 `2`。用 `stock-sdk fundFlow rank --help` 查看资金流排名的分页参数。
 
 ---
 

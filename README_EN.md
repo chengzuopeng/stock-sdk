@@ -128,7 +128,7 @@ npx stock-sdk search 茅台
 npx stock-sdk quotes cn sh600519 sz000001
 ```
 
-JSON output by default; add `--format table|csv`, `--pretty`, `--limit N`.
+The CLI defaults to JSON output and accepts `--format table|csv`, `--pretty`, and `--limit N`. Invalid arguments produce exit code `2`. Run `stock-sdk fundFlow rank --help` to see the ranking pagination flags.
 
 ---
 

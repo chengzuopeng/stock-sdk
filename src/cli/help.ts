@@ -28,6 +28,7 @@ export function renderHelp(): string {
   lines.push('  -f, --format json|table|csv   输出格式 (默认 json)');
   lines.push('      --pretty                  JSON 缩进美化');
   lines.push('      --timeout <ms>            请求超时');
+  lines.push('      --limit <N>               数组只输出前 N 条，0 表示全量');
   lines.push('  -q, --quiet                   静默(只输出数据)');
   lines.push('  -h, --help                    显示帮助');
   lines.push('  -V, --version                 显示版本');
@@ -41,6 +42,22 @@ export function renderHelp(): string {
   lines.push('');
   lines.push('运行 `stock-sdk <command> --help` 查看单条命令用法。');
   return lines.join('\n');
+}
+
+/** 展示 stdio 服务的启动参数和环境变量。 */
+export function renderMcpHelp(): string {
+  return [
+    'stock-sdk mcp —— 启动 MCP server (stdio)',
+    '',
+    '用法  stock-sdk mcp [--timeout <ms>]',
+    '',
+    '环境变量',
+    '  STOCK_SDK_MCP_TOOLS     core (默认) / full / 逗号分隔的工具名',
+    '  STOCK_SDK_MCP_PROMPTS   core (默认) / full / 逗号分隔的技能名',
+    '  STOCK_SDK_MCP_TIMEOUT   请求超时毫秒数，--timeout 优先',
+    '',
+    '技能需要当前工具集提供依赖工具。',
+  ].join('\n');
 }
 
 export function renderCommandHelp(spec: CommandSpec): string {

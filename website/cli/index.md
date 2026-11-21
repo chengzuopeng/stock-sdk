@@ -80,7 +80,8 @@ stock-sdk northbound history north --start 20240101 --end 20240201
 |---|---|
 | `-f, --format <fmt>` | 输出格式 `json`（默认）/ `table` / `csv` |
 | `--pretty` | JSON 缩进美化（仅 `json` 格式） |
-| `--timeout <ms>` | 请求超时毫秒数（正整数，注入 `new StockSDK({ timeout })`） |
+| `--timeout <ms>` | 请求超时毫秒数，范围为 1 至 2147483647 的整数 |
+| `--limit <N>` | 数组结果只输出前 N 条，`0` 输出全量 |
 | `-q, --quiet` | 静默：空结果时不再向 stderr 打印「无数据」提示 |
 | `-h, --help` | 显示帮助；`stock-sdk <command> --help` 显示单条命令用法 |
 | `-V, --version` | 显示版本号 |
@@ -112,7 +113,7 @@ stock-sdk quote 600519 -f csv                 # 短选项
 stock-sdk search -- --weird-keyword           # -- 之后不再解析选项
 ```
 
-> 约定：`--start` / `--end` 会自动映射成 SDK 的 `startDate` / `endDate`；`--limit N` 是 **CLI 输出层**的截断（对结果数组取前 N 条），不透传给 SDK，对所有命令统一生效。
+`--start` / `--end` 映射到 SDK 的 `startDate` / `endDate`。`--limit` 只裁剪 CLI 输出的数组结果。布尔开关支持 `--flag`、`--flag=true` 和 `--flag=false`。无效的格式、超时、截断条数或多余的位置参数会返回退出码 `2`。
 
 ## 输出格式
 

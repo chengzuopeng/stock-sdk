@@ -366,13 +366,12 @@ const CHIP_DECIMALS: ParamSpec = {
 /** chips 三市场共用参数序列 */
 const CHIP_PARAMS: ParamSpec[] = [CHIP_DAYS, ADJUST, CHIP_RANGE, CHIP_HISTOGRAM, CHIP_DECIMALS];
 
-// fundFlow 排名参数（CLI 现状未声明 → 保持透传，仅 MCP 声明）
+// fundFlow 排名参数
 const FF_INDICATOR: ParamSpec = {
   flag: 'indicator',
   type: 'enum',
   enum: ['today', '3day', '5day', '10day'],
   default: 'today',
-  cli: false,
   desc: '排名周期 today/3day/5day/10day',
   mcpDesc: '排名周期：today=今日(默认) / 3day / 5day / 10day',
 };
@@ -381,28 +380,23 @@ const FF_SECTOR_TYPE: ParamSpec = {
   type: 'enum',
   enum: ['industry', 'concept', 'region'],
   default: 'industry',
-  cli: false,
   desc: '板块类型 industry/concept/region',
   mcpDesc: '板块类型：industry=行业(默认) / concept=概念 / region=地域',
 };
 // #65 单页取数：page / pageSize 任传其一只请求一页，都不传时 SDK 翻页返回全量
-// （与同方法其余参数一致，CLI 现状未声明 → 保持透传）
 const PAGE_OR_ALL: ParamSpec = {
   flag: 'page',
   type: 'number',
-  cli: false,
   desc: '页码，从 1 开始；传 page / pageSize 任一即只请求这一页，都不传则自动翻页返回全量',
 };
 const FF_PAGE_SIZE: ParamSpec = {
   flag: 'pageSize',
   type: 'number',
-  cli: false,
   desc: '每页条数，1-100，默认 100（仅分页时生效）',
 };
 const CHANGES_PAGE_SIZE: ParamSpec = {
   flag: 'pageSize',
   type: 'number',
-  cli: false,
   desc: '每页条数，1-5000，默认 100（仅分页时生效）',
   mcpDesc: '每页条数，1-5000，默认 100（仅分页时生效）；MCP 单次最多返回 200 条，建议不超过 200',
 };
