@@ -37,6 +37,14 @@
 - **返回**：成功结果包成 `{ content: [{ type: 'text', text: JSON.stringify(result) }] }`，文本即按 v2 数据契约序列化的结果（统一 `Quote` 可辨识联合、`timestamp: number | null`、百分比为百分数、无 `raw` 字段，具体字段以实现为准）。
 - **错误语义**：工具执行失败返回 `{ content, isError: true }`，把错误信息交给模型自行处理；只有未知工具 / 协议层错误才用 JSON-RPC `error`。
 
+## 时间序列与大结果
+
+- K 线和信号超过 200 条或 80,000 字符时，返回最近一段记录，按时间升序放在 `sample` 中。`total` 是裁剪前的条数，`returned` 是实际返回条数，`start` / `end` 是首末记录的日期或时间，并标记 `truncated: true`。完整返回时保留数组形态。
+- 资金流等排名数组仍按原排名顺序取前 200 条。需要指定排名区间时，通过工具提供的 `page` / `pageSize` 取数。
+- `get_fund_nav_history` 和 `get_fund_rank_history` 保留 `code`、`name`、`items`，并附加 `coverage: { total, returned, start, end, truncated }`。`total` 统计筛选后、裁剪前的条数。空区间返回空 `items`，`start` / `end` 为 `null`。
+
+基金历史的 `startDate` / `endDate` 均可省略，支持 `YYYY-MM-DD` 和 `YYYYMMDD`，包含首尾日期。例如 `get_fund_nav_history({ code: "110022", startDate: "2026-09-01", endDate: "2026-10-31" })`。日期筛选作用于 MCP 返回的数据。SDK 的 `fund.navHistory(code)` 和 `fund.rankHistory(code)` 可获取全量。
+
 ## 与 CLI 共用 manifest
 
 同一份工具 manifest 同时驱动 MCP 的 `tools/list` / `tools/call` 与 CLI 的子命令，避免两套定义漂移。新增一个只读命名空间方法的工具时，只需在 manifest 里加一条 `ToolDef`，MCP 与 CLI 同步生效。

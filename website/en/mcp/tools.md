@@ -37,6 +37,14 @@
 - **Result**: a successful result is wrapped as `{ content: [{ type: 'text', text: JSON.stringify(result) }] }`; the text is the result serialized per the v2 data contract (unified `Quote` discriminated union, `timestamp: number | null`, percentages as percentage numbers, no `raw` field — exact fields follow the implementation).
 - **Error semantics**: a tool execution failure returns `{ content, isError: true }`, handing the error to the model; only unknown-tool / protocol-level errors use a JSON-RPC `error`.
 
+## Time series and large results
+
+- When K-lines or signals exceed 200 rows or 80,000 characters, the server returns the newest records in ascending order under `sample`.`total` counts the rows before truncation, `returned` counts the returned rows, and `start` and `end` give the first and last dates or times. The result includes `truncated: true`. Complete results remain arrays.
+- Rankings such as fund-flow rankings keep the first 200 rows in their original rank order. Use `page` and `pageSize` on tools that support pagination to request a specific slice.
+- `get_fund_nav_history` and `get_fund_rank_history` retain `code`, `name`, and `items` and add `coverage: { total, returned, start, end, truncated }`. `total` counts rows after date filtering and before truncation. An empty interval yields empty `items` with `null` for `start` and `end`.
+
+The fund history tools accept optional, inclusive `startDate` and `endDate` in `YYYY-MM-DD` or `YYYYMMDD` format. For example, call `get_fund_nav_history({ code: "110022", startDate: "2026-09-01", endDate: "2026-10-31" })`. The dates filter the MCP response. The SDK methods `fund.navHistory(code)` and `fund.rankHistory(code)` return full histories.
+
 ## Shared manifest with the CLI
 
 The same tool manifest drives both MCP's `tools/list` / `tools/call` and the CLI's subcommands, preventing two definitions from drifting apart. Adding a tool for a new read-only namespace method is just one more `ToolDef` in the manifest — MCP and CLI pick it up together.

@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
 import { dispatchMessage, type DispatchContext } from '../../../src/mcp/server';
 import { resolveTierFilter } from '../../../src/mcp/types';
+import { MAX_ARRAY_ITEMS } from '../../../src/mcp/result';
 import { listTools } from '../../../src/mcp/tools';
 import { listPrompts } from '../../../src/mcp/prompts';
 import { StockSDK } from '../../../src/sdk';
@@ -398,5 +399,74 @@ describe('tools/call 分页参数直达 provider (#65)', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('INVALID_ARGUMENT');
     expect(result.content[0].text).toContain('pageSize 需为 1-100 的整数');
+  });
+});
+
+describe('MCP 基金历史输出窗口', () => {
+  const url = 'https://fund.eastmoney.com/pingzhongdata/110022.js';
+  const points = Array.from({ length: 900 }, (_, index) => ({
+    x: Date.UTC(2024, 0, index + 1),
+    y: 1.23,
+    sc: '300',
+  }));
+
+  function mockFundData(): void {
+    const body = [
+      'var fS_code = "110022";',
+      `var Data_netWorthTrend = ${JSON.stringify(points)};`,
+      `var Data_rateInSimilarType = ${JSON.stringify(points)};`,
+    ].join('\n');
+    server.use(http.get(url, () => HttpResponse.text(body)));
+  }
+
+  async function callHistory(name: string, window = {}, ctx = makeCtx()): Promise<CallResult> {
+    const response = await dispatchMessage({
+      jsonrpc: '2.0',
+      id: 41,
+      method: 'tools/call',
+      params: { name, arguments: { code: '110022', ...window } },
+    }, ctx);
+    return response?.result as CallResult;
+  }
+
+  it.each(['get_fund_nav_history', 'get_fund_rank_history'])('%s 支持含首尾日期的输出筛选', async (name) => {
+    mockFundData();
+    const res = await callHistory(name, { startDate: '20240228', endDate: '2024-03-01' });
+    const data = JSON.parse(res.content[0].text);
+    expect(data.code).toBe('110022');
+    expect(data.items.map((row: { date: string }) => row.date)).toEqual([
+      '2024-02-28', '2024-02-29', '2024-03-01',
+    ]);
+    expect(data.coverage).toEqual({
+      total: 3, returned: 3, start: '2024-02-28', end: '2024-03-01', truncated: false,
+    });
+  });
+
+  it('只传 code 时返回最近的有界记录，SDK 仍返回完整历史', async () => {
+    mockFundData();
+    const ctx = makeCtx();
+    const res = await callHistory('get_fund_nav_history', {}, ctx);
+    const data = JSON.parse(res.content[0].text);
+    const full = await ctx.sdk.fund.navHistory('110022');
+    expect(full.items).toHaveLength(points.length);
+    expect(data.items).toEqual(full.items.slice(-MAX_ARRAY_ITEMS));
+    expect(data.coverage).toMatchObject({
+      total: points.length,
+      returned: MAX_ARRAY_ITEMS,
+      end: full.items[full.items.length - 1].date,
+      truncated: true,
+    });
+  });
+
+  it.each([
+    { startDate: '2024-02-30' },
+    { startDate: '2024-03-01', endDate: '2024-02-28' },
+  ])('拒绝无效日期窗口 %o，不发送请求', async (window) => {
+    const onRequest = vi.fn(() => HttpResponse.text(''));
+    server.use(http.get(url, onRequest));
+    const res = await callHistory('get_fund_nav_history', window);
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('INVALID_ARGUMENT');
+    expect(onRequest).not.toHaveBeenCalled();
   });
 });

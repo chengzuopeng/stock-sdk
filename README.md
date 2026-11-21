@@ -155,7 +155,7 @@ npx stock-sdk mcp
 
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集范围（默认 `core`）。
 
-要通过 `npx` 暴露全部 92 个 MCP 工具，在配置中加入 `env`：
+要通过 `npx` 暴露全量 MCP 工具，在配置中加入 `env`：
 
 ```json
 {
@@ -168,6 +168,8 @@ npx stock-sdk mcp
   }
 }
 ```
+
+MCP 的 K 线和信号超限时保留最近记录。基金净值和同类排名工具支持 `startDate` / `endDate`，并在 `coverage` 中标注实际返回的区间。[MCP 工具文档](https://stock-sdk.linkdiary.cn/mcp/tools)
 
 除工具外还内置 **7 个场景化 AI Skills**（MCP Prompts，如 `analyze_stock` / `screen_stocks` / `diagnose_stock`），支持的客户端可一键触发；`STOCK_SDK_MCP_PROMPTS=core|full|<名单>` 控制技能集（默认 `core`）。详见 [AI Skills 文档](https://stock-sdk.linkdiary.cn/skills/)。
 

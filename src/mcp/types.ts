@@ -6,6 +6,7 @@
  * 杜绝 `...Object.values(args)` 那种位置参数错乱。
  */
 import type { StockSDK } from '../sdk';
+import type { McpOutput } from '../spec/methods';
 
 /** 极简 JSON Schema 属性（仅覆盖工具入参所需子集） */
 export interface JsonSchemaProp {
@@ -79,5 +80,6 @@ export interface ToolDef {
   description: string;
   inputSchema: JsonSchema;
   tier: ToolTier;
+  output?: McpOutput;
   invoke: (sdk: StockSDK, args: Record<string, unknown>) => unknown | Promise<unknown>;
 }

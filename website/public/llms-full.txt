@@ -70,7 +70,7 @@ npx stock-sdk mcp
 
 Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["-y", "stock-sdk", "mcp"] }`。
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集（默认 `core`）。
-**MCP tools/call 大结果会自动裁剪**（数组 >200 条、序列化 >80KB）；**SDK 直连不受此限**。详见 https://stock-sdk.linkdiary.cn/mcp/
+MCP 的 K 线、信号及基金历史超限时保留最近记录（最多 200 条、80,000 字符）。基金净值和同类排名可用 `startDate` / `endDate` 筛选。SDK 直连可取全量。详见 https://stock-sdk.linkdiary.cn/mcp/tools
 
 #### MCP Skills（Prompts）
 
@@ -204,7 +204,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
     - `--start → options.startDate` (string, CLI 专属): 起始日期 YYYYMMDD
     - `--end → options.endDate` (string, CLI 专属): 结束日期 YYYYMMDD
-- **`sdk.kline.withIndicators(symbol, options?)`** — 带技术指标的历史 K 线（A 股 / 港股 / 美股，market 不传自动按 symbol 识别）。周期默认 daily，复权默认按 SDK 默认（qfq）；日期支持 YYYYMMDD 或 YYYY-MM-DD。indicators 为对象，键取自 14 个指标：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc，每个键传 true 即用默认参数开启，或传配置对象（如 { ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }）。A 股底层历史接口频控时按腾讯、新浪顺序切换备用源。SDK 会按指标依赖自动向前多取若干 bar 保证首日有效。舍入型指标(ma/macd/boll/kdj/rsi/wr/bias/cci/atr)可传 decimals 指定输出小数位(默认 3;obv/roc/dmi/sar/kc 输出不舍入)。
+- **`sdk.kline.withIndicators(symbol, options?)`** — 带技术指标的历史 K 线（A 股 / 港股 / 美股，market 不传自动按 symbol 识别）。周期默认 daily，复权默认按 SDK 默认（qfq）；日期支持 YYYYMMDD 或 YYYY-MM-DD。indicators 为对象，键取自 14 个指标：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc，每个键传 true 即用默认参数开启，或传配置对象（如 { ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }）。A 股底层历史接口频控时按腾讯、新浪顺序切换备用源。SDK 会按指标依赖自动向前多取若干 bar 保证首日有效。舍入型指标(ma/macd/boll/kdj/rsi/wr/bias/cci/atr)可传 decimals 指定输出小数位(默认 3;obv/roc/dmi/sar/kc 输出不舍入)。MCP 超限时保留最近的记录，建议通过 startDate / endDate 指定所需区间。
     - `symbol` (位置参数, 必填): 股票代码（A 股 / 港股 / 美股）
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
     - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
@@ -227,7 +227,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `--dmi → options.dmi` (boolean, CLI 专属): 启用 DMI
     - `--sar → options.sar` (boolean, CLI 专属): 启用 SAR
     - `--kc → options.kc` (boolean, CLI 专属): 启用 KC
-- **`sdk.kline.signals(symbol, options?)`** — 识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；只看近期请传 startDate 收窄窗口。周期默认 daily，复权默认 qfq。
+- **`sdk.kline.signals(symbol, options?)`** — 识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；只看近期请传 startDate 收窄窗口，MCP 超限时保留最近的信号。周期默认 daily，复权默认 qfq。
     - `symbol` (位置参数, 必填): 股票代码（A 股 / 港股 / 美股）
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
     - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
@@ -455,10 +455,14 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `options.rank` (BZDM | ABBNAME | DJR | FSRQ | FHFCZ | FFR, 默认 FSRQ, SDK / MCP): 排序字段：BZDM=基金代码 / ABBNAME=基金简称 / DJR=权益登记日 / FSRQ=除息日期(默认) / FHFCZ=分红(元/份) / FFR=分红发放日
     - `options.sort` (asc | desc, 默认 desc, SDK / MCP): 排序方向：asc=升序 / desc=降序(默认)
     - `options.code` (string, SDK / MCP): 按基金代码过滤（客户端过滤），一般搭配 page='all' 使用
-- **`sdk.fund.navHistory(code)`** — 获取基金历史净值（单位净值 + 累计净值，全历史一次返回，按日期升序）。开放式 / ETF / LOF / 货币 / QDII 均通用。⚠️ 体积大：全历史数千条、响应体约 600KB，建议应用层缓存。
+- **`sdk.fund.navHistory(code)`** — 获取基金历史净值（单位净值 + 累计净值，按日期升序）。开放式 / ETF / LOF / 货币 / QDII 均通用。MCP 可用 startDate / endDate 筛选返回区间，超限时保留区间内最近的记录并标注 coverage。SDK 返回全历史。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
-- **`sdk.fund.rankHistory(code)`** — 获取基金同类排名走势（每日近三月排名 + 同类总数 + 排名百分位 %，按日期升序）。适合画「该基金在同类里的相对表现」折线图。数据源同 get_fund_nav_history。
+    - `startDate` (string, 仅 MCP): 返回区间的起始日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
+    - `endDate` (string, 仅 MCP): 返回区间的结束日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
+- **`sdk.fund.rankHistory(code)`** — 获取基金同类排名走势（每日近三月排名 + 同类总数 + 排名百分位 %，按日期升序）。数据源同 get_fund_nav_history。MCP 可用 startDate / endDate 筛选返回区间，超限时保留区间内最近的记录并标注 coverage。SDK 返回全历史。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
+    - `startDate` (string, 仅 MCP): 返回区间的起始日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
+    - `endDate` (string, 仅 MCP): 返回区间的结束日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
 - **`sdk.fund.profile(code)`** — 一次请求获取基金深度资料（东方财富 pingzhongdata 全量字段）：前十大重仓股、前五大债券、季度资产配置、每日股票仓位测算、基金经理（含星级与能力评分）、业绩评价、持有人结构、规模变动、申购赎回、阶段收益率（近1月/3月/6月/1年）、同类基金等。字段随基金类型与数据完整度可能为空。与 navHistory / rankHistory 同源（同一份 pingzhongdata 文件，约 600KB），建议应用层缓存。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 000001
 - **`sdk.fund.theme.getThemeList(options?)`** — 获取主题基金列表（东方财富天天基金），可筛选行业/概念主题类型，按日涨幅/各阶段收益率排序分页。返回主题代码(code)、名称(name)、日涨幅及各阶段收益率。category=0(行业)/1(概念)/2(全部，默认)。

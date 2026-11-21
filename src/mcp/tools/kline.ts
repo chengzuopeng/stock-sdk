@@ -37,6 +37,7 @@ const SPEC = findMethodSpec('kline.withIndicators');
 export const klineWithIndicatorsTool: ToolDef = {
   name: SPEC.toolName!,
   tier: SPEC.tier ?? 'full',
+  output: SPEC.mcpOutput,
   description: SPEC.mcpDesc ?? SPEC.summary,
   inputSchema: {
     type: 'object',

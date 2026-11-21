@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  FUND_HISTORY_WINDOW,
   METHOD_SPECS,
   PERIOD_INDICATORS,
   BOOL_INDICATORS,
@@ -139,6 +140,12 @@ function renderMethod(s: MethodSpec): string {
     const key = p.field ?? p.flag;
     const paramLabel = s.mcp === false ? 'SDK' : 'SDK / MCP';
     lines.push(renderParamLine(`options.${key}`, p, paramLabel));
+  }
+
+  if (s.mcpOutput === 'fundHistory') {
+    for (const p of FUND_HISTORY_WINDOW) {
+      lines.push(renderParamLine(p.field ?? p.flag, p, '仅 MCP'));
+    }
   }
 
   if (s.mcpCustom && s.path.join('.') === 'kline.withIndicators') {
@@ -309,7 +316,7 @@ npx stock-sdk mcp
 
 Cursor / Claude Desktop 等配置 \`mcpServers\`：\`{ "command": "npx", "args": ["-y", "stock-sdk", "mcp"] }\`。
 环境变量 \`STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>\` 控制工具集（默认 \`core\`）。
-**MCP tools/call 大结果会自动裁剪**（数组 >200 条、序列化 >80KB）；**SDK 直连不受此限**。详见 ${SITE}/mcp/
+MCP 的 K 线、信号及基金历史超限时保留最近记录（最多 200 条、80,000 字符）。基金净值和同类排名可用 \`startDate\` / \`endDate\` 筛选。SDK 直连可取全量。详见 ${SITE}/mcp/tools
 
 #### MCP Skills（Prompts）
 

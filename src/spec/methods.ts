@@ -61,6 +61,9 @@ export interface SpecPositional {
   default?: string;
 }
 
+/** 时间序列在 MCP 中的输出策略。 */
+export type McpOutput = 'recentSeries' | 'fundHistory';
+
 /** 一个命名空间方法的完整声明（一处定义，两端派生）。 */
 export interface MethodSpec {
   /** 方法路径：['kline','hk'] → sdk.kline.hk；顶层 ['search'] → sdk.search。 */
@@ -90,6 +93,8 @@ export interface MethodSpec {
    * （MCP 用嵌套 indicators 对象、CLI 用 14 个扁平指标 flag，两端表面形态不同）。
    */
   mcpCustom?: true;
+  /** MCP 时间序列输出策略（SDK 方法仍返回原数据）。 */
+  mcpOutput?: McpOutput;
 }
 
 // ---------- 共享枚举（全库唯一定义处，两端引用） ----------
@@ -206,6 +211,11 @@ export const END: ParamSpec = {
   desc: '结束日期 YYYYMMDD',
   mcpDesc: '结束日期 YYYYMMDD',
 };
+/** 两个基金历史工具共用的输出日期窗口。 */
+export const FUND_HISTORY_WINDOW: readonly ParamSpec[] = [
+  { ...START, mcpDesc: '返回区间的起始日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD' },
+  { ...END, mcpDesc: '返回区间的结束日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD' },
+];
 const START_REQ: ParamSpec = { ...START, required: true };
 const END_REQ: ParamSpec = { ...END, required: true };
 // A 股分时窗口（MCP 现行文案为「开始/结束时间」）
@@ -652,6 +662,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'cn'],
     toolName: 'get_history_kline',
+    mcpOutput: 'recentSeries',
     tier: 'core',
     summary: 'A股历史K线',
     mcpDesc:
@@ -667,6 +678,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'cnMinute'],
     toolName: 'get_minute_kline',
+    mcpOutput: 'recentSeries',
     tier: 'core',
     summary: 'A股分钟K线/分时',
     mcpDesc:
@@ -682,6 +694,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'hk'],
     toolName: 'get_hk_history_kline',
+    mcpOutput: 'recentSeries',
     tier: 'core',
     summary: '港股历史K线',
     mcpDesc:
@@ -696,6 +709,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'hkMinute'],
     toolName: 'get_hk_minute_kline',
+    mcpOutput: 'recentSeries',
     summary: '港股分钟K线/分时',
     mcpDesc:
       '港股分钟 K 线 / 当日分时。period=1 返回当日分时（不支持复权，可用 recentDays 取近 N 日）；' +
@@ -708,6 +722,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'us'],
     toolName: 'get_us_history_kline',
+    mcpOutput: 'recentSeries',
     tier: 'core',
     summary: '美股历史K线',
     mcpDesc:
@@ -722,6 +737,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'usMinute'],
     toolName: 'get_us_minute_kline',
+    mcpOutput: 'recentSeries',
     summary: '美股分钟K线/分时',
     mcpDesc:
       '美股分钟 K 线 / 当日分时（仅常规交易时段，不含盘前 / 盘后）。period=1 返回当日分时' +
@@ -735,6 +751,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'withIndicators'],
     toolName: 'get_kline_with_indicators',
+    mcpOutput: 'recentSeries',
     tier: 'core',
     summary: '带指标K线(--ma 5,10 --macd --kdj --rsi ...)',
     mcpDesc:
@@ -746,7 +763,8 @@ export const METHOD_SPECS: MethodSpec[] = [
       'A 股底层历史接口频控时按腾讯、新浪顺序切换备用源。' +
       'SDK 会按指标依赖自动向前多取若干 bar 保证首日有效。' +
       '舍入型指标(ma/macd/boll/kdj/rsi/wr/bias/cci/atr)可传 decimals 指定输出小数位' +
-      '(默认 3;obv/roc/dmi/sar/kc 输出不舍入)。',
+      '(默认 3;obv/roc/dmi/sar/kc 输出不舍入)。' +
+      'MCP 超限时保留最近的记录，建议通过 startDate / endDate 指定所需区间。',
     argShape: 'symbol+options',
     positional: [SYMBOL_REQ('股票代码（A 股 / 港股 / 美股）')],
     params: [PERIOD_DWM, ADJUST, START, END, MARKET_ENUM, ...INDICATOR_PARAMS],
@@ -755,6 +773,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['kline', 'signals'],
     toolName: 'get_kline_signals',
+    mcpOutput: 'recentSeries',
     tier: 'core',
     summary: '指标信号识别(金叉/死叉/超买超卖/突破/反转)',
     mcpDesc:
@@ -763,7 +782,7 @@ export const METHOD_SPECS: MethodSpec[] = [
       '内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。' +
       'MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值' +
       '（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；' +
-      '只看近期请传 startDate 收窄窗口。周期默认 daily，复权默认 qfq。',
+      '只看近期请传 startDate 收窄窗口，MCP 超限时保留最近的信号。周期默认 daily，复权默认 qfq。',
     argShape: 'symbol+options',
     positional: [SYMBOL_REQ('股票代码（A 股 / 港股 / 美股）')],
     params: [PERIOD_DWM, ADJUST, START, END, MARKET_ENUM, MA_FAST, MA_SLOW],
@@ -841,6 +860,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['board', 'industry', 'kline'],
     toolName: 'get_industry_kline',
+    mcpOutput: 'recentSeries',
     summary: '行业板块K线',
     mcpDesc:
       '获取行业板块历史 K 线（日/周/月）：日期、开高低收、成交量额、涨跌幅。价格单位为元。复权默认不复权，需前/后复权请显式传 adjust。',
@@ -852,6 +872,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['board', 'industry', 'minuteKline'],
     toolName: 'get_industry_minute_kline',
+    mcpOutput: 'recentSeries',
     summary: '行业板块分时',
     mcpDesc:
       '获取行业板块分时/分钟 K 线。period=1 返回当日分时；5/15/30/60 返回对应分钟 K 线。默认 5（5 分钟 K 线），当日分时请传 period=1。',
@@ -891,6 +912,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['board', 'concept', 'kline'],
     toolName: 'get_concept_kline',
+    mcpOutput: 'recentSeries',
     summary: '概念板块K线',
     mcpDesc:
       '获取概念板块历史 K 线（日/周/月）：日期、开高低收、成交量额、涨跌幅。价格单位为元。复权默认不复权，需前/后复权请显式传 adjust。',
@@ -901,6 +923,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['board', 'concept', 'minuteKline'],
     toolName: 'get_concept_minute_kline',
+    mcpOutput: 'recentSeries',
     summary: '概念板块分时',
     mcpDesc:
       '获取概念板块分时/分钟 K 线。period=1 返回当日分时；5/15/30/60 返回对应分钟 K 线。默认 5（5 分钟 K 线），当日分时请传 period=1。',
@@ -923,6 +946,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['options', 'index', 'kline'],
     toolName: 'get_index_option_kline',
+    mcpOutput: 'recentSeries',
     summary: '股指期权日K',
     mcpDesc: '获取中金所股指期权某合约的日 K 线。',
     argShape: 'positional',
@@ -961,6 +985,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['options', 'etf', 'dailyKline'],
     toolName: 'get_etf_option_daily_kline',
+    mcpOutput: 'recentSeries',
     summary: 'ETF期权日K',
     mcpDesc: '获取 ETF 期权某合约的日 K 线。',
     argShape: 'positional',
@@ -988,6 +1013,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['options', 'commodity', 'kline'],
     toolName: 'get_commodity_option_kline',
+    mcpOutput: 'recentSeries',
     summary: '商品期权日K',
     mcpDesc: '获取商品期权某合约的日 K 线。',
     argShape: 'positional',
@@ -1018,6 +1044,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['futures', 'kline'],
     toolName: 'get_futures_kline',
+    mcpOutput: 'recentSeries',
     tier: 'core',
     summary: '国内期货K线',
     mcpDesc:
@@ -1042,6 +1069,7 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['futures', 'globalKline'],
     toolName: 'get_global_futures_kline',
+    mcpOutput: 'recentSeries',
     summary: '全球期货K线',
     mcpDesc:
       '获取全球期货历史 K 线（东财）：开高低收、成交量等。' +
@@ -1425,20 +1453,23 @@ export const METHOD_SPECS: MethodSpec[] = [
   {
     path: ['fund', 'navHistory'],
     toolName: 'get_fund_nav_history',
+    mcpOutput: 'fundHistory',
     summary: '基金历史净值',
     mcpDesc:
-      '获取基金历史净值（单位净值 + 累计净值，全历史一次返回，按日期升序）。' +
-      '开放式 / ETF / LOF / 货币 / QDII 均通用。⚠️ 体积大：全历史数千条、响应体约 600KB，建议应用层缓存。',
+      '获取基金历史净值（单位净值 + 累计净值，按日期升序）。开放式 / ETF / LOF / 货币 / QDII 均通用。' +
+      'MCP 可用 startDate / endDate 筛选返回区间，超限时保留区间内最近的记录并标注 coverage。SDK 返回全历史。',
     argShape: 'positional',
     positional: [CODE_REQ('基金代码，纯数字，如 110011')],
   },
   {
     path: ['fund', 'rankHistory'],
     toolName: 'get_fund_rank_history',
+    mcpOutput: 'fundHistory',
     summary: '基金同类排名走势',
     mcpDesc:
       '获取基金同类排名走势（每日近三月排名 + 同类总数 + 排名百分位 %，按日期升序）。' +
-      '适合画「该基金在同类里的相对表现」折线图。数据源同 get_fund_nav_history。',
+      '数据源同 get_fund_nav_history。MCP 可用 startDate / endDate 筛选返回区间，' +
+      '超限时保留区间内最近的记录并标注 coverage。SDK 返回全历史。',
     argShape: 'positional',
     positional: [CODE_REQ('基金代码，纯数字，如 110011')],
   },

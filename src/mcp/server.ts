@@ -23,7 +23,7 @@ import { listTools } from './tools';
 import { listPrompts } from './prompts';
 import type { PromptDef } from '../spec/derive-prompt';
 import { resolveTierFilter, type ToolDef, type ToolTier } from './types';
-import { toToolResult, toolErrorResult } from './result';
+import { parseHistoryWindow, toToolResult, toolErrorResult } from './result';
 
 /** 技能集范围：'core'(默认) / 'full' / 指定 name 列表（与工具集独立过滤）。 */
 export type PromptTier = 'core' | 'full';
@@ -175,8 +175,9 @@ export async function dispatchMessage(
         return ok(toolErrorResult(new InvalidArgumentError(argError)));
       }
       try {
+        const window = tool.output === 'fundHistory' ? parseHistoryWindow(args) : undefined;
         const out = await tool.invoke(ctx.sdk, args);
-        return ok(toToolResult(out));
+        return ok(toToolResult(out, tool.output, window));
       } catch (e) {
         // 工具执行失败 → isError result（非 JSON-RPC error），让 LLM 可见并处理
         return ok(toolErrorResult(e));

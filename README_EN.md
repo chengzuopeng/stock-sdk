@@ -155,7 +155,7 @@ Wire it into Cursor / Claude Desktop / Codex / Gemini, etc. (`mcpServers` config
 
 `STOCK_SDK_MCP_TOOLS=core|full|<comma-separated tool names>` controls the tool set (default `core`).
 
-To expose all 92 MCP tools when launching through `npx`, add the `env` entry:
+To expose the full MCP tool set when launching through `npx`, add the `env` entry:
 
 ```json
 {
@@ -168,6 +168,8 @@ To expose all 92 MCP tools when launching through `npx`, add the `env` entry:
   }
 }
 ```
+
+MCP keeps the newest K-lines and signals when results exceed its limits. Fund NAV and peer-rank tools accept `startDate` and `endDate` and report the returned interval in `coverage`. [MCP tool docs](https://stock-sdk.linkdiary.cn/en/mcp/tools)
 
 Beyond tools, it ships **7 scenario AI Skills** (MCP Prompts — e.g. `analyze_stock` / `screen_stocks` / `diagnose_stock`) that Prompts-aware clients can trigger in one click; `STOCK_SDK_MCP_PROMPTS=core|full|<list>` controls the skill set (default `core`). See the [AI Skills docs](https://stock-sdk.linkdiary.cn/en/skills/).
 
