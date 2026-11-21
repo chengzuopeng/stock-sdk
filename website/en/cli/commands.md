@@ -173,7 +173,7 @@ The server provides MCP tools and skills over stdio. Use `STOCK_SDK_MCP_TOOLS` t
 | `full` | All tools |
 | `<comma-separated tool names>` | Custom allowlist |
 
-`--timeout <ms>` sets the request timeout for this MCP process and takes precedence over `STOCK_SDK_MCP_TIMEOUT`. [MCP overview](/en/mcp/) · [Setup](/en/mcp/installation)
+`--timeout <ms>` sets the request timeout for this MCP process and takes precedence over `STOCK_SDK_MCP_TIMEOUT`. Unset or invalid environment values fall back to the SDK default. [MCP overview](/en/mcp/) · [Setup](/en/mcp/installation)
 
 ## Namespace direct
 
@@ -201,7 +201,7 @@ stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 
 Run `stock-sdk fundFlow rank --help`, `stock-sdk fundFlow sectorRank --help`, or `stock-sdk marketEvent stockChanges --help` to see their pagination flags. Passing `--page` or `--pageSize` requests one page. `--limit` trims the CLI output.
 
-Commands validate their declared options. Commands with declared options reject unknown flags.
+Commands validate their declared options. Commands that declare options reject unknown flags, as do commands that take only positional arguments.
 
 ### Namespace method quick-reference
 

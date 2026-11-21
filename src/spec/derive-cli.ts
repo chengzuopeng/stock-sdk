@@ -3,7 +3,7 @@
  *
  * 规则（保持 CLI 现状行为不变）：
  * - 仅取 `cli !== false` 的参数；该方法若一个 CLI 参数都没有则 options 置 undefined
- *   （声明了 options 的命令对未知 flag 严格拒绝，零声明命令保持「未声明透传」语义）。
+ *   （接收 SDK options 且没有专用声明的命令保持 flag 透传）。
  * - spec 的 `default` 仅用于 MCP schema 展示，CLI 从不注入默认值（默认由 SDK 落地），
  *   因此派生时丢弃 default。
  * - 位置参数原样下放（enum/upper/required 在 dispatch 层统一校验）。

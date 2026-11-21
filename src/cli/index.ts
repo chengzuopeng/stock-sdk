@@ -9,7 +9,15 @@
  * 入口隔离铁律：`src/index.ts` 绝不 import 本文件。
  */
 import { StockSDK } from '../sdk';
-import { dispatch, lastOf, parseBooleanOption, parseIntegerOption } from './dispatch';
+import { MAX_TIMEOUT_MS } from '../core/constants';
+import {
+  dispatch,
+  isGlobalFlag,
+  lastOf,
+  parseBooleanOption,
+  parseIntegerOption,
+  parseOutputLimit,
+} from './dispatch';
 import { CliUsageError, errorToExitCode, renderError } from './errors';
 import { formatOutput, isEmptyResult } from './format';
 import { renderCommandHelp, renderHelp, renderMcpHelp } from './help';
@@ -48,8 +56,8 @@ function resolveGlobal(options: Record<string, unknown>): GlobalOptions {
   const readSwitch = (flag: string, raw: unknown) =>
     raw === undefined ? false : parseBooleanOption(flag, lastOf(raw));
   const timeout = options.timeout === undefined ? undefined : parseIntegerOption('timeout', options.timeout);
-  if (timeout !== undefined && (timeout <= 0 || timeout > 2_147_483_647)) {
-    throw new CliUsageError('--timeout 需要 1 至 2147483647 的整数毫秒数');
+  if (timeout !== undefined && (timeout <= 0 || timeout > MAX_TIMEOUT_MS)) {
+    throw new CliUsageError(`--timeout 需要 1 至 ${MAX_TIMEOUT_MS} 的整数毫秒数`);
   }
   return {
     pretty: readSwitch('pretty', options.pretty),
@@ -58,6 +66,11 @@ function resolveGlobal(options: Record<string, unknown>): GlobalOptions {
     version: readSwitch('version', options.version ?? options.V),
     timeout,
   };
+}
+
+function validateGlobalOnly(options: Record<string, unknown>): void {
+  const unknownFlag = Object.keys(options).find((flag) => !isGlobalFlag(flag));
+  if (unknownFlag !== undefined) throw new CliUsageError(`未知选项 --${unknownFlag}`);
 }
 
 /** mcp 子命令：委托现有 MCP server（动态 import，避免进入 CLI 常驻内存）。 */
@@ -79,18 +92,22 @@ async function main(argv: string[]): Promise<number> {
     const parsed = parseArgv(argv, BOOLEAN_FLAGS);
     format = resolveFormat(parsed.options.format ?? parsed.options.f);
     const global = resolveGlobal(parsed.options);
+    const limit = parseOutputLimit(parsed.options.limit);
 
     if (global.version) {
+      if (parsed.positional.length === 0) validateGlobalOnly(parsed.options);
       process.stdout.write(getVersion() + '\n');
       return 0;
     }
 
     if (parsed.positional.length === 0) {
+      validateGlobalOnly(parsed.options);
       process.stdout.write(renderHelp() + '\n');
       return 0;
     }
 
     if (parsed.positional[0] === MCP_COMMAND_NAME) {
+      validateGlobalOnly(parsed.options);
       if (global.help) {
         process.stdout.write(renderMcpHelp() + '\n');
         return 0;
@@ -116,7 +133,7 @@ async function main(argv: string[]): Promise<number> {
       global.timeout !== undefined ? { timeout: global.timeout } : {}
     );
     const ctx: InvokeContext = { positional: match.rest, options: parsed.options };
-    const result = await dispatch(sdk, match.spec, ctx);
+    const result = await dispatch(sdk, match.spec, ctx, limit);
 
     if (isEmptyResult(result) && !global.quiet) {
       process.stderr.write('stock-sdk: 无数据\n');

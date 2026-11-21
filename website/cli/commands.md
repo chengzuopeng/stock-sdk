@@ -173,7 +173,7 @@ stock-sdk mcp --help
 | `full` | 全部工具 |
 | `<逗号分隔工具名>` | 自定义白名单 |
 
-`--timeout <ms>` 为本次 MCP 进程设置请求超时，优先于 `STOCK_SDK_MCP_TIMEOUT`。[MCP 概述](/mcp/) · [安装配置](/mcp/installation)
+`--timeout <ms>` 为本次 MCP 进程设置请求超时，优先于 `STOCK_SDK_MCP_TIMEOUT`。环境变量为空或超出有效范围时使用 SDK 默认值。[MCP 概述](/mcp/) · [安装配置](/mcp/installation)
 
 ## 命名空间直达
 
@@ -201,7 +201,7 @@ stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 
 用 `stock-sdk fundFlow rank --help`、`stock-sdk fundFlow sectorRank --help` 或 `stock-sdk marketEvent stockChanges --help` 查看分页选项。传入 `--page` 或 `--pageSize` 即请求一页。`--limit` 作用在命令的输出阶段。
 
-CLI 校验命令声明的选项。带有声明选项的命令会拒绝未知选项。
+CLI 校验命令声明的选项。只收位置参数的命令和明确列出选项的命令都会拒绝未知选项。
 
 ### 命名空间方法速查
 

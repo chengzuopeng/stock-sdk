@@ -199,6 +199,8 @@ export const COMMODITY_OPTION_MAP: Record<string, { product: string; exchange: s
 
 // 默认配置
 export const DEFAULT_TIMEOUT = 30000;
+/** setTimeout 支持的最大毫秒数。 */
+export const MAX_TIMEOUT_MS = 2_147_483_647;
 export const DEFAULT_BATCH_SIZE = 500;
 export const MAX_BATCH_SIZE = 500;
 export const DEFAULT_CONCURRENCY = 7;

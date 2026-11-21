@@ -6,6 +6,7 @@
  */
 import { StockSDK, type StockSDKOptions } from '../sdk';
 import { InvalidArgumentError } from '../core';
+import { MAX_TIMEOUT_MS } from '../core/constants';
 import { createLineReader, writeMessage, logStderr } from './transport';
 import {
   negotiateProtocolVersion,
@@ -268,9 +269,8 @@ function resolvePromptFilter(explicit?: PromptTier | string[]): PromptTier | str
 /** 解析 SDK 请求治理配置：显式 > STOCK_SDK_MCP_TIMEOUT 环境变量 > 默认 */
 function resolveSdkOptions(explicit?: StockSDKOptions): StockSDKOptions {
   if (explicit) return explicit;
-  const raw = process.env.STOCK_SDK_MCP_TIMEOUT;
-  const timeout = raw ? Number(raw) : undefined;
-  return timeout && !Number.isNaN(timeout) && timeout > 0 ? { timeout } : {};
+  const timeout = Number(process.env.STOCK_SDK_MCP_TIMEOUT);
+  return Number.isInteger(timeout) && timeout > 0 && timeout <= MAX_TIMEOUT_MS ? { timeout } : {};
 }
 
 /** 启动 MCP server（监听 stdin，直到 stdin 关闭后 event loop 自然退出） */

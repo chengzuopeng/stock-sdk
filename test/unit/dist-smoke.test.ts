@@ -104,6 +104,7 @@ describe.skipIf(!hasDist || distStale)(
 
   it.each([
     { args: ['--format', 'tabl'], field: '--format' },
+    { args: ['--formt', 'table'], field: '--formt' },
     { args: ['--timeout'], field: '--timeout' },
     { args: ['--timeout', '1.5'], field: '--timeout' },
     { args: ['--timeout', '2147483648'], field: '--timeout' },
@@ -117,6 +118,38 @@ describe.skipIf(!hasDist || distStale)(
       code: 'USAGE',
       message: expect.stringContaining(field),
     });
+  });
+
+  it.each([
+    { args: ['mcp', '--promts', 'full'], field: '--promts' },
+    { args: ['--limit', 'bad'], field: '--limit' },
+  ])('CLI 在启动 MCP 或显示根帮助前校验参数 $args', ({ args, field }) => {
+    const cli = runCli(args, '');
+    expect(cli.status).toBe(2);
+    expect(cli.stdout).toBe('');
+    expect(JSON.parse(cli.stderr).error.message).toContain(field);
+  });
+
+  it('MCP 忽略会造成计时器溢出的环境变量值', () => {
+    const preload = `
+      const schedule = globalThis.setTimeout;
+      globalThis.setTimeout = (fn, delay, ...args) => {
+        if (delay > 2147483647) throw new Error("timer overflow");
+        return schedule(fn, delay, ...args);
+      };
+      globalThis.fetch = async () => new Response("");
+    `;
+    const child = spawnSync(process.execPath, [
+      '--import', `data:text/javascript,${encodeURIComponent(preload)}`, join(DIST, 'cli.js'), 'mcp',
+    ], {
+      input: '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_a_share_quotes","arguments":{"codes":["600519"]}}}\n',
+      env: { ...process.env, STOCK_SDK_MCP_TOOLS: 'core', STOCK_SDK_MCP_TIMEOUT: '2147483648' },
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    expect(child.error).toBeUndefined();
+    expect(child.status, child.stderr).toBe(0);
+    expect(JSON.parse(child.stdout).result).toEqual({ content: [{ type: 'text', text: '[]' }] });
   });
 
   it('CLI 分页命令和 MCP 启动帮助展示真实选项', () => {

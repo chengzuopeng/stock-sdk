@@ -13,15 +13,14 @@ import type { CommandSpec, InvokeContext, OptionSpec, PositionalSpec } from './t
 /** 未声明 flag 的字段名映射：CLI 习惯的 --start/--end → SDK 的 startDate/endDate。 */
 const FLAG_ALIAS: Record<string, string> = { start: 'startDate', end: 'endDate' };
 
-/** 全局选项(命令无关,index.ts 的 resolveGlobal 消费):不属命令 option、不透传 SDK、不报「未知选项」。 */
+/** CLI 全局选项和输出选项由入口处理。 */
 const GLOBAL_FLAGS = new Set([
-  'format', 'f', 'pretty', 'quiet', 'q', 'help', 'h', 'version', 'V', 'timeout',
+  'format', 'f', 'pretty', 'quiet', 'q', 'help', 'h', 'version', 'V', 'timeout', 'limit',
 ]);
-/** CLI 输出层后处理 flag(对结果数组裁剪):不透传 SDK,对所有命令统一生效。 */
-const POSTPROCESS_FLAGS = new Set(['limit']);
 
-function isPassthroughFlag(key: string): boolean {
-  return GLOBAL_FLAGS.has(key) || POSTPROCESS_FLAGS.has(key);
+/** 判断参数是否由 CLI 入口或输出处理。 */
+export function isGlobalFlag(key: string): boolean {
+  return GLOBAL_FLAGS.has(key);
 }
 
 /** 把原始 flags 按 OptionSpec 转换类型 + 归一，组成 options 对象；未声明的透传。 */
@@ -34,7 +33,7 @@ export function buildOptions(
   for (const opt of spec.options ?? []) declared.set(opt.flag, opt);
 
   for (const [key, raw] of Object.entries(rawOptions)) {
-    if (isPassthroughFlag(key)) continue; // 全局/输出层 flag 不进 SDK options
+    if (isGlobalFlag(key)) continue;
     const opt = declared.get(key);
     if (!opt) {
       if (raw === true) continue; // 未声明且无值的 flag：丢弃，避免脏 true 进 options
@@ -97,6 +96,13 @@ export function parseIntegerOption(flag: string, raw: unknown): number {
   return parsed;
 }
 
+/** 读取数组输出上限，0 表示输出全部记录。 */
+export function parseOutputLimit(raw: unknown): number {
+  const limit = raw === undefined ? 0 : parseIntegerOption('limit', raw);
+  if (limit < 0) throw new CliUsageError('--limit 需要非负整数');
+  return limit;
+}
+
 /**
  * 逗号分隔的 number[] flag 解析（当前仅指标周期使用）。
  * 空段先过滤再转数（`Number('') === 0`，否则 `--ma 5,10,` 的尾逗号会产出
@@ -157,7 +163,7 @@ export function invokeMethod(sdk: StockSDK, path: string[], args: unknown[]): Pr
 
 /**
  * 统一选项校验(别名 + 命名空间共用,在 dispatch 入口对所有命令执行):
- * - 声明了 options 的命令:未知 flag → 报错;enum/number 非法值 → 报错。
+ * - 声明了 options 或只接收位置参数的命令会拒绝未知 flag。
  * - 待值 flag(非 boolean/number[])在 argv 末尾无值被 parser 置成 `true` → 「缺少值」。
  * - 非 number[] 的 flag 被重复指定时使用末值。
  * - 标了 required 的 option 缺失 → 「缺少必填选项」。
@@ -165,13 +171,14 @@ export function invokeMethod(sdk: StockSDK, path: string[], args: unknown[]): Pr
 function validateOptions(spec: CommandSpec, rawOptions: Record<string, unknown>): void {
   const declared = new Map<string, OptionSpec>();
   for (const opt of spec.options ?? []) declared.set(opt.flag, opt);
-  const strict = declared.size > 0; // 仅对声明了 opts 的命令拒绝未知 flag(无 opts 的命令保持透传)
+  const acceptsUndeclared = declared.size === 0 && !spec.invoke &&
+    ['options', 'symbol+options', 'codes+options'].includes(spec.argShape);
 
   for (const [key, raw] of Object.entries(rawOptions)) {
-    if (isPassthroughFlag(key)) continue;
+    if (isGlobalFlag(key)) continue;
     const opt = declared.get(key);
     if (!opt) {
-      if (strict) {
+      if (!acceptsUndeclared) {
         throw new CliUsageError(
           `未知选项 --${key}`,
           `运行 \`stock-sdk ${spec.path.join(' ')} --help\` 查看可用选项`
@@ -235,13 +242,12 @@ function validatePositional(spec: CommandSpec, positional: string[]): void {
 export function dispatch(
   sdk: StockSDK,
   spec: CommandSpec,
-  ctx: InvokeContext
+  ctx: InvokeContext,
+  limit = parseOutputLimit(ctx.options.limit)
 ): Promise<unknown> {
   // 同步校验:缺值/enum/类型/未知/必填即时抛 CliUsageError(调用方与测试可同步捕获)。
   validateOptions(spec, ctx.options);
   validatePositional(spec, ctx.positional);
-  const limit = ctx.options.limit === undefined ? 0 : parseIntegerOption('limit', ctx.options.limit);
-  if (limit < 0) throw new CliUsageError('--limit 需要非负整数');
   const result = spec.invoke ? spec.invoke(sdk, ctx) : runDefault(sdk, spec, ctx);
   return Promise.resolve(result).then((r) => limit > 0 && Array.isArray(r) ? r.slice(0, limit) : r);
 }
