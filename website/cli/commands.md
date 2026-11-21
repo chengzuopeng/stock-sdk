@@ -162,9 +162,10 @@ stock-sdk call kline.cn --args '["600519",{"period":"weekly"}]'
 
 ```bash
 stock-sdk mcp
+stock-sdk mcp --help
 ```
 
-把一批只读方法暴露为 MCP 工具（stdio transport），供 Cursor / Claude / Codex 等接入。可用环境变量 `STOCK_SDK_MCP_TOOLS` 控制暴露的工具集：
+通过 stdio 提供 MCP 工具和 Skills。用 `STOCK_SDK_MCP_TOOLS` 选择工具范围，用 `STOCK_SDK_MCP_PROMPTS` 选择技能范围。两者均接受 `core`、`full` 或逗号分隔的名称名单。
 
 | 取值 | 含义 |
 |---|---|
@@ -172,7 +173,7 @@ stock-sdk mcp
 | `full` | 全部工具 |
 | `<逗号分隔工具名>` | 自定义白名单 |
 
-详见 [MCP 概述](/mcp/) 与 [安装配置](/mcp/installation)。
+`--timeout <ms>` 为本次 MCP 进程设置请求超时，优先于 `STOCK_SDK_MCP_TIMEOUT`。环境变量为空或超出有效范围时使用 SDK 默认值。[MCP 概述](/mcp/) · [安装配置](/mcp/installation)
 
 ## 命名空间直达
 
@@ -198,7 +199,9 @@ stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 | `positional` | `(a, b?, ...)` | `stock-sdk options etf expireDay 50ETF 2406` |
 | `none` | `()` | `stock-sdk futures inventorySymbols` |
 
-> 命名空间命令对**已声明选项**做严格校验（未知选项 / 非法 enum / 缺值 / 类型不符即报错）；未声明选项则透传给 SDK。`--start/--end`、`--limit` 的约定同别名命令。
+用 `stock-sdk fundFlow rank --help`、`stock-sdk fundFlow sectorRank --help` 或 `stock-sdk marketEvent stockChanges --help` 查看分页选项。传入 `--page` 或 `--pageSize` 即请求一页。`--limit` 作用在命令的输出阶段。
+
+CLI 校验命令声明的选项。只收位置参数的命令和明确列出选项的命令都会拒绝未知选项。
 
 ### 命名空间方法速查
 

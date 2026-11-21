@@ -128,7 +128,7 @@ npx stock-sdk search 茅台
 npx stock-sdk quotes cn sh600519 sz000001
 ```
 
-JSON output by default; add `--format table|csv`, `--pretty`, `--limit N`.
+The CLI defaults to JSON output and accepts `--format table|csv`, `--pretty`, and `--limit N`. Invalid arguments produce exit code `2`. Run `stock-sdk fundFlow rank --help` to see the ranking pagination flags.
 
 ---
 
@@ -155,7 +155,7 @@ Wire it into Cursor / Claude Desktop / Codex / Gemini, etc. (`mcpServers` config
 
 `STOCK_SDK_MCP_TOOLS=core|full|<comma-separated tool names>` controls the tool set (default `core`).
 
-To expose all 92 MCP tools when launching through `npx`, add the `env` entry:
+To expose the full MCP tool set when launching through `npx`, add the `env` entry:
 
 ```json
 {
@@ -169,7 +169,9 @@ To expose all 92 MCP tools when launching through `npx`, add the `env` entry:
 }
 ```
 
-Beyond tools, it ships **7 scenario AI Skills** (MCP Prompts — e.g. `analyze_stock` / `screen_stocks` / `diagnose_stock`) that Prompts-aware clients can trigger in one click; `STOCK_SDK_MCP_PROMPTS=core|full|<list>` controls the skill set (default `core`). See the [AI Skills docs](https://stock-sdk.linkdiary.cn/en/skills/).
+MCP validates array entries and nested indicator settings before calling the SDK. It keeps the newest K-lines and signals when results exceed its limits. Fund NAV and peer-rank tools accept `startDate` and `endDate` and report the returned interval in `coverage`. [MCP tool docs](https://stock-sdk.linkdiary.cn/en/mcp/tools)
+
+The SDK ships seven scenario AI Skills as MCP Prompts. `STOCK_SDK_MCP_PROMPTS` selects skills, and the client discovers those that the active tool set can run. Set both the tool and prompt tiers to `full` to use all seven. [AI Skills docs](https://stock-sdk.linkdiary.cn/en/skills/)
 
 👉 [Full MCP docs](https://stock-sdk.linkdiary.cn/en/mcp/)
 

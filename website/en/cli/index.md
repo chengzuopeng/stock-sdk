@@ -80,7 +80,8 @@ These options are command-independent and apply uniformly:
 |---|---|
 | `-f, --format <fmt>` | Output format `json` (default) / `table` / `csv` |
 | `--pretty` | Pretty-print JSON (json format only) |
-| `--timeout <ms>` | Request timeout in ms (positive integer; passed to `new StockSDK({ timeout })`) |
+| `--timeout <ms>` | Request timeout in milliseconds, an integer from 1 to 2147483647 |
+| `--limit <N>` | Return the first N rows of array results, with `0` for all rows |
 | `-q, --quiet` | Silent: suppress the "no data" notice on stderr for empty results |
 | `-h, --help` | Show help; `stock-sdk <command> --help` shows per-command usage |
 | `-V, --version` | Print the version |
@@ -112,7 +113,7 @@ stock-sdk quote 600519 -f csv                 # short option
 stock-sdk search -- --weird-keyword           # no option parsing after --
 ```
 
-> Conventions: `--start` / `--end` map to the SDK's `startDate` / `endDate`; `--limit N` is a **CLI output-layer** truncation (takes the first N items of a result array), not passed to the SDK, and applies to every command.
+`--start` and `--end` map to the SDK's `startDate` and `endDate`.`--limit` trims array results at the CLI output layer. Boolean switches accept `--flag`, `--flag=true`, and `--flag=false`. Invalid formats, timeouts, row limits, and extra positional arguments produce exit code `2`.
 
 ## Output format
 

@@ -162,9 +162,10 @@ stock-sdk call kline.cn --args '["600519",{"period":"weekly"}]'
 
 ```bash
 stock-sdk mcp
+stock-sdk mcp --help
 ```
 
-Exposes a set of read-only methods as MCP tools (stdio transport) for Cursor / Claude / Codex and friends. The `STOCK_SDK_MCP_TOOLS` environment variable controls the exposed tool set:
+The server provides MCP tools and skills over stdio. Use `STOCK_SDK_MCP_TOOLS` to select tools and `STOCK_SDK_MCP_PROMPTS` to select skills. Both accept `core`, `full`, or a comma-separated list of names.
 
 | Value | Meaning |
 |---|---|
@@ -172,7 +173,7 @@ Exposes a set of read-only methods as MCP tools (stdio transport) for Cursor / C
 | `full` | All tools |
 | `<comma-separated tool names>` | Custom allowlist |
 
-See the [MCP overview](/en/mcp/) and [setup](/en/mcp/installation).
+`--timeout <ms>` sets the request timeout for this MCP process and takes precedence over `STOCK_SDK_MCP_TIMEOUT`. Unset or invalid environment values fall back to the SDK default. [MCP overview](/en/mcp/) · [Setup](/en/mcp/installation)
 
 ## Namespace direct
 
@@ -198,7 +199,9 @@ stock-sdk marketEvent stockChanges all --page 2 --pageSize 100
 | `positional` | `(a, b?, ...)` | `stock-sdk options etf expireDay 50ETF 2406` |
 | `none` | `()` | `stock-sdk futures inventorySymbols` |
 
-> Namespace commands strictly validate **declared options** (unknown option / invalid enum / missing value / type mismatch all error out); undeclared options pass through to the SDK. The `--start/--end` and `--limit` conventions match the alias commands.
+Run `stock-sdk fundFlow rank --help`, `stock-sdk fundFlow sectorRank --help`, or `stock-sdk marketEvent stockChanges --help` to see their pagination flags. Passing `--page` or `--pageSize` requests one page. `--limit` trims the CLI output.
+
+Commands validate their declared options. Commands that declare options reject unknown flags, as do commands that take only positional arguments.
 
 ### Namespace method quick-reference
 

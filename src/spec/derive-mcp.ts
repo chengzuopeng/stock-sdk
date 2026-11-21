@@ -10,7 +10,7 @@
  */
 import type { JsonSchema, JsonSchemaProp, ToolDef } from '../mcp/types';
 import { resolveSdkMethod } from './resolve';
-import type { MethodSpec, ParamSpec, SpecPositional } from './methods';
+import { FUND_HISTORY_WINDOW, type MethodSpec, type ParamSpec, type SpecPositional } from './methods';
 
 /** ParamSpec.type → JSON Schema 类型（数值参数现行 schema 均为 integer）。 */
 const JSON_TYPE: Record<string, JsonSchemaProp['type']> = {
@@ -92,6 +92,9 @@ function toInputSchema(spec: MethodSpec): JsonSchema {
     properties[jsonKeyOf(p)] = paramProp(p);
     if (p.required) required.push(jsonKeyOf(p));
   }
+  if (spec.mcpOutput === 'fundHistory') {
+    for (const p of FUND_HISTORY_WINDOW) properties[jsonKeyOf(p)] = paramProp(p);
+  }
   return {
     type: 'object',
     properties,
@@ -154,6 +157,7 @@ export function toToolDef(spec: MethodSpec): ToolDef {
     description: spec.mcpDesc ?? spec.summary,
     inputSchema: toInputSchema(spec),
     tier: spec.tier ?? 'full',
+    output: spec.mcpOutput,
     invoke: buildInvoke(spec),
   };
 }

@@ -21,7 +21,7 @@ Skills 落地为真正的 MCP Prompts（`prompts/list` + `prompts/get`），serv
 
 ## 内置了哪些技能
 
-分 `core`（默认 4 个）与 `full`（进阶 3 个）两级，与工具集独立过滤：
+默认选择 `core` 的 4 个技能，`full` 再选入 3 个进阶技能。客户端只会发现依赖工具齐全的已选技能。
 
 - **core**：`analyze_stock` 个股技术分析、`screen_stocks` 智能选股、`market_overview` 市场概览、`monitor_watchlist` 自选监控
 - **full**：`analyze_capital_flow` 资金面、`analyze_fund` 基金分析、`diagnose_stock` 综合诊断
@@ -47,14 +47,12 @@ Skills 落地为真正的 MCP Prompts（`prompts/list` + `prompts/get`），serv
 }
 ```
 
-- **Claude Code**：`claude mcp add stock-sdk -e STOCK_SDK_MCP_PROMPTS=full -- npx -y stock-sdk mcp`，技能作为斜杠命令 `/mcp__stock-sdk__analyze_stock` 出现。
+- 在 **Claude Code** 中运行 `claude mcp add stock-sdk -e STOCK_SDK_MCP_TOOLS=full -e STOCK_SDK_MCP_PROMPTS=full -- npx -y stock-sdk mcp`，即可通过 `/mcp__stock-sdk__analyze_stock` 等斜杠命令调用技能。
 - **Cursor / Cline**：粘贴同一段 `mcpServers` JSON 到 `.cursor/mcp.json` 或扩展的 MCP 设置。
 
-`STOCK_SDK_MCP_PROMPTS` 取值：`core`（默认，4 个）/ `full`（全部 7 个）/ 逗号分隔的技能名单。不支持 Prompts 的老客户端会自动只看到工具，不受影响。
+`STOCK_SDK_MCP_PROMPTS` 接受 `core`（默认）、`full` 或逗号分隔的技能名单。
 
-::: warning full 技能需要 full 工具集
-技能集与工具集**独立过滤**。3 个 full 技能（`analyze_capital_flow` / `analyze_fund` / `diagnose_stock`）会点名 full 层工具，所以启用 full 技能时**务必同时**设 `STOCK_SDK_MCP_TOOLS=full`。若只开 `STOCK_SDK_MCP_PROMPTS=full` 而工具集仍是默认 `core`，模型编排到 full 工具那步会拿到「Unknown tool」。server 启动时若检测到这种错配，会在 stderr 打一条告警。上面的示例配置已成对设好，照抄即可。
-:::
+要使用全部 7 个技能，同时将 `STOCK_SDK_MCP_TOOLS` 和 `STOCK_SDK_MCP_PROMPTS` 设为 `full`。自定义工具名单时，可按[技能清单](/skills/catalog)保留所需工具。缺少工具的技能会从 `prompts/list` 隐藏，启动日志会列出具体缺项，直接调用 `prompts/get` 也会提示缺少的工具。
 
 ## 只读安全
 

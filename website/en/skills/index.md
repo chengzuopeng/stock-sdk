@@ -21,7 +21,7 @@ So a skill's value isn't "unlocking capability" — it's **standardized orchestr
 
 ## Which skills are built in
 
-Two tiers, `core` (4 by default) and `full` (3 advanced), filtered independently from tools:
+The default `core` tier selects four skills, and `full` adds three advanced skills. Clients discover selected skills whose tools are all available.
 
 - **core**: `analyze_stock` (technical), `screen_stocks` (screening), `market_overview`, `monitor_watchlist`
 - **full**: `analyze_capital_flow`, `analyze_fund`, `diagnose_stock`
@@ -47,14 +47,12 @@ Every MCP client uses the same entry `npx -y stock-sdk mcp`; only the config pat
 }
 ```
 
-- **Claude Code**: `claude mcp add stock-sdk -e STOCK_SDK_MCP_PROMPTS=full -- npx -y stock-sdk mcp`; skills appear as slash-commands like `/mcp__stock-sdk__analyze_stock`.
+- In **Claude Code**, run `claude mcp add stock-sdk -e STOCK_SDK_MCP_TOOLS=full -e STOCK_SDK_MCP_PROMPTS=full -- npx -y stock-sdk mcp` to use slash commands such as `/mcp__stock-sdk__analyze_stock`.
 - **Cursor / Cline**: paste the same `mcpServers` JSON into `.cursor/mcp.json` or the extension's MCP settings.
 
-`STOCK_SDK_MCP_PROMPTS` accepts `core` (default, 4) / `full` (all 7) / a comma-separated skill list. Clients without Prompts support simply see only the tools — unaffected.
+`STOCK_SDK_MCP_PROMPTS` accepts `core` (the default), `full`, or a comma-separated skill list.
 
-::: warning Full skills need the full tool set
-Skill tier and tool tier filter **independently**. The 3 full skills (`analyze_capital_flow` / `analyze_fund` / `diagnose_stock`) name full-tier tools, so when you enable full skills you **must also** set `STOCK_SDK_MCP_TOOLS=full`. If you set only `STOCK_SDK_MCP_PROMPTS=full` while tools stay at the default `core`, the model hits an "Unknown tool" when its orchestration reaches a full-tier tool. The server logs a stderr warning on startup if it detects this mismatch. The example config above already pairs both — copy it as-is.
-:::
+Set both `STOCK_SDK_MCP_TOOLS` and `STOCK_SDK_MCP_PROMPTS` to `full` to use all seven skills. For a custom tool list, include the dependencies listed in the [skill catalog](/en/skills/catalog). The server hides skills with missing dependencies from `prompts/list` and names the missing tools in its startup log and direct `prompts/get` errors.
 
 ## Read-only safety
 

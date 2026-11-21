@@ -9,10 +9,18 @@
  * 入口隔离铁律：`src/index.ts` 绝不 import 本文件。
  */
 import { StockSDK } from '../sdk';
-import { dispatch } from './dispatch';
+import { MAX_TIMEOUT_MS } from '../core/constants';
+import {
+  dispatch,
+  isGlobalFlag,
+  lastOf,
+  parseBooleanOption,
+  parseIntegerOption,
+  parseOutputLimit,
+} from './dispatch';
 import { CliUsageError, errorToExitCode, renderError } from './errors';
 import { formatOutput, isEmptyResult } from './format';
-import { renderCommandHelp, renderHelp } from './help';
+import { renderCommandHelp, renderHelp, renderMcpHelp } from './help';
 import { collectBooleanFlags, findCommand, MCP_COMMAND_NAME } from './manifest';
 import { parseArgv } from './parser';
 import type { GlobalOptions, InvokeContext, OutputFormat } from './types';
@@ -37,30 +45,39 @@ function getVersion(): string {
   return typeof __STOCK_SDK_VERSION__ !== 'undefined' ? __STOCK_SDK_VERSION__ : 'unknown';
 }
 
+function resolveFormat(raw: unknown): OutputFormat {
+  const value = lastOf(raw);
+  if (value === undefined) return 'json';
+  if (value === 'json' || value === 'table' || value === 'csv') return value;
+  throw new CliUsageError('--format 可选 json / table / csv');
+}
+
 function resolveGlobal(options: Record<string, unknown>): GlobalOptions {
-  const fmt = options.format ?? options.f;
-  const format: OutputFormat = fmt === 'table' || fmt === 'csv' ? fmt : 'json';
-  // --timeout 须带正整数值；无值（parser 置 true）/ 非数 / <=0 一律回退默认（undefined）
-  let timeout: number | undefined;
-  if (typeof options.timeout === 'string' || typeof options.timeout === 'number') {
-    const n = Number(options.timeout);
-    if (!Number.isNaN(n) && n > 0) timeout = n;
+  const readSwitch = (flag: string, raw: unknown) =>
+    raw === undefined ? false : parseBooleanOption(flag, lastOf(raw));
+  const timeout = options.timeout === undefined ? undefined : parseIntegerOption('timeout', options.timeout);
+  if (timeout !== undefined && (timeout <= 0 || timeout > MAX_TIMEOUT_MS)) {
+    throw new CliUsageError(`--timeout 需要 1 至 ${MAX_TIMEOUT_MS} 的整数毫秒数`);
   }
   return {
-    format,
-    pretty: options.pretty === true,
-    quiet: options.quiet === true || options.q === true,
-    help: options.help === true || options.h === true,
-    version: options.version === true || options.V === true,
+    pretty: readSwitch('pretty', options.pretty),
+    quiet: readSwitch('quiet', options.quiet ?? options.q),
+    help: readSwitch('help', options.help ?? options.h),
+    version: readSwitch('version', options.version ?? options.V),
     timeout,
   };
 }
 
+function validateGlobalOnly(options: Record<string, unknown>): void {
+  const unknownFlag = Object.keys(options).find((flag) => !isGlobalFlag(flag));
+  if (unknownFlag !== undefined) throw new CliUsageError(`未知选项 --${unknownFlag}`);
+}
+
 /** mcp 子命令：委托现有 MCP server（动态 import，避免进入 CLI 常驻内存）。 */
-async function runMcp(): Promise<number> {
+async function runMcp(timeout?: number): Promise<number> {
   try {
     const mod = await import('../mcp/server');
-    mod.startMcpServer(); // 监听 stdin 持续运行，随 stdin 关闭退出
+    mod.startMcpServer(timeout === undefined ? undefined : { sdk: { timeout } });
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -73,29 +90,30 @@ async function main(argv: string[]): Promise<number> {
   let format: OutputFormat = 'json';
   try {
     const parsed = parseArgv(argv, BOOLEAN_FLAGS);
+    format = resolveFormat(parsed.options.format ?? parsed.options.f);
     const global = resolveGlobal(parsed.options);
-    format = global.format;
+    const limit = parseOutputLimit(parsed.options.limit);
 
     if (global.version) {
+      if (parsed.positional.length === 0) validateGlobalOnly(parsed.options);
       process.stdout.write(getVersion() + '\n');
       return 0;
     }
 
     if (parsed.positional.length === 0) {
+      validateGlobalOnly(parsed.options);
       process.stdout.write(renderHelp() + '\n');
       return 0;
     }
 
     if (parsed.positional[0] === MCP_COMMAND_NAME) {
+      validateGlobalOnly(parsed.options);
       if (global.help) {
-        process.stdout.write(
-          'stock-sdk mcp —— 启动 MCP server (stdio transport)\n\n' +
-            '用法: stock-sdk mcp\n' +
-            '环境变量: STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>（默认 core）\n'
-        );
+        process.stdout.write(renderMcpHelp() + '\n');
         return 0;
       }
-      return await runMcp();
+      if (parsed.positional.length > 1) throw new CliUsageError('stock-sdk mcp 无需位置参数');
+      return await runMcp(global.timeout);
     }
 
     const match = findCommand(parsed.positional);
@@ -115,12 +133,12 @@ async function main(argv: string[]): Promise<number> {
       global.timeout !== undefined ? { timeout: global.timeout } : {}
     );
     const ctx: InvokeContext = { positional: match.rest, options: parsed.options };
-    const result = await dispatch(sdk, match.spec, ctx);
+    const result = await dispatch(sdk, match.spec, ctx, limit);
 
     if (isEmptyResult(result) && !global.quiet) {
       process.stderr.write('stock-sdk: 无数据\n');
     }
-    const text = formatOutput(result, global.format, global.pretty);
+    const text = formatOutput(result, format, global.pretty);
     if (text.length > 0) process.stdout.write(text + '\n');
     return 0;
   } catch (error) {

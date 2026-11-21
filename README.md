@@ -128,7 +128,7 @@ npx stock-sdk search 茅台
 npx stock-sdk quotes cn sh600519 sz000001
 ```
 
-默认 JSON 输出，可加 `--format table|csv`、`--pretty`、`--limit N`。
+默认输出 JSON，可加 `--format table|csv`、`--pretty`、`--limit N`。参数格式错误会返回退出码 `2`。用 `stock-sdk fundFlow rank --help` 查看资金流排名的分页参数。
 
 ---
 
@@ -155,7 +155,7 @@ npx stock-sdk mcp
 
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集范围（默认 `core`）。
 
-要通过 `npx` 暴露全部 92 个 MCP 工具，在配置中加入 `env`：
+要通过 `npx` 暴露全量 MCP 工具，在配置中加入 `env`：
 
 ```json
 {
@@ -169,7 +169,9 @@ npx stock-sdk mcp
 }
 ```
 
-除工具外还内置 **7 个场景化 AI Skills**（MCP Prompts，如 `analyze_stock` / `screen_stocks` / `diagnose_stock`），支持的客户端可一键触发；`STOCK_SDK_MCP_PROMPTS=core|full|<名单>` 控制技能集（默认 `core`）。详见 [AI Skills 文档](https://stock-sdk.linkdiary.cn/skills/)。
+MCP 在调用 SDK 前校验数组元素和嵌套指标配置。K 线和信号超限时保留最近记录。基金净值和同类排名工具支持 `startDate` / `endDate`，并在 `coverage` 中标注实际返回的区间。[MCP 工具文档](https://stock-sdk.linkdiary.cn/mcp/tools)
+
+内置 7 个场景化 AI Skills（MCP Prompts）。`STOCK_SDK_MCP_PROMPTS` 选择技能范围，客户端会发现当前工具集可以执行的技能。将工具和技能范围都设为 `full` 可使用全部 7 个。[AI Skills 文档](https://stock-sdk.linkdiary.cn/skills/)
 
 👉 [完整 MCP 文档](https://stock-sdk.linkdiary.cn/mcp/)
 

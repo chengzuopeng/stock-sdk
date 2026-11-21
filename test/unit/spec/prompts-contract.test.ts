@@ -66,6 +66,16 @@ describe('prompts-contract③: 模板确实引用了它声明的每个工具', (
       expect(spec.render(mockArgs(spec))).not.toContain('Respond in the same language');
     }
   });
+
+  it('选股模板显式分页，基金模板核对 MCP 实际返回的覆盖区间', () => {
+    const text = (name: string) => {
+      const spec = PROMPT_SPECS.find((s) => s.name === name)!;
+      return toPromptDef(spec).render(mockArgs(spec));
+    };
+    expect(text('screen_stocks')).toContain('{ page: 1, pageSize: 100 } and { page: 2, pageSize: 100 }');
+    expect(text('market_overview')).toContain('Live northbound net buying is no longer disclosed');
+    expect(text('analyze_fund')).toContain('coverage.start, coverage.end and coverage.truncated');
+  });
 });
 
 describe('prompts-contract④: 必填校验 + 默认值填充', () => {

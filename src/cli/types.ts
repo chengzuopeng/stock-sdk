@@ -93,7 +93,6 @@ export type OutputFormat = 'json' | 'table' | 'csv';
 
 /** 全局选项（命令无关）。 */
 export interface GlobalOptions {
-  format: OutputFormat;
   pretty: boolean;
   timeout?: number;
   quiet: boolean;

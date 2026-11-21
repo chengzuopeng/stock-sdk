@@ -75,22 +75,22 @@ describe('dispatch — argShape 实参组装', () => {
     expect(fn).toHaveBeenCalledWith(['sh600519'], expect.objectContaining({ batchSize: 100 }));
   });
 
-  it('options：fundFlow rank 透传选项', async () => {
-    const { fn, done } = call(['fundFlow', 'rank'], { period: 'today' }, (f) => ({
+  it('options：fundFlow rank 校验并转换排名和分页选项', async () => {
+    const { fn, done } = call(['fundFlow', 'rank'], { indicator: '3day', page: '2', pageSize: '20' }, (f) => ({
       fundFlow: { rank: f },
     }));
     await done;
-    expect(fn).toHaveBeenCalledWith(expect.objectContaining({ period: 'today' }));
+    expect(fn).toHaveBeenCalledWith({ indicator: '3day', page: 2, pageSize: 20 });
   });
 
-  it('symbol+options：marketEvent stockChanges all --page 2 --pageSize 50（#65 分页 flag 透传）', async () => {
+  it('symbol+options：marketEvent stockChanges 以数值传递分页选项', async () => {
     const { fn, done } = call(
       ['marketEvent', 'stockChanges', 'all'],
       { page: '2', pageSize: '50' },
       (f) => ({ marketEvent: { stockChanges: f } })
     );
     await done;
-    expect(fn).toHaveBeenCalledWith('all', { page: '2', pageSize: '50' });
+    expect(fn).toHaveBeenCalledWith('all', { page: 2, pageSize: 50 });
   });
 
   it('marketEvent stockChanges 不带 type：首参 undefined（SDK 落地默认 large_buy）', async () => {
@@ -150,6 +150,16 @@ describe('dispatch — argShape 实参组装', () => {
     expect((r0 as unknown[]).length).toBe(3);
     const r2 = await dispatch(sdk, m.spec, { positional: m.rest, options: { limit: '2' } });
     expect((r2 as unknown[]).length).toBe(2);
+  });
+
+  it('quote --full=true 走 A 股全量行情', async () => {
+    const cn = vi.fn().mockResolvedValue([]);
+    const cnSimple = vi.fn().mockResolvedValue([]);
+    const sdk = { quotes: { cn, cnSimple } } as unknown as StockSDK;
+    const m = findCommand(['quote', '600519'])!;
+    await dispatch(sdk, m.spec, { positional: m.rest, options: { full: 'true' } });
+    expect(cn).toHaveBeenCalledWith(['sh600519']);
+    expect(cnSimple).not.toHaveBeenCalled();
   });
 
   it('P2-1 quote --market fund → quotes.fund', async () => {

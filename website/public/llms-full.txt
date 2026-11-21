@@ -4,7 +4,7 @@
 > 单一事实源）与 `src/types` 自动生成，目的是让 AI 工具**一次性读取** stock-sdk 的全部
 > 命名空间方法、参数与返回数据结构。**请勿手改本文件**——改 spec / types 后重新生成。
 >
-> 版本：v2.4.6 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
+> 版本：v2.4.7 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
 
 ## 这是什么
 
@@ -44,7 +44,7 @@ import { screen, backtest } from 'stock-sdk/screener';
 
 ### 安装与模块格式
 
-- 最新版：`npm i stock-sdk`（当前 v2.4.6）
+- 最新版：`npm i stock-sdk`（当前 v2.4.7）
 - v1 旧版（已封存）：`npm i stock-sdk@legacy`
 - **ESM + CommonJS** 双格式；主包 `import { StockSDK } from 'stock-sdk'`
 - 纯计算 subpath：`stock-sdk/{indicators,signals,symbols,screener,cache,errors,mcp}`（tree-shake 友好，不拖入全部 provider）
@@ -70,15 +70,15 @@ npx stock-sdk mcp
 
 Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["-y", "stock-sdk", "mcp"] }`。
 环境变量 `STOCK_SDK_MCP_TOOLS=core|full|<逗号分隔工具名>` 控制工具集（默认 `core`）。
-**MCP tools/call 大结果会自动裁剪**（数组 >200 条、序列化 >80KB）；**SDK 直连不受此限**。详见 https://stock-sdk.linkdiary.cn/mcp/
+MCP 的 K 线、信号及基金历史超限时保留最近记录（最多 200 条、80,000 字符）。基金净值和同类排名可用 `startDate` / `endDate` 筛选。SDK 直连可取全量。详见 https://stock-sdk.linkdiary.cn/mcp/tools
 
 #### MCP Skills（Prompts）
 
-除工具外，server 还暴露 **7 个场景化技能**（MCP Prompts，`prompts/list` + `prompts/get`）。支持的客户端（Claude Desktop / Claude Code / Cursor / Cline）把技能渲染成斜杠命令 / 模板，用户一键触发；server 只下发「任务说明书」，多步取数由客户端 model 走 `tools/call` 完成，全程只读。`STOCK_SDK_MCP_PROMPTS=core|full|<逗号分隔技能名>` 控制（默认 `core`，与工具集独立）。
+服务器内置 **7 个场景化技能**（MCP Prompts，`prompts/list` + `prompts/get`）。客户端读取模板，再用 `tools/call` 执行只读分析。`STOCK_SDK_MCP_PROMPTS` 选择技能范围（默认 `core`），服务器只公开依赖工具齐全的技能。要启用全部技能，将 `STOCK_SDK_MCP_TOOLS` 和 `STOCK_SDK_MCP_PROMPTS` 同时设为 `full`。
 
 - `analyze_stock` (core; args: symbol, period?) — Full technical analysis of one symbol: klines + indicators + signals, summarized.
 - `screen_stocks` (core; args: criteria, scope?) — Build a candidate shortlist over a chosen universe by natural-language criteria, coarse-filtering before per-symbol indicator work.
-- `market_overview` (core; args: 无参数) — Today's A-share snapshot: market status, limit-up breadth, northbound flow, main-force money direction.
+- `market_overview` (core; args: 无参数) — A-share snapshot: session status, limit-up breadth, disclosed Stock Connect data and main-force money direction.
 - `monitor_watchlist` (core; args: symbols) — Single-shot check of a watchlist: batch quotes, then drill into names that crossed a threshold.
 - `analyze_capital_flow` (full; args: symbol?) — Smart-money / main-force read for one stock or the broad market: fund flow + dragon-tiger + block trades + margin + northbound.
 - `analyze_fund` (full; args: fundCode) — Mutual-fund review: profile + NAV history + category ranking.
@@ -204,14 +204,14 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
     - `--start → options.startDate` (string, CLI 专属): 起始日期 YYYYMMDD
     - `--end → options.endDate` (string, CLI 专属): 结束日期 YYYYMMDD
-- **`sdk.kline.withIndicators(symbol, options?)`** — 带技术指标的历史 K 线（A 股 / 港股 / 美股，market 不传自动按 symbol 识别）。周期默认 daily，复权默认按 SDK 默认（qfq）；日期支持 YYYYMMDD 或 YYYY-MM-DD。indicators 为对象，键取自 14 个指标：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc，每个键传 true 即用默认参数开启，或传配置对象（如 { ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }）。A 股底层历史接口频控时按腾讯、新浪顺序切换备用源。SDK 会按指标依赖自动向前多取若干 bar 保证首日有效。舍入型指标(ma/macd/boll/kdj/rsi/wr/bias/cci/atr)可传 decimals 指定输出小数位(默认 3;obv/roc/dmi/sar/kc 输出不舍入)。
+- **`sdk.kline.withIndicators(symbol, options?)`** — 带技术指标的历史 K 线（A 股 / 港股 / 美股，market 不传自动按 symbol 识别）。周期默认 daily，复权默认按 SDK 默认（qfq）；日期支持 YYYYMMDD 或 YYYY-MM-DD。indicators 为对象，键取自 14 个指标：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc。每个键接受布尔值或配置对象（如 { ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }）。MA、RSI、WR 和 BIAS 也接受周期数组或 { period }。A 股底层历史接口频控时按腾讯、新浪顺序切换备用源。SDK 会按指标依赖自动向前多取若干 bar 保证首日有效。舍入型指标(ma/macd/boll/kdj/rsi/wr/bias/cci/atr)可传 decimals 指定输出小数位(默认 3;obv/roc/dmi/sar/kc 输出不舍入)。MCP 超限时保留最近的记录，建议通过 startDate / endDate 指定所需区间。
     - `symbol` (位置参数, 必填): 股票代码（A 股 / 港股 / 美股）
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
     - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
     - `options.startDate` (string, SDK / MCP): 起始日期 YYYYMMDD
     - `options.endDate` (string, SDK / MCP): 结束日期 YYYYMMDD
     - `options.market` (A | HK | US, SDK / MCP): 市场类型 A / HK / US；不传则由 symbol 自动识别
-    - `options.indicators` (object, SDK / MCP): 指标配置。键：ma / macd / boll / kdj / rsi / wr / bias / cci / atr / obv / roc / dmi / sar / kc；传 `true` 用默认参数，或传配置对象（如 `{ ma: { periods: [5,10,20] }, macd: { short: 12, long: 26, signal: 9 } }`）
+    - `options.indicators` (object, SDK / MCP): 指标键接受布尔值或配置对象。MA、RSI、WR、BIAS 支持周期数组及 `{ period }` 简写。MCP 根据 `tools/list` 提供的 schema 校验嵌套字段。
     - _(CLI 专属 options，SDK 请用上方的 SDK 字段；期货 `--adjust` 等 SDK 不生效)_
     - `--ma → options.ma` (number[], CLI 专属): MA 周期(逗号分隔，如 5,10；仅 --ma 用默认)
     - `--rsi → options.rsi` (number[], CLI 专属): RSI 周期(逗号分隔，如 5,10；仅 --rsi 用默认)
@@ -227,7 +227,7 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `--dmi → options.dmi` (boolean, CLI 专属): 启用 DMI
     - `--sar → options.sar` (boolean, CLI 专属): 启用 SAR
     - `--kc → options.kc` (boolean, CLI 专属): 启用 KC
-- **`sdk.kline.signals(symbol, options?)`** — 识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；只看近期请传 startDate 收窄窗口。周期默认 daily，复权默认 qfq。
+- **`sdk.kline.signals(symbol, options?)`** — 识别技术指标信号（A 股 / 港股 / 美股，market 不传按 symbol 自动识别）：MA / MACD / KDJ 金叉死叉、KDJ / RSI 超买超卖、BOLL 收盘突破、SAR 趋势反转，共 14 类。内部自动取带指标 K 线再逐日比对，返回每条信号的类型 / 日期 / 收盘价 / 附加值。MA 交叉周期由 maFast / maSlow 指定（默认 5 / 20），其余信号用常用默认阈值（KDJ 80/20、RSI period=6 的 70/30）。不传 startDate 会在全部历史上识别；只看近期请传 startDate 收窄窗口，MCP 超限时保留最近的信号。周期默认 daily，复权默认 qfq。
     - `symbol` (位置参数, 必填): 股票代码（A 股 / 港股 / 美股）
     - `options.period` (daily | weekly | monthly, 默认 daily, SDK / MCP): 历史 K 线周期
     - `options.adjust` (qfq | hfq | none, 默认 qfq, SDK / MCP): 复权：qfq=前复权(默认,看走势) / hfq=后复权(算收益) / ''=不复权
@@ -455,10 +455,14 @@ Cursor / Claude Desktop 等配置 `mcpServers`：`{ "command": "npx", "args": ["
     - `options.rank` (BZDM | ABBNAME | DJR | FSRQ | FHFCZ | FFR, 默认 FSRQ, SDK / MCP): 排序字段：BZDM=基金代码 / ABBNAME=基金简称 / DJR=权益登记日 / FSRQ=除息日期(默认) / FHFCZ=分红(元/份) / FFR=分红发放日
     - `options.sort` (asc | desc, 默认 desc, SDK / MCP): 排序方向：asc=升序 / desc=降序(默认)
     - `options.code` (string, SDK / MCP): 按基金代码过滤（客户端过滤），一般搭配 page='all' 使用
-- **`sdk.fund.navHistory(code)`** — 获取基金历史净值（单位净值 + 累计净值，全历史一次返回，按日期升序）。开放式 / ETF / LOF / 货币 / QDII 均通用。⚠️ 体积大：全历史数千条、响应体约 600KB，建议应用层缓存。
+- **`sdk.fund.navHistory(code)`** — 获取基金历史净值（单位净值 + 累计净值，按日期升序）。开放式 / ETF / LOF / 货币 / QDII 均通用。MCP 可用 startDate / endDate 筛选返回区间，超限时保留区间内最近的记录并标注 coverage。SDK 返回全历史。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
-- **`sdk.fund.rankHistory(code)`** — 获取基金同类排名走势（每日近三月排名 + 同类总数 + 排名百分位 %，按日期升序）。适合画「该基金在同类里的相对表现」折线图。数据源同 get_fund_nav_history。
+    - `startDate` (string, 仅 MCP): 返回区间的起始日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
+    - `endDate` (string, 仅 MCP): 返回区间的结束日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
+- **`sdk.fund.rankHistory(code)`** — 获取基金同类排名走势（每日近三月排名 + 同类总数 + 排名百分位 %，按日期升序）。数据源同 get_fund_nav_history。MCP 可用 startDate / endDate 筛选返回区间，超限时保留区间内最近的记录并标注 coverage。SDK 返回全历史。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 110011
+    - `startDate` (string, 仅 MCP): 返回区间的起始日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
+    - `endDate` (string, 仅 MCP): 返回区间的结束日期，含当天，支持 YYYY-MM-DD 或 YYYYMMDD
 - **`sdk.fund.profile(code)`** — 一次请求获取基金深度资料（东方财富 pingzhongdata 全量字段）：前十大重仓股、前五大债券、季度资产配置、每日股票仓位测算、基金经理（含星级与能力评分）、业绩评价、持有人结构、规模变动、申购赎回、阶段收益率（近1月/3月/6月/1年）、同类基金等。字段随基金类型与数据完整度可能为空。与 navHistory / rankHistory 同源（同一份 pingzhongdata 文件，约 600KB），建议应用层缓存。
     - `code` (位置参数, 必填): 基金代码，纯数字，如 000001
 - **`sdk.fund.theme.getThemeList(options?)`** — 获取主题基金列表（东方财富天天基金），可筛选行业/概念主题类型，按日涨幅/各阶段收益率排序分页。返回主题代码(code)、名称(name)、日涨幅及各阶段收益率。category=0(行业)/1(概念)/2(全部，默认)。

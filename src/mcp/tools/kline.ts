@@ -1,7 +1,7 @@
 /**
  * MCP 工具：带技术指标的 K 线 —— 全库唯一保留手写 schema/invoke 的工具。
  *
- * 保留手写的原因：MCP 侧用嵌套 `indicators` 对象（14 个指标键，值为 true 或配置对象）
+ * 保留手写的原因：MCP 侧用嵌套 `indicators` 对象
  * 表达指标配置，而 CLI 侧是 14 个扁平 flag（--ma 5,10 --macd ...），两端表面形态不同，
  * 无法由共享 spec 的扁平 ParamSpec 自动派生。
  *
@@ -10,33 +10,51 @@
  * 取自 spec 片段，不在本文件重复定义。
  */
 import type { KlineWithIndicatorsOptions, MarketType } from '../../sdk';
-import type { ToolDef } from '../types';
+import type { JsonSchemaProp, ToolDef } from '../types';
 import { ADJUST, END, MARKET_ENUM, PERIOD_DWM, START, findMethodSpec } from '../../spec/methods';
 import { paramProp } from '../../spec/derive-mcp';
 
-/** withIndicators 支持的 14 个技术指标键（每个布尔开启或传配置对象） */
-const INDICATOR_KEYS = [
-  'ma',
-  'macd',
-  'boll',
-  'kdj',
-  'rsi',
-  'wr',
-  'bias',
-  'cci',
-  'atr',
-  'obv',
-  'roc',
-  'dmi',
-  'sar',
-  'kc',
-] as const;
+const NUMBER = { type: 'number' } as const;
+const PERIODS = { type: 'array', items: NUMBER } as const;
+const ROUNDED_PERIOD = { period: NUMBER, decimals: NUMBER };
+const PERIOD_LIST = { ...ROUNDED_PERIOD, periods: PERIODS };
+
+function indicator(
+  description: string,
+  properties: Record<string, JsonSchemaProp>,
+  acceptsPeriodList = false
+): JsonSchemaProp {
+  const anyOf: JsonSchemaProp[] = [
+    { type: 'boolean' },
+    { type: 'object', properties, additionalProperties: false },
+  ];
+  if (acceptsPeriodList) anyOf.push(PERIODS);
+  return { description, anyOf };
+}
+
+const INDICATOR_PROPERTIES = {
+  ma: indicator('MA 均线', { ...PERIOD_LIST, type: { type: 'string', enum: ['sma', 'ema', 'wma'] } }, true),
+  macd: indicator('MACD', { short: NUMBER, long: NUMBER, signal: NUMBER, decimals: NUMBER }),
+  boll: indicator('布林带', { ...ROUNDED_PERIOD, stdDev: NUMBER }),
+  kdj: indicator('KDJ', { ...ROUNDED_PERIOD, kPeriod: NUMBER, dPeriod: NUMBER }),
+  rsi: indicator('RSI', PERIOD_LIST, true),
+  wr: indicator('威廉指标 WR', PERIOD_LIST, true),
+  bias: indicator('BIAS 乖离率', PERIOD_LIST, true),
+  cci: indicator('CCI', ROUNDED_PERIOD),
+  atr: indicator('ATR 真实波幅', ROUNDED_PERIOD),
+  obv: indicator('OBV', { maPeriod: NUMBER }),
+  roc: indicator('ROC', { period: NUMBER, signalPeriod: NUMBER }),
+  dmi: indicator('DMI / ADX', { period: NUMBER, adxPeriod: NUMBER }),
+  sar: indicator('SAR 抛物线', { afStart: NUMBER, afIncrement: NUMBER, afMax: NUMBER }),
+  kc: indicator('Keltner 通道 KC', { emaPeriod: NUMBER, atrPeriod: NUMBER, multiplier: NUMBER }),
+} satisfies Record<keyof NonNullable<KlineWithIndicatorsOptions['indicators']>, JsonSchemaProp>;
 
 const SPEC = findMethodSpec('kline.withIndicators');
 
 export const klineWithIndicatorsTool: ToolDef = {
   name: SPEC.toolName!,
   tier: SPEC.tier ?? 'full',
+  output: SPEC.mcpOutput,
   description: SPEC.mcpDesc ?? SPEC.summary,
   inputSchema: {
     type: 'object',
@@ -55,25 +73,10 @@ export const klineWithIndicatorsTool: ToolDef = {
       indicators: {
         type: 'object',
         description:
-          '指标配置对象，键取自 ' +
-          INDICATOR_KEYS.join(' / ') +
-          '；值为 true（默认参数）或配置对象。舍入型指标可传 decimals 指定输出小数位（默认 3）',
-        properties: {
-          ma: { description: 'MA 均线，true 或配置对象 { periods: [5,10,20], type: sma|ema|wma, decimals }' },
-          macd: { description: 'MACD，true 或配置对象 { short, long, signal, decimals }' },
-          boll: { description: '布林带，true 或配置对象 { period, stdDev, decimals }' },
-          kdj: { description: 'KDJ，true 或配置对象 { period, kPeriod, dPeriod, decimals }' },
-          rsi: { description: 'RSI，true 或配置对象 { periods, decimals }' },
-          wr: { description: '威廉指标 WR，true 或配置对象 { periods, decimals }' },
-          bias: { description: 'BIAS 乖离率，true 或配置对象 { periods, decimals }' },
-          cci: { description: 'CCI，true 或配置对象 { period, decimals }' },
-          atr: { description: 'ATR 真实波幅，true 或配置对象 { period, decimals }' },
-          obv: { description: 'OBV，true 或配置对象 { maPeriod }' },
-          roc: { description: 'ROC，true 或配置对象 { period, signalPeriod }' },
-          dmi: { description: 'DMI / ADX，true 或配置对象 { period, adxPeriod }' },
-          sar: { description: 'SAR 抛物线，true 或配置对象 { afStart, afIncrement, afMax }' },
-          kc: { description: 'Keltner 通道 KC，true 或配置对象 { emaPeriod, atrPeriod, multiplier }' },
-        },
+          '用 true 启用默认参数，false 关闭，或传入指标配置对象。' +
+          'MA、RSI、WR、BIAS 也接受周期数组或 { period }。舍入型指标默认保留 3 位小数。',
+        properties: INDICATOR_PROPERTIES,
+        additionalProperties: false,
       },
     },
     required: ['symbol'],

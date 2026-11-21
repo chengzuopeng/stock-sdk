@@ -1,14 +1,14 @@
 # 技能清单
 
-内置 7 个场景化技能，分 `core`（默认启用）与 `full`（需 `STOCK_SDK_MCP_PROMPTS=full` 或点名）两级，与工具集的 core/full 独立过滤。怎么工作、如何启用见 [AI Skills 概述](/skills/)。
+内置 7 个场景化技能。`STOCK_SDK_MCP_PROMPTS` 选择技能范围，`STOCK_SDK_MCP_TOOLS` 提供每个技能所需的工具。[启用方式](/skills/)
 
 ## Core（默认 4 个）
 
 | 技能 | 参数 | 底层工具 | 做什么 |
 |---|---|---|---|
 | `analyze_stock` | `symbol`(必填)、`period`(默认 daily) | `search` / `get_kline_with_indicators` / `get_kline_signals` | 个股完整技术面分析：K 线 + 指标 + 信号 + 归纳 |
-| `screen_stocks` | `criteria`(必填)、`scope`(默认全市场) | 板块成分 / `get_fund_flow_rank` / `get_a_share_quotes` / 指标 / 信号 | 智能选股：先粗筛再对候选取指标，给排序候选清单 |
-| `market_overview` | 无 | `get_market_status` / `get_zt_pool` / `get_northbound_flow_summary` / `get_fund_flow_rank` | 今日市场速览：状态 + 涨停广度 + 北向 + 主力资金方向 |
+| `screen_stocks` | `criteria`(必填)、`scope`(默认沪深北资金流榜前 200) | 板块成分 / `get_fund_flow_rank` / `get_a_share_quotes` / 指标 / 信号 | 先粗筛再对候选取指标，返回排序候选清单 |
+| `market_overview` | 无 | `get_market_status` / `get_zt_pool` / `get_northbound_flow_summary` / `get_fund_flow_rank` | 交易时段、涨停广度、已披露的沪深港通数据和主力资金排名 |
 | `monitor_watchlist` | `symbols`(必填，逗号分隔) | `get_a_share_quotes` / `get_today_timeline` / `get_individual_fund_flow` / `get_kline_signals` | 自选单次快照：批量行情 + 对触发阈值的标的下钻 |
 
 示例：

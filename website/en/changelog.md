@@ -6,6 +6,20 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.4.7
+
+> Release pending
+
+### Added
+
+- MCP fund NAV and peer ranking tools support date filters and report the returned range.
+
+### Fixed
+
+- MCP truncation keeps the latest K-lines and signals and the top-ranked rows. Message and argument validation is stricter.
+- Skills appear only when their tools are available. Query ranges and setup examples were corrected.
+- The CLI rejects invalid arguments and documents pagination and MCP startup options.
+
 ## v2.4.6
 
 > Released: 2026-10-03

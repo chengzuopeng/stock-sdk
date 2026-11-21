@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
 import { dispatchMessage, type DispatchContext } from '../../../src/mcp/server';
 import { resolveTierFilter } from '../../../src/mcp/types';
+import { MAX_ARRAY_ITEMS } from '../../../src/mcp/result';
 import { listTools } from '../../../src/mcp/tools';
 import { listPrompts } from '../../../src/mcp/prompts';
 import { StockSDK } from '../../../src/sdk';
@@ -14,8 +15,7 @@ import {
   type JsonRpcRequest,
 } from '../../../src/mcp/protocol';
 
-function makeCtx(): DispatchContext {
-  const tools = listTools('full');
+function makeCtx(tools = listTools('full')): DispatchContext {
   const prompts = listPrompts('full');
   return {
     sdk: new StockSDK(),
@@ -121,6 +121,29 @@ describe('mcp/server · dispatchMessage', () => {
     expect(r?.error?.code).toBe(RPC_INVALID_REQUEST);
   });
 
+  it.each([
+    { message: null },
+    { message: [] },
+    { message: {} },
+    { message: { jsonrpc: '2.0', id: false, method: 'ping' } },
+    { message: { jsonrpc: '2.0', id: null, method: 'ping' } },
+  ])('非法消息外壳 $message 返回 id:null 的 INVALID_REQUEST', async ({ message }) => {
+    const response = await dispatchMessage(message, makeCtx());
+    expect(response).toMatchObject({ id: null, error: { code: RPC_INVALID_REQUEST } });
+  });
+
+  it('无 id 的请求式通知既不回复，也不调用工具', async () => {
+    const ctx = makeCtx();
+    const tool = ctx.toolMap.get('get_market_status')!;
+    const invoke = vi.fn(() => 'open');
+    ctx.toolMap.set(tool.name, { ...tool, invoke });
+    const result = await dispatchMessage({
+      jsonrpc: '2.0', method: 'tools/call', params: { name: tool.name },
+    }, ctx);
+    expect(result).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it('tools/call params 非对象(数组) → INVALID_PARAMS', async () => {
     const r = await dispatchMessage(
       { jsonrpc: '2.0', id: 8, method: 'tools/call', params: ['x'] } as unknown as JsonRpcRequest,
@@ -208,6 +231,45 @@ describe('mcp/server · dispatchMessage', () => {
     expect(result.content[0].text).not.toContain('UNKNOWN');
   });
 
+  it.each([
+    { name: 'get_a_share_quotes', args: { codes: [600519] }, path: 'codes[0]' },
+    { name: 'get_kline_with_indicators', args: { indicators: { ma: { periods: ['5'] } } }, path: 'indicators.ma.periods[0]' },
+    { name: 'get_kline_with_indicators', args: { indicators: { boll: { typo: 1 } } }, path: 'indicators.boll.typo' },
+    { name: 'get_kline_with_indicators', args: { indicators: { typo: true } }, path: 'indicators.typo' },
+  ])('$path 类型或字段不合法时在调用 SDK 前报错', async ({ name, args, path }) => {
+    const ctx = makeCtx();
+    const invoke = vi.fn(() => []);
+    ctx.toolMap.set(name, { ...ctx.toolMap.get(name)!, invoke });
+    const result = await dispatchMessage({
+      jsonrpc: '2.0', id: 16, method: 'tools/call',
+      params: {
+        name,
+        arguments: name === 'get_kline_with_indicators' ? { symbol: '600519', ...args } : args,
+      },
+    }, ctx);
+    const toolResult = result?.result as CallResult;
+    expect(toolResult.isError).toBe(true);
+    expect(toolResult.content[0].text).toContain('INVALID_ARGUMENT');
+    expect(toolResult.content[0].text).toContain(path);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('指标 schema 接受布尔值、选项对象和周期简写', async () => {
+    const ctx = makeCtx();
+    const tool = ctx.toolMap.get('get_kline_with_indicators')!;
+    const invoke = vi.fn(() => []);
+    ctx.toolMap.set(tool.name, { ...tool, invoke });
+    const args = {
+      symbol: '600519',
+      indicators: { ma: [5, 20], rsi: { period: 14 }, boll: { period: 20, stdDev: 2.5 }, sar: false },
+    };
+    const response = await dispatchMessage({
+      jsonrpc: '2.0', id: 17, method: 'tools/call', params: { name: tool.name, arguments: args },
+    }, ctx);
+    expect((response?.result as CallResult).isError).toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith(ctx.sdk, args);
+  });
+
   it('#11 serverInfo.version 走构建注入，不硬编码 2.0.0', async () => {
     const r = await dispatchMessage({ jsonrpc: '2.0', id: 15, method: 'initialize', params: {} }, makeCtx());
     const result = r?.result as InitResult;
@@ -234,6 +296,30 @@ describe('mcp/server · dispatchMessage', () => {
     expect(result.prompts[0]).not.toHaveProperty('render');
   });
 
+  it('core 工具只暴露可执行的 4 个技能，直接取不可用技能会指出缺少的工具', async () => {
+    const ctx = makeCtx(listTools('core'));
+    const list = await dispatchMessage({ jsonrpc: '2.0', id: 30, method: 'prompts/list' }, ctx);
+    const result = list?.result as PromptsListResult;
+    expect(result.prompts.map((p) => p.name)).toEqual(listPrompts('core').map((p) => p.name));
+
+    const get = await dispatchMessage({
+      jsonrpc: '2.0',
+      id: 31,
+      method: 'prompts/get',
+      params: { name: 'analyze_fund', arguments: { fundCode: '110022' } },
+    }, ctx);
+    expect(get?.error?.code).toBe(RPC_INVALID_PARAMS);
+    expect(get?.error?.message).toContain('get_fund_nav_history');
+  });
+
+  it('按名启用依赖齐全的工具时，技能不要求整个 full 工具集', async () => {
+    const fund = listPrompts(['analyze_fund'])[0];
+    const ctx = makeCtx(listTools(fund.usesTools));
+    const list = await dispatchMessage({ jsonrpc: '2.0', id: 32, method: 'prompts/list' }, ctx);
+    const result = list?.result as PromptsListResult;
+    expect(result.prompts.map((p) => p.name)).toEqual(['analyze_fund']);
+  });
+
   it('prompts/get 插值出单条 user/text message + description', async () => {
     const r = await dispatchMessage(
       {
@@ -252,6 +338,7 @@ describe('mcp/server · dispatchMessage', () => {
     // 参数已插值 + 点名了真实工具 + 带上「用用户语言作答」纪律
     expect(result.messages[0].content.text).toContain('sh600519');
     expect(result.messages[0].content.text).toContain('weekly');
+    expect(result.messages[0].content.text).toContain('period: "weekly", startDate, endDate and adjust in both calls');
     expect(result.messages[0].content.text).toContain('get_kline_signals');
     expect(result.messages[0].content.text).toContain('Respond in the same language');
   });
@@ -398,5 +485,74 @@ describe('tools/call 分页参数直达 provider (#65)', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('INVALID_ARGUMENT');
     expect(result.content[0].text).toContain('pageSize 需为 1-100 的整数');
+  });
+});
+
+describe('MCP 基金历史输出窗口', () => {
+  const url = 'https://fund.eastmoney.com/pingzhongdata/110022.js';
+  const points = Array.from({ length: 900 }, (_, index) => ({
+    x: Date.UTC(2024, 0, index + 1),
+    y: 1.23,
+    sc: '300',
+  }));
+
+  function mockFundData(): void {
+    const body = [
+      'var fS_code = "110022";',
+      `var Data_netWorthTrend = ${JSON.stringify(points)};`,
+      `var Data_rateInSimilarType = ${JSON.stringify(points)};`,
+    ].join('\n');
+    server.use(http.get(url, () => HttpResponse.text(body)));
+  }
+
+  async function callHistory(name: string, window = {}, ctx = makeCtx()): Promise<CallResult> {
+    const response = await dispatchMessage({
+      jsonrpc: '2.0',
+      id: 41,
+      method: 'tools/call',
+      params: { name, arguments: { code: '110022', ...window } },
+    }, ctx);
+    return response?.result as CallResult;
+  }
+
+  it.each(['get_fund_nav_history', 'get_fund_rank_history'])('%s 支持含首尾日期的输出筛选', async (name) => {
+    mockFundData();
+    const res = await callHistory(name, { startDate: '20240228', endDate: '2024-03-01' });
+    const data = JSON.parse(res.content[0].text);
+    expect(data.code).toBe('110022');
+    expect(data.items.map((row: { date: string }) => row.date)).toEqual([
+      '2024-02-28', '2024-02-29', '2024-03-01',
+    ]);
+    expect(data.coverage).toEqual({
+      total: 3, returned: 3, start: '2024-02-28', end: '2024-03-01', truncated: false,
+    });
+  });
+
+  it('只传 code 时返回最近的有界记录，SDK 仍返回完整历史', async () => {
+    mockFundData();
+    const ctx = makeCtx();
+    const res = await callHistory('get_fund_nav_history', {}, ctx);
+    const data = JSON.parse(res.content[0].text);
+    const full = await ctx.sdk.fund.navHistory('110022');
+    expect(full.items).toHaveLength(points.length);
+    expect(data.items).toEqual(full.items.slice(-MAX_ARRAY_ITEMS));
+    expect(data.coverage).toMatchObject({
+      total: points.length,
+      returned: MAX_ARRAY_ITEMS,
+      end: full.items[full.items.length - 1].date,
+      truncated: true,
+    });
+  });
+
+  it.each([
+    { startDate: '2024-02-30' },
+    { startDate: '2024-03-01', endDate: '2024-02-28' },
+  ])('拒绝无效日期窗口 %o，不发送请求', async (window) => {
+    const onRequest = vi.fn(() => HttpResponse.text(''));
+    server.use(http.get(url, onRequest));
+    const res = await callHistory('get_fund_nav_history', window);
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('INVALID_ARGUMENT');
+    expect(onRequest).not.toHaveBeenCalled();
   });
 });

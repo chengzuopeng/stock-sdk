@@ -37,8 +37,8 @@ export function createLineReader(onLine: (line: string) => void): void {
     while (idx >= 0) {
       const line = buf.slice(0, idx);
       buf = buf.slice(idx + 1);
-      if (discarding) {
-        // 该行是被截断消息的尾部：丢弃并答复（无法定位 id，只能回 null）
+      if (discarding || Buffer.byteLength(line) > MAX_LINE_BYTES) {
+        // 无法可靠定位超长消息的 id。
         discarding = false;
         writeMessage({
           jsonrpc: '2.0',
@@ -53,8 +53,8 @@ export function createLineReader(onLine: (line: string) => void): void {
       }
       idx = buf.indexOf('\n');
     }
-    if (!discarding && buf.length > MAX_LINE_BYTES) {
-      logStderr(`[stock-sdk mcp] 输入超长（${buf.length} bytes 无换行，超 ${MAX_LINE_BYTES} 上限），丢弃至下一换行`);
+    if (!discarding && Buffer.byteLength(buf) > MAX_LINE_BYTES) {
+      logStderr(`[stock-sdk mcp] 输入超出 ${MAX_LINE_BYTES} 字节上限，丢弃至下一换行`);
       discarding = true;
       buf = '';
     } else if (discarding) {

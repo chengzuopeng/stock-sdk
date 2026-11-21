@@ -1,7 +1,7 @@
 /**
  * 命令分发（cli.md §3 / §9）：按 argShape 把位置参数 + flags 组装成实参并调用 SDK。
  *
- * 选项校验(未知 flag / enum / 类型 / 缺值 / 重复 / 必填)与 `--limit` 输出裁剪在 dispatch
+ * 选项校验(未知 flag / enum / 类型 / 缺值 / 必填)与 `--limit` 输出裁剪在 dispatch
  * 层【统一】执行 —— 别名命令(自定义 `invoke`)与命名空间直达命令走同一套校验,杜绝
  * 「别名绕过 enum/类型校验」「--limit 只在别名生效」这类两条路径不一致的问题。
  */
@@ -13,15 +13,14 @@ import type { CommandSpec, InvokeContext, OptionSpec, PositionalSpec } from './t
 /** 未声明 flag 的字段名映射：CLI 习惯的 --start/--end → SDK 的 startDate/endDate。 */
 const FLAG_ALIAS: Record<string, string> = { start: 'startDate', end: 'endDate' };
 
-/** 全局选项(命令无关,index.ts 的 resolveGlobal 消费):不属命令 option、不透传 SDK、不报「未知选项」。 */
+/** CLI 全局选项和输出选项由入口处理。 */
 const GLOBAL_FLAGS = new Set([
-  'format', 'f', 'pretty', 'quiet', 'q', 'help', 'h', 'version', 'V', 'timeout',
+  'format', 'f', 'pretty', 'quiet', 'q', 'help', 'h', 'version', 'V', 'timeout', 'limit',
 ]);
-/** CLI 输出层后处理 flag(对结果数组裁剪):不透传 SDK,对所有命令统一生效。 */
-const POSTPROCESS_FLAGS = new Set(['limit']);
 
-function isPassthroughFlag(key: string): boolean {
-  return GLOBAL_FLAGS.has(key) || POSTPROCESS_FLAGS.has(key);
+/** 判断参数是否由 CLI 入口或输出处理。 */
+export function isGlobalFlag(key: string): boolean {
+  return GLOBAL_FLAGS.has(key);
 }
 
 /** 把原始 flags 按 OptionSpec 转换类型 + 归一，组成 options 对象；未声明的透传。 */
@@ -34,7 +33,7 @@ export function buildOptions(
   for (const opt of spec.options ?? []) declared.set(opt.flag, opt);
 
   for (const [key, raw] of Object.entries(rawOptions)) {
-    if (isPassthroughFlag(key)) continue; // 全局/输出层 flag 不进 SDK options
+    if (isGlobalFlag(key)) continue;
     const opt = declared.get(key);
     if (!opt) {
       if (raw === true) continue; // 未声明且无值的 flag：丢弃，避免脏 true 进 options
@@ -54,7 +53,7 @@ export function buildOptions(
 function convert(opt: OptionSpec, raw: unknown): unknown {
   switch (opt.type) {
     case 'boolean':
-      return raw === true || raw === 'true';
+      return parseBooleanOption(opt.flag, raw);
     case 'number':
       return Number(lastOf(raw));
     case 'number[]':
@@ -75,8 +74,33 @@ function convert(opt: OptionSpec, raw: unknown): unknown {
   }
 }
 
-function lastOf(raw: unknown): unknown {
+/** 可重复的单值选项使用最后一次提供的值。 */
+export function lastOf(raw: unknown): unknown {
   return Array.isArray(raw) ? raw[raw.length - 1] : raw;
+}
+
+/** 解析布尔开关及等号形式的显式值。 */
+export function parseBooleanOption(flag: string, raw: unknown): boolean {
+  if (raw === true || raw === 'true' || raw === '1' || raw === 'yes') return true;
+  if (raw === false || raw === 'false' || raw === '0' || raw === 'no') return false;
+  throw new CliUsageError(`--${flag} 需要布尔值 true 或 false`);
+}
+
+/** 解析 CLI 的整数选项，拒绝缺值、空值和非有限数字。 */
+export function parseIntegerOption(flag: string, raw: unknown): number {
+  const value = lastOf(raw);
+  const parsed = typeof value === 'number' || (typeof value === 'string' && value.trim())
+    ? Number(value)
+    : NaN;
+  if (!Number.isSafeInteger(parsed)) throw new CliUsageError(`--${flag} 需要整数`);
+  return parsed;
+}
+
+/** 读取数组输出上限，0 表示输出全部记录。 */
+export function parseOutputLimit(raw: unknown): number {
+  const limit = raw === undefined ? 0 : parseIntegerOption('limit', raw);
+  if (limit < 0) throw new CliUsageError('--limit 需要非负整数');
+  return limit;
 }
 
 /**
@@ -139,21 +163,22 @@ export function invokeMethod(sdk: StockSDK, path: string[], args: unknown[]): Pr
 
 /**
  * 统一选项校验(别名 + 命名空间共用,在 dispatch 入口对所有命令执行):
- * - 声明了 options 的命令:未知 flag → 报错;enum/number 非法值 → 报错。
+ * - 声明了 options 或只接收位置参数的命令会拒绝未知 flag。
  * - 待值 flag(非 boolean/number[])在 argv 末尾无值被 parser 置成 `true` → 「缺少值」。
- * - 非 number[] 的 flag 被重复指定(parser 收集成数组)→ 「不能重复」。
+ * - 非 number[] 的 flag 被重复指定时使用末值。
  * - 标了 required 的 option 缺失 → 「缺少必填选项」。
  */
 function validateOptions(spec: CommandSpec, rawOptions: Record<string, unknown>): void {
   const declared = new Map<string, OptionSpec>();
   for (const opt of spec.options ?? []) declared.set(opt.flag, opt);
-  const strict = declared.size > 0; // 仅对声明了 opts 的命令拒绝未知 flag(无 opts 的命令保持透传)
+  const acceptsUndeclared = declared.size === 0 && !spec.invoke &&
+    ['options', 'symbol+options', 'codes+options'].includes(spec.argShape);
 
   for (const [key, raw] of Object.entries(rawOptions)) {
-    if (isPassthroughFlag(key)) continue;
+    if (isGlobalFlag(key)) continue;
     const opt = declared.get(key);
     if (!opt) {
-      if (strict) {
+      if (!acceptsUndeclared) {
         throw new CliUsageError(
           `未知选项 --${key}`,
           `运行 \`stock-sdk ${spec.path.join(' ')} --help\` 查看可用选项`
@@ -169,6 +194,7 @@ function validateOptions(spec: CommandSpec, rawOptions: Record<string, unknown>)
     if (opt.type !== 'number[]') {
       let value: unknown = lastOf(raw);
       if (opt.upper && typeof value === 'string') value = value.toUpperCase();
+      if (opt.type === 'boolean') value = parseBooleanOption(key, value);
       if (value !== raw) rawOptions[key] = value;
       if (opt.type === 'enum' && opt.enum) {
         const v = typeof value === 'string' ? value : String(value);
@@ -176,7 +202,9 @@ function validateOptions(spec: CommandSpec, rawOptions: Record<string, unknown>)
           throw new CliUsageError(`--${key} 非法值「${v}」`, `可选: ${opt.enum.join(' / ')}`);
         }
       }
-      if (opt.type === 'number' && value !== true && Number.isNaN(Number(value))) {
+      if (opt.type === 'number' && (
+        value === true || (typeof value === 'string' && !value.trim()) || !Number.isFinite(Number(value))
+      )) {
         throw new CliUsageError(`--${key} 需要数值，得到「${String(value)}」`);
       }
     }
@@ -189,9 +217,17 @@ function validateOptions(spec: CommandSpec, rawOptions: Record<string, unknown>)
   }
 }
 
-/** 别名命令走自定义 invoke 会绕过 normalizePositional 的 enum 校验，分发前统一校验位置参数 enum。 */
-function validatePositionalEnum(spec: CommandSpec, positional: string[]): void {
+/** 默认与自定义命令统一检查位置参数。 */
+function validatePositional(spec: CommandSpec, positional: string[]): void {
   const specs = spec.positional ?? [];
+  if (
+    spec.argShape !== 'codes[]' &&
+    spec.argShape !== 'codes+options' &&
+    !specs.some((p) => p.variadic) &&
+    positional.length > specs.length
+  ) {
+    throw new CliUsageError(`多余的位置参数 "${positional.slice(specs.length).join(' ')}"`);
+  }
   for (let i = 0; i < specs.length; i++) {
     const p = specs[i];
     const v = positional[i];
@@ -203,24 +239,17 @@ function validatePositionalEnum(spec: CommandSpec, positional: string[]): void {
   }
 }
 
-/** `--limit N` 输出层裁剪(对结果数组取前 N;无值/0/负数/非数视为不限制)。所有命令统一适用。 */
-function applyLimit(result: unknown, rawOptions: Record<string, unknown>): unknown {
-  const raw = rawOptions.limit;
-  if (raw === undefined || raw === true || !Array.isArray(result)) return result;
-  const n = Number(lastOf(raw));
-  return !Number.isNaN(n) && n >= 1 ? result.slice(0, n) : result;
-}
-
 export function dispatch(
   sdk: StockSDK,
   spec: CommandSpec,
-  ctx: InvokeContext
+  ctx: InvokeContext,
+  limit = parseOutputLimit(ctx.options.limit)
 ): Promise<unknown> {
   // 同步校验:缺值/enum/类型/未知/必填即时抛 CliUsageError(调用方与测试可同步捕获)。
   validateOptions(spec, ctx.options);
-  validatePositionalEnum(spec, ctx.positional);
+  validatePositional(spec, ctx.positional);
   const result = spec.invoke ? spec.invoke(sdk, ctx) : runDefault(sdk, spec, ctx);
-  return Promise.resolve(result).then((r) => applyLimit(r, ctx.options));
+  return Promise.resolve(result).then((r) => limit > 0 && Array.isArray(r) ? r.slice(0, limit) : r);
 }
 
 function runDefault(
