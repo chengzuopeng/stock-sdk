@@ -27,13 +27,7 @@ The server talks to the client over **stdio** (standard input/output) and listen
 
 MCP is essentially **JSON-RPC 2.0 over newline-delimited (NDJSON) stdin/stdout**. `stock-sdk` does **not** pull in `@modelcontextprotocol/sdk`; instead it **hand-writes the minimal subset** of the protocol, preserving the main package's zero-runtime-dependency stance.
 
-The scope is deliberately nailed down to what a market-data scenario actually needs:
-
-- **Transport**: `stdio` only — no HTTP / SSE.
-- **Capability**: `tools` only — no resources / prompts / sampling.
-- **Methods handled**: `initialize` (handshake and capability negotiation), `notifications/initialized`, `ping`, `tools/list`, `tools/call`.
-
-Explicitly **out of scope**: HTTP / SSE transport, OAuth, sampling, progress / cancellation, resources / prompts subscriptions, and the client side. A "batch of read-only methods" scenario barely needs these advanced features — extend later or reassess switching to the official SDK if ever required.
+The server exposes read-only market-data tools and analysis prompts over `stdio`. Clients negotiate capabilities with `initialize`, discover and invoke tools with `tools/list` and `tools/call`, and discover and retrieve prompts whose tools are available with `prompts/list` and `prompts/get`.
 
 ### No impact on bundle size or zero-dependency
 

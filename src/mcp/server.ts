@@ -25,7 +25,7 @@ import type { PromptDef } from '../spec/derive-prompt';
 import { resolveTierFilter, type ToolDef, type ToolTier } from './types';
 import { parseHistoryWindow, toToolResult, toolErrorResult } from './result';
 
-/** 技能集范围：'core'(默认) / 'full' / 指定 name 列表（与工具集独立过滤）。 */
+/** 技能集范围：'core'(默认) / 'full' / 指定 name 列表。 */
 export type PromptTier = 'core' | 'full';
 
 export interface DispatchContext {
@@ -34,6 +34,10 @@ export interface DispatchContext {
   toolMap: Map<string, ToolDef>;
   prompts: PromptDef[];
   promptMap: Map<string, PromptDef>;
+}
+
+function missingPromptTools(prompt: PromptDef, toolMap: ReadonlyMap<string, ToolDef>): string[] {
+  return prompt.usesTools.filter((name) => !toolMap.has(name));
 }
 
 /** 普通对象判定（排除 null 与数组）—— JSON-RPC params/arguments 必须是对象 */
@@ -186,12 +190,14 @@ export async function dispatchMessage(
 
     case 'prompts/list':
       return ok({
-        prompts: ctx.prompts.map((p) => ({
-          name: p.name,
-          title: p.title,
-          description: p.description,
-          arguments: p.arguments,
-        })),
+        prompts: ctx.prompts
+          .filter((p) => missingPromptTools(p, ctx.toolMap).length === 0)
+          .map((p) => ({
+            name: p.name,
+            title: p.title,
+            description: p.description,
+            arguments: p.arguments,
+          })),
       });
 
     case 'prompts/get': {
@@ -200,6 +206,10 @@ export async function dispatchMessage(
       if (typeof name !== 'string') return err(RPC_INVALID_PARAMS, 'params.name must be a string');
       const prompt = ctx.promptMap.get(name);
       if (!prompt) return err(RPC_INVALID_PARAMS, `Unknown prompt: ${name}`);
+      const missingTools = missingPromptTools(prompt, ctx.toolMap);
+      if (missingTools.length > 0) {
+        return err(RPC_INVALID_PARAMS, `Prompt ${name} requires tools: ${missingTools.join(', ')}`);
+      }
       const rawArgs = params.arguments;
       if (rawArgs !== undefined && !isObject(rawArgs)) {
         return err(RPC_INVALID_PARAMS, 'params.arguments must be an object');
@@ -229,7 +239,7 @@ export async function dispatchMessage(
 export interface McpServerOptions {
   /** 工具集范围：'core'(默认) / 'full' / 指定 name 列表 */
   tools?: ToolTier | string[];
-  /** 技能集范围：'core'(默认) / 'full' / 指定 name 列表（与工具集独立） */
+  /** 技能集范围：'core'(默认) / 'full' / 指定 name 列表。只提供工具齐全的技能。 */
   prompts?: PromptTier | string[];
   /**
    * 透传给 StockSDK 的构造参数（timeout / retry / rateLimit / circuitBreaker / providerPolicies /
@@ -271,8 +281,12 @@ export function startMcpServer(options: McpServerOptions = {}): void {
     promptMap: new Map(prompts.map((p) => [p.name, p])),
   };
 
+  const unavailablePrompts = prompts.flatMap((prompt) => {
+    const missing = missingPromptTools(prompt, ctx.toolMap);
+    return missing.length ? [`${prompt.name} (${missing.join(', ')})`] : [];
+  });
   logStderr(
-    `[stock-sdk mcp] ready · ${tools.length} tools · ${prompts.length} prompts · ${SERVER_INFO.name}@${SERVER_INFO.version}`
+    `[stock-sdk mcp] ready · ${tools.length} tools · ${prompts.length - unavailablePrompts.length} prompts · ${SERVER_INFO.name}@${SERVER_INFO.version}`
   );
 
   // 名单过滤的未知名告警：笔误的工具/技能名此前静默产出 0 集合,
@@ -294,21 +308,10 @@ export function startMcpServer(options: McpServerOptions = {}): void {
   warnUnknownNames('工具', toolFilter, tools);
   warnUnknownNames('技能', promptFilter, prompts);
 
-  // 配置校验：技能集与工具集各自独立过滤。若启用的技能点名了当前工具集之外的工具
-  // （典型：prompts=full 但 tools 仍为默认 core），客户端 model 编排到该步会拿到
-  // 「Unknown tool」。启动时显式告警并指明补救，避免技能半路静默失败。
-  const activeToolNames = new Set(tools.map((t) => t.name));
-  const missingForPrompts = new Set<string>();
-  for (const p of prompts) {
-    for (const name of p.usesTools) {
-      if (!activeToolNames.has(name)) missingForPrompts.add(name);
-    }
-  }
-  if (missingForPrompts.size > 0) {
+  if (unavailablePrompts.length > 0) {
     logStderr(
-      `[stock-sdk mcp] ⚠ 已启用的技能引用了 ${missingForPrompts.size} 个不在当前工具集内的工具：` +
-        `${[...missingForPrompts].join(', ')}。这些技能编排到该步会失败 —— ` +
-        `请设 STOCK_SDK_MCP_TOOLS=full（或把这些工具加进名单）。`
+      `[stock-sdk mcp] ⚠ 以下技能缺少依赖工具，已从列表中隐藏：${unavailablePrompts.join(' / ')}。` +
+        '请设 STOCK_SDK_MCP_TOOLS=full 或把这些工具加进名单。'
     );
   }
 

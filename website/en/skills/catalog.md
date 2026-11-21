@@ -1,14 +1,14 @@
 # Skill Catalog
 
-7 scenario skills, split into `core` (on by default) and `full` (needs `STOCK_SDK_MCP_PROMPTS=full` or an explicit list), filtered independently from the tool tier. For how they work and how to enable them, see the [AI Skills Overview](/en/skills/).
+The SDK ships seven skills. `STOCK_SDK_MCP_PROMPTS` selects skills and `STOCK_SDK_MCP_TOOLS` provides the tools each skill needs. [Setup guide](/en/skills/)
 
 ## Core (4 by default)
 
 | Skill | Arguments | Underlying tools | What it does |
 |---|---|---|---|
 | `analyze_stock` | `symbol` (required), `period` (default daily) | `search` / `get_kline_with_indicators` / `get_kline_signals` | Full single-symbol technical analysis: klines + indicators + signals, summarized |
-| `screen_stocks` | `criteria` (required), `scope` (default whole market) | board constituents / `get_fund_flow_rank` / `get_a_share_quotes` / indicators / signals | Screening: coarse-filter first, then indicators on candidates; ranked shortlist |
-| `market_overview` | none | `get_market_status` / `get_zt_pool` / `get_northbound_flow_summary` / `get_fund_flow_rank` | Today's brief: status + limit-up breadth + northbound + main-force direction |
+| `screen_stocks` | `criteria` (required), `scope` (defaults to the top 200 A-shares by net inflow) | board constituents / `get_fund_flow_rank` / `get_a_share_quotes` / indicators / signals | Coarse-filter first, then check indicators on the shortlist |
+| `market_overview` | none | `get_market_status` / `get_zt_pool` / `get_northbound_flow_summary` / `get_fund_flow_rank` | Session status, limit-up breadth, disclosed Stock Connect data and fund-flow rankings |
 | `monitor_watchlist` | `symbols` (required, comma-separated) | `get_a_share_quotes` / `get_today_timeline` / `get_individual_fund_flow` / `get_kline_signals` | Single-shot watchlist check: batch quotes, drill into threshold-crossers |
 
 Example:

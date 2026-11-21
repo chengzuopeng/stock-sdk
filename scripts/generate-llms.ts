@@ -320,7 +320,7 @@ MCP 的 K 线、信号及基金历史超限时保留最近记录（最多 200 �
 
 #### MCP Skills（Prompts）
 
-除工具外，server 还暴露 **${PROMPT_SPECS.length} 个场景化技能**（MCP Prompts，\`prompts/list\` + \`prompts/get\`）。支持的客户端（Claude Desktop / Claude Code / Cursor / Cline）把技能渲染成斜杠命令 / 模板，用户一键触发；server 只下发「任务说明书」，多步取数由客户端 model 走 \`tools/call\` 完成，全程只读。\`STOCK_SDK_MCP_PROMPTS=core|full|<逗号分隔技能名>\` 控制（默认 \`core\`，与工具集独立）。
+服务器内置 **${PROMPT_SPECS.length} 个场景化技能**（MCP Prompts，\`prompts/list\` + \`prompts/get\`）。客户端读取模板，再用 \`tools/call\` 执行只读分析。\`STOCK_SDK_MCP_PROMPTS\` 选择技能范围（默认 \`core\`），服务器只公开依赖工具齐全的技能。要启用全部技能，将 \`STOCK_SDK_MCP_TOOLS\` 和 \`STOCK_SDK_MCP_PROMPTS\` 同时设为 \`full\`。
 
 ${renderSkills()}
 

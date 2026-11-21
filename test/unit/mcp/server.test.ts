@@ -15,8 +15,7 @@ import {
   type JsonRpcRequest,
 } from '../../../src/mcp/protocol';
 
-function makeCtx(): DispatchContext {
-  const tools = listTools('full');
+function makeCtx(tools = listTools('full')): DispatchContext {
   const prompts = listPrompts('full');
   return {
     sdk: new StockSDK(),
@@ -235,6 +234,30 @@ describe('mcp/server · dispatchMessage', () => {
     expect(result.prompts[0]).not.toHaveProperty('render');
   });
 
+  it('core 工具只暴露可执行的 4 个技能，直接取不可用技能会指出缺少的工具', async () => {
+    const ctx = makeCtx(listTools('core'));
+    const list = await dispatchMessage({ jsonrpc: '2.0', id: 30, method: 'prompts/list' }, ctx);
+    const result = list?.result as PromptsListResult;
+    expect(result.prompts.map((p) => p.name)).toEqual(listPrompts('core').map((p) => p.name));
+
+    const get = await dispatchMessage({
+      jsonrpc: '2.0',
+      id: 31,
+      method: 'prompts/get',
+      params: { name: 'analyze_fund', arguments: { fundCode: '110022' } },
+    }, ctx);
+    expect(get?.error?.code).toBe(RPC_INVALID_PARAMS);
+    expect(get?.error?.message).toContain('get_fund_nav_history');
+  });
+
+  it('按名启用依赖齐全的工具时，技能不要求整个 full 工具集', async () => {
+    const fund = listPrompts(['analyze_fund'])[0];
+    const ctx = makeCtx(listTools(fund.usesTools));
+    const list = await dispatchMessage({ jsonrpc: '2.0', id: 32, method: 'prompts/list' }, ctx);
+    const result = list?.result as PromptsListResult;
+    expect(result.prompts.map((p) => p.name)).toEqual(['analyze_fund']);
+  });
+
   it('prompts/get 插值出单条 user/text message + description', async () => {
     const r = await dispatchMessage(
       {
@@ -253,6 +276,7 @@ describe('mcp/server · dispatchMessage', () => {
     // 参数已插值 + 点名了真实工具 + 带上「用用户语言作答」纪律
     expect(result.messages[0].content.text).toContain('sh600519');
     expect(result.messages[0].content.text).toContain('weekly');
+    expect(result.messages[0].content.text).toContain('period: "weekly", startDate, endDate and adjust in both calls');
     expect(result.messages[0].content.text).toContain('get_kline_signals');
     expect(result.messages[0].content.text).toContain('Respond in the same language');
   });

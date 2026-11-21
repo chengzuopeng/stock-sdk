@@ -27,13 +27,7 @@ server 启动后通过 **stdio**（标准输入输出）与客户端通信，不
 
 MCP 本质是 **JSON-RPC 2.0 over 换行分隔（NDJSON）的 stdin/stdout**。`stock-sdk` 没有引入 `@modelcontextprotocol/sdk`，而是**自行手写了协议的最小子集**，从而守住主包「零运行时依赖」的定位。
 
-实现范围严格钉死在行情场景真正需要的部分：
-
-- **Transport**：仅 `stdio`，不涉及 HTTP / SSE。
-- **能力**：仅 `tools`，不做 resources / prompts / sampling。
-- **处理的方法**：`initialize`（握手与能力协商）、`notifications/initialized`、`ping`、`tools/list`、`tools/call`。
-
-明确**不做**：HTTP / SSE transport、OAuth、sampling、progress / cancellation、resources / prompts 订阅、client 端。行情这类「一批只读方法」场景几乎用不到这些高级能力，需要时再扩展或评估切换官方 SDK。
+服务器通过 `stdio` 提供只读行情工具和分析模板。客户端在 `initialize` 中协商能力，用 `tools/list` 和 `tools/call` 发现及调用工具，用 `prompts/list` 和 `prompts/get` 发现及读取工具齐全的模板。
 
 ### 不影响主包体积与零依赖
 

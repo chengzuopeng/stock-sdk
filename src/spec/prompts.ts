@@ -73,8 +73,9 @@ export const PROMPT_SPECS: PromptSpec[] = [
 
 [Data — call these read-only tools as needed; never fabricate data]
 1. If ${a.symbol} might not be a canonical code, confirm it with \`search\` first.
-2. Use \`get_kline_with_indicators\` to fetch ${a.period} klines with MA(5/10/20/60), MACD, BOLL, KDJ and RSI overlaid.
-3. Use \`get_kline_signals\` to detect golden/death crosses, overbought/oversold, BOLL breakouts and SAR reversals.
+2. Choose a window for the requested time frame. Default to roughly the latest 100 bars for that period. Set the same symbol, period: "${a.period}", startDate, endDate and adjust in both calls. Use qfq unless the user specifies a different adjustment.
+3. Use \`get_kline_with_indicators\` with MA(5/10/20/60), MACD, BOLL, KDJ and RSI. Use \`get_kline_signals\` for crosses, overbought/oversold, BOLL breakouts and SAR reversals.
+4. Use the dates actually returned. If a result is truncated, narrow the window for recent analysis or fetch smaller dated windows when the full range is needed.
 
 [Analysis]
 - Trend: MA alignment, price-vs-MA relationship, MACD direction.
@@ -119,18 +120,18 @@ Give (1) a one-line verdict (bullish / bearish / range-bound); (2) per-dimension
 [Workflow — read-only tools; mind the cost of scanning many symbols]
 1. Resolve the universe:
    - If ${a.scope} names an industry board, call \`get_industry_constituents\`; if a concept board, call \`get_concept_constituents\` to list its members.
-   - If it is the whole market, start from \`get_fund_flow_rank\` (whole-market main-force net-inflow ranking, top ~200) as a manageable candidate pool.
+   - If it is the whole market, call \`get_fund_flow_rank\` with { page: 1, pageSize: 100 } and { page: 2, pageSize: 100 }. Use the resulting top 200 by main-force net inflow as the candidate pool.
 2. Coarse-filter FIRST on cheap fields: call \`get_a_share_quotes\` on the universe and screen by change% / turnover / volume-ratio / market cap — narrow to a small subset BEFORE any per-symbol indicator work.
 3. Confirm on the subset only: for each surviving candidate call \`get_kline_with_indicators\` and \`get_kline_signals\` to check the technical part of the criteria (e.g. MACD golden cross, RSI not overbought).
 
 [Output]
-Return a ranked shortlist — code, name, why it matched (the specific criteria met), and any caveat. State how many symbols you scanned vs. shortlisted. Never run per-symbol klines across thousands of names; always coarse-filter first.`,
+Return a ranked shortlist — code, name, why it matched (the specific criteria met), and any caveat. State the candidate pool, how many symbols you scanned and how many matched. For the default scope, report coverage as the top 200 by net inflow. Keep per-symbol K-line requests limited to the coarse-filtered shortlist.`,
   },
   {
     name: 'market_overview',
     title: 'Market overview',
     description:
-      "Today's A-share snapshot: market status, limit-up breadth, northbound flow, main-force money direction.",
+      "A-share snapshot: session status, limit-up breadth, disclosed Stock Connect data and main-force money direction.",
     tier: 'core',
     args: [],
     usesTools: [
@@ -143,13 +144,13 @@ Return a ranked shortlist — code, name, why it matched (the specific criteria 
       `You are a market briefing assistant. Give a concise snapshot of today's A-share market.
 
 [Data — read-only]
-1. \`get_market_status\` — is the market pre-open / open / lunch break / after-hours / closed (tells you how live the read is).
-2. \`get_zt_pool\` — the limit-up pool (breadth and risk appetite; also prior-day limit-ups for follow-through).
-3. \`get_northbound_flow_summary\` — northbound / southbound money direction.
-4. \`get_fund_flow_rank\` — where main-force money is flowing (leaders by net inflow).
+1. \`get_market_status\` — read the session clock. It uses weekday trading hours and cannot establish whether today is an exchange holiday.
+2. \`get_zt_pool\` with type: "zt" — limit-up breadth and risk appetite. Use type: "yesterday" if you need prior limit-up stocks for follow-through.
+3. \`get_northbound_flow_summary\` — report disclosed Stock Connect figures. Live northbound net buying is no longer disclosed. Treat a zero northbound net field as unavailable, and report southbound figures separately when available.
+4. \`get_fund_flow_rank\` with { page: 1, pageSize: 20 } — leaders by main-force net inflow.
 
 [Output]
-A short brief: (1) market status line; (2) risk appetite read from limit-up breadth; (3) capital direction (northbound + main-force leaders); (4) a one-line takeaway. Note this is a single snapshot, not continuous monitoring.`,
+A short brief with the session status, limit-up breadth, disclosed fund flows and a one-line takeaway. Give the data date where it can be verified. Identify stale or undated figures and describe this as a single snapshot.`,
   },
   {
     name: 'monitor_watchlist',
@@ -250,12 +251,13 @@ Read main-force intent — accumulation vs. distribution — corroborated across
       `You are a mutual-fund analyst. Assess fund ${a.fundCode}.
 
 [Data — read-only]
-1. \`get_fund_profile\` — type, manager, size, strategy.
-2. \`get_fund_nav_history\` — historical NAV trend: cumulative return, drawdown, volatility.
-3. \`get_fund_rank_history\` — same-category ranking percentile over time (consistency vs. one-off).
+1. \`get_fund_profile\` — manager, latest reported size, holdings and stage returns.
+2. \`get_fund_nav_history\` — use startDate and endDate for the requested period, or the latest six months by default. Use the actual returned dates for NAV-based metrics.
+3. \`get_fund_rank_history\` — use the same date window for the peer-ranking percentile series.
+4. Check coverage.start, coverage.end and coverage.truncated in both history results. For a long period, fetch smaller non-overlapping date windows if full coverage is needed. Calculate return, drawdown and volatility only for dates covered by the NAV series.
 
 [Output]
-A structured review: (1) what it is (type / manager / size); (2) performance (returns across horizons, worst drawdown, volatility); (3) ranking percentile and whether it's consistent; (4) a balanced takeaway on strengths / risks. Note that NAV data is settled (T-1 or later) — there is no intraday estimate available, so don't imply live pricing. Public data only, not investment advice.`,
+A structured review with the fund profile, performance for the covered interval, peer ranking and key caveats. Give the date of the latest published NAV, show the interval used for each metric and flag gaps or truncation. Public data only, not investment advice.`,
   },
   {
     name: 'diagnose_stock',

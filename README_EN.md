@@ -171,7 +171,7 @@ To expose the full MCP tool set when launching through `npx`, add the `env` entr
 
 MCP keeps the newest K-lines and signals when results exceed its limits. Fund NAV and peer-rank tools accept `startDate` and `endDate` and report the returned interval in `coverage`. [MCP tool docs](https://stock-sdk.linkdiary.cn/en/mcp/tools)
 
-Beyond tools, it ships **7 scenario AI Skills** (MCP Prompts — e.g. `analyze_stock` / `screen_stocks` / `diagnose_stock`) that Prompts-aware clients can trigger in one click; `STOCK_SDK_MCP_PROMPTS=core|full|<list>` controls the skill set (default `core`). See the [AI Skills docs](https://stock-sdk.linkdiary.cn/en/skills/).
+The SDK ships seven scenario AI Skills as MCP Prompts. `STOCK_SDK_MCP_PROMPTS` selects skills, and the client discovers those that the active tool set can run. Set both the tool and prompt tiers to `full` to use all seven. [AI Skills docs](https://stock-sdk.linkdiary.cn/en/skills/)
 
 👉 [Full MCP docs](https://stock-sdk.linkdiary.cn/en/mcp/)
 
