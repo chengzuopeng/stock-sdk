@@ -1,28 +1,38 @@
 name: Publish
 
-# 通过 GitHub Actions + npm Trusted Publishing（OIDC）发布到 npm，
-# 无需 NPM_TOKEN，鉴权与 provenance（来源证明绿勾）都由 OIDC 完成。
+# 通过 GitHub Actions + npm Trusted Publishing（OIDC）发布 Monorepo 发布包到 npm，
+# 无需 NPM_TOKEN，鉴权与 provenance（来源证明绿勾）均由 OIDC 完成。
 #
-# 一次性准备（只需做一次，在 npmjs.com 上）：
-#   stock-sdk 包 → Settings → Trusted Publisher → 添加 GitHub Actions：
-#     - Organization or user: chengzuopeng
-#     - Repository:           stock-sdk
-#     - Workflow filename:    release.yml
-#     - Environment:          （留空）
+# 支持按 tag 独立发布两个发布包：
+#   - v* 或 stock-sdk@*      → 发布 packages/stock-sdk
+#   - stock-node-sdk@*       → 发布 packages/stock-node-sdk
 #
-# 发布流程：bump 版本并打 tag，例如
-#   git tag v1.10.1 && git push origin v1.10.1
-# 即触发本流水线自动发布。
+# 一次性准备（在 npmjs.com 上为每个包分别配置 Trusted Publisher）：
+#   - Organization or user: chengzuopeng
+#   - Repository:           stock-sdk
+#   - Workflow filename:    release.yml
+#   - Environment:          （留空）
 
 on:
   push:
     tags:
       - 'v*'
+      - 'stock-sdk@*'
+      - 'stock-node-sdk@*'
   workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to publish'
+        required: true
+        default: 'stock-sdk'
+        type: choice
+        options:
+          - stock-sdk
+          - stock-node-sdk
 
 permissions:
   contents: read
-  id-token: write # Trusted Publishing 鉴权 + provenance 签名的关键权限
+  id-token: write
 
 jobs:
   publish:
@@ -37,32 +47,55 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          # Node 24:npm@12(latest)要求 node ^22.22.2 || ^24.15.0 || >=26 ——
-          # 此前钉 20 时 npm@latest 升到 12.0.1 直接 EBADENGINE,v2.4.0 发布因此失败
           node-version: 24
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
 
-      # Trusted Publishing 需要 npm >= 11.5.0；Node 自带 npm 偏旧，升级到 latest
       - name: Upgrade npm
         run: npm install -g npm@latest
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck, test & build
+      - name: Typecheck, build & test
         run: |
           pnpm typecheck
           pnpm build
           pnpm test
 
-      # provenance 由 package.json 的 publishConfig.provenance: true 自动开启；
-      # 安装/构建用 pnpm，发布仍用 npm publish（走 npm 的 provenance 链路）。
-      # dist-tag：prerelease 版本（含 -beta/-rc/-alpha）发到对应 tag，避免被标成 latest 顶掉
-      # 稳定版——用户用 `npm i stock-sdk@beta` 安装，`npm i stock-sdk` 仍取 latest 稳定版。
+      - name: Resolve target package & verify version
+        id: target
+        run: |
+          EXPECTED_VER=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PKG="${{ inputs.package }}"
+          elif [[ "${{ github.ref_name }}" == stock-node-sdk@* ]]; then
+            PKG="stock-node-sdk"
+            EXPECTED_VER="${{ github.ref_name#stock-node-sdk@ }}"
+          elif [[ "${{ github.ref_name }}" == stock-sdk@* ]]; then
+            PKG="stock-sdk"
+            EXPECTED_VER="${{ github.ref_name#stock-sdk@ }}"
+          elif [[ "${{ github.ref_name }}" == v* ]]; then
+            PKG="stock-sdk"
+            EXPECTED_VER="${{ github.ref_name#v }}"
+          else
+            echo "::error::Unsupported release tag format: ${{ github.ref_name }}"
+            exit 1
+          fi
+          ACTUAL_VER=$(node -p "require('./packages/${PKG}/package.json').version")
+          if [ -n "$EXPECTED_VER" ] && [ "$EXPECTED_VER" != "$ACTUAL_VER" ]; then
+            echo "::error::Tag version (${EXPECTED_VER}) does not match packages/${PKG}/package.json version (${ACTUAL_VER})"
+            exit 1
+          fi
+          echo "name=$PKG" >> "$GITHUB_OUTPUT"
+          echo "dir=packages/$PKG" >> "$GITHUB_OUTPUT"
+          echo "Target package: ${PKG}@${ACTUAL_VER} (packages/$PKG)"
+
       - name: Publish to npm
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          PKG_DIR="${{ steps.target.outputs.dir }}"
+          PKG_NAME="${{ steps.target.outputs.name }}"
+          VERSION=$(node -p "require('./${PKG_DIR}/package.json').version")
           case "$VERSION" in
             *-beta*)  TAG=beta ;;
             *-rc*)    TAG=rc ;;
@@ -70,5 +103,5 @@ jobs:
             *-*)      TAG=next ;;
             *)        TAG=latest ;;
           esac
-          echo "Publishing $VERSION with dist-tag: $TAG"
-          npm publish --access public --tag "$TAG"
+          echo "Publishing ${PKG_NAME}@${VERSION} with dist-tag: ${TAG}"
+          pnpm --filter "$PKG_NAME" publish --access public --tag "$TAG" --no-git-checks

@@ -1,0 +1,38 @@
+name: Provider Health Check
+
+on:
+  schedule:
+    # 每日 UTC 02:00（北京时间 10:00 A 股盘中）自动探活各上游数据源
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run core smoke integration tests
+        run: pnpm test:integration:smoke
+
+      - name: Run stock-node-sdk multi-source health tests
+        run: RUN_INTEGRATION=1 pnpm vitest run packages/stock-node-sdk/test/integration/node-adapters.int.test.ts

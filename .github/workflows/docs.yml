@@ -5,13 +5,14 @@ on:
     branches: [main, master]
     paths:
       - 'website/**'
-      - 'src/**'
+      - 'packages/**'
       - 'scripts/**'
       - 'docs-meta/**'
       - 'package.json'
+      - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
       - 'tsconfig.json'
-      - 'tsup.config.ts'
+      - 'tsconfig.base.json'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
