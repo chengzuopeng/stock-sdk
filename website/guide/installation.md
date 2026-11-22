@@ -1,26 +1,29 @@
 # 安装
 
-`stock-sdk` 零运行时依赖，可在**浏览器与 Node.js 18+** 双端使用，同时提供 ESM 与 CJS 产物。
+本仓库提供两个 API 严格超集对齐的包，按运行环境按需选择：
+
+| 包名 | 运行环境 | 依赖 | 适用场景 |
+|---|---|---|---|
+| `stock-sdk` | 浏览器 + Node.js 18+ | **0 依赖** | 前端直连、可视化看板、轻量双端或纯计算 |
+| `stock-node-sdk` | Node.js 18+ 服务端 | 仅 `undici` | 服务端采集、量化脚本、AI Agent —— 内置多源自动容错、代理池、磁盘缓存与财报/快讯/公告（[详见指南](/guide/node-sdk)） |
 
 ## 安装包
 
 ::: code-group
 
-```bash [npm]
+```bash [stock-sdk (浏览器 + Node)]
 npm install stock-sdk
+# 或 pnpm add stock-sdk / yarn add stock-sdk
 ```
 
-```bash [yarn]
-yarn add stock-sdk
-```
-
-```bash [pnpm]
-pnpm add stock-sdk
+```bash [stock-node-sdk (Node 多源增强版 · Beta)]
+npm install stock-node-sdk@beta
+# 或 pnpm add stock-node-sdk@beta / yarn add stock-node-sdk@beta
 ```
 
 :::
 
-> 要求 Node.js >= 18。`stock-sdk` 没有任何运行时依赖，`npm install` 不会拉取第三方包。
+> 要求 Node.js >= 18。`stock-sdk` 零运行时依赖，`npm install` 不拉取任何第三方包；`stock-node-sdk` 仅依赖 `undici` 用于代理连接池，两者均提供 ESM 与 CJS 产物。
 
 ## 主入口导入
 
@@ -66,30 +69,33 @@ import type { SymbolRef } from 'stock-sdk/symbols'
 | `stock-sdk/screener` | 选股器与回测引擎 |
 | `stock-sdk/cache` | 可注入的统一缓存层低层 API |
 | `stock-sdk/errors` | 统一错误类型 `SdkError` 与错误码 |
+| `stock-node-sdk/router` | *(仅 Node 版)* `SourceRouter` / `SourceHealthTracker` 多源路由引擎 |
 
-> 每个 subpath 都在 `package.json` 的 `exports` 中声明，import / require / types 三件套齐全。
+> 每个 subpath 都在 `package.json` 的 `exports` 中声明，import / require / types 三件套齐全。`stock-node-sdk` 同样支持上述所有 subpath（将包名前缀替换为 `stock-node-sdk/...`）。
 
 ## CLI
 
-主包自带命令行工具，无需额外安装即可在终端取数：
+两个包均自带命令行工具，无需额外安装即可在终端取数：
 
 ```bash
-# 一次性运行
+# 一次性运行（零依赖基础版）
 npx stock-sdk quote sh600519
+npx stock-sdk kline 600519 --period daily
 
-# 或全局安装后使用 stock-sdk 命令
-npm install -g stock-sdk
-stock-sdk kline 600519 --period day
+# 或使用 Node 增强版 CLI（Beta，支持 --source / --proxy / --cache-dir 与财报/快讯/公告）
+npx stock-node-sdk@beta quotes cn 600519 --source sina --pretty
+npx stock-node-sdk@beta financial indicators 600519 --pageSize 4
 ```
 
 CLI 默认输出 JSON（管道友好），详见 [CLI 命令总览](/cli/)。
 
 ## MCP
 
-启动内置 MCP server，供 Cursor / Claude / Codex 等 AI 工具接入：
+启动内置 MCP server，供 Cursor / Claude / Codex 等 AI 工具接入（AI 客户端运行在 Node 端，推荐用 `stock-node-sdk@beta mcp` 获得 104 个全量工具与多源容错）：
 
 ```bash
-stock-sdk mcp
+npx stock-node-sdk@beta mcp   # Node 增强版（Beta，104 工具 + 多源自动容错）
+npx stock-sdk mcp             # 零依赖基础版（93 工具）
 ```
 
 MCP 协议为零依赖手写的最小实现（`stdio + tools`），开箱即用。各 AI 客户端的接入配置见 [MCP 安装配置](/mcp/installation)。
@@ -99,4 +105,5 @@ MCP 协议为零依赖手写的最小实现（`stdio + tools`），开箱即用�
 ## 下一步
 
 - [快速开始](/guide/getting-started)：10 行命名空间 demo。
+- [Node 增强版指南](/guide/node-sdk)：多源自动容错、代理池、磁盘缓存与财报/快讯/公告。
 - [符号与代码规则](/guide/symbols)：`string` 与 `SymbolRef` 的写法约定。

@@ -8,9 +8,14 @@ const base = process.env.DOCS_BASE || '/'
 
 // 构建期读取真实版本号，注入 themeConfig 供 HeroMeta 等组件使用（避免硬编码失真）
 const sdkVersion = (
-  JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as {
+  JSON.parse(readFileSync(resolve(__dirname, '../../packages/stock-sdk/package.json'), 'utf-8')) as {
     version: string
   }
+).version
+const nodeSdkVersion = (
+  JSON.parse(
+    readFileSync(resolve(__dirname, '../../packages/stock-node-sdk/package.json'), 'utf-8')
+  ) as { version: string }
 ).version
 
 // ---- 中文侧边栏 ----
@@ -41,6 +46,7 @@ const zhGuideSidebar = {
         { text: '期货与期权', link: '/guide/futures-options' },
         { text: '复权说明 (qfq/hfq)', link: '/guide/dividend-adjustment' },
         { text: '浏览器使用', link: '/guide/browser' },
+        { text: 'Node 增强版 (stock-node-sdk)', link: '/guide/node-sdk' },
       ],
     },
     { text: '更多', items: [{ text: '更新日志', link: '/changelog' }] },
@@ -99,6 +105,12 @@ const zhApiSidebar = {
         { text: 'indicators · 指标函数', link: '/api/indicators' },
         { text: 'signals · 信号', link: '/api/signals' },
         { text: 'screener · 选股 / 回测', link: '/api/screener' },
+      ],
+    },
+    {
+      text: 'Node 专属扩展 (stock-node-sdk)',
+      items: [
+        { text: 'financial / news / corporate / bond', link: '/api/node-extensions' },
       ],
     },
   ],
@@ -167,6 +179,7 @@ const enGuideSidebar = {
         { text: 'Futures & Options', link: '/en/guide/futures-options' },
         { text: 'Adjustment (qfq/hfq)', link: '/en/guide/dividend-adjustment' },
         { text: 'Browser Usage', link: '/en/guide/browser' },
+        { text: 'Node Enhanced (stock-node-sdk)', link: '/en/guide/node-sdk' },
       ],
     },
     { text: 'More', items: [{ text: 'Changelog', link: '/en/changelog' }] },
@@ -227,6 +240,12 @@ const enApiSidebar = {
         { text: 'screener', link: '/en/api/screener' },
       ],
     },
+    {
+      text: 'Node Extensions (stock-node-sdk)',
+      items: [
+        { text: 'financial / news / corporate / bond', link: '/en/api/node-extensions' },
+      ],
+    },
   ],
 }
 
@@ -268,7 +287,7 @@ const enSkillsSidebar = {
 export default defineConfig({
   title: 'Stock SDK',
   description:
-    'v2 · 面向浏览器与 Node.js 的零依赖股票行情 SDK：命名空间 API、技术指标与信号、选股回测、CLI 与 MCP',
+    'v2 · 面向浏览器与 Node.js 的全栈财经数据 SDK：零依赖双端 stock-sdk 与多源高可用 stock-node-sdk（财报/快讯/公告/代理/缓存/CLI/MCP）',
   base,
   cleanUrls: true,
   // 骨架阶段：页面陆续补全，先容忍未建页面的死链
@@ -297,10 +316,11 @@ export default defineConfig({
       lang: 'zh-CN',
       title: 'Stock SDK',
       description:
-        'v2 · 面向浏览器与 Node.js 的零依赖股票行情 SDK：命名空间 API、技术指标与信号、选股回测、CLI 与 MCP',
+        'v2 · 面向浏览器与 Node.js 的全栈财经数据 SDK：零依赖双端 stock-sdk 与多源高可用 stock-node-sdk（财报/快讯/公告/代理/缓存/CLI/MCP）',
       themeConfig: {
         nav: [
           { text: '指南', link: '/guide/getting-started' },
+          { text: 'Node 增强版', link: '/guide/node-sdk', activeMatch: '^/(guide/node-sdk|api/node-extensions)' },
           { text: 'API', link: '/api/' },
           {
             text: 'AI · Extensions',
@@ -333,11 +353,16 @@ export default defineConfig({
               },
             ],
           },
-          // 版本下拉：导航展示 latest 版本号，hover 出更新日志与 v1 文档外链
+          // 版本下拉：导航展示 latest 版本号，hover 出更新日志、Node 增强版与 v1 文档外链
           {
             text: `v${sdkVersion}`,
             items: [
-              { items: [{ text: '更新日志', link: '/changelog' }] },
+              {
+                items: [
+                  { text: `stock-sdk v${sdkVersion}`, link: '/changelog' },
+                  { text: `stock-node-sdk v${nodeSdkVersion}`, link: '/guide/node-sdk' },
+                ],
+              },
               {
                 items: [
                   { text: '从 v1 迁移', link: '/guide/migration-v1-to-v2' },
@@ -364,10 +389,11 @@ export default defineConfig({
       link: '/en/',
       title: 'Stock SDK',
       description:
-        'v2 · Zero-dependency stock market SDK for browser and Node.js: namespaced API, indicators & signals, screener & backtest, CLI and MCP',
+        'v2 · Full-stack financial market SDK family for browser & Node.js: zero-dep stock-sdk and multi-source high-availability stock-node-sdk (financials, news, proxy, disk cache, CLI & MCP)',
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/guide/getting-started' },
+          { text: 'Node SDK', link: '/en/guide/node-sdk', activeMatch: '^/en/(guide/node-sdk|api/node-extensions)' },
           { text: 'API', link: '/en/api/' },
           {
             text: 'AI · Extensions',
@@ -402,7 +428,12 @@ export default defineConfig({
           {
             text: `v${sdkVersion}`,
             items: [
-              { items: [{ text: 'Changelog', link: '/en/changelog' }] },
+              {
+                items: [
+                  { text: `stock-sdk v${sdkVersion}`, link: '/en/changelog' },
+                  { text: `stock-node-sdk v${nodeSdkVersion}`, link: '/en/guide/node-sdk' },
+                ],
+              },
               {
                 items: [
                   { text: 'Migrate from v1', link: '/en/guide/migration-v1-to-v2' },
@@ -441,6 +472,7 @@ export default defineConfig({
 
     // 自定义字段：当前 SDK 版本，HeroMeta 组件通过 useData().theme.sdkVersion 读取
     sdkVersion,
+    nodeSdkVersion,
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/chengzuopeng/stock-sdk' },
@@ -458,8 +490,8 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: {
-        // 开发模式下将 'stock-sdk-local' 指向本地 src 目录（LiveTicker dogfooding 用）
-        'stock-sdk-local': resolve(__dirname, '../../src'),
+        // 开发模式下将 'stock-sdk-local' 指向本地 packages/stock-sdk/src（LiveTicker dogfooding 用）
+        'stock-sdk-local': resolve(__dirname, '../../packages/stock-sdk/src'),
       },
     },
     server: {

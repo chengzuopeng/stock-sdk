@@ -59,9 +59,12 @@ interface DividendDetail {
   transferRatio: number | null;       // 转股比例（每10股转 X 股）
 
   // 现金分红信息
-  dividendPretax: number | null;   // 每10股派息(税前)，单位：元
-  dividendDesc: string | null;     // 分红描述，如「10派2.36元(含税...)」
-  dividendYield: number | null;    // 股息率
+  dividendPretax: number | null;    // 原始税前派息（A 股为每 10 股派息；港/美股为每 1 股派息）
+  dividendPerShare?: number | null; // 统一折算后的每股税前现金派息（A 股 = dividendPretax / 10，港/美股 = dividendPretax）
+  shareUnit?: 1 | 10;               // dividendPretax 对应的股数基数（A 股为 10，港/美股为 1）
+  currency?: string;                // 派息币种（如 'CNY' / 'HKD' / 'USD'）
+  dividendDesc: string | null;      // 分红描述，如「10派2.36元(含税...)」
+  dividendYield: number | null;     // 股息率
 
   // 财务指标
   eps: number | null;              // 每股收益（元）
@@ -113,5 +116,5 @@ const isOpen = days.includes('2026-06-01');
 ## 注意事项
 
 1. **缓存**：`tradingCalendar` 底层带约 12 小时缓存，`sdk.calendar.*` 的交易日相关方法复用同一份数据。
-2. **市场范围**：交易日历与 `dividendDetail` 均针对 A 股；港股 / 美股不在覆盖范围内。
+2. **市场范围**：双端基础包 `stock-sdk` 的交易日历与 `dividendDetail` 均针对 A 股；若使用 Node 增强版 `stock-node-sdk`，`dividendDetail` 额外支持**港股（东财直连）与美股（东财直连 + Nasdaq 备源）**，且 A 股支持东财 / 新浪 HTML 双源容错（详见 [Node 增强版指南](../guide/node-sdk.md)）。
 3. **高层便利方法优先**：判断「是否交易日 / 下一交易日 / 市场状态」请优先用 [`sdk.calendar`](./calendar.md)，无需自行处理原始数组。

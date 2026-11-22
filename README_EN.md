@@ -1,6 +1,6 @@
 # Stock SDK
 
-[![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
+[![npm version](https://img.shields.io/npm/v/stock-sdk.svg?label=stock-sdk)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk.linkdiary.cn/en/mcp/)
@@ -8,82 +8,92 @@
 
 English | **[中文](./README.md)**
 
-A **stock market data JavaScript SDK for frontend and Node.js**.
+A **full-stack stock & financial market data TypeScript SDK family for browser and Node.js** (two packages in one monorepo).
 
-No Python. No backend service. Fetch real-time quotes and K-line data for **A-shares / Hong Kong stocks / US stocks / mutual funds** directly in **the browser or Node.js**. It also ships a **command-line tool** and an **MCP server** — one command to pull quotes or wire up AI tools.
+No Python required. Fetch **A-shares / Hong Kong stocks / US stocks / mutual funds / futures / options / financial statements / 24/7 news flashes / official announcements** with unified TypeScript schemas in **the browser or Node.js**. Both packages ship a **CLI** and an **MCP server** out of the box.
 
-**✨ Zero dependencies, Lightweight distribution | 🌐 Browser + Node.js | 📦 ESM + CJS + subpaths | 🧠 Full TypeScript typings | 🖥️ CLI | 🤖 MCP**
+**✨ Two packages: `stock-sdk` (Zero-dep Dual-Runtime) & `stock-node-sdk` (Node Multi-Source Failover) | 📦 ESM + CJS + subpaths | 🧠 Full TypeScript typings | 🖥️ CLI | 🤖 MCP**
 
-> ✨ **v2.0.0**: v2 is an architectural leap (namespaced API, unified symbol model, `Quote` discriminated union, unified error system, CLI / MCP / subpath exports).
-> Install: `npm i stock-sdk`. Upgrading from v1? Read the [v1 → v2 migration guide](https://stock-sdk.linkdiary.cn/en/guide/migration-v1-to-v2) first (**breaking changes, no compat aliases**).
+> ✨ **v2 Architecture**: Namespaced API, unified symbol model, `Quote` discriminated union, unified error system, CLI / MCP / subpath exports. Upgrading from v1? Read the [v1 → v2 migration guide](https://stock-sdk.linkdiary.cn/en/guide/migration-v1-to-v2) first (**breaking changes, no compat aliases**).
+
+## 📦 Packages: Which One Should I Use?
+
+This pnpm monorepo shares a single core (`@stock-sdk/core`) and publishes two API-aligned packages:
+
+| Package | Runtime | Dependencies | Best For & Highlights | Docs |
+|---|---|---|---|---|
+| **[`stock-sdk`](./packages/stock-sdk)** | Browser + Node.js 18+ | **Zero** | Lightweight dual-runtime SDK: 94 namespaced methods (quotes/K-line/boards/fund flow/futures/options/funds/chips), 14 technical indicators, signals, screener & backtest, 94-cmd CLI & 93-tool MCP | [Get Started](https://stock-sdk.linkdiary.cn/en/guide/getting-started) |
+| **[`stock-node-sdk`](./packages/stock-node-sdk)** | Node.js 18+ Server | `undici` only | **Multi-source high-availability Node edition (strict superset of `stock-sdk`)**: capability-aware `SourceRouter` failover (3-source CN/HK/US quotes; dual-source K-line/batch/dividends/news/announcements), `ProxyPool` / `CookieJar` / `FileCacheStore`; exclusive **`financial`**, **`news`** (24/7 flashes & CNINFO announcements), **`corporate`**, **`bond`** namespaces; 105-cmd CLI (`--source`/`--proxy`/`--cache-dir`) & 104-tool MCP | [Node Enhanced Guide](https://stock-sdk.linkdiary.cn/en/guide/node-sdk) |
 
 ## 📖 Official docs
 
 > ## 👉 https://stock-sdk.linkdiary.cn/en/
 >
-> Full API, namespace overview, CLI / MCP guides, the online Playground, and the v1 → v2 migration guide all live here. Start with the docs for the fastest onboarding.
+> Dual-package guides, full API reference, Node multi-source & extensions docs, CLI / MCP guides, live Playground, and the v1 → v2 migration guide all live here.
 >
 > ([v1 stable docs](https://v1.stock-sdk.linkdiary.cn/en/) are archived)
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Playground](https://stock-sdk.linkdiary.cn/playground/)
+📦 [NPM (`stock-sdk`)](https://www.npmjs.com/package/stock-sdk) | 📦 [NPM (`stock-node-sdk`)](https://www.npmjs.com/package/stock-node-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Playground](https://stock-sdk.linkdiary.cn/playground/)
 
 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/): A stock market dashboard demo built with stock-sdk. Feel free to try it.
 
-## Why stock-sdk?
+## Why Stock SDK?
 
-If you're a frontend engineer, you may have encountered these problems:
+Whether you're building a **frontend dashboard** or running **Node.js data services, quant pipelines, or AI Agents**, financial market data in JS/TS has long had rough edges:
 
-* Most stock market tools are in the **Python ecosystem**, making them hard to use directly in frontend
-* You want to build a quote dashboard / demo without maintaining an extra backend service
-* Financial APIs return messy, complex formats (GBK encoding / concurrency / batching)
+* Most stock data libraries live in the **Python ecosystem**
+* Frontend demos want zero-backend browser fetches, while Node.js services need `Referer` / `POST` / cookies / proxies / disk caching that browsers cannot do
+* Public financial APIs differ wildly in units (shares vs lots, CNY vs 10k CNY vs 100M), encodings (GBK / HTML), and single sources frequently throttle or drop
 
-**stock-sdk's goal is simple:**
+**Stock SDK solves both cleanly with one unified TypeScript contract:**
 
-> Let frontend engineers fetch stock market data elegantly, using the JavaScript / TypeScript they already know.
+> Use zero-dependency `stock-sdk` in the browser, and drop in `stock-node-sdk` on Node.js for multi-source automatic failover plus financials, 24/7 news, and corporate disclosures.
 
 ---
 
 ## Use cases
 
-* 📊 Stock quote dashboards (Web / Admin)
-* 📈 Data visualization (ECharts / TradingView)
-* 🎓 Stock / finance course demos
-* 🧪 Quant strategy prototyping (JS / Node)
-* 🕒 Scheduled quote scraping in Node.js
-* 🖥️ Ad-hoc quotes from the terminal / 🤖 a data source for AI tools
+* 📊 Web stock quote dashboards & charts (ECharts / TradingView — use `stock-sdk`)
+* 🚀 High-availability Node.js market data ingestion, multi-source failover, cron jobs & disk caching (use `stock-node-sdk`)
+* 📑 Fundamental research: financial statements, key indicators, performance forecasts/express, 24/7 news & CNINFO announcements (`stock-node-sdk`)
+* 🧪 Quant strategy prototyping, indicator signal detection, screening & local backtesting (both packages)
+* 🖥️ Terminal CLI lookups / 🤖 MCP data source for Cursor, Claude Desktop, Codex, Gemini, etc.
 
 ---
 
 ## Features
 
-- ✅ **Zero dependencies**, runs in both the browser and Node.js 18+; ships both **ESM** and **CommonJS**
-- ✅ **Namespaced API**: `sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.options.etf.dailyKline()`, grouped by domain, great IDE autocomplete
-- ✅ **Unified symbol model**: `string` as a first-class input — `sh600519` / `600519` / `600519.SH` / `00700` / `hk00700` / `AAPL` / `105.AAPL` are all parsed tolerantly; special indices supported (`930955` / `H30533` / `HSHCI` / `GDAXI`, [see the symbols guide](https://stock-sdk.linkdiary.cn/en/guide/symbols.html))
+- ✅ **Two packages, one strict-superset API**: `stock-sdk` (zero-dep browser + Node.js) and `stock-node-sdk` (Node.js 18+ multi-source enhanced edition) — switch with a single import change
+- ✅ **Capability-aware multi-source failover (`stock-node-sdk`)**: zero-config automatic failover across Tencent / Sina / Eastmoney / CNINFO with `supports(input)` & `requiredFields` pre-filtering, adaptive cooldown, concurrency-safe `withMeta()` provenance, and `registerAdapter()` extensibility
+- ✅ **Node-exclusive domains & transport (`stock-node-sdk`)**: `financial` (indicators / statements / forecasts / express), `news` (24/7 flashes / dual-source announcements), `corporate` (top shareholders / holder counts), `bond` (convertible bonds); built-in `ProxyPool`, `CookieJar`, `SessionManager`, and `FileCacheStore`
+- ✅ **Namespaced API**: `sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.financial.indicators()` / `sdk.options.etf.dailyKline()`, grouped by domain with full TypeScript autocomplete
+- ✅ **Unified symbol model**: `string` as a first-class input — `sh600519` / `600519` / `600519.SH` / `00700` / `hk00700` / `AAPL` / `105.AAPL` are parsed tolerantly; special indices supported ([symbols guide](https://stock-sdk.linkdiary.cn/en/guide/symbols.html))
 - ✅ **A-shares / HK / US / mutual funds**: real-time quotes, daily/weekly/monthly K-lines, minute K-lines (1/5/15/30/60), intraday time-series
-- ✅ **Technical indicators**: MA / MACD / BOLL / KDJ / RSI / WR / BIAS / CCI / ATR / OBV / ROC / DMI / SAR / KC
-- ✅ **Chip distribution (CYQ)**: `sdk.chips.cn/hk/us` — profit ratio / average cost / 90-70 cost ranges & concentration / chip-peak histogram (Eastmoney's algorithm computed locally, no new data source)
-- ✅ **Signals / screener / backtest**: `calcSignals` (golden/death cross, overbought/oversold, etc.), a chainable screener, local backtesting
-- ✅ **Futures / options / fund flow / dragon-tiger list / northbound / block trades / margin / limit-up pool** and more
-- ✅ **Mutual-fund deep data**: NAV history, peer-ranking trends, deep profiles (top holdings / managers / scale), fund/ETF dividends, **theme funds**
-- ✅ **Subpath exports**: `stock-sdk/{indicators,signals,symbols,screener,cache,errors}` — pure-compute imports don't pull in the network layer (tree-shake friendly)
-- ✅ **Unified error system**: only `SdkError` is thrown to callers, each with a stable `code`, importable from `stock-sdk/errors`
-- ✅ **Request governance**: per-provider retry / rate-limit / circuit-breaker + injectable `fetchImpl` / `signal` / lifecycle `hooks`
-- ✅ **CLI**: `stock-sdk quote 600519` to pull quotes straight from the terminal
-- ✅ **Built-in MCP server**: `stock-sdk mcp` wires up Cursor / Claude / Codex and other AI tools in one line (hand-written, zero deps, no `@modelcontextprotocol/sdk`)
+- ✅ **Technical indicators & CYQ chip distribution**: 14 built-in indicators (MA/MACD/BOLL/KDJ/RSI/WR/BIAS/CCI/ATR/OBV/ROC/DMI/SAR/KC) + `sdk.chips.cn/hk/us` computed locally
+- ✅ **Signals / screener / backtest**: `calcSignals`, chainable screener, and local backtesting
+- ✅ **Futures / options / fund flow / dragon-tiger list / northbound / block trades / margin / limit-up pool / mutual-fund deep data**
+- ✅ **Subpath exports**: `{indicators,signals,symbols,screener,cache,errors}` (plus `stock-node-sdk/router`) — pure-compute imports stay tree-shake friendly
+- ✅ **Unified error system & request governance**: throws `SdkError` with stable `code`; per-provider retry / rate-limit / circuit-breaker + `fetchImpl` / `signal` / `hooks`
+- ✅ **Built-in CLI & zero-dependency MCP server**: `stock-sdk` (94 cmds / 93 tools) and `stock-node-sdk` (105 cmds / 104 tools, with `--source` / `--proxy` / `--cache-dir`)
 
 ---
 
 ## Installation
 
 ```bash
-# Latest (v2: namespaced API / CLI / MCP)
+# Browser + Node.js zero-dependency edition
 npm install stock-sdk
+
+# Node.js 18+ multi-source high-availability edition (Public Beta, recommended for servers / quant / AI Agents)
+npm install stock-node-sdk@beta
 
 # v1 legacy (frozen, critical fixes only)
 npm install stock-sdk@legacy
 ```
 
 ## Quick start
+
+### 1. Browser / Node.js Zero-Dependency (`stock-sdk`)
 
 ```ts
 import { StockSDK } from 'stock-sdk';
@@ -107,37 +117,63 @@ const all = await sdk.batch.cn({ concurrency: 5 });
 console.log(`${all.length} stocks`);
 ```
 
+### 2. Node.js Multi-Source Enhanced (`stock-node-sdk`)
+
+```ts
+import { StockNodeSDK, FileCacheStore } from 'stock-node-sdk';
+
+const sdk = new StockNodeSDK({
+  timeout: 15_000,
+  cache: { store: new FileCacheStore({ dir: './.stock-cache' }) },
+});
+
+// Automatic Tencent -> Sina -> Eastmoney failover with concurrency-safe provenance
+const { data: quotes, trace } = await sdk.withMeta(() =>
+  sdk.quotes.cn(['600519', '000001'])
+);
+console.log(quotes[0].price, 'provider:', trace?.selectedProvider);
+
+// Node-exclusive domains: financials, 24/7 news flashes, CNINFO/Eastmoney announcements
+const indicators = await sdk.financial.indicators('600519', { pageSize: 4 });
+const flashes = await sdk.news.flash({ pageSize: 10 });
+const notices = await sdk.news.announcements({ symbol: '600519', keyword: '分红' });
+
+await sdk.close();
+```
+
 > HK `'00700'` / `'hk00700'`, US `'AAPL'` / `'105.AAPL'` — all normalized by `normalizeSymbol`.
 
 ---
 
 ## Command line (CLI)
 
-After install you get the `stock-sdk` command (or use `npx`):
+Both packages ship a CLI (`stock-sdk` has 94 commands; `stock-node-sdk` has 105 commands plus `--source`, `--proxy`, and `--cache-dir`):
 
 ```bash
-# Quotes (market auto-detected from the code)
+# Base CLI (zero dependencies)
 npx stock-sdk quote 600519 00700 AAPL
-# K-line with output truncation
 npx stock-sdk kline 600519 --period weekly --limit 30
-# With technical indicators
 npx stock-sdk indicators 600519 --ma 5,10,20 --macd
-# Search
 npx stock-sdk search 茅台
-# Direct access to any namespace method
-npx stock-sdk quotes cn sh600519 sz000001
+
+# Node Enhanced CLI (forced source / proxy / disk cache + financials & news)
+npx stock-node-sdk@beta quotes cn 600519 --source sina --pretty
+npx stock-node-sdk@beta financial indicators 600519 --pageSize 4 --cache-dir ./.stock-cache --pretty
+npx stock-node-sdk@beta news flash --pageSize 10
+npx stock-node-sdk@beta news announcements --symbol 600519 --keyword 分红
 ```
 
-The CLI defaults to JSON output and accepts `--format table|csv`, `--pretty`, and `--limit N`. Invalid arguments produce exit code `2`. Run `stock-sdk fundFlow rank --help` to see the ranking pagination flags.
+The CLI defaults to JSON output and accepts `--format table|csv`, `--pretty`, and `--limit N`. Invalid arguments produce exit code `2`. Run `stock-sdk fundFlow rank --help` or `stock-node-sdk --help` for full flags.
 
 ---
 
 ## 🤖 AI / MCP integration
 
-v2 ships a built-in, zero-dependency MCP server — start it with one command:
+Built-in zero-dependency MCP server — start with one command (**for AI clients running on Node.js, `stock-node-sdk mcp` is recommended for all 104 tools, multi-source failover, financials, news & announcements**; use `stock-sdk mcp` if you want the zero-dependency edition):
 
 ```bash
-npx stock-sdk mcp
+npx stock-node-sdk@beta mcp   # Node Enhanced (Beta, 104 tools + multi-source failover, supports --cache-dir / --proxy / --source)
+npx stock-sdk mcp        # Zero-dep Base (93 tools)
 ```
 
 Wire it into Cursor / Claude Desktop / Codex / Gemini, etc. (`mcpServers` config):
@@ -145,9 +181,9 @@ Wire it into Cursor / Claude Desktop / Codex / Gemini, etc. (`mcpServers` config
 ```json
 {
   "mcpServers": {
-    "stock-sdk": {
+    "stock-node-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk", "mcp"]
+      "args": ["-y", "stock-node-sdk@beta", "mcp"]
     }
   }
 }
@@ -160,9 +196,9 @@ To expose the full MCP tool set when launching through `npx`, add the `env` entr
 ```json
 {
   "mcpServers": {
-    "stock-sdk": {
+    "stock-node-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk", "mcp"],
+      "args": ["-y", "stock-node-sdk@beta", "mcp"],
       "env": { "STOCK_SDK_MCP_TOOLS": "full" }
     }
   }
@@ -262,7 +298,9 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 | Minute K-line (5/15/30/60) | ✅ | ✅ `kline.hkMinute` | ✅ `kline.usMinute` | ⚠️ listed ETF/LOF | ❌ | ❌ |
 | Chip distribution (CYQ) | ✅ `chips.cn` | ✅ `chips.hk` | ✅ `chips.us` | — | — | — |
 | Intraday (1-min) | ✅ `quotes.timeline` | ✅ `kline.hkMinute`(period='1') | ✅ `kline.usMinute`(period='1') | ⚠️ listed ETF/LOF | ❌ | ✅ ETF options |
-| Dividends | ✅ | ❌ | ❌ | ✅ fund + ETF | — | — |
+| Dividends | ✅ | ✅ *(Node edition)* | ✅ *(Node edition, EM/Nasdaq)* | ✅ fund + ETF | — | — |
+| Financials (Indicators / 3 Statements) | ✅ *(Node edition)* | ✅ *(Node edition)* | ✅ *(Node edition, EM/Nasdaq)* | — | — | — |
+| Official Announcements | ✅ *(Node: EM/CNINFO)* | ✅ *(Node: HKEXnews)* | ✅ *(Node: SEC EDGAR)* | — | — | — |
 | Fund flow | ✅ stock/market/rank/sector | ❌ | ❌ | — | — | — |
 | Sectors (industry / concept) | ✅ | ❌ | ❌ | ❌ | — | — |
 | Dragon-tiger list | ✅ | — | — | — | — | ✅ option LHB |
@@ -300,12 +338,16 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 | `sdk.blockTrade` / `sdk.margin` | block trades / margin trading |
 | `sdk.fund` | `.dividendList` / `.navHistory` / `.rankHistory` / `.profile` / `.theme.*` (`getThemeList` / `getThemeFunds`) |
 | `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
-| `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
+| `sdk.reference` | `.dividendDetail` (dual-source Eastmoney/Sina in Node edition) / `.tradingCalendar` |
 | top-level | `sdk.search(keyword)` |
+| `sdk.financial` *(Node only)* | `.indicators` / `.income` / `.balance` / `.cashflow` / `.forecast` / `.express` |
+| `sdk.news` *(Node only)* | `.flash` (Eastmoney/Sina 24/7) / `.announcements` (Eastmoney/CNINFO) |
+| `sdk.corporate` *(Node only)* | `.topHolders` / `.holderCount` |
+| `sdk.bond` *(Node only)* | `.convertibleList` |
 
-`sdk.quotes.fundFlow(codes)` provides Eastmoney-sourced real-time A-share fund-flow snapshots, including main/small-order inflow, outflow, net amount, and ratios. Use `sdk.fundFlow.*` for history, rankings, and sector flows.
+`sdk.quotes.fundFlow(codes)` provides Eastmoney-sourced real-time A-share fund-flow snapshots, including main/small-order inflow, outflow, net amount, and ratios. Use `sdk.fundFlow.*` for history, rankings, and sector flows. See [Node Extensions API](https://stock-sdk.linkdiary.cn/en/api/node-extensions) for Node-exclusive methods and multi-source routing.
 
-> Indicator math moved from the main package to a subpath: `import { calcMACD } from 'stock-sdk/indicators'`.
+> Indicator math moved from the main package to a subpath: `import { calcMACD } from 'stock-sdk/indicators'` (`stock-node-sdk` also exports `stock-node-sdk/router`).
 > Migrating from the v1 flat API? See the [v1 → v2 migration guide](https://stock-sdk.linkdiary.cn/en/guide/migration-v1-to-v2) (with the full `sdk.getXxx()` → `sdk.<ns>.<method>()` mapping).
 
 ---
@@ -316,7 +358,9 @@ Coverage varies by market — this table helps you quickly check whether the SDK
 pnpm typecheck
 pnpm build
 pnpm test
-pnpm test:integration:smoke   # smoke integration (real network)
+pnpm docs:check
+pnpm test:integration:smoke   # dual-runtime smoke integration (real network)
+pnpm test:integration:node    # stock-node-sdk live multi-source integration
 pnpm test:integration:full    # full integration regression
 ```
 
@@ -328,7 +372,7 @@ pnpm test:integration:full    # full integration regression
 
 ---
 
-🌐 [Website](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground/) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [Website](https://stock-sdk.linkdiary.cn) | 📦 [NPM (`stock-sdk`)](https://www.npmjs.com/package/stock-sdk) | 📦 [NPM (`stock-node-sdk`)](https://www.npmjs.com/package/stock-node-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [Live Demo](https://stock-sdk.linkdiary.cn/playground/) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

@@ -243,5 +243,6 @@ const sdk = new StockSDK({
 
 ## See also
 
+- [Node Enhanced Guide](/en/guide/node-sdk) — Node-side `SourceRouter` health-aware multi-source failover, `ProxyPool`, `CookieJar` / `SessionManager`, and `FileCacheStore`.
 - [Error Handling & Retry](/en/guide/retry) — `SdkError`, error codes, `getSdkErrorCode`, retry decisions.
 - [Browser Usage](/en/guide/browser) — differences between cross-runtime fetch and JSONP.

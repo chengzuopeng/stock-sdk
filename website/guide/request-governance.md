@@ -243,5 +243,6 @@ const sdk = new StockSDK({
 
 ## 相关阅读
 
+- [Node 增强版指南](/guide/node-sdk) —— Node.js 端的 `SourceRouter` 多源健康度调度、`ProxyPool` 代理池、`CookieJar` / `SessionManager` 与 `FileCacheStore` 磁盘缓存。
 - [错误处理与重试](/guide/retry) —— `SdkError`、错误码、`getSdkErrorCode`、重试判定。
 - [浏览器使用](/guide/browser) —— 双端 fetch 与 JSONP 的差异。

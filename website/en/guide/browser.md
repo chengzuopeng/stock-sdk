@@ -70,7 +70,7 @@ The SDK picks the fetch path automatically based on the runtime environment, so 
 
 ## Practical advice
 
-- **Prefer a self-hosted proxy in production**, consolidating upstream requests on the server—this solves CORS and makes it easy to add caching, rate limiting, and key protection.
+- **Prefer a self-hosted proxy or Node BFF in production**, consolidating upstream requests on the server—this solves CORS and makes it easy to add caching and rate limiting. If your backend is Node.js, use [`stock-node-sdk`](/en/guide/node-sdk) directly for automatic multi-source failover, proxy pooling, and disk caching with the exact same API.
 - **For pure-frontend demos / intranet tools**, consider `<script>`-injected sources, or a public proxy (mind stability and compliance).
 - **Import via subpath as needed**: on the browser side, when using only indicators / signals / symbol parsing, import from sub-entries like `stock-sdk/indicators` to avoid bundling the request layer.
 - **Inject `fetchImpl`** uniformly for proxy rerouting, logging, or mocking—see [Request Governance](/en/guide/request-governance).

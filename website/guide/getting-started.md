@@ -2,6 +2,10 @@
 
 本页用几段最小示例带你跑通 v2 的命名空间 API。开始前请先完成[安装](/guide/installation)。
 
+::: tip 仅运行在 Node.js 服务端？
+可直接安装并使用 [`stock-node-sdk`](/guide/node-sdk)（`import { StockNodeSDK } from 'stock-node-sdk'`）：下方所有命名空间示例 100% 兼容，并默认开启多源自动容错（A/HK/US 行情 3 源、K 线/批量/分红双源），外加财务报表、7×24 快讯、巨潮公告与磁盘缓存。
+:::
+
 ## 创建实例
 
 `StockSDK` 是唯一入口，所有命名空间挂在实例上：
@@ -148,6 +152,7 @@ try {
 
 ## 下一步
 
+- [Node 增强版指南](/guide/node-sdk)：Node.js 多源自动容错、代理池、磁盘缓存与财报/快讯/公告。
 - [符号与代码规则](/guide/symbols)：`string` 与 `SymbolRef` 的容错解析与已知歧义。
 - [技术指标与信号](/guide/indicators)：指标函数与信号层全貌。
 - [API 总览](/api/)：命名空间地图与完整方法表。

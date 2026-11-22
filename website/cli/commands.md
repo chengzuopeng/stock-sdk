@@ -205,9 +205,9 @@ CLI 校验命令声明的选项。只收位置参数的命令和明确列出选�
 
 ### 命名空间方法速查
 
-下表覆盖全部 **93 个**命名空间方法（外加顶层 `search`）。方法语义与返回字段以 [API 文档](/api/)为准——这里只给可直达的命令 token。
+下表覆盖 `stock-sdk` 全部 **94 个**方法以及 `stock-node-sdk` 新增的 **11 个** Node 专属方法（共 105 个）。方法语义与返回字段以 [API 文档](/api/)与 [Node 专属扩展](/api/node-extensions)为准——这里只给可直达的命令 token。
 
-| 命名空间 | 方法（`stock-sdk <ns> <method>`） |
+| 命名空间 | 方法（`stock-sdk` / `stock-node-sdk <ns> <method>`） |
 |---|---|
 | `quotes`（8） | `cn` · `cnSimple` · `hk` · `us` · `fund` · `fundFlow` · `largeOrder` · `timeline` |
 | `codes`（4） | `cn` · `us` · `hk` · `fund` |
@@ -227,5 +227,9 @@ CLI 校验命令声明的选项。只收位置参数的命令和明确列出选�
 | `calendar`（4） | `isTradingDay` · `nextTradingDay` · `prevTradingDay` · `marketStatus` |
 | `reference`（2） | `dividendDetail` · `tradingCalendar` |
 | 顶层 | `search <keyword>` |
+| `financial`（6，*Node 专属*） | `indicators` · `income` · `balance` · `cashflow` · `forecast` · `express` |
+| `news`（2，*Node 专属*） | `flash` · `announcements` |
+| `corporate`（2，*Node 专属*） | `topHolders` · `holderCount` |
+| `bond`（1，*Node 专属*） | `convertibleList` |
 
 > 不确定某方法的参数？运行 `stock-sdk <ns> <method> --help` 查看它的位置参数与可用选项（帮助文本由 manifest 自动派生，始终与实现同步）。
