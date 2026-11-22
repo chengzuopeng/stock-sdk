@@ -6,9 +6,38 @@ pageClass: changelog-page
 
 本页记录 Stock SDK 的版本更新历史。v2.0.0 是一次**架构跃迁**——在不扩展数据源的前提下，重做了符号模型、数据契约、API 表面、请求层与错误体系，并新增 CLI / MCP 与 subpath 导出。
 
+## v2.5.0（含 `stock-node-sdk v0.1.0-beta.1`）
+
+> 发布时间：2026-11-26
+>
+> 🧪 **一仓双包 Monorepo 演进 & `stock-node-sdk` 首个公开 Beta**（`npm i stock-node-sdk@beta`）：在保持双端基础包 `stock-sdk` 零依赖、100% 向后兼容平滑升级的同时，推出面向 Node.js 18.17+ 服务端的多源高可用增强版 `stock-node-sdk`。完整用法见 [Node 增强版指南](/guide/node-sdk) 与 [Node 专属扩展 API](/api/node-extensions)。
+
+### 架构演进与 `stock-node-sdk`（`v0.1.0-beta.1` Beta）
+
+- **一仓双包共享核心底座**：仓库升级为 pnpm Monorepo，抽离私有共享底座 `@stock-sdk/core`（构建期经 `tsup` 静态内联至两个发布包，产物不含外部 workspace 依赖）。`stock-sdk` 继续保持**零运行时依赖、浏览器 + Node.js 双端兼容**；`stock-node-sdk` 作为 API **100% 严格超集**独立发包。
+- **能力驱动多源自动容错（`SourceRouter`）**：默认无需指定数据源，内部按优先级、源健康度自适应冷却与能力契约（如 `strictCapabilities` 复权支持校验、`turnoverRate` 必需字段过滤）自动容错切换并统一归一化输出；支持单次路由覆盖（`{ source }` / `{ preferredSources }`）、并发安全路由溯源 `sdk.withMeta(() => ...)`，以及 `sdk.registerAdapter()` 与 `stock-node-sdk/router` 子路径扩展。
+- **双端共有接口多源增强与海外备源**：
+  - 实时行情：`quotes.cn`（腾讯 → 新浪 → 东财）、`quotes.hk`（腾讯 → 东财 → 新浪 → CNBC）、`quotes.us`（腾讯 → 新浪 → 东财 → CNBC → Nasdaq）；全市场批量 `batch.cn` / `batch.hk` / `batch.us` 新增东财 `clist` 分页备源。
+  - 历史 K 线与分红：`kline.hk` / `kline.us`（含 `kline.withIndicators` / `kline.signals` 与 `chips.hk` / `chips.us`）接入多源路由，扩展腾讯与 CNBC / Nasdaq 备源；`reference.dividendDetail` 扩展为 A 股（东财 → 新浪 HTML 双源）、港股（东财直连）、美股（东财直连 → Nasdaq 备源）三市场通用。
+  - 海外源开关：CNBC / Nasdaq / SEC EDGAR 默认开启，中国大陆无代理直连环境可通过 `new StockNodeSDK({ overseas: false })` 一键禁用。
+- **新增 4 大 Node 专属命名空间（11 个新方法）**：
+  - `financial`：A / 港 / 美股核心财务指标 `indicators` 与三大表 `income` / `balance` / `cashflow`（东财直连 + 美股三大表 Nasdaq 备源，统一原币种元口径并标注 `currency`），以及 A 股业绩预告 `forecast`、业绩快报 `express`。
+  - `news`：7×24 实时财经快讯 `flash`（东财 / 新浪双源，`page > 1` 自动切新浪）与三地上市公司官方公告 `announcements`（A 股东财 + 巨潮 POST 检索、港股披露易 `HKEXnews`、美股 `SEC EDGAR`）。
+  - `corporate`：个股历期十大流通股东 `topHolders` 与股东户数筹码变化 `holderCount`。
+  - `bond`：可转债全量列表、信用评级、转股价与到期信息 `convertibleList`。
+- **Node 传输治理与磁盘缓存**：内置 `NodeHttpClient`（按域名自动附加合规 `Referer` / `Origin` / `secUserAgent`）、`CookieJar`、`SessionManager` 自动预热重放、带故障节点冷却的 `ProxyPool`（基于 `undici`），以及原子写入的本地磁盘缓存 `FileCacheStore`（仅持久化非降级正常结果）。
+- **CLI 与 MCP 增强**：新增 `stock-node-sdk` CLI（105 命令）与 `stock-node-sdk mcp`（104 工具），支持 `--source`、`--proxy`、`--cache-dir`、`--overseas=false` 参数。
+
+### `stock-sdk v2.5.0` 新增与修复
+
+- **分红明细新增跨市场统一口径字段**：`DividendDetail` 增量补充可选字段 `dividendPerShare`（统一折算后的每股税前现金派息）、`shareUnit`（A 股为 `10`，港/美股为 `1`）与 `currency`（如 `'CNY'` / `'HKD'` / `'USD'`），原 `dividendPretax` 字段与数值保持不变。
+- **修复港股盘中实时行情 `timestamp` 为 `null`**：腾讯港股实时键 `r_hkXXXXX` 在连续交易时段返回斜杠分隔时间字符串（`'YYYY/MM/DD HH:mm:ss'`），现已归一解析出准确的毫秒级 `timestamp`。
+- **请求层与类型扩展**：`RequestClient` 新增 `post()` 方法与单次请求自定义 `headers` / `method` / `body`；`ProviderName` 扩展支持多源域名识别，行情对象 `source` 类型拓宽为 `QuoteSource`；根入口补充导出共享领域类型。
+- **文档站与演练场**：Playground 增加前端版 `stock-sdk` 浏览器运行范围提示与 `stock-node-sdk` 文档引导；新增 `/llms-node.txt` 供 AI 检索服务端增强契约。
+
 ## v2.4.7
 
-> 发布时间：待发布
+> 发布时间：2026-11-21
 
 ### 新增
 
