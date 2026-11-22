@@ -10,13 +10,13 @@
  */
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { calcATR } from '../src/indicators/atr';
-import { calcSAR } from '../src/indicators/sar';
-import { calcKC } from '../src/indicators/kc';
+import { calcATR } from '../packages/core/src/indicators/atr';
+import { calcSAR } from '../packages/core/src/indicators/sar';
+import { calcKC } from '../packages/core/src/indicators/kc';
 import {
   genBars,
   BASELINE_CASES,
-} from '../test/unit/indicators/__fixtures__/gen';
+} from '../packages/core/test/unit/indicators/__fixtures__/gen';
 
 const out: Record<string, unknown> = {};
 for (const c of BASELINE_CASES) {
@@ -32,7 +32,7 @@ for (const c of BASELINE_CASES) {
 }
 
 const target = fileURLToPath(
-  new URL('../test/unit/indicators/__fixtures__/seed-baseline.json', import.meta.url)
+  new URL('../packages/core/test/unit/indicators/__fixtures__/seed-baseline.json', import.meta.url)
 );
 writeFileSync(target, JSON.stringify(out));
 // eslint-disable-next-line no-console

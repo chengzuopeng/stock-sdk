@@ -1,23 +1,25 @@
 # stock-sdk · 完整 API 参考（为 AI / LLM 工具生成）
 
-> 本文件由 `scripts/generate-llms.ts` 从 `src/spec/methods.ts`（CLI / MCP / Playground 的
-> 单一事实源）与 `src/types` 自动生成，目的是让 AI 工具**一次性读取** stock-sdk 的全部
+> 本文件由 `scripts/generate-llms.ts` 从 `packages/core/src/spec/methods.ts`（CLI / MCP / Playground 的
+> 单一事实源）与 `packages/core/src/types` 自动生成，目的是让 AI 工具**一次性读取** `stock-sdk` 的全部
 > 命名空间方法、参数与返回数据结构。**请勿手改本文件**——改 spec / types 后重新生成。
 >
-> 版本：v2.4.7 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
+> 版本：v2.5.0 · 文档站：https://stock-sdk.linkdiary.cn · npm: `npm i stock-sdk`
+> Node.js 多源高可用增强版 `stock-node-sdk`（v0.1.0-beta.1，严格超集 + 财报/快讯/公告/股东/可转债）请另见 https://stock-sdk.linkdiary.cn/llms-node.txt
 
 ## 这是什么
 
-stock-sdk 是一个**零依赖**的股票行情 SDK，浏览器 + Node.js 18+ 双端可用，覆盖
-A 股 / 港股 / 美股 / 公募基金 / 期货 / 期权。API 采用**命名空间**模型，并自带 CLI 与
-内置 MCP server。本文件分四部分：速览、命名空间方法清单、纯计算 subpath 导出、数据结构类型定义。
+`stock-sdk` 是同仓 Monorepo 中的**零依赖**双端股票行情 SDK（浏览器 + Node.js 18+），覆盖
+A 股 / 港股 / 美股 / 公募基金 / 期货 / 期权，采用**命名空间**模型并自带 CLI 与内置 MCP server。
+同仓另发布 Node.js 服务端增强版 `stock-node-sdk`（多源自动容错、代理池、磁盘缓存与财报/快讯/公告）。
+本文件分四部分：速览、命名空间方法清单、纯计算 subpath 导出、数据结构类型定义。
 
 ## 用法
 
 ```ts
 import { StockSDK } from 'stock-sdk';
 
-const sdk = new StockSDK(/* options?: StockSDKOptions — RequestClientOptions（第三节 src/core/request.ts）+ klineFallback */);
+const sdk = new StockSDK(/* options?: StockSDKOptions — RequestClientOptions（第三节 packages/core/src/core/request.ts）+ klineFallback */);
 
 // 命名空间方法：sdk.<namespace>.<method>(...)
 const quotes = await sdk.quotes.cn(['600519']);        // A 股实时行情（codes 为 string[]）
@@ -44,7 +46,7 @@ import { screen, backtest } from 'stock-sdk/screener';
 
 ### 安装与模块格式
 
-- 最新版：`npm i stock-sdk`（当前 v2.4.7）
+- 最新版：`npm i stock-sdk`（当前 v2.5.0）
 - v1 旧版（已封存）：`npm i stock-sdk@legacy`
 - **ESM + CommonJS** 双格式；主包 `import { StockSDK } from 'stock-sdk'`
 - 纯计算 subpath：`stock-sdk/{indicators,signals,symbols,screener,cache,errors,mcp}`（tree-shake 友好，不拖入全部 provider）
@@ -104,7 +106,7 @@ MCP 的 K 线、信号及基金历史超限时保留最近记录（最多 200 �
 ### 数据延迟与请求治理
 
 - 数据来自腾讯 / 东财等**公开接口**，非交易所实时撮合，通常有**数十秒到数分钟延迟**，不适合高频交易。
-- `new StockSDK({ retry, providerPolicies, fetchImpl, signal, hooks, klineFallback, ... })` — 构造参数为 `StockSDKOptions`：`RequestClientOptions`（定义见第三节 `src/core/request.ts`）加上 `klineFallback`（A 股 K 线在东方财富失败时是否切换腾讯 / 新浪备用源，默认 `true`；`false` 时只请求东方财富）。
+- `new StockSDK({ retry, providerPolicies, fetchImpl, signal, hooks, klineFallback, ... })` — 构造参数为 `StockSDKOptions`：`RequestClientOptions`（定义见第三节 `packages/core/src/core/request.ts`）加上 `klineFallback`（A 股 K 线在东方财富失败时是否切换腾讯 / 新浪备用源，默认 `true`；`false` 时只请求东方财富）。
 
 ---
 
@@ -564,7 +566,7 @@ MCP server 可编程入口（`startMcpServer` / `dispatchMessage` 等；CLI 用 
 
 ```ts
 // ============================================================
-// src/types/common.ts
+// packages/core/src/types/common.ts
 // ============================================================
 /**
  * 标准化的搜索结果资产分类
@@ -625,7 +627,14 @@ export interface DividendDetail {
   assignTransferRatio: number | null;
   bonusRatio: number | null;
   transferRatio: number | null;
+  /** 原始税前派息金额（A 股传统口径为每 10 股派息金额；港/美股为每 1 股派息金额，跨市场统一每股口径请读 `dividendPerShare`） */
   dividendPretax: number | null;
+  /** 统一折算后的【每股】税前现金派息金额（A 股 = `dividendPretax / 10`，港/美股 = `dividendPretax`） */
+  dividendPerShare?: number | null;
+  /** `dividendPretax` 对应的股数基数（A 股为 `10`，港/美股为 `1`） */
+  shareUnit?: 1 | 10;
+  /** 派息币种（如 `'CNY'` / `'HKD'` / `'USD'`） */
+  currency?: string;
   dividendDesc: string | null;
   dividendYield: number | null;
   eps: number | null;
@@ -642,10 +651,13 @@ export interface DividendDetail {
 }
 
 // ============================================================
-// src/types/quotes.ts
+// packages/core/src/types/quotes.ts
 // ============================================================
 import type { MarketTz } from '../core/time';
 import type { ProviderName } from '../core';
+
+/** 行情数据源标识（兼容双端 ProviderName，并支持 Node 增强版海外/扩展源如 cnbc / nasdaq） */
+export type QuoteSource = ProviderName | (string & {});
 
 /**
  * A 股 / 指数 全量行情
@@ -731,7 +743,7 @@ export interface FullQuote {
    */
   assetType: 'stock';
   /** 数据源 */
-  source: ProviderName;
+  source: QuoteSource;
 }
 
 /**
@@ -752,7 +764,7 @@ export interface SimpleQuote {
   marketType: string;
   market: 'CN';
   assetType: 'stock';
-  source: ProviderName;
+  source: QuoteSource;
 }
 
 /**
@@ -828,7 +840,7 @@ export interface HKQuote {
   market: 'HK';
   /** 命中特殊指数注册表(HSI/HSCEI/HSTECH)的行标 'index'(港股真码恒为数字,无碰撞面) */
   assetType: 'stock' | 'index';
-  source: ProviderName;
+  source: QuoteSource;
 }
 
 /**
@@ -882,7 +894,7 @@ export interface USQuote {
   market: 'US';
   /** 命中特殊指数注册表(DJI/INX/IXIC)的行标 'index'，code 归一为注册表规范形 */
   assetType: 'stock' | 'index';
-  source: ProviderName;
+  source: QuoteSource;
 }
 
 /**
@@ -914,7 +926,7 @@ export interface FundQuote {
 export type Quote = FullQuote | HKQuote | USQuote | FundQuote;
 
 // ============================================================
-// src/types/kline.ts
+// packages/core/src/types/kline.ts
 // ============================================================
 import type { MarketTz } from '../core/time';
 
@@ -1174,7 +1186,7 @@ export interface USMinuteTimeline extends Omit<MinuteTimeline, 'tz'> {
 }
 
 // ============================================================
-// src/types/board.ts
+// packages/core/src/types/board.ts
 // ============================================================
 /**
  * 行业板块列表项
@@ -1312,7 +1324,7 @@ export type ConceptBoardMinuteTimeline = IndustryBoardMinuteTimeline;
 export type ConceptBoardMinuteKline = IndustryBoardMinuteKline;
 
 // ============================================================
-// src/types/options.ts
+// packages/core/src/types/options.ts
 // ============================================================
 /**
  * 中金所股指期权产品
@@ -1439,7 +1451,7 @@ export interface OptionLHBItem {
 }
 
 // ============================================================
-// src/types/futures.ts
+// packages/core/src/types/futures.ts
 // ============================================================
 /**
  * 国内期货交易所
@@ -1515,7 +1527,7 @@ export interface ComexInventory {
 }
 
 // ============================================================
-// src/types/fund.ts
+// packages/core/src/types/fund.ts
 // ============================================================
 /**
  * 公募基金扩展数据类型
@@ -1956,7 +1968,7 @@ export interface ThemeFundItemList {
 }
 
 // ============================================================
-// src/types/fundFlow.ts
+// packages/core/src/types/fundFlow.ts
 // ============================================================
 /**
  * 资金流向相关数据类型
@@ -2093,7 +2105,7 @@ export interface MarketFundFlow {
 }
 
 // ============================================================
-// src/types/northbound.ts
+// packages/core/src/types/northbound.ts
 // ============================================================
 /**
  * 沪深港通 / 北向资金 数据类型
@@ -2244,7 +2256,7 @@ export interface NorthboundIndividualItem {
 }
 
 // ============================================================
-// src/types/dragonTiger.ts
+// packages/core/src/types/dragonTiger.ts
 // ============================================================
 /**
  * 龙虎榜数据类型
@@ -2406,7 +2418,7 @@ export interface DragonTigerDateOptions {
 }
 
 // ============================================================
-// src/types/blockTrade.ts
+// packages/core/src/types/blockTrade.ts
 // ============================================================
 /**
  * 大宗交易数据类型
@@ -2499,7 +2511,7 @@ export interface BlockTradeDateOptions {
 }
 
 // ============================================================
-// src/types/margin.ts
+// packages/core/src/types/margin.ts
 // ============================================================
 /**
  * 融资融券数据类型
@@ -2554,7 +2566,7 @@ export interface MarginTargetItem {
 }
 
 // ============================================================
-// src/types/marketEvent.ts
+// packages/core/src/types/marketEvent.ts
 // ============================================================
 import type { MarketTz } from '../core/time';
 
@@ -2820,7 +2832,7 @@ export interface UnusualFluctuationOptions {
 }
 
 // ============================================================
-// src/core/request.ts
+// packages/core/src/core/request.ts
 // ============================================================
 /**
  * HTTP 请求客户端（带重试机制、限流、熔断和 host fallback）
@@ -3066,6 +3078,12 @@ export interface GetOptions {
   fetchImpl?: FetchImpl;
   /** 单次请求的外部取消信号（触发后归类为 ABORTED） */
   signal?: AbortSignal;
+  /** 单次请求的额外 HTTP Headers（与 client/provider 级 headers 合并） */
+  headers?: Record<string, string>;
+  /** HTTP 方法，默认 'GET' */
+  method?: 'GET' | 'POST';
+  /** 请求体（仅 POST 等方法使用） */
+  body?: string | URLSearchParams;
 }
 
 export class RequestClient {
@@ -3278,7 +3296,13 @@ export class RequestClient {
     state: ProviderRuntimeState,
     provider: ProviderName,
     responseType: GetOptions['responseType'] = 'text',
-    perCall: { fetchImpl?: FetchImpl; signal?: AbortSignal } = {},
+    perCall: {
+      fetchImpl?: FetchImpl;
+      signal?: AbortSignal;
+      headers?: Record<string, string>;
+      method?: 'GET' | 'POST';
+      body?: string | URLSearchParams;
+    } = {},
     attempt = 0
   ): Promise<T> {
     if (state.rateLimiter) {
@@ -3308,7 +3332,10 @@ export class RequestClient {
     ]);
     const doFetch = perCall.fetchImpl ?? this.fetchImpl ?? globalThis.fetch;
 
-    const requestHeaders = { ...state.policy.headers };
+    const requestHeaders: Record<string, string> = {
+      ...state.policy.headers,
+      ...(perCall.headers ?? {}),
+    };
     if (state.policy.rotateUserAgent) {
       const rotatedUA = getNextUserAgent();
       if (rotatedUA) {
@@ -3335,13 +3362,17 @@ export class RequestClient {
     try {
       // R3-2:与 signal 的 abort race —— fetchImpl 不监听 signal 时超时/取消
       // 仍能解除挂起(详见 raceWithAbort);正常 fetch 行为不变
-      const resp = await raceWithAbort(
+      const init: RequestInit = {
         signal,
-        doFetch(url, {
-          signal,
-          headers: requestHeaders,
-        })
-      );
+        headers: requestHeaders,
+      };
+      if (perCall.method && perCall.method !== 'GET') {
+        init.method = perCall.method;
+      }
+      if (perCall.body !== undefined) {
+        init.body = perCall.body;
+      }
+      const resp = await raceWithAbort(signal, doFetch(url, init));
 
       this.safe(() =>
         this.hooks?.onResponse?.(ctx, {
@@ -3361,7 +3392,7 @@ export class RequestClient {
           // 这类是确定性的数据错误，若按 NETWORK_ERROR 处理会被同 host 反复重试，放大无谓负载。
           // 显式归类为 PARSE_ERROR：shouldRetry 不重试，但 shouldFallback 仍允许切换备用 host。
           try {
-            return await resp.json();
+            return (await resp.json()) as T;
           } catch (parseError) {
             throw new SdkError({
               code: 'PARSE_ERROR',
@@ -3446,7 +3477,13 @@ export class RequestClient {
       throw new CircuitBreakerError('Circuit breaker is OPEN, request rejected');
     }
 
-    const perCall = { fetchImpl: options.fetchImpl, signal: options.signal };
+    const perCall = {
+      fetchImpl: options.fetchImpl,
+      signal: options.signal,
+      headers: options.headers,
+      method: options.method,
+      body: options.body,
+    };
     const retryOptions = options.retry
       ? resolveRetryOptions({ ...state.policy.retry, ...options.retry })
       : state.policy.retry;
@@ -3536,6 +3573,39 @@ export class RequestClient {
   }
 
   /**
+   * 发送 POST 请求（共享重试、限流、熔断与生命周期钩子；默认关闭同域 host fallback）
+   */
+  async post<T = string>(
+    url: string,
+    body?: string | URLSearchParams | Record<string, unknown>,
+    options: Omit<GetOptions, 'method' | 'body'> = {}
+  ): Promise<T> {
+    let serializedBody: string | URLSearchParams | undefined;
+    const headers: Record<string, string> = { ...(options.headers ?? {}) };
+    if (body instanceof URLSearchParams || typeof body === 'string') {
+      serializedBody = body;
+      if (
+        body instanceof URLSearchParams &&
+        !Object.keys(headers).some((k) => k.toLowerCase() === 'content-type')
+      ) {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
+      }
+    } else if (body !== undefined) {
+      serializedBody = JSON.stringify(body);
+      if (!Object.keys(headers).some((k) => k.toLowerCase() === 'content-type')) {
+        headers['Content-Type'] = 'application/json; charset=UTF-8';
+      }
+    }
+    return this.get<T>(url, {
+      ...options,
+      method: 'POST',
+      body: serializedBody,
+      headers,
+      hostFallback: options.hostFallback ?? false,
+    });
+  }
+
+  /**
    * 腾讯财经专用请求（GBK 解码，带自动重试）
    */
   async getTencentQuote(
@@ -3552,7 +3622,7 @@ export class RequestClient {
 }
 
 // ============================================================
-// src/indicators/types.ts
+// packages/core/src/indicators/types.ts
 // ============================================================
 // ========== 输入类型 ==========
 export interface OHLCV {
@@ -3797,7 +3867,7 @@ export interface KCResult {
 }
 
 // ============================================================
-// src/signals/types.ts
+// packages/core/src/signals/types.ts
 // ============================================================
 /**
  * 指标信号层类型（v2 B1）
@@ -3848,7 +3918,7 @@ export interface SignalOptions {
 }
 
 // ============================================================
-// src/symbols/types.ts
+// packages/core/src/symbols/types.ts
 // ============================================================
 /**
  * 统一符号模型类型（v2 A1）
@@ -3927,7 +3997,7 @@ export interface NormalizedSymbol {
 export type SymbolInput = string | SymbolRef;
 
 // ============================================================
-// src/screener/screener.ts
+// packages/core/src/screener/screener.ts
 // ============================================================
 /**
  * 选股器（v2 B2）—— 纯本地链式筛选，输入任意行情/数据数组，无网络。
@@ -4020,7 +4090,7 @@ export function screen<T>(items: readonly T[]): ScreenerBuilder<T> {
 }
 
 // ============================================================
-// src/screener/backtest.ts
+// packages/core/src/screener/backtest.ts
 // ============================================================
 /**
  * 轻量回测引擎（v2 B2）—— 纯本地、单标的、多头。

@@ -1,21 +1,23 @@
 {
-  "name": "stock-sdk",
-  "version": "2.4.7",
+  "name": "stock-sdk-monorepo",
+  "private": true,
   "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": {
-    "stock-sdk": "./dist/cli.js"
+  "description": "Stock SDK Monorepo: stock-sdk (zero-dependency browser + Node.js) & stock-node-sdk (Node.js multi-source high-availability edition with financials, news & announcements).",
+  "homepage": "https://stock-sdk.linkdiary.cn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chengzuopeng/stock-sdk.git"
   },
+  "license": "ISC",
   "scripts": {
-    "build": "tsup",
-    "typecheck": "tsc --noEmit",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm --filter @stock-sdk/core build && pnpm -r --if-present typecheck",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:integration": "RUN_INTEGRATION=1 vitest run",
-    "test:integration:smoke": "RUN_INTEGRATION=1 vitest run test/integration/providers/tencent/quote.int.test.ts test/integration/providers/tencent/batch.int.test.ts test/integration/providers/tencent/tradeCalendar.int.test.ts test/integration/sdk/timeout.int.test.ts",
-    "test:integration:full": "RUN_INTEGRATION=1 vitest run test/integration",
+    "test:integration:smoke": "RUN_INTEGRATION=1 vitest run packages/core/test/integration/providers/tencent/quote.int.test.ts packages/core/test/integration/providers/tencent/batch.int.test.ts packages/core/test/integration/providers/tencent/tradeCalendar.int.test.ts packages/core/test/integration/sdk/timeout.int.test.ts",
+    "test:integration:node": "RUN_INTEGRATION=1 vitest run packages/stock-node-sdk/test/integration",
+    "test:integration:full": "RUN_INTEGRATION=1 vitest run packages/core/test/integration packages/stock-node-sdk/test/integration",
     "docs:meta": "pnpm build && node ./scripts/generate-doc-meta.js && pnpm gen:llms",
     "docs:check": "pnpm docs:meta && node ./scripts/check-doc-consistency.js",
     "dev": "vitepress dev website",
@@ -25,122 +27,6 @@
     "gen:llms": "tsx ./scripts/generate-llms.ts",
     "gen:indicator-baseline": "tsx ./scripts/gen-indicator-baseline.ts",
     "prepare": "node ./scripts/install-git-hooks.js"
-  },
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
-    },
-    "./indicators": {
-      "import": {
-        "types": "./dist/indicators.d.ts",
-        "default": "./dist/indicators.js"
-      },
-      "require": {
-        "types": "./dist/indicators.d.cts",
-        "default": "./dist/indicators.cjs"
-      }
-    },
-    "./symbols": {
-      "import": {
-        "types": "./dist/symbols.d.ts",
-        "default": "./dist/symbols.js"
-      },
-      "require": {
-        "types": "./dist/symbols.d.cts",
-        "default": "./dist/symbols.cjs"
-      }
-    },
-    "./signals": {
-      "import": {
-        "types": "./dist/signals.d.ts",
-        "default": "./dist/signals.js"
-      },
-      "require": {
-        "types": "./dist/signals.d.cts",
-        "default": "./dist/signals.cjs"
-      }
-    },
-    "./screener": {
-      "import": {
-        "types": "./dist/screener.d.ts",
-        "default": "./dist/screener.js"
-      },
-      "require": {
-        "types": "./dist/screener.d.cts",
-        "default": "./dist/screener.cjs"
-      }
-    },
-    "./cache": {
-      "import": {
-        "types": "./dist/cache.d.ts",
-        "default": "./dist/cache.js"
-      },
-      "require": {
-        "types": "./dist/cache.d.cts",
-        "default": "./dist/cache.cjs"
-      }
-    },
-    "./errors": {
-      "import": {
-        "types": "./dist/errors.d.ts",
-        "default": "./dist/errors.js"
-      },
-      "require": {
-        "types": "./dist/errors.d.cts",
-        "default": "./dist/errors.cjs"
-      }
-    },
-    "./mcp": {
-      "import": {
-        "types": "./dist/mcp.d.ts",
-        "default": "./dist/mcp.js"
-      },
-      "require": {
-        "types": "./dist/mcp.d.cts",
-        "default": "./dist/mcp.cjs"
-      }
-    },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist"
-  ],
-  "sideEffects": false,
-  "keywords": [
-    "JavaScript",
-    "TypeScript",
-    "stock",
-    "sdk",
-    "cli",
-    "mcp",
-    "ai",
-    "kline",
-    "indicators",
-    "browser",
-    "node",
-    "akshare",
-    "A股",
-    "港股",
-    "美股",
-    "行情"
-  ],
-  "author": "chengzuopeng",
-  "license": "ISC",
-  "description": "零依赖股票行情 SDK：A股/港股/美股/基金/期货/期权，浏览器 + Node.js 双端，内置 CLI 与 MCP server。Zero-dependency stock market data SDK (CLI + MCP) for browser & Node.js.",
-  "homepage": "https://stock-sdk.linkdiary.cn",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/chengzuopeng/stock-sdk.git"
-  },
-  "bugs": {
-    "url": "https://github.com/chengzuopeng/stock-sdk/issues"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -161,10 +47,6 @@
     "vitepress": "^1.6.4",
     "vitest": "^4.0.15",
     "vue": "^3.5.26"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "provenance": true
   },
   "packageManager": "pnpm@10.34.4"
 }

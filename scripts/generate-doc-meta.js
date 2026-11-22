@@ -187,6 +187,35 @@ export function renderSummaryMarkdown(docsMeta, meta) {
     .filter(Boolean)
     .join('\n\n');
 
+  const nodeBuildRows = [meta.nodeSdk?.build?.indexJs, meta.nodeSdk?.build?.indexCjs]
+    .filter(Boolean)
+    .map((artifact) => {
+      const gzipBytes = formatBytes(artifact.gzipBytes);
+      return `| \`${artifact.path}\` | ${formatBytes(artifact.bytes)} | ${gzipBytes} |`;
+    })
+    .join('\n');
+
+  const nodeMethodGroups = (docsMeta.nodeSdk?.methodGroups ?? [])
+    .map((group) => renderMethodGroup(group, meta.nodeSdk?.methods ?? []))
+    .filter(Boolean)
+    .join('\n\n');
+
+  const nodeSection = meta.nodeSdk
+    ? `
+
+## Node 增强版（stock-node-sdk）
+
+- 包名：\`${meta.nodeSdk.package.name}\`
+- 当前版本：\`${meta.nodeSdk.package.version}\`
+- 定位：Node.js 18+ 多源高可用财经数据 SDK，严格超集兼容 \`stock-sdk\` 全部方法，并扩展以下 Node 专属能力。${
+        nodeBuildRows
+          ? `\n\n| 文件 | 体积 | Gzip |\n| --- | --- | --- |\n${nodeBuildRows}`
+          : ''
+      }
+
+${nodeMethodGroups}`
+    : '';
+
   return `# Stock SDK 文档总览
 
 > 此页面由脚本自动生成，请不要手动编辑。
@@ -225,11 +254,13 @@ ${providerLines}
 
 ## SDK 方法分组
 
-${methodGroups}
+${methodGroups}${nodeSection}
 
 ## 相关页面
 
 - [快速开始](/guide/getting-started)
+- [Node 增强版指南](/guide/node-sdk)
+- [Node 专属扩展 API](/api/node-extensions)
 - [错误处理与重试](/guide/retry)
 - [请求治理](/guide/request-governance)
 - [期货与期权](/guide/futures-options)
@@ -241,22 +272,27 @@ export async function generateDocMeta(options = {}) {
   const { write = true } = options;
   const [
     packageJson,
+    nodePackageJson,
     docsMeta,
     requestSource,
     providerPolicySource,
     indicatorTypesSource,
     indicatorIndexSource,
     sdkSource,
-      specSource,] =
+    specSource,
+    nodeSpecSource,
+  ] =
     await Promise.all([
-      readJson('package.json'),
+      readJson('packages/stock-sdk/package.json'),
+      readJson('packages/stock-node-sdk/package.json'),
       readJson('docs-meta/sdk.json'),
-      readText('src/core/request.ts'),
-      readText('src/core/providerPolicy.ts'),
-      readText('src/indicators/types.ts'),
-      readText('src/indicators/index.ts'),
-      readText('src/sdk.ts'),
-      readText('src/spec/methods.ts'),
+      readText('packages/core/src/core/request.ts'),
+      readText('packages/core/src/core/providerPolicy.ts'),
+      readText('packages/core/src/indicators/types.ts'),
+      readText('packages/core/src/indicators/index.ts'),
+      readText('packages/core/src/sdk.ts'),
+      readText('packages/core/src/spec/methods.ts'),
+      readText('packages/core/src/spec/nodeMethods.ts'),
     ]);
 
   const indicatorOptionsBody = extractInterfaceBody(
@@ -270,9 +306,11 @@ export async function generateDocMeta(options = {}) {
   const indicatorExports = extractNamedExports(indicatorIndexSource).filter((name) =>
     name.startsWith('calc')
   );
-  const [indexJs, indexCjs] = await Promise.all([
-    collectBuildArtifact('dist/index.js'),
-    collectBuildArtifact('dist/index.cjs'),
+  const [indexJs, indexCjs, nodeIndexJs, nodeIndexCjs] = await Promise.all([
+    collectBuildArtifact('packages/stock-sdk/dist/index.js'),
+    collectBuildArtifact('packages/stock-sdk/dist/index.cjs'),
+    collectBuildArtifact('packages/stock-node-sdk/dist/index.js'),
+    collectBuildArtifact('packages/stock-node-sdk/dist/index.cjs'),
   ]);
 
   const meta = {
@@ -300,6 +338,22 @@ export async function generateDocMeta(options = {}) {
           ...extractSdkMethods(sdkSource),
         ]),
       ],
+    },
+    nodeSdk: {
+      package: {
+        name: nodePackageJson.name,
+        version: nodePackageJson.version,
+        description: nodePackageJson.description,
+      },
+      methods: extractSpecMethodPaths(nodeSpecSource),
+      build: {
+        indexJs: nodeIndexJs,
+        indexCjs: nodeIndexCjs,
+        formatted: {
+          indexJs: nodeIndexJs ? formatBytes(nodeIndexJs.bytes) : null,
+          indexCjs: nodeIndexCjs ? formatBytes(nodeIndexCjs.bytes) : null,
+        },
+      },
     },
     build: {
       indexJs,

@@ -60,7 +60,13 @@ const docsMeta = await readJson('docs-meta/sdk.json');
 const generatedMeta = await generateDocMeta({ write: false });
 const errors = [];
 const docsMarkdownFiles = await listMarkdownFiles(docsDir);
-const docFilesToScan = ['README.md', 'README_EN.md', ...docsMarkdownFiles];
+const docFilesToScan = [
+  'README.md',
+  'README_EN.md',
+  'packages/stock-node-sdk/README.md',
+  'packages/stock-node-sdk/README_EN.md',
+  ...docsMarkdownFiles,
+];
 const docsRelativeFiles = new Set(
   docsMarkdownFiles.map((file) => file.replace(new RegExp(`^${docsDir}/`), ''))
 );
@@ -112,6 +118,42 @@ for (const method of generatedMeta.sdk.methods) {
     errors.push(
       `SDK method is not listed in any summary.methodGroups (add it to a group or to summary.methodGroupExemptions): ${method}`
     );
+  }
+}
+
+// Node 增强版（stock-node-sdk）专属方法正反向覆盖校验 + llms-node.txt 同步校验
+if (docsMeta.nodeSdk && generatedMeta.nodeSdk) {
+  for (const group of docsMeta.nodeSdk.methodGroups ?? []) {
+    for (const method of group.methods) {
+      if (!generatedMeta.nodeSdk.methods.includes(method)) {
+        errors.push(`Node SDK method group references missing method: ${method}`);
+      }
+    }
+  }
+  const groupedNodeMethods = new Set(
+    (docsMeta.nodeSdk.methodGroups ?? []).flatMap((group) => group.methods)
+  );
+  const nodeExemptions = new Set(docsMeta.nodeSdk.methodGroupExemptions ?? []);
+  for (const method of generatedMeta.nodeSdk.methods) {
+    if (!groupedNodeMethods.has(method) && !nodeExemptions.has(method)) {
+      errors.push(
+        `Node SDK method is not listed in docsMeta.nodeSdk.methodGroups: ${method}`
+      );
+    }
+  }
+
+  const llmsNodePath = `${docsDir}/public/llms-node.txt`;
+  try {
+    const llmsNodeContent = await readText(llmsNodePath);
+    for (const method of generatedMeta.nodeSdk.methods) {
+      if (!llmsNodeContent.includes(method)) {
+        errors.push(
+          `${llmsNodePath} is missing Node SDK method \`${method}\`. Run \`pnpm docs:meta\`.`
+        );
+      }
+    }
+  } catch {
+    errors.push(`Missing ${llmsNodePath}. Run \`pnpm docs:meta\`.`);
   }
 }
 
