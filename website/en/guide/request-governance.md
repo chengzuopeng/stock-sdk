@@ -44,7 +44,7 @@ Known provider names: `tencent` / `eastmoney` / `sina` / `linkdiary` (unrecogniz
 
 ## Timeout
 
-`timeout` (milliseconds) caps how long a single request waits. It is enforced by an internal `AbortController` and surfaced as the error code `TIMEOUT` (distinct from external cancellation, which is `ABORTED`).
+`timeout` (milliseconds) starts after the rate limiter admits an attempt and covers waiting for headers and reading the response body. It excludes rate-limit queueing and retry backoff; each attempt has its own timeout. It surfaces as `TIMEOUT`, distinct from external cancellation (`ABORTED`).
 
 ```ts
 const sdk = new StockSDK({ timeout: 8000 }) // 8s globally
@@ -135,6 +135,8 @@ Some data sources have multiple usable domains. When the primary host fails, the
 | `true` (default) | Sent once, no retries | Switches to Tencent, then Sina; if both fail, throws the original Eastmoney error |
 | `false` | Disconnects, timeouts, etc. are retried per `retry` / `providerPolicies.eastmoney` | Throws the Eastmoney error directly |
 
+CN historical and 5/15/30/60-minute K-lines distinguish empty results from malformed responses. A valid `data.klines: []` returns an empty result. If `data` exists but `klines` is missing, is not an array, or contains a non-string row, the SDK treats it as `PARSE_ERROR` and tries the fallback sources if enabled.
+
 Both modes request only the primary `push2his` host: its numbered subdomains reach the same backend, so switching between them only multiplies requests.
 
 When Eastmoney soft-limits a client, it usually doesn't return an error. It returns HTTP 200 with `data:null` instead. That response does not trigger `retry` and is thrown as `UPSTREAM_EMPTY`. Eastmoney also returns `data:null` for codes that don't exist, and the SDK cannot tell the two apart.
@@ -172,7 +174,7 @@ const sdk = new StockSDK({
 
 ## New in v2: signal (external cancellation)
 
-`signal` accepts an external `AbortSignal`; when it fires, the request is actively cancelled. It is **merged** with the internal timeout signal — whichever fires first aborts. Cancellation triggered by an external signal is classified as the error code `ABORTED` (distinct from `TIMEOUT`).
+`signal` accepts an external `AbortSignal`; when it fires, the request is actively cancelled. It is **merged** with the internal timeout signal — whichever fires first aborts. Cancellation surfaces as `ABORTED` and interrupts rate-limit queueing, retry backoff, and response-body reads without starting another attempt. If a custom `fetchImpl` ignores the signal, the SDK stops waiting, but stopping the underlying I/O depends on that implementation.
 
 ```ts
 const controller = new AbortController()

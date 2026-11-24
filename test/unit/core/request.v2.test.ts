@@ -58,7 +58,7 @@ describe('RequestClient v2 — external signal → ABORTED', () => {
       .catch((e) => e);
     expect(err).toBeInstanceOf(AbortedError);
     expect(err.code).toBe('ABORTED');
-    expect(f).toHaveBeenCalledOnce();
+    expect(f).not.toHaveBeenCalled();
   });
 });
 

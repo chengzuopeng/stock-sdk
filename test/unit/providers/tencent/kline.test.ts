@@ -27,6 +27,40 @@ function tencentPayload(rows: unknown[][]): Record<string, unknown> {
 }
 
 describe('A-share K-line provider fallback', () => {
+  it.each([{ data: {} }, { data: { klines: [3, null] } }])(
+    'falls back on a malformed Eastmoney payload: %j',
+    async (payload) => {
+      const calls: string[] = [];
+      server.use(
+        http.get(EASTMONEY_KLINE_URL, () => {
+          calls.push('eastmoney');
+          return HttpResponse.json(payload);
+        }),
+        http.get(TENCENT_KLINE_URL, () => {
+          calls.push('tencent');
+          return HttpResponse.json(tencentPayload([
+            ['2024-05-14', '12', '11', '12.5', '10.5', '120'],
+          ]));
+        })
+      );
+      await expect(new StockSDK().kline.cn('600519', {
+        adjust: '', startDate: '20240514', endDate: '20240514',
+      })).resolves.toEqual([expect.objectContaining({ close: 11, date: '2024-05-14' })]);
+      expect(calls).toEqual(['eastmoney', 'tencent']);
+    }
+  );
+
+  it('keeps a valid Eastmoney empty array without invoking another provider', async () => {
+    server.use(http.get(EASTMONEY_KLINE_URL, () => HttpResponse.json({ data: { klines: [] } })));
+    await expect(new StockSDK().kline.cn('600519', { adjust: '' })).resolves.toEqual([]);
+  });
+
+  it('reports malformed data if fallback is disabled', async () => {
+    server.use(http.get(EASTMONEY_KLINE_URL, () => HttpResponse.json({ data: { klines: {} } })));
+    await expect(new StockSDK({ klineFallback: false }).kline.cn('600519'))
+      .rejects.toMatchObject({ code: 'PARSE_ERROR', provider: 'eastmoney' });
+  });
+
   it('falls back to Tencent after one Eastmoney network failure', async () => {
     let eastmoneyCalls = 0;
     server.use(
@@ -235,29 +269,32 @@ describe('A-share K-line provider fallback', () => {
     });
   });
 
-  it('uses Tencent minute fallback when Eastmoney returns data:null', async () => {
-    server.use(
-      http.get(EASTMONEY_KLINE_URL, () => HttpResponse.json({ data: null })),
-      http.get(TENCENT_MINUTE_KLINE_URL, () =>
-        HttpResponse.json({
-          code: 0,
-          data: {
-            sh600519: {
-              m15: [
-                ['202405141000', '10', '11', '12', '9', '100', {}, '0'],
-              ],
+  it.each([{ data: null }, { data: { klines: [42] } }])(
+    'uses Tencent minute fallback with unavailable Eastmoney data: %j',
+    async (payload) => {
+      server.use(
+        http.get(EASTMONEY_KLINE_URL, () => HttpResponse.json(payload)),
+        http.get(TENCENT_MINUTE_KLINE_URL, () =>
+          HttpResponse.json({
+            code: 0,
+            data: {
+              sh600519: {
+                m15: [
+                  ['202405141000', '10', '11', '12', '9', '100', {}, '0'],
+                ],
+              },
             },
-          },
-        })
-      )
-    );
+          })
+        )
+      );
 
-    const result = await new StockSDK().kline.cnMinute('600519', {
-      period: '15',
-    });
-    expect(result).toHaveLength(1);
-    expect(result[0].time).toBe('2024-05-14 10:00');
-  });
+      const result = await new StockSDK().kline.cnMinute('600519', {
+        period: '15',
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].time).toBe('2024-05-14 10:00');
+    }
+  );
 
   it('falls back to Sina history when Eastmoney and Tencent are unavailable', async () => {
     server.use(
