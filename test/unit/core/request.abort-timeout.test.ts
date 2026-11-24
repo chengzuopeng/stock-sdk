@@ -93,7 +93,7 @@ describe('F3 外部取消（任意 reason 形状）→ ABORTED 且不重试', ()
       .catch((e) => e);
     expect(err).toBeInstanceOf(AbortedError);
     expect(err.code).toBe('ABORTED');
-    expect(f).toHaveBeenCalledOnce();
+    expect(f).not.toHaveBeenCalled();
   });
 
   it('client 级 signal 自定义 reason 同样归 ABORTED', async () => {
@@ -294,5 +294,105 @@ describe('F4 ABORTED 不计入失败记账', () => {
       .getHostHealth()
       .find((s) => s.host === 'example.com');
     expect(entry?.failureCount).toBe(1);
+  });
+});
+
+describe('response body and external cancellation', () => {
+  const url = 'https://example.com/body';
+  const pendingBody = () => new ReadableStream<Uint8Array>({ start() {} });
+
+  it.each(['text', 'json', 'arraybuffer'] as const)(
+    'times out while reading a stalled %s body even if fetch ignores the signal',
+    async (responseType) => {
+      const client = new RequestClient({
+        fetchImpl: async () => new Response(pendingBody()),
+        timeout: 30,
+        retry: { maxRetries: 0 },
+      });
+      await expect(client.get(url, { responseType })).rejects.toMatchObject({ code: 'TIMEOUT' });
+    }
+  );
+
+  it('keeps an external cancellation during JSON reads classified as ABORTED', async () => {
+    const controller = new AbortController();
+    const client = new RequestClient({
+      fetchImpl: async (_url, init) => new Response(new ReadableStream({
+        start(stream) {
+          init?.signal?.addEventListener('abort', () => {
+            stream.error(init.signal?.reason);
+          }, { once: true });
+        },
+      })),
+      hooks: { onResponse: () => controller.abort(new SyntaxError('user cancelled')) },
+      retry: { maxRetries: 0 },
+    });
+    await expect(client.get(url, { responseType: 'json', signal: controller.signal }))
+      .rejects.toMatchObject({ code: 'ABORTED' });
+  });
+
+  it('does not call fetch for a pre-aborted signal', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetchImpl: typeof fetch = vi.fn(async () => new Response('unexpected'));
+    const client = new RequestClient({ fetchImpl });
+    await expect(client.get(url, { signal: controller.signal }))
+      .rejects.toMatchObject({ code: 'ABORTED' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('cancels a queued call without spending a token or reordering other calls', async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new AbortController();
+      const fetchImpl = vi.fn(async () => new Response('ok'));
+      const client = new RequestClient({
+        fetchImpl,
+        rateLimit: { requestsPerSecond: 1, maxBurst: 1 },
+        retry: { maxRetries: 0 },
+      });
+      await client.get(url);
+      const next = client.get(url + '/next');
+      const cancelled = client.get(url + '/cancelled', { signal: controller.signal });
+      const rejected = expect(cancelled).rejects.toMatchObject({ code: 'ABORTED' });
+      const last = client.get(url + '/last');
+      controller.abort();
+      await rejected;
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(next).resolves.toBe('ok');
+      expect(fetchImpl.mock.calls.map((call) => (call as unknown[])[0]))
+        .toEqual([url, url + '/next']);
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(last).resolves.toBe('ok');
+      expect(fetchImpl.mock.calls.map((call) => (call as unknown[])[0]))
+        .toEqual([url, url + '/next', url + '/last']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels during retry backoff without starting the next attempt', async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new AbortController();
+      const fetchImpl = vi.fn(async () => new Response('unavailable', { status: 503 }));
+      let retryStarted!: () => void;
+      const inBackoff = new Promise<void>((resolve) => { retryStarted = resolve; });
+      const client = new RequestClient({
+        fetchImpl,
+        retry: { maxRetries: 1, baseDelay: 60_000, maxDelay: 60_000 },
+        hooks: { onRetry: retryStarted },
+      });
+      const pending = client.get(url, { signal: controller.signal });
+      const rejected = expect(pending).rejects.toMatchObject({ code: 'ABORTED' });
+      await inBackoff;
+      expect(vi.getTimerCount()).toBe(1);
+      controller.abort();
+      await rejected;
+      expect(fetchImpl).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

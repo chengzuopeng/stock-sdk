@@ -66,8 +66,12 @@ export interface KlineSourceOptions {
 const EM_PROBE_ONCE: EmKlineRequestOptions = {
   retry: { maxRetries: 0 },
   hostFallback: false,
+  validateKlines: true,
 };
-const EM_POLICY_RETRY: EmKlineRequestOptions = { hostFallback: false };
+const EM_POLICY_RETRY: EmKlineRequestOptions = {
+  hostFallback: false,
+  validateKlines: true,
+};
 
 export interface HistoryKlineOptions {
   /** K 线周期 @default 'daily' */

@@ -44,7 +44,7 @@ const sdk = new StockSDK({
 
 ## 超时
 
-`timeout`（毫秒）控制单次请求的最长等待。超时由内部 `AbortController` 触发，归类为错误码 `TIMEOUT`（与外部主动取消的 `ABORTED` 区分开）。
+`timeout`（毫秒）从限流放行后开始计时，覆盖每次 HTTP 尝试的响应头等待和响应体读取。限流排队、重试间隔不计入；每次重试有独立的超时预算。超时归类为 `TIMEOUT`，与外部取消的 `ABORTED` 区分。
 
 ```ts
 const sdk = new StockSDK({ timeout: 8000 }) // 全局 8s
@@ -135,6 +135,8 @@ const sdk = new StockSDK({
 | `true`（默认） | 只请求一次，不重试 | 按腾讯、新浪顺序切换；都失败时抛出东方财富的原始错误 |
 | `false` | 断连 / 超时等按 `retry` / `providerPolicies.eastmoney` 重试 | 直接抛出东方财富的错误 |
 
+A 股历史 K 线和 5/15/30/60 分钟 K 线会区分合法空数组和异常响应：`data.klines: []` 直接返回空结果；存在 `data` 却缺少 `klines`、类型错误或含非字符串行时，按 `PARSE_ERROR` 处理，启用备用源时切换数据源。
+
 两种模式都只请求 `push2his` 主域名：它的数字子域落在同一后端，逐个切换只会放大请求。
 
 东方财富软限流时一般不报错，而是返回 HTTP 200 + `data:null`。这种响应不会触发 `retry`，会以 `UPSTREAM_EMPTY` 抛出；东财对不存在的代码同样返回 `data:null`，SDK 无法区分两者。
@@ -172,7 +174,7 @@ const sdk = new StockSDK({
 
 ## v2 新增：signal（外部取消）
 
-`signal` 接收一个外部 `AbortSignal`，触发后请求被主动取消。它与内部 timeout 信号**合并**：任一触发即中止。由外部 signal 触发的取消归类为错误码 `ABORTED`（与超时 `TIMEOUT` 区分）。
+`signal` 接收一个外部 `AbortSignal`，触发后请求被主动取消。它与内部 timeout 信号**合并**：任一触发即中止。由外部 signal 触发的取消归类为 `ABORTED`，可中止限流排队、重试退避或读取响应体，不会再发出下一次请求。若自定义 `fetchImpl` 忽略信号，SDK 仍会结束等待，但底层 I/O 能否停止由该实现决定。
 
 ```ts
 const controller = new AbortController()
