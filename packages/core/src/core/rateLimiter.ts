@@ -1,3 +1,5 @@
+import { raceWithAbort, sleepWithAbort } from './abort';
+
 /**
  * 请求速率限制器 - 基于令牌桶算法
  * 支持浏览器和 Node.js 环境
@@ -81,36 +83,34 @@ export class RateLimiter {
    * 等待并获取令牌（阻塞）
    * 这是主要的调用入口
    */
-  async acquire(): Promise<void> {
+  async acquire(signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
     // 串行化并发 acquire：每个调用方排在前一个真正扣减令牌之后，再计算自己的等待时间。
     // 原实现里多个并发调用会读到同一个 getWaitTime、同时唤醒、一起扣减，
     // 造成"突发"放行且令牌被扣成负数（限流被瞬时击穿）。
     // 顺序（无并发）调用时 prev 已 resolve，时序与原实现一致。
     const prev = this.acquireChain;
     let release!: () => void;
-    this.acquireChain = new Promise<void>((resolve) => {
+    const turn = new Promise<void>((resolve) => {
       release = resolve;
     });
+    // 被取消的排队项可立刻拒绝，但不能让后一项提前越过仍在等待的前一项。
+    this.acquireChain = prev.then(() => turn);
 
     try {
-      await prev;
+      await raceWithAbort(signal, prev);
+      signal?.throwIfAborted();
       const waitTime = this.getWaitTime();
       if (waitTime > 0) {
-        await this.sleep(waitTime);
+        await sleepWithAbort(waitTime, signal);
       }
+      signal?.throwIfAborted();
       this.refill();
       this.tokens -= 1;
     } finally {
       // 始终释放，确保即使本次出错也不会卡住后续 acquire
       release();
     }
-  }
-
-  /**
-   * 休眠指定毫秒
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

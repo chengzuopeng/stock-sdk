@@ -7,6 +7,7 @@ import {
   addDays,
   asyncPool,
   InvalidArgumentError,
+  SdkError,
 } from '../../core';
 
 /** {@link fetchPagesInWaves} 单页取数结果。 */
@@ -327,7 +328,10 @@ export function parseEmKlineCsv(line: string): EmKlineItem {
 }
 
 /** 东财 K 线单次请求的治理覆盖（重试次数 / 是否切同源备用 host）。 */
-export type EmKlineRequestOptions = Pick<GetOptions, 'retry' | 'hostFallback'>;
+export type EmKlineRequestOptions = Pick<GetOptions, 'retry' | 'hostFallback'> & {
+  /** 有备用源的 A 股路径必须区分合法空结果与异常上游结构。 */
+  validateKlines?: boolean;
+};
 
 /**
  * 获取东方财富历史 K 线通用函数
@@ -343,6 +347,7 @@ export async function fetchEmHistoryKline(
   code?: string;
   dataPresent: boolean;
 }> {
+  const { validateKlines, ...transportOptions } = requestOptions;
   const fullUrl = `${url}?${params.toString()}`;
   const json = await client.get<{
     data?: {
@@ -350,8 +355,18 @@ export async function fetchEmHistoryKline(
       name?: unknown;
       code?: unknown;
     } | null;
-  }>(fullUrl, { responseType: 'json', ...requestOptions });
+  }>(fullUrl, { responseType: 'json', ...transportOptions });
   const data = json?.data;
+  if (validateKlines && data != null &&
+      (!Array.isArray(data.klines) ||
+        data.klines.some((line) => typeof line !== 'string'))) {
+    throw new SdkError({
+      code: 'PARSE_ERROR',
+      message: 'Invalid Eastmoney K-line payload: data.klines must be an array of strings',
+      provider: 'eastmoney',
+      url: fullUrl,
+    });
+  }
 
   return {
     klines: Array.isArray(data?.klines)

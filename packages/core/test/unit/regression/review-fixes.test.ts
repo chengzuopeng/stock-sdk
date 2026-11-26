@@ -74,17 +74,17 @@ describe('#8 client signal 与 per-call signal 并存时 client 取消仍生效'
 
 describe('补f 修正:externalAborted 不再掩盖真实业务错误', () => {
   it('client signal 已 abort 时，in-flight 请求的真实 HTTP 500 仍归 HttpError(不被掩盖成 ABORTED)', async () => {
-    // mock fetch 忽略 signal、返回 500，模拟「响应已到手后 client 才 abort」的竞态
+    // 在已收到 500 响应头后才 abort；该真实错误不应被改写。
     const f: typeof fetch = vi.fn(
       async () => new Response('server error', { status: 500 })
     ) as unknown as typeof fetch;
 
     const clientController = new AbortController();
-    clientController.abort(); // client 持久 aborted
 
     const client = new RequestClient({
       fetchImpl: f,
       signal: clientController.signal,
+      hooks: { onResponse: () => clientController.abort() },
       retry: { maxRetries: 0 },
     });
 
