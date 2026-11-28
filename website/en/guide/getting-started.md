@@ -2,6 +2,10 @@
 
 This page walks you through the v2 namespaced API with a few minimal examples. Make sure you've finished [Installation](/en/guide/installation) first.
 
+::: tip Running on a Node.js server?
+Use [`stock-node-sdk`](/en/guide/node-sdk) (`import { StockNodeSDK } from 'stock-node-sdk'`): every example below works identically, with automatic multi-source failover, proxy pooling, disk caching, plus `financial`, `news`, `corporate`, and `bond` namespaces out of the box.
+:::
+
 ## Create an instance
 
 `StockSDK` is the single entry point; every namespace hangs off the instance:
@@ -148,6 +152,7 @@ See [Errors & Retry](/en/guide/retry).
 
 ## Next steps
 
+- [Node Enhanced Guide](/en/guide/node-sdk): multi-source failover, proxy pool, disk cache, financials & news on Node.js.
 - [Symbols & Codes](/en/guide/symbols): tolerant parsing of `string` / `SymbolRef` and known ambiguities.
 - [Indicators & Signals](/en/guide/indicators): the full picture of indicator functions and the signal layer.
 - [API overview](/en/api/): the namespace map and full method tables.

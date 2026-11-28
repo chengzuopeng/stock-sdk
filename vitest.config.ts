@@ -6,9 +6,13 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 15000,
-    include: isIntegration ? ['test/**/*.int.test.ts'] : ['test/**/*.test.ts'],
-    exclude: isIntegration ? [] : ['test/**/*.int.test.ts'],
-    setupFiles: isIntegration ? [] : ['test/setup.ts'],
+    include: isIntegration
+      ? ['packages/*/test/**/*.int.test.ts', 'test/**/*.int.test.ts']
+      : ['packages/*/test/**/*.test.ts', 'test/**/*.test.ts'],
+    exclude: isIntegration
+      ? ['**/node_modules/**', '**/dist/**']
+      : ['**/*.int.test.ts', '**/node_modules/**', '**/dist/**'],
+    setupFiles: isIntegration ? [] : ['packages/core/test/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
@@ -18,8 +22,8 @@ export default defineConfig({
         functions: 85,
         branches: 75,
       },
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts'],
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['packages/*/src/**/*.test.ts'],
     },
   },
 });

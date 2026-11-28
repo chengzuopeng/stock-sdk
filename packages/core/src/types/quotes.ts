@@ -1,0 +1,275 @@
+import type { MarketTz } from '../core/time';
+import type { ProviderName } from '../core';
+
+/** 行情数据源标识（兼容双端 ProviderName，并支持 Node 增强版海外/扩展源如 cnbc / nasdaq） */
+export type QuoteSource = ProviderName | (string & {});
+
+/**
+ * A 股 / 指数 全量行情
+ */
+export interface FullQuote<Source extends QuoteSource = ProviderName> {
+  /** 市场标识 */
+  marketId: string;
+  /** 名称 */
+  name: string;
+  /** 股票代码 */
+  code: string;
+  /** 最新价 */
+  price: number;
+  /** 昨收 */
+  prevClose: number;
+  /** 今开 */
+  open: number;
+  /** 成交量(手) */
+  volume: number;
+  /** 外盘 */
+  outerVolume: number;
+  /** 内盘 */
+  innerVolume: number;
+  /** 买一~买五 { price, volume }[] */
+  bid: { price: number; volume: number }[];
+  /** 卖一~卖五 { price, volume }[] */
+  ask: { price: number; volume: number }[];
+  /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,市场时区) */
+  time: string;
+  /** 行情时间对应的 UTC unix 毫秒时间戳;无法解析时为 `null` */
+  timestamp: number | null;
+  /** 行情时间所属市场时区 (`Asia/Shanghai`) */
+  tz: MarketTz;
+  /** 涨跌额 */
+  change: number;
+  /** 涨跌幅% */
+  changePercent: number;
+  /** 最高 */
+  high: number;
+  /** 最低 */
+  low: number;
+  /** 成交量(手) (字段36) */
+  volume2: number;
+  /** 成交额(万) */
+  amount: number;
+  /** 换手率% */
+  turnoverRate: number | null;
+  /** 市盈率(TTM) */
+  pe: number | null;
+  /** 振幅% */
+  amplitude: number | null;
+  /** 流通市值(亿) */
+  circulatingMarketCap: number | null;
+  /** 总市值(亿) */
+  totalMarketCap: number | null;
+  /** 市净率 */
+  pb: number | null;
+  /** 涨停价 */
+  limitUp: number | null;
+  /** 跌停价 */
+  limitDown: number | null;
+  /** 量比 */
+  volumeRatio: number | null;
+  /** 均价 */
+  avgPrice: number | null;
+  /** 市盈率(静) */
+  peStatic: number | null;
+  /** 市盈率(动) */
+  peDynamic: number | null;
+  /** 52周最高价 */
+  high52w: number | null;
+  /** 52周最低价 */
+  low52w: number | null;
+  /** 流通股本(股) */
+  circulatingShares: number | null;
+  /** 总股本(股) */
+  totalShares: number | null;
+  /** 市场（判别字段） */
+  market: 'CN';
+  /**
+   * 资产类型（判别字段）。注:getFullQuotes 也能查指数(如 sh000001),但 parser 拿不到
+   * 交易所前缀、无法可靠判定指数,故本字段只承诺 'stock'(不在类型里承诺 index,见 TD)。
+   */
+  assetType: 'stock';
+  /** 数据源 */
+  source: Source;
+}
+
+/**
+ * 简要行情（股票；指数也走此结构，但 assetType 不区分，见 FullQuote 说明）
+ */
+export interface SimpleQuote<Source extends QuoteSource = ProviderName> {
+  marketId: string;
+  name: string;
+  code: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  amount: number;
+  /** 总市值(亿) */
+  marketCap: number | null;
+  /** 市场类型标识 如 GP-A / ZS */
+  marketType: string;
+  market: 'CN';
+  assetType: 'stock';
+  source: Source;
+}
+
+/**
+ * 资金流向
+ */
+export interface FundFlow {
+  code: string;
+  /** 主力流入 */
+  mainInflow: number;
+  /** 主力流出 */
+  mainOutflow: number;
+  /** 主力净流入 */
+  mainNet: number;
+  /** 主力净流入占比 */
+  mainNetRatio: number;
+  /** 散户流入 */
+  retailInflow: number;
+  /** 散户流出 */
+  retailOutflow: number;
+  /** 散户净流入 */
+  retailNet: number;
+  /** 散户净流入占比 */
+  retailNetRatio: number;
+  /** 总资金流 */
+  totalFlow: number;
+  name: string;
+  /** 数据日期(原始字符串,A 股时区) */
+  date: string;
+  /** 数据更新时间的 UTC 毫秒时间戳；仅有日期时为当日 00:00 (`Asia/Shanghai`)，无法解析时为 `null` */
+  timestamp: number | null;
+  /** 数据日期所属时区 (`Asia/Shanghai`) */
+  tz: MarketTz;}
+
+/**
+ * 盘口大单占比
+ */
+export interface PanelLargeOrder {
+  /** 买盘大单占比 */
+  buyLargeRatio: number;
+  /** 买盘小单占比 */
+  buySmallRatio: number;
+  /** 卖盘大单占比 */
+  sellLargeRatio: number;
+  /** 卖盘小单占比 */
+  sellSmallRatio: number;}
+
+/**
+ * 港股扩展行情
+ */
+export interface HKQuote<Source extends QuoteSource = ProviderName> {
+  marketId: string;
+  name: string;
+  code: string;
+  price: number;
+  prevClose: number;
+  open: number;
+  volume: number;
+  /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,港股时区) */
+  time: string;
+  /** UTC unix 毫秒时间戳;无法解析时为 `null` */
+  timestamp: number | null;
+  /** 行情时间所属市场时区 (`Asia/Hong_Kong`) */
+  tz: MarketTz;
+  change: number;
+  changePercent: number;
+  high: number;
+  low: number;
+  amount: number;
+  lotSize: number | null;
+  circulatingMarketCap: number | null;
+  totalMarketCap: number | null;
+  currency: string;
+  market: 'HK';
+  /** 命中特殊指数注册表(HSI/HSCEI/HSTECH)的行标 'index'(港股真码恒为数字,无碰撞面) */
+  assetType: 'stock' | 'index';
+  source: Source;
+}
+
+/**
+ * 美股行情
+ */
+export interface USQuote<Source extends QuoteSource = ProviderName> {
+  /** 市场标识 */
+  marketId: string;
+  /** 名称 */
+  name: string;
+  /** 股票代码 */
+  code: string;
+  /** 最新价 */
+  price: number;
+  /** 昨收 */
+  prevClose: number;
+  /** 今开 */
+  open: number;
+  /** 成交量 */
+  volume: number;
+  /** 行情时间(原始字符串,腾讯接口格式 `yyyyMMddHHmmss`,美东时区) */
+  time: string;
+  /** UTC unix 毫秒时间戳(自动处理美东夏令时);无法解析时为 `null` */
+  timestamp: number | null;
+  /** 行情时间所属市场时区 (`America/New_York`) */
+  tz: MarketTz;
+  /** 涨跌额 */
+  change: number;
+  /** 涨跌幅% */
+  changePercent: number;
+  /** 最高 */
+  high: number;
+  /** 最低 */
+  low: number;
+  /** 成交额 */
+  amount: number;
+  /** 换手率% */
+  turnoverRate: number | null;
+  /** 市盈率 */
+  pe: number | null;
+  /** 振幅% */
+  amplitude: number | null;
+  /** 总市值(亿) */
+  totalMarketCap: number | null;
+  /** 市净率 */
+  pb: number | null;
+  /** 52周最高价 */
+  high52w: number | null;
+  /** 52周最低价 */
+  low52w: number | null;
+  market: 'US';
+  /** 命中特殊指数注册表(DJI/INX/IXIC)的行标 'index'，code 归一为注册表规范形 */
+  assetType: 'stock' | 'index';
+  source: Source;
+}
+
+/**
+ * 公募基金行情
+ */
+export interface FundQuote {
+  code: string;
+  name: string;
+  /** 最新单位净值 */
+  nav: number;
+  /** 累计净值 */
+  accNav: number;
+  /** 当日涨跌额 */
+  change: number;
+  /** 净值日期(原始字符串,如 `'2024-05-12'`,A 股时区) */
+  navDate: string;
+  /** 净值日期对应当日 00:00 (`Asia/Shanghai`) 的 UTC 毫秒时间戳;无法解析时为 `null` */
+  timestamp: number | null;
+  /** 净值日期所属时区 (`Asia/Shanghai`) */
+  tz: MarketTz;
+  market: 'CN';
+  assetType: 'fund';
+  source: ProviderName;
+}
+
+/**
+ * 行情可辨识联合（按 `market` + `assetType` 判别）
+ */
+export type Quote<Source extends QuoteSource = ProviderName> =
+  | FullQuote<Source>
+  | HKQuote<Source>
+  | USQuote<Source>
+  | FundQuote;

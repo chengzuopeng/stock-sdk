@@ -7,14 +7,16 @@
 
 ## 项目概述
 
-这是一个面向 **浏览器** 和 **Node.js** 的 TypeScript 股票行情 SDK，核心目标是让前端和 Node.js 开发者无需额外后端服务，也能直接获取和处理财经数据。
+这是一个面向 **浏览器** 和 **Node.js** 的全栈 TypeScript 财经数据 SDK Monorepo（一仓双包），共享私有核心底座 `@stock-sdk/core`：
+- **`stock-sdk`**：零运行时依赖、浏览器 + Node.js 18+ 双端兼容的轻量股票行情 SDK；
+- **`stock-node-sdk`**：Node.js 18.17+ 服务端多源高可用增强版（`stock-sdk` 严格超集），内置能力驱动多源自动容错（`SourceRouter`）、代理池 / `CookieJar` / `SessionManager` / 本地磁盘缓存（`FileCacheStore`），覆盖大陆直连多源与可选海外源（CNBC / Nasdaq / SEC EDGAR，默认开启，支持 `overseas: false` 关闭），并扩展 A/港/美股财报、7×24 快讯、三地官方公告、股东与可转债数据。
 
 **当前主线为 v2**（命名空间 API、统一符号模型、CLI / MCP / subpath 导出）。v1 扁平 API 已在 v2 硬切移除，迁移见 [v1 → v2 迁移指南](https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2)。
 
 当前项目能力范围包括：
 
-- A 股 / 港股 / 美股 / 公募基金实时行情
-- A 股 / 港股 / 美股历史 K 线、分钟 K 线、当日分时
+- A 股 / 港股 / 美股 / 公募基金实时行情（`stock-node-sdk` 支持 A/HK/US 多源自动容错含海外 CNBC/Nasdaq 备源，以及批量双源容错）
+- A 股 / 港股 / 美股历史 K 线、分钟 K 线、当日分时（`stock-node-sdk` 扩展港美股腾讯与 CNBC/Nasdaq K 线备源并默认开启严格复权能力过滤）
 - 行业板块、概念板块数据
 - 资金流向（个股 / 大盘 / 排名 / 板块深度）、盘口大单
 - 沪深港通 / 北向资金（分时 / 汇总 / 持股排行 / 历史）
@@ -22,18 +24,20 @@
 - 龙虎榜（详情 / 个股统计 / 机构 / 营业部 / 席位明细）
 - 大宗交易、融资融券
 - 公募基金扩展（分红 / 历史净值 / 同类排名 / 档案 / 主题基金）
-- 交易日历、市场开休市状态、股票搜索、分红数据
+- 交易日历、市场开休市状态、股票搜索、分红数据（`stock-node-sdk` 支持 A 股东财/新浪 HTML 双源容错及港/美股分红明细）
 - 期货数据、期权数据
+- `[stock-node-sdk]` A/港/美股财务指标与三大表（东财直连 + 美股 Nasdaq 备源）、A 股业绩预告与快报
+- `[stock-node-sdk]` 7×24 财经快讯（东财/新浪双源）、A/港/美股官方公告（东财/巨潮 POST + 港交所披露易 HKEXnews + 美股 SEC EDGAR）、十大流通股东、股东户数、可转债
 - 技术指标计算、指标信号识别、链式选股器、本地回测
 - 筹码分布(A/HK/US,东财 CYQ 算法本地计算:获利比例/平均成本/成本区间/筹码峰)
 - 统一符号模型（多写法容错解析）
-- 内置 CLI（`stock-sdk`）与 MCP server（`stock-sdk mcp`）
-- MCP 文档与 AI 集成支持
+- 内置 CLI（`stock-sdk` 94 命令 / `stock-node-sdk` 105 命令）与 MCP server（`stock-sdk mcp` 93 工具 / `stock-node-sdk mcp` 104 工具）
+- MCP 文档与 AI 集成支持（`llms.txt` / `llms-full.txt` / `llms-node.txt`）
 
 项目坚持以下原则：
 
-- **零运行时依赖**
-- **浏览器和 Node.js 双端兼容**
+- **`stock-sdk` 零运行时依赖、浏览器和 Node.js 双端兼容**
+- **`stock-node-sdk` 极简依赖（仅 `undici`）、统一输入输出 Schema、能力驱动多源自动容错，与 `stock-sdk` 保持严格超集对齐**
 - **完整 TypeScript 类型**
 - **公共 API 尽量稳定，兼顾向后兼容**（v2 相对 v1 为破坏性升级，见迁移指南）
 
@@ -59,96 +63,44 @@
 | 文档工具 | VitePress |
 | 包管理器 | pnpm 10.x |
 
-## 当前项目结构
+## 当前项目结构（pnpm Monorepo）
 
 ```text
-src/
-├── core/                    # 核心基础设施（请求 / 缓存 / 错误 / 解析 / 时间等）
-│   ├── constants.ts         # 常量定义
-│   ├── parser.ts            # 响应解析
-│   ├── request.ts           # 请求客户端 RequestClient
-│   ├── providerPolicy.ts    # provider 级请求策略(超时/重试/限流/熔断/headers)
-│   ├── cache.ts             # 内部请求缓存
-│   ├── rateLimiter.ts       # 限流
-│   ├── circuitBreaker.ts    # 熔断
-│   ├── fallback.ts          # 多源 / 降级回退
-│   ├── errors.ts            # 统一错误类型（SdkError 等）
-│   ├── jsonp.ts             # JSONP 请求(动态 callback)
-│   ├── jsVars.ts            # 浏览器 <script> 注入 + Node 抓取 JS 变量(双端)
-│   ├── scriptMutex.ts       # <script> 注入并发互斥
-│   ├── time.ts              # 市场时区时间解析 / 格式化
-│   ├── userAgentPool.ts     # UA 池
-│   └── utils.ts             # decodeGBK、chunkArray、asyncPool 等
-├── indicators/              # 技术指标(独立计算函数，零网络)
-│   ├── ma/macd/boll/kdj/rsi/wr/bias/cci/atr/obv/roc/dmi/sar/kc.ts
-│   ├── chip.ts              # 筹码分布(CYQ,东财算法移植;不进 registry)
-│   ├── addIndicators.ts     # 批量聚合
-│   ├── registry.ts          # 指标注册表 / lookback 估算
-│   ├── types.ts
-│   └── index.ts
-├── signals/                 # 指标信号层（金叉死叉 / 超买超卖等，纯计算）
-├── screener/                # 选股器 + 本地回测
-├── symbols/                 # 统一符号模型（normalize / 适配器）
-├── cache/                   # 对外缓存 subpath（MemoryCache / cacheThrough）
-├── errors/                  # 对外错误 subpath（re-export core/errors）
-├── spec/                    # CLI / MCP / Playground 的 SSOT
-│   ├── methods.ts           # MethodSpec 单一事实来源（工具）
-│   ├── prompts.ts           # PromptSpec 单一事实来源（MCP Skills / 7 技能）
-│   ├── derive-cli.ts        # 派生 CLI manifest
-│   ├── derive-mcp.ts        # 派生 MCP 工具清单
-│   ├── derive-prompt.ts     # 派生 MCP 技能清单（PromptDef + render）
-│   └── resolve.ts           # 路径 / 参数解析
-├── cli/                     # stock-sdk 命令行
-├── mcp/                     # 内置 MCP server（零依赖手写协议）
-│   ├── tools/               # 工具注册表（自 methods.ts 派生）
-│   └── prompts/             # 技能注册表（自 prompts.ts 派生）
-├── providers/               # 数据源适配层(只负责"取数 + 解析")
-│   ├── index.ts             # 聚合导出 tencent / eastmoney / sina
-│   ├── tencent/             # 行情、批量、搜索、交易日历、资金流
-│   ├── eastmoney/           # K线、板块、分红、期货/期权、基金扩展、龙虎榜、大宗、融资、北向、涨停异动
-│   └── sina/                # ETF / 股指 / 商品期权
-├── sdk/                     # 服务层:按领域拆分的 Service 类(构造注入 RequestClient)
-│   ├── baseService.ts       # service 基类
-│   ├── quoteService.ts      # 实时行情
-│   ├── klineService.ts      # K 线 / 分时(A / HK / US)
-│   ├── boardService.ts      # 行业 / 概念板块
-│   ├── indicatorService.ts  # 带指标 K 线 + 指标信号识别(组合 kline + quote + calcSignals)
-│   ├── chipService.ts       # 筹码分布(组合 kline + 本地 CYQ 计算)
-│   ├── futuresService.ts    # 期货
-│   ├── optionsService.ts    # 期权
-│   ├── fundFlowService.ts   # 资金流向(深度)
-│   ├── northboundService.ts # 沪深港通 / 北向
-│   ├── marketEventService.ts# 涨停 / 盘口异动
-│   ├── dragonTigerService.ts# 龙虎榜
-│   ├── fundService.ts       # 公募基金扩展(分红/净值/排名/档案)
-│   ├── tradingCalendarService.ts # 交易日历 / 市场状态
-│   ├── dataService.ts       # 代码列表/批量/搜索/分红/大宗/融资融券
-│   └── index.ts             # 导出全部 service
-├── types/                   # 公共类型(按领域模块化)
-│   ├── quotes.ts / kline.ts / board.ts / fund.ts / fundFlow.ts
-│   ├── northbound.ts / dragonTiger.ts / marketEvent.ts / blockTrade.ts
-│   ├── margin.ts / futures.ts / options.ts / common.ts
-│   └── index.ts
-├── sdk.ts                   # StockSDK 门面类:v2 命名空间 getter + 顶层 search
-├── externalLinks.ts         # 外部财经链接工具
-└── index.ts                 # 主入口(StockSDK、subpath 再导出、类型、工具)
+packages/
+├── core/                    # @stock-sdk/core（私有共享底座，tsup 构建期静态内联进两个发布包）
+│   └── src/
+│       ├── core/            # 请求治理 / 缓存 / 错误 / 解析 / 时间 / JSONP / jsVars
+│       ├── router/          # 能力驱动多源路由引擎（SourceRouter / SourceHealthTracker）
+│       ├── indicators/      # 技术指标 + 筹码分布（纯计算，零网络）
+│       ├── signals/         # 指标信号层（纯计算）
+│       ├── screener/        # 选股器 + 本地回测
+│       ├── symbols/         # 统一符号模型（normalize / 适配器）
+│       ├── cache/           # 对外缓存 subpath（MemoryCache / cacheThrough / CacheStore）
+│       ├── errors/          # 对外错误 subpath
+│       ├── spec/            # methods.ts（双端 SSOT）+ nodeMethods.ts（Node 专属 SSOT）+ prompts.ts
+│       ├── cli/             # 可扩展 CLI 运行器
+│       ├── mcp/             # 可扩展零依赖 MCP server
+│       ├── providers/       # 双端通用源（tencent / eastmoney / sina）
+│       ├── sdk/             # 领域 Service 类
+│       ├── types/           # 公共类型（含 financial / news / corporate）
+│       ├── sdk.ts           # StockSDK 门面类
+│       └── index.ts
+├── stock-sdk/               # npm: stock-sdk（零运行时依赖 · Browser + Node.js 双端）
+│   ├── src/                 # 薄入口（由 tsup noExternal 内联 @stock-sdk/core）
+│   └── test/dist-smoke.test.ts
+└── stock-node-sdk/          # npm: stock-node-sdk（Node.js 18.17+ 多源高可用增强版）
+    ├── src/
+    │   ├── transport/       # NodeHttpClient（POST/Referer/GBK）/ CookieJar / SessionManager / ProxyPool
+    │   ├── storage/         # FileCacheStore（本地磁盘持久化缓存）
+    │   ├── adapters/        # 多源适配器（A/HK/US 行情/K 线/分红多源、海外 CNBC/Nasdaq/SEC、7×24 快讯、三地公告、财报、股东、转债）
+    │   ├── services/        # FinancialService / NewsService / CorporateService / BondService
+    │   ├── sdk.ts           # StockNodeSDK 门面（StockSDK 严格超集 + withMeta 溯源 + registerAdapter）
+    │   ├── cli.ts / mcp.ts  # 105 命令 CLI 与 104 工具 MCP server
+    │   └── index.ts
+    └── test/                # 单元测试 + dist-smoke + RUN_INTEGRATION 真实上游实测
 
-scripts/                     # 文档元数据、llms.txt 生成、git hooks
-test/
-├── unit/                    # 单元测试（含 cli/、mcp/、spec/、signals/、screener/ 等）
-├── integration/             # 集成测试（真实网络请求）
-├── mocks/                   # MSW Mock 配置
-└── setup.ts                 # Vitest 测试初始化
-
-website/                     # VitePress 文档
-├── api/                     # 中文 API 文档
-├── guide/                   # 中文指南（含 migration-v1-to-v2、symbols 等）
-├── cli/                     # CLI 文档
-├── mcp/                     # MCP 文档（含 skills）
-├── playground/              # 在线示例（组件化，从 spec 派生）
-├── en/                      # 英文文档（api / guide / cli / mcp / playground）
-├── public/                  # 静态资源（含 llms.txt / llms-full.txt）
-└── .vitepress/              # VitePress 配置与主题
+scripts/                     # 文档元数据、llms.txt / llms-node.txt 生成、git hooks
+website/                     # 统一 VitePress 文档站（双端 + Node 增强版单站整合）
 ```
 
 ### Subpath 导出
@@ -592,6 +544,23 @@ stock-sdk mcp
 | `fund.theme.getThemeList(options?)` | 主题基金列表（行业 / 概念，各阶段收益率，排序分页） |
 | `fund.theme.getThemeFunds(themeCode, options?)` | 指定主题下基金排行（`getHotThemes` 因上游封锁暂下线） |
 
+### Node 增强版专属扩展（`stock-node-sdk`）
+
+| 方法 | 说明 |
+|------|------|
+| `financial.indicators(symbol, options?)` | A/港/美股核心财务指标（EPS / BPS / ROE / 营收与净利同比 / 毛利率，自动识别市场） |
+| `financial.income(symbol, options?)` | A/港/美股利润表（多报告期，美股支持 Nasdaq 备源） |
+| `financial.balance(symbol, options?)` | A/港/美股资产负债表（多报告期，美股支持 Nasdaq 备源） |
+| `financial.cashflow(symbol, options?)` | A/港/美股现金流量表（多报告期，美股支持 Nasdaq 备源） |
+| `financial.forecast(options?)` | 业绩预告列表（可按代码或报告期筛选） |
+| `financial.express(options?)` | 业绩快报列表（可按代码或报告期筛选） |
+| `news.flash(options?)` | 7×24 实时财经快讯（东财 / 新浪双源容错，`page > 1` 自动切新浪） |
+| `news.announcements(options?)` | A/港/美股官方公告与 PDF 原文链接（A 股东财/巨潮、港股披露易 HKEXnews、美股 SEC EDGAR） |
+| `corporate.topHolders(symbol, options?)` | 个股十大流通股东 |
+| `corporate.holderCount(symbol, options?)` | 个股股东户数与筹码集中度变化 |
+| `bond.convertibleList(options?)` | 可转债发行与条款列表 |
+| `withMeta(fn)` / `registerAdapter(adapter)` / `getSourceHealth()` / `close()` | 并发安全路由溯源、热插拔自定义源、源级健康统计与释放代理连接池 |
+
 ### 符号 / 工具（subpath 或主入口）
 
 | 方法 | 说明 |
@@ -644,8 +613,22 @@ stock-sdk mcp
 
 3. **先合入 master 且 CI 绿**，再发 release。
 4. **GitHub Release**：tag `vX.Y.Z`（target master），标题 `vX.Y.Z 英文短名`（如 `v2.2.0 Theme Funds`），正文 = 简介段（注明是否有破坏性变更）+ `### 新增 / 修复` + `### 升级` + 自动生成的 `## What's Changed` + Full Changelog 链接，标记 latest。
-5. **npm 自动发布**：推 `v*` tag 触发 `.github/workflows/release.yml` 执行 `npm publish`（Trusted Publishing + provenance）；prerelease（`-beta` / `-rc` / `-alpha`）自动发对应 dist-tag，不会顶掉 `latest`。
-6. **⚠️ 发布顺序硬约束**：生产文档站的 Playground 按 `package.json` 版本从 `unpkg.com/stock-sdk@<version>` 锁版加载 SDK——**npm 上必须先存在该版本，带新版本号的文档站才能部署**，否则线上 Playground 加载不存在的包直接不可用。
+5. **npm 自动发布**。`vX.Y.Z` 和 `stock-sdk@X.Y.Z` 发布基础包，`stock-node-sdk@X.Y.Z` 发布 Node 增强版。Publish 工作流打包后通过 npm Trusted Publishing 发布，并按版本选择 `beta`、`rc`、`alpha`、`next` 或 `latest`。
+6. **文档部署顺序**。Deploy Docs 核对两个包的精确版本和 unpkg 上的浏览器入口。合入后如有版本待发布，继续提供上一版文档。Publish 成功后会重试部署。手动发布后也可手动运行 Deploy Docs。
+
+### Node 包首次公开 Beta
+
+1. 从通过 CI 的待发布提交构建并打包。用 npm 维护者的已认证会话提交 tarball，保留命令返回的暂存 ID。
+
+   ```bash
+   pnpm build
+   mkdir -p /tmp/stock-sdk-release
+   pnpm --filter stock-node-sdk pack --pack-destination /tmp/stock-sdk-release
+   npm stage publish /tmp/stock-sdk-release/stock-node-sdk-0.1.0-beta.1.tgz --tag beta --access public --provenance=false
+   ```
+
+2. 核对暂存的版本和包内容后，由维护者使用 `npm stage approve <stage-id>` 完成 2FA 审批。通过 `npm view stock-node-sdk dist-tags` 核对 Beta，再从公开 registry 安装验证。 [npm 暂存发布](https://docs.npmjs.com/staged-publishing/)
+3. 为已建立的包配置 GitHub Trusted Publisher，仓库为 `chengzuopeng/stock-sdk`，工作流为 `release.yml`。用下一个未发布版本验证 OIDC 发布，再核对 npm 和文档部署结果。 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/)
 
 ## 方法下线与恢复
 

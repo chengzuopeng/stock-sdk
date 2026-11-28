@@ -1,0 +1,121 @@
+{
+  "name": "@stock-sdk/core",
+  "version": "2.5.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist-types/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./sdk": {
+      "types": "./dist-types/sdk.d.ts",
+      "default": "./src/sdk.ts"
+    },
+    "./sdk/*": {
+      "types": "./dist-types/sdk/*.d.ts",
+      "default": "./src/sdk/*.ts"
+    },
+    "./core": {
+      "types": "./dist-types/core/index.d.ts",
+      "default": "./src/core/index.ts"
+    },
+    "./core/*": {
+      "types": "./dist-types/core/*.d.ts",
+      "default": "./src/core/*.ts"
+    },
+    "./router": {
+      "types": "./dist-types/router/index.d.ts",
+      "default": "./src/router/index.ts"
+    },
+    "./router/*": {
+      "types": "./dist-types/router/*.d.ts",
+      "default": "./src/router/*.ts"
+    },
+    "./indicators": {
+      "types": "./dist-types/indicators/index.d.ts",
+      "default": "./src/indicators/index.ts"
+    },
+    "./indicators/*": {
+      "types": "./dist-types/indicators/*.d.ts",
+      "default": "./src/indicators/*.ts"
+    },
+    "./symbols": {
+      "types": "./dist-types/symbols/index.d.ts",
+      "default": "./src/symbols/index.ts"
+    },
+    "./symbols/*": {
+      "types": "./dist-types/symbols/*.d.ts",
+      "default": "./src/symbols/*.ts"
+    },
+    "./signals": {
+      "types": "./dist-types/signals/index.d.ts",
+      "default": "./src/signals/index.ts"
+    },
+    "./signals/*": {
+      "types": "./dist-types/signals/*.d.ts",
+      "default": "./src/signals/*.ts"
+    },
+    "./screener": {
+      "types": "./dist-types/screener/index.d.ts",
+      "default": "./src/screener/index.ts"
+    },
+    "./screener/*": {
+      "types": "./dist-types/screener/*.d.ts",
+      "default": "./src/screener/*.ts"
+    },
+    "./cache": {
+      "types": "./dist-types/cache/index.d.ts",
+      "default": "./src/cache/index.ts"
+    },
+    "./errors": {
+      "types": "./dist-types/errors/index.d.ts",
+      "default": "./src/errors/index.ts"
+    },
+    "./types": {
+      "types": "./dist-types/types/index.d.ts",
+      "default": "./src/types/index.ts"
+    },
+    "./types/*": {
+      "types": "./dist-types/types/*.d.ts",
+      "default": "./src/types/*.ts"
+    },
+    "./providers": {
+      "types": "./dist-types/providers/index.d.ts",
+      "default": "./src/providers/index.ts"
+    },
+    "./providers/*": {
+      "types": "./dist-types/providers/*.d.ts",
+      "default": "./src/providers/*.ts"
+    },
+    "./spec/*": {
+      "types": "./dist-types/spec/*.d.ts",
+      "default": "./src/spec/*.ts"
+    },
+    "./cli": {
+      "types": "./dist-types/cli/index.d.ts",
+      "default": "./src/cli/index.ts"
+    },
+    "./cli/*": {
+      "types": "./dist-types/cli/*.d.ts",
+      "default": "./src/cli/*.ts"
+    },
+    "./mcp": {
+      "types": "./dist-types/mcp/server.d.ts",
+      "default": "./src/mcp/server.ts"
+    },
+    "./mcp/*": {
+      "types": "./dist-types/mcp/*.d.ts",
+      "default": "./src/mcp/*.ts"
+    },
+    "./externalLinks": {
+      "types": "./dist-types/externalLinks.d.ts",
+      "default": "./src/externalLinks.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --emitDeclarationOnly --outDir dist-types",
+    "typecheck": "tsc --noEmit"
+  }
+}

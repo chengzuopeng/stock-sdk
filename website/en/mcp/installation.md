@@ -1,27 +1,27 @@
 # MCP Installation
 
-`stock-sdk`'s MCP server talks to clients over **stdio**, and the launch command is always `stock-sdk mcp`. In each AI client you simply register it as a stdio-type MCP server.
+Both `stock-sdk` (93 tools, zero-dep) and `stock-node-sdk` (104 tools, multi-source failover + financials/news/announcements) run over **stdio** via `stock-sdk mcp` or `stock-node-sdk mcp`.
 
-The examples below launch via `npx` (no pre-install needed; `-y` skips the interactive prompt):
+The examples below launch via `npx` (`stock-node-sdk` is recommended for AI clients; swap to `stock-sdk` if you want the zero-dependency edition):
 
 ```jsonc
 {
   "command": "npx",
-  "args": ["-y", "stock-sdk", "mcp"]
+  "args": ["-y", "stock-node-sdk@beta", "mcp"]
 }
 ```
 
-The default starts 26 high-frequency tools. To expose all 92 MCP tools, add the environment variable:
+By default, the high-frequency `core` tool tier is enabled. To expose all tools (93 in `stock-sdk` / 104 in `stock-node-sdk`), set `STOCK_SDK_MCP_TOOLS=full`. `stock-node-sdk mcp` also accepts `--cache-dir`, `--proxy`, `--source`, and `--overseas=false`:
 
 ```jsonc
 {
   "command": "npx",
-  "args": ["-y", "stock-sdk", "mcp"],
+  "args": ["-y", "stock-node-sdk@beta", "mcp", "--cache-dir", "./.stock-cache"],
   "env": { "STOCK_SDK_MCP_TOOLS": "full" }
 }
 ```
 
-> You can also `npm install -g stock-sdk` first, then set `command` to `"stock-sdk"` and `args` to `["mcp"]`, saving the `npx` resolution cost on each start.
+> You can also install globally (`npm install -g stock-node-sdk@beta` or `stock-sdk`), then set `command` to `"stock-node-sdk"` and `args` to `["mcp"]` to skip `npx` startup overhead.
 
 ## Cursor
 

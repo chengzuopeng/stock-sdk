@@ -1,6 +1,6 @@
 # Stock SDK
 
-[![npm version](https://img.shields.io/npm/v/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
+[![npm version](https://img.shields.io/npm/v/stock-sdk.svg?label=stock-sdk)](https://www.npmjs.com/package/stock-sdk)
 [![npm downloads](https://img.shields.io/npm/dm/stock-sdk.svg)](https://www.npmjs.com/package/stock-sdk)
 [![license](https://img.shields.io/npm/l/stock-sdk)](https://github.com/chengzuopeng/stock-sdk/blob/master/LICENSE)
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk.linkdiary.cn/mcp/)
@@ -8,82 +8,92 @@
 
 **[English](./README_EN.md)** | 中文
 
-为 **前端和 Node.js 设计的股票行情 JavaScript SDK**。
+面向 **浏览器与 Node.js 的全栈股票 / 财经数据 TypeScript SDK 家族**（Monorepo 一仓双包）。
 
-无需 Python、无需后端服务，直接在 **浏览器或 Node.js** 中获取 **A 股 / 港股 / 美股 / 公募基金** 的实时行情与 K 线数据。还自带 **命令行工具** 与 **MCP server**，一条命令取行情或接入 AI。
+无需 Python，在 **浏览器或 Node.js** 中以统一的 TypeScript Schema 获取 **A 股 / 港股 / 美股 / 公募基金 / 期货 / 期权 / 财报 / 7×24 快讯 / 上市公司公告**。自带 **命令行工具（CLI）** 与 **MCP server**，一条命令取数或接入 AI。
 
-**✨ 零依赖、轻量发布包 | 🌐 Browser + Node.js | 📦 ESM + CJS + subpath | 🧠 完整 TypeScript 类型 | 🖥️ CLI | 🤖 MCP**
+**✨ 一仓双包：`stock-sdk`（零依赖双端）& `stock-node-sdk`（Node 多源容错增强）| 📦 ESM + CJS + subpath | 🧠 完整 TypeScript 类型 | 🖥️ CLI | 🤖 MCP**
 
-> ✨ **v2.0.0**：v2 是一次架构跃迁（命名空间 API、统一符号模型、`Quote` 可辨识联合、统一错误体系、CLI / MCP / subpath 导出）。
-> 安装：`npm i stock-sdk`。从 v1 升级请先读 [v1 → v2 迁移指南](https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2)（**破坏性变更，无兼容别名**）。
+> ✨ **v2 架构**：命名空间 API、统一符号模型、`Quote` 可辨识联合、统一错误体系、CLI / MCP / subpath 导出。从 v1 升级请先读 [v1 → v2 迁移指南](https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2)（**破坏性变更，无兼容别名**）。
+
+## 📦 一仓双包：怎么选？
+
+本仓库通过 pnpm Monorepo 共享统一核心层（`@stock-sdk/core`），对外发布两个 API 严格对齐的包：
+
+| 包名 | 运行环境 | 依赖 | 核心定位与能力 | 文档 |
+|---|---|---|---|---|
+| **[`stock-sdk`](./packages/stock-sdk)** | 浏览器 + Node.js 18+ | **0 依赖** | 轻量双端通用版：94 个命名空间方法（行情/K 线/板块/资金流/期货/期权/基金/筹码）、14 项技术指标/信号/选股回测、94 命令 CLI & 93 工具 MCP | [快速开始](https://stock-sdk.linkdiary.cn/guide/getting-started) |
+| **[`stock-node-sdk`](./packages/stock-node-sdk)** | Node.js 18.17+ 服务端 | 仅 `undici` | **Node 多源高可用增强版（`stock-sdk` 严格超集）**：能力驱动 `SourceRouter` 多源自动容错（A/HK/US 行情 3 源、K 线/批量/分红/快讯/公告双源）、`ProxyPool` 代理池 / `CookieJar` / `FileCacheStore` 磁盘缓存；新增 **`financial`（财报/业绩）**、**`news`（7×24 快讯/巨潮公告）**、**`corporate`（股东）**、**`bond`（可转债）**；105 命令 CLI（`--source`/`--proxy`/`--cache-dir`）& 104 工具 MCP | [Node 增强版指南](https://stock-sdk.linkdiary.cn/guide/node-sdk) |
 
 ## 📖 官网文档
 
 > ## 👉 https://stock-sdk.linkdiary.cn
 >
-> 完整 API、命名空间总览、CLI / MCP 指南、在线 Playground、v1 → v2 迁移文档全部在这里。先看官网再上手最快。
+> 双包指南、完整 API、Node 多源增强与扩展文档、CLI / MCP 指南、在线 Playground、v1 → v2 迁移文档全部在这里。先看官网再上手最快。
 >
 > （[v1 稳定版文档](https://v1.stock-sdk.linkdiary.cn) 已归档）
 
-📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线 Playground](https://stock-sdk.linkdiary.cn/playground/)
+📦 [NPM (`stock-sdk`)](https://www.npmjs.com/package/stock-sdk) | 📦 [NPM (`stock-node-sdk`)](https://www.npmjs.com/package/stock-node-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线 Playground](https://stock-sdk.linkdiary.cn/playground/)
 
 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/)：基于 stock-sdk 搭建的股票数据大盘演示站点，欢迎体验。
 
-## Why stock-sdk？
+## Why Stock SDK？
 
-如果你是前端工程师，可能遇到过这些问题：
+无论你在做**前端可视化**，还是搭建 **Node.js 数据服务 / 量化脚本 / AI Agent**，往往会遇到这些问题：
 
-* 股票行情工具大多是 **Python 生态**，前端难以直接使用
-* 想做行情看板 / Demo，不想额外维护后端服务
-* 财经接口返回格式混乱、编码复杂（GBK / 并发 / 批量）
+* 股票数据工具大多集中在 **Python 生态**，JS / TS 工程难以直接复用
+* 做 Web 看板 / Demo 时不想额外维护后端；而跑在 Node 服务端时又受限于浏览器安全模型（缺 `Referer` / `POST` / Cookie / 代理 / 本地缓存）
+* 财经公开接口字段与单位各不相同（股/手、元/万/亿、GBK 编码、HTML 表格），单个源还容易偶发限流或断连
 
-**stock-sdk 的目标很简单：**
+**Stock SDK 的目标很简单：**
 
-> 让前端工程师，用最熟悉的 JavaScript / TypeScript，优雅地获取股票行情数据。
+> 用一套统一的 TypeScript 契约同时覆盖两类场景——前端直接用零依赖的 `stock-sdk`，服务端直接切到多源自动容错、覆盖财报快讯公告的 `stock-node-sdk`。
 
 ---
 
 ## 使用场景
 
-* 📊 股票行情看板（Web / Admin）
-* 📈 数据可视化（ECharts / TradingView）
-* 🎓 股票 / 金融课程 Demo
-* 🧪 量化策略原型验证（JS / Node）
-* 🕒 Node.js 定时抓取行情数据
-* 🖥️ 命令行临时查行情 / 🤖 给 AI 工具接数据源
+* 📊 Web 股票行情看板与数据可视化（ECharts / TradingView —— 推荐 `stock-sdk`）
+* 🚀 Node.js 服务端高可用行情采集、多源容错、定时任务与磁盘缓存（推荐 `stock-node-sdk`）
+* 📑 基本面研究：财报三大表、财务指标、业绩预告/快报、7×24 快讯与巨潮公告（`stock-node-sdk`）
+* 🧪 量化策略原型验证、指标信号识别、选股与本地回测（双包通用）
+* 🖥️ 终端 CLI 速查行情 / 🤖 为 Cursor / Claude / Codex / Gemini 等 AI 工具接入 MCP 数据源
 
 ---
 
 ## 特性
 
-- ✅ **零依赖**，浏览器 + Node.js 18+ 双端运行；同时提供 **ESM** 和 **CommonJS**
-- ✅ **命名空间 API**：`sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.options.etf.dailyKline()`，按领域分组、IDE 自动补全友好
+- ✅ **一仓双包，API 严格超集对齐**：`stock-sdk`（零依赖、浏览器 + Node.js 双端）与 `stock-node-sdk`（Node.js 18.17+ 多源高可用增强版），迁移只需替换 import
+- ✅ **能力驱动多源自动容错（`stock-node-sdk`）**。SDK 根据能力和健康度选源，逐条校验 `requiredFields` 并在缺字段时尝试备源。支持单次调用取消、`withMeta()` 并发溯源和 `registerAdapter()` 自定义数据源。
+- ✅ **Node 专属数据与传输层（`stock-node-sdk`）**：新增 `financial`（财务指标/三大表/预告/快报）、`news`（7×24 快讯/东财+巨潮双源公告）、`corporate`（十大股东/股东户数）、`bond`（可转债）；内置 `ProxyPool`、`CookieJar`、`SessionManager` 与 `FileCacheStore` 本地磁盘缓存
+- ✅ **命名空间 API**：`sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.financial.indicators()` / `sdk.options.etf.dailyKline()`，按领域分组、IDE 自动补全友好
 - ✅ **统一符号模型**：`string` 一等公民，`sh600519` / `600519` / `600519.SH` / `00700` / `hk00700` / `AAPL` / `105.AAPL` 等写法容错解析；支持中证等特殊指数（`930955` / `H30533` / `HSHCI` / `GDAXI`，[详见符号指南](https://stock-sdk.linkdiary.cn/guide/symbols.html)）
 - ✅ **A 股 / 港股 / 美股 / 公募基金**实时行情、历史 K 线（日/周/月）、分钟 K 线（1/5/15/30/60）、当日分时
-- ✅ **技术指标**：MA / MACD / BOLL / KDJ / RSI / WR / BIAS / CCI / ATR / OBV / ROC / DMI / SAR / KC
-- ✅ **筹码分布（CYQ）**：`sdk.chips.cn/hk/us` 获利比例 / 平均成本 / 90-70 成本区间与集中度 / 筹码峰直方图（东财算法本地计算，零新增数据源）
+- ✅ **技术指标与筹码分布（CYQ）**：14 项内置技术指标（MA/MACD/BOLL/KDJ/RSI/WR/BIAS/CCI/ATR/OBV/ROC/DMI/SAR/KC）+ `sdk.chips.cn/hk/us` 筹码分布（东财算法本地计算）
 - ✅ **信号 / 选股 / 回测**：`calcSignals`（金叉死叉/超买超卖等事件识别）、链式选股器、本地回测
-- ✅ **期货 / 期权 / 资金流 / 龙虎榜 / 北向 / 大宗交易 / 融资融券 / 涨停板** 等全套扩展数据
-- ✅ **基金深度数据**：历史净值、同类排名走势、深度资料（重仓股 / 基金经理 / 规模等）、基金/ETF 分红送配、**主题基金**
-- ✅ **subpath 导出**：`stock-sdk/{indicators,signals,symbols,screener,cache,errors}`，纯计算不拖入网络层，tree-shake 友好
-- ✅ **统一错误体系**：对外只抛 `SdkError`，带标准 `code`，可从 `stock-sdk/errors` 导入
-- ✅ **请求治理**：provider 级重试 / 限流 / 熔断 + 可注入 `fetchImpl` / `signal` / 生命周期 `hooks`
-- ✅ **CLI**：`stock-sdk quote 600519` 终端直接取行情
-- ✅ **内置 MCP server**：`stock-sdk mcp` 一行接入 Cursor / Claude / Codex 等 AI 工具（零依赖手写，无 `@modelcontextprotocol/sdk`）
+- ✅ **期货 / 期权 / 资金流 / 龙虎榜 / 北向 / 大宗交易 / 融资融券 / 涨停板 / 基金深度数据** 全套覆盖
+- ✅ **subpath 按需导出**：`{indicators,signals,symbols,screener,cache,errors}`（及 `stock-node-sdk/router`），纯计算不拖入网络层
+- ✅ **统一错误与请求治理**：对外只抛带标准 `code` 的 `SdkError`；provider 级重试 / 限流 / 熔断 + 可注入 `fetchImpl` / `signal` / `hooks`
+- ✅ **内置 CLI 与零依赖 MCP server**：`stock-sdk`（94 命令 / 93 工具）与 `stock-node-sdk`（105 命令 / 104 工具，支持 `--source` / `--proxy` / `--cache-dir`）
 
 ---
 
 ## 安装
 
 ```bash
-# 最新版（v2：命名空间 API / CLI / MCP）
+# 浏览器 + Node.js 双端零依赖版
 npm install stock-sdk
+
+# Node.js 18.17+ 多源高可用增强版（Beta 公测中，推荐用于服务端 / 量化脚本 / AI Agent）
+npm install stock-node-sdk@beta
 
 # v1 旧版（已封存，仅维护 critical 修复）
 npm install stock-sdk@legacy
 ```
 
 ## 快速开始
+
+### 1. 浏览器 / Node.js 双端零依赖（`stock-sdk`）
 
 ```ts
 import { StockSDK } from 'stock-sdk';
@@ -107,37 +117,64 @@ const all = await sdk.batch.cn({ concurrency: 5 });
 console.log(`共 ${all.length} 只`);
 ```
 
+### 2. Node.js 多源高可用增强版（`stock-node-sdk`）
+
+```ts
+import { StockNodeSDK, FileCacheStore } from 'stock-node-sdk';
+
+const sdk = new StockNodeSDK({
+  timeout: 15_000,
+  // 财务/股东/可转债自动落盘缓存
+  cache: { store: new FileCacheStore({ dir: './.stock-cache' }) },
+});
+
+// 默认无需指定源，腾讯 → 新浪 → 东财自动容错，withMeta 并发安全溯源
+const { data: quotes, trace } = await sdk.withMeta(() =>
+  sdk.quotes.cn(['600519', '000001'])
+);
+console.log(quotes[0].price, '命中源:', trace?.selectedProvider);
+
+// Node 专属数据域：财报指标、7×24 快讯、巨潮/东财双源公告
+const indicators = await sdk.financial.indicators('600519', { pageSize: 4 });
+const flashes = await sdk.news.flash({ pageSize: 10 });
+const notices = await sdk.news.announcements({ symbol: '600519', keyword: '分红' });
+
+await sdk.close();
+```
+
 > 港股 `'00700'` / `'hk00700'`，美股 `'AAPL'` / `'105.AAPL'`，由 `normalizeSymbol` 统一容错解析。
 
 ---
 
 ## 命令行（CLI）
 
-安装后即得 `stock-sdk` 命令（或用 `npx`）：
+两个包均自带命令行工具（`stock-sdk` 94 条命令；`stock-node-sdk` 105 条命令，额外支持 `--source` / `--proxy` / `--cache-dir`）：
 
 ```bash
-# 行情（按代码自动识别市场）
+# 基础版 CLI（零依赖）
 npx stock-sdk quote 600519 00700 AAPL
-# K 线 + 输出截断
 npx stock-sdk kline 600519 --period weekly --limit 30
-# 带技术指标
 npx stock-sdk indicators 600519 --ma 5,10,20 --macd
-# 搜索
 npx stock-sdk search 茅台
-# 任意命名空间方法直达
-npx stock-sdk quotes cn sh600519 sz000001
+
+# Node 增强版 CLI（Beta，支持指定数据源 / 代理 / 本地缓存 + 财报快讯公告）
+npx stock-node-sdk@beta quotes cn 600519 --source sina --pretty
+npx stock-node-sdk@beta financial indicators 600519 --pageSize 4 --cache-dir ./.stock-cache --pretty
+npx stock-node-sdk@beta news flash --pageSize 10
+npx stock-node-sdk@beta news announcements --symbol 600519 --keyword 分红
 ```
 
-默认输出 JSON，可加 `--format table|csv`、`--pretty`、`--limit N`。参数格式错误会返回退出码 `2`。用 `stock-sdk fundFlow rank --help` 查看资金流排名的分页参数。
+默认输出 JSON，可加 `--format table|csv`、`--pretty`、`--limit N`。参数格式错误会返回退出码 `2`。用 `stock-sdk fundFlow rank --help` 或 `stock-node-sdk --help` 查看完整选项。
 
 ---
 
 ## 🤖 AI / MCP 集成
 
-v2 内置零依赖 MCP server，一条命令启动：
+内置零依赖 MCP server，一条命令启动（**AI 客户端跑在 Node 端，推荐直接使用 `stock-node-sdk@beta mcp` 获取 104 个全量工具 + 多源容错 + 财报/快讯/公告能力**；若偏好零依赖极简版则用 `stock-sdk mcp`）：
 
 ```bash
-npx stock-sdk mcp
+npx stock-node-sdk@beta mcp   # Node 增强版（Beta，104 工具 + 多源自动容错，支持 --cache-dir / --proxy / --source）
+npx stock-sdk mcp             # 零依赖基础版（93 工具）
 ```
 
 接入 Cursor / Claude Desktop / Codex / Gemini 等（配置 `mcpServers`）：
@@ -145,9 +182,9 @@ npx stock-sdk mcp
 ```json
 {
   "mcpServers": {
-    "stock-sdk": {
+    "stock-node-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk", "mcp"]
+      "args": ["-y", "stock-node-sdk@beta", "mcp"]
     }
   }
 }
@@ -160,9 +197,9 @@ npx stock-sdk mcp
 ```json
 {
   "mcpServers": {
-    "stock-sdk": {
+    "stock-node-sdk": {
       "command": "npx",
-      "args": ["-y", "stock-sdk", "mcp"],
+      "args": ["-y", "stock-node-sdk@beta", "mcp"],
       "env": { "STOCK_SDK_MCP_TOOLS": "full" }
     }
   }
@@ -262,7 +299,9 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 | 分钟 K 线（5/15/30/60） | ✅ | ✅ `kline.hkMinute` | ✅ `kline.usMinute` | ⚠️ 场内 ETF/LOF | ❌ | ❌ |
 | 筹码分布（CYQ） | ✅ `chips.cn` | ✅ `chips.hk` | ✅ `chips.us` | — | — | — |
 | 当日分时（1 分钟） | ✅ `quotes.timeline` | ✅ `kline.hkMinute`(period='1') | ✅ `kline.usMinute`(period='1') | ⚠️ 场内 ETF/LOF | ❌ | ✅ ETF 期权 |
-| 分红派送 | ✅ | ❌ | ❌ | ✅ 基金 + ETF | — | — |
+| 分红派送 | ✅ | ✅ *(Node 版)* | ✅ *(Node 版，东财/Nasdaq)* | ✅ 基金 + ETF | — | — |
+| 财务指标 / 三大表 | ✅ *(Node 版)* | ✅ *(Node 版)* | ✅ *(Node 版，东财/Nasdaq)* | — | — | — |
+| 上市公司公告 | ✅ *(Node 版，东财/巨潮)* | ✅ *(Node 版，港交所披露易)* | ✅ *(Node 版，SEC EDGAR)* | — | — | — |
 | 资金流向 | ✅ 个股/大盘/排名/板块 | ❌ | ❌ | — | — | — |
 | 板块（行业 / 概念） | ✅ | ❌ | ❌ | ❌ | — | — |
 | 龙虎榜 | ✅ | — | — | — | — | ✅ 期权龙虎榜 |
@@ -300,12 +339,16 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 | `sdk.blockTrade` / `sdk.margin` | 大宗交易 / 融资融券 |
 | `sdk.fund` | `.dividendList` / `.navHistory` / `.rankHistory` / `.profile` / `.theme.*`（`getThemeList` / `getThemeFunds`） |
 | `sdk.calendar` | `.isTradingDay` / `.nextTradingDay` / `.prevTradingDay` / `.marketStatus` |
-| `sdk.reference` | `.dividendDetail` / `.tradingCalendar` |
+| `sdk.reference` | `.dividendDetail`（Node 版东财/新浪双源） / `.tradingCalendar` |
 | 顶层 | `sdk.search(keyword)` |
+| `sdk.financial` *(Node 专属)* | `.indicators` / `.income` / `.balance` / `.cashflow` / `.forecast` / `.express` |
+| `sdk.news` *(Node 专属)* | `.flash`（东财/新浪 7×24 双源） / `.announcements`（东财/巨潮双源） |
+| `sdk.corporate` *(Node 专属)* | `.topHolders` / `.holderCount` |
+| `sdk.bond` *(Node 专属)* | `.convertibleList` |
 
-其中 `sdk.quotes.fundFlow(codes)` 提供东方财富源的 A 股实时资金流快照，按代码返回主力与小单流入、流出、净额及占比；历史、排名和板块资金流使用 `sdk.fundFlow.*`。
+其中 `sdk.quotes.fundFlow(codes)` 提供东方财富源的 A 股实时资金流快照，按代码返回主力与小单流入、流出、净额及占比；历史、排名和板块资金流使用 `sdk.fundFlow.*`。Node 专属 API 与多源路由详情见 [Node 专属扩展 API](https://stock-sdk.linkdiary.cn/api/node-extensions)。
 
-> 指标计算从主包改为 subpath：`import { calcMACD } from 'stock-sdk/indicators'`。
+> 指标计算从主包改为 subpath：`import { calcMACD } from 'stock-sdk/indicators'`（`stock-node-sdk` 额外提供 `stock-node-sdk/router`）。
 > 从 v1 扁平 API 迁移？见 [v1 → v2 迁移指南](https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2)（含完整 `sdk.getXxx()` → `sdk.<ns>.<method>()` 映射表）。
 
 ---
@@ -316,7 +359,9 @@ import { SdkError, isSdkError, getSdkErrorCode } from 'stock-sdk/errors';
 pnpm typecheck
 pnpm build
 pnpm test
-pnpm test:integration:smoke   # 冒烟集成（真实网络）
+pnpm docs:check
+pnpm test:integration:smoke   # 双端冒烟集成（真实网络）
+pnpm test:integration:node    # stock-node-sdk 多源真实上游集成
 pnpm test:integration:full    # 全量集成回归
 ```
 
@@ -328,7 +373,7 @@ pnpm test:integration:full    # 全量集成回归
 
 ---
 
-🌐 [官网](https://stock-sdk.linkdiary.cn) | 📦 [NPM](https://www.npmjs.com/package/stock-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground/) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
+🌐 [官网](https://stock-sdk.linkdiary.cn) | 📦 [NPM (`stock-sdk`)](https://www.npmjs.com/package/stock-sdk) | 📦 [NPM (`stock-node-sdk`)](https://www.npmjs.com/package/stock-node-sdk) | 📖 [GitHub](https://github.com/chengzuopeng/stock-sdk) | 🎮 [在线演示](https://stock-sdk.linkdiary.cn/playground/) | 🧭 [Stock Dashboard](https://chengzuopeng.github.io/stock-dashboard/) | 🐛 [Issues](https://github.com/chengzuopeng/stock-sdk/issues)
 
 ---
 

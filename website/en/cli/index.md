@@ -1,6 +1,11 @@
 # CLI
 
-The `stock-sdk` main package ships a command-line tool, so you can fetch quotes, K-lines, indicators and search results from your terminal — and launch an MCP server — **without writing a single line of code**.
+Both `stock-sdk` and `stock-node-sdk` ship a built-in command-line tool, so you can fetch quotes, K-lines, indicators and search results from your terminal — and launch an MCP server — **without writing a single line of code**.
+
+::: tip `stock-sdk` vs `stock-node-sdk` CLI
+- **`stock-sdk`** (94 commands): zero-dependency base CLI;
+- **`stock-node-sdk`** (105 commands, see [Node guide](/en/guide/node-sdk)): supports every `stock-sdk` command & alias with automatic multi-source failover, adds 11 Node-exclusive commands (`financial` / `news` / `corporate` / `bond`), and exposes three extra global flags: **`--source`**, **`--proxy`**, and **`--cache-dir`**.
+:::
 
 The CLI **shares the same capabilities as the library**. It's a thin shell: parse argv → `new StockSDK()` → call a namespaced method → format the output. Anything the namespaced API can do, the CLI can do too, with a **byte-for-byte identical** data contract.
 
@@ -53,7 +58,7 @@ Available aliases: `quote` / `kline` / `minute` / `indicators` / `search` / `tim
 
 ### ② Namespace direct
 
-All **93 namespaced methods** in the library (plus top-level `search`) can be reached directly with `<namespace> <method>`, no per-method alias required:
+All **94 dual-runtime methods** (**105 methods** in `stock-node-sdk`, including 11 Node-exclusive commands) can be reached directly with `<namespace> <method>`, no per-method alias required:
 
 ```bash
 stock-sdk board industry list --format table
@@ -85,12 +90,20 @@ These options are command-independent and apply uniformly:
 | `-q, --quiet` | Silent: suppress the "no data" notice on stderr for empty results |
 | `-h, --help` | Show help; `stock-sdk <command> --help` shows per-command usage |
 | `-V, --version` | Print the version |
+| `--source <id[,id]>` | *(`stock-node-sdk` only)* Lock or order data sources (e.g. `sina` / `eastmoney,tencent`) |
+| `--proxy <url[,url]>` | *(`stock-node-sdk` only)* HTTP/HTTPS proxy URL or comma-separated proxy pool |
+| `--cache-dir <dir>` | *(`stock-node-sdk` only)* Enable persistent local disk caching (`FileCacheStore`) |
+| `--overseas=false` | *(`stock-node-sdk` only)* Disable overseas sources (CNBC / Nasdaq / SEC) for mainland China direct access (enabled by default) |
 
 ```bash
 stock-sdk quote 600519 --format table
 stock-sdk quote 600519 --pretty
 stock-sdk batch cn --timeout 8000 --quiet
 stock-sdk kline --help          # see every flag for kline
+
+# Node enhanced CLI extra flags
+stock-node-sdk quotes cn 600519 --source sina --pretty
+stock-node-sdk financial indicators 600519 --pageSize 4 --cache-dir ./.stock-cache
 ```
 
 ## Parsing rules

@@ -59,9 +59,12 @@ interface DividendDetail {
   transferRatio: number | null;       // transferred shares (X per 10)
 
   // cash dividend
-  dividendPretax: number | null;   // pretax dividend per 10 shares, in CNY
-  dividendDesc: string | null;     // description, e.g. "10派2.36元(含税...)"
-  dividendYield: number | null;    // dividend yield
+  dividendPretax: number | null;    // raw pretax dividend (per 10 shares for CN; per 1 share for HK/US)
+  dividendPerShare?: number | null; // normalized per-share pretax cash dividend (CN = dividendPretax / 10, HK/US = dividendPretax)
+  shareUnit?: 1 | 10;               // share base of dividendPretax (10 for CN, 1 for HK/US)
+  currency?: string;                // dividend currency (e.g. 'CNY' / 'HKD' / 'USD')
+  dividendDesc: string | null;      // description, e.g. "10派2.36元(含税...)"
+  dividendYield: number | null;     // dividend yield
 
   // financial metrics
   eps: number | null;              // earnings per share (CNY)
@@ -113,5 +116,5 @@ Returns `Promise<string[]>`, elements being `'YYYY-MM-DD'` strings sorted ascend
 ## Notes
 
 1. **Cache**: `tradingCalendar` is backed by a ~12-hour cache, which the trading-day methods in `sdk.calendar.*` reuse.
-2. **Market scope**: both the trading calendar and `dividendDetail` target A-shares; Hong Kong / US are out of scope.
+2. **Market scope**: In the universal `stock-sdk` package, both the trading calendar and `dividendDetail` target A-shares. When using the Node enhanced edition `stock-node-sdk`, `dividendDetail` also supports **HK (Eastmoney direct) and US (Eastmoney direct + Nasdaq fallback)** stocks, plus Eastmoney / Sina HTML dual-source failover for A-shares (see [Node Enhanced Guide](../guide/node-sdk.md)).
 3. **Prefer high-level conveniences**: for "is trading day / next trading day / market status", prefer [`sdk.calendar`](./calendar.md) instead of handling the raw array yourself.

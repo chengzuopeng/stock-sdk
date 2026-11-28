@@ -57,6 +57,18 @@ const k = await sdk.options.etf.dailyKline('10004336') // nested namespace
 | `sdk.reference` | Reference data: dividend detail / A-share trading calendar | [reference](/en/api/reference) |
 | `sdk.search(keyword)` | Stock search (top-level shortcut) | [search](/en/api/search) |
 
+## Node-Exclusive Extensions (`stock-node-sdk`)
+
+When using `StockNodeSDK` on Node.js, you inherit every namespace above (with automatic multi-source failover) plus 4 exclusive namespaces and routing observability APIs:
+
+| Namespace / API | Purpose | Docs |
+|---|---|---|
+| `sdk.financial` | Financial indicators, income / balance / cashflow statements, forecasts & express reports | [Node Extensions](/en/api/node-extensions) |
+| `sdk.news` | 24/7 market flashes (Eastmoney/Sina), corporate announcements & PDFs (Eastmoney/CNINFO) | [Node Extensions](/en/api/node-extensions) |
+| `sdk.corporate` | Top 10 tradable shareholders, shareholder counts & concentration trends | [Node Extensions](/en/api/node-extensions) |
+| `sdk.bond` | Convertible bond listings & key terms | [Node Extensions](/en/api/node-extensions) |
+| `withMeta()` / `registerAdapter()` / `getSourceHealth()` | Concurrency-safe provenance, custom source plugins & health telemetry | [Node Enhanced Guide](/en/guide/node-sdk) |
+
 ## Pure computation · subpath exports
 
 Indicators, signals and symbol parsing are **pure functions, zero network**, with no dependency on a `StockSDK` instance. Import them from their own subpaths:
@@ -73,6 +85,7 @@ import { normalizeSymbol } from 'stock-sdk/symbols'
 | Signals | `stock-sdk/signals` | `calcSignals`: golden / death cross, overbought / oversold, etc. | [signals](/en/api/signals) |
 | Screener / Backtest | `stock-sdk/screener` | `screen`: chainable filter & rank; `backtest`: single-symbol long-only backtest | [screener](/en/api/screener) |
 | Symbols | `stock-sdk/symbols` | `normalizeSymbol`, `SymbolRef` type: lenient symbol parsing | [Symbols & Codes](/en/guide/symbols) |
+| Router *(Node)* | `stock-node-sdk/router` | `SourceRouter`, `SourceHealthTracker`, `SourceAdapter` | [Node Enhanced Guide](/en/guide/node-sdk) |
 
 ## Conventions
 

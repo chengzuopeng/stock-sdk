@@ -29,6 +29,10 @@
 | Trading calendar | `sdk.calendar.isTradingDay` / `nextTradingDay` / `marketStatus` | Trading-day checks and market status |
 | Reference | `sdk.reference.dividendDetail` / `tradingCalendar` | Dividend detail / A-share trading calendar |
 | Search | `sdk.search(keyword)` | Search stocks / funds by keyword |
+| Financials *(`stock-node-sdk` only)* | `sdk.financial.indicators` / `income` / `balance` / `cashflow` / `forecast` / `express` | CN/HK/US key indicators & 3 statements (Nasdaq fallback for US), A-share forecasts & express reports (6 tools) |
+| News & Disclosures *(`stock-node-sdk` only)* | `sdk.news.flash` / `announcements` | 24/7 flashes (Eastmoney/Sina) & CN/HK/US official announcements (Eastmoney/CNINFO, HKEXnews, SEC EDGAR) |
+| Corporate *(`stock-node-sdk` only)* | `sdk.corporate.topHolders` / `holderCount` | Top 10 tradable shareholders & shareholder count trends |
+| Bonds *(`stock-node-sdk` only)* | `sdk.bond.convertibleList` | Convertible bond list & key terms |
 
 ## Tool call semantics
 

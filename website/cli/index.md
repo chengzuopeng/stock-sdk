@@ -1,6 +1,11 @@
 # CLI 命令行
 
-`stock-sdk` 主包自带命令行工具，让你**无需写一行代码**就能在终端取行情、K 线、指标、搜索标的，并一键启动 MCP server。
+`stock-sdk` 与 `stock-node-sdk` 均内置命令行工具，让你**无需写一行代码**就能在终端取行情、K 线、指标、搜索标的，并一键启动 MCP server。
+
+::: tip `stock-sdk` vs `stock-node-sdk` CLI
+- **`stock-sdk`**（94 命令）：零依赖基础版；
+- **`stock-node-sdk`**（105 命令，[详见指南](/guide/node-sdk)）：完整兼容 `stock-sdk` 全部命令与高频别名，默认开启多源自动容错，新增 `financial` / `news` / `corporate` / `bond` 11 条 Node 专属命令，并额外提供 **`--source`**、**`--proxy`**、**`--cache-dir`** 三个全局选项。
+:::
 
 CLI 与库**共享同一份能力**——它只是一层薄壳：解析 argv → `new StockSDK()` → 调命名空间方法 → 格式化输出。命名空间 API 能做的，CLI 都能做，数据口径与库**逐字节一致**。
 
@@ -53,7 +58,7 @@ stock-sdk indicators 600519 --ma 5,10,20 --macd --kdj
 
 ### ② 命名空间直达
 
-库里 **93 个命名空间方法**（外加顶层 `search`）都能用 `<namespace> <method>` 直接点到，无需为每个都做别名：
+库里 **94 个双端方法**（`stock-node-sdk` 为 **105 个方法**，含 11 个 Node 专属方法）都能用 `<namespace> <method>` 直接点到，无需为每个都做别名：
 
 ```bash
 stock-sdk board industry list --format table
@@ -85,12 +90,20 @@ stock-sdk northbound history north --start 20240101 --end 20240201
 | `-q, --quiet` | 静默：空结果时不再向 stderr 打印「无数据」提示 |
 | `-h, --help` | 显示帮助；`stock-sdk <command> --help` 显示单条命令用法 |
 | `-V, --version` | 显示版本号 |
+| `--source <id[,id]>` | *(仅 `stock-node-sdk`)* 强制指定或排序数据源（如 `sina` / `eastmoney,tencent`） |
+| `--proxy <url[,url]>` | *(仅 `stock-node-sdk`)* 配置 HTTP/HTTPS 代理或逗号分隔代理池 |
+| `--cache-dir <dir>` | *(仅 `stock-node-sdk`)* 启用本地磁盘缓存目录（`FileCacheStore`） |
+| `--overseas=false` | *(仅 `stock-node-sdk`)* 关闭海外数据源（CNBC / Nasdaq / SEC），仅用大陆可直连源（默认开启） |
 
 ```bash
 stock-sdk quote 600519 --format table
 stock-sdk quote 600519 --pretty
 stock-sdk batch cn --timeout 8000 --quiet
 stock-sdk kline --help          # 查看 kline 的全部参数
+
+# Node 增强版额外全局选项示例
+stock-node-sdk quotes cn 600519 --source sina --pretty
+stock-node-sdk financial indicators 600519 --pageSize 4 --cache-dir ./.stock-cache
 ```
 
 ## 参数解析规则

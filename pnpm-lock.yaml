@@ -54,6 +54,24 @@ importers:
         specifier: ^3.5.26
         version: 3.5.26(typescript@5.9.3)
 
+  packages/core: {}
+
+  packages/stock-node-sdk:
+    dependencies:
+      undici:
+        specifier: ^6.29.1
+        version: 6.29.1
+    devDependencies:
+      '@stock-sdk/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/stock-sdk:
+    devDependencies:
+      '@stock-sdk/core':
+        specifier: workspace:*
+        version: link:../core
+
 packages:
 
   '@algolia/abtesting@1.12.2':
@@ -1848,6 +1866,10 @@ packages:
 
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
+
+  undici@6.29.1:
+    resolution: {integrity: sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA==}
+    engines: {node: '>=18.17'}
 
   unist-util-is@6.0.1:
     resolution: {integrity: sha512-LsiILbtBETkDz8I9p1dQ0uyRUWuaQzd/cuEeS1hoRSyW5E5XGmTzlwY1OrNzzakGowI9Dr/I8HVaw4hTtnxy8g==}
@@ -3713,6 +3735,8 @@ snapshots:
   ufo@1.6.1: {}
 
   undici-types@7.16.0: {}
+
+  undici@6.29.1: {}
 
   unist-util-is@6.0.1:
     dependencies:

@@ -1,0 +1,155 @@
+{
+  "name": "stock-node-sdk",
+  "version": "0.1.0-beta.1",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "stock-node-sdk": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./router": {
+      "import": {
+        "types": "./dist/router.d.ts",
+        "default": "./dist/router.js"
+      },
+      "require": {
+        "types": "./dist/router.d.cts",
+        "default": "./dist/router.cjs"
+      }
+    },
+    "./indicators": {
+      "import": {
+        "types": "./dist/indicators.d.ts",
+        "default": "./dist/indicators.js"
+      },
+      "require": {
+        "types": "./dist/indicators.d.cts",
+        "default": "./dist/indicators.cjs"
+      }
+    },
+    "./symbols": {
+      "import": {
+        "types": "./dist/symbols.d.ts",
+        "default": "./dist/symbols.js"
+      },
+      "require": {
+        "types": "./dist/symbols.d.cts",
+        "default": "./dist/symbols.cjs"
+      }
+    },
+    "./signals": {
+      "import": {
+        "types": "./dist/signals.d.ts",
+        "default": "./dist/signals.js"
+      },
+      "require": {
+        "types": "./dist/signals.d.cts",
+        "default": "./dist/signals.cjs"
+      }
+    },
+    "./screener": {
+      "import": {
+        "types": "./dist/screener.d.ts",
+        "default": "./dist/screener.js"
+      },
+      "require": {
+        "types": "./dist/screener.d.cts",
+        "default": "./dist/screener.cjs"
+      }
+    },
+    "./cache": {
+      "import": {
+        "types": "./dist/cache.d.ts",
+        "default": "./dist/cache.js"
+      },
+      "require": {
+        "types": "./dist/cache.d.cts",
+        "default": "./dist/cache.cjs"
+      }
+    },
+    "./errors": {
+      "import": {
+        "types": "./dist/errors.d.ts",
+        "default": "./dist/errors.js"
+      },
+      "require": {
+        "types": "./dist/errors.d.cts",
+        "default": "./dist/errors.cjs"
+      }
+    },
+    "./mcp": {
+      "import": {
+        "types": "./dist/mcp.d.ts",
+        "default": "./dist/mcp.js"
+      },
+      "require": {
+        "types": "./dist/mcp.d.cts",
+        "default": "./dist/mcp.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "node",
+    "nodejs",
+    "stock",
+    "sdk",
+    "akshare",
+    "kline",
+    "quotes",
+    "financial",
+    "news",
+    "multi-source",
+    "fallback",
+    "cli",
+    "mcp",
+    "A股",
+    "港股",
+    "美股"
+  ],
+  "author": "chengzuopeng",
+  "license": "ISC",
+  "description": "面向 Node.js 的多源高可用财经数据 SDK：统一 Schema、能力驱动多源自动容错、代理池/Cookie/磁盘缓存，覆盖 A/HK/US 行情、K 线、财报、7×24 快讯公告、CLI 与 MCP。Multi-source high-availability financial data SDK for Node.js with unified schemas, automatic failover, proxy pool, disk cache, financials, news, CLI & MCP.",
+  "homepage": "https://stock-sdk.linkdiary.cn/guide/node-sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chengzuopeng/stock-sdk.git",
+    "directory": "packages/stock-node-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/chengzuopeng/stock-sdk/issues"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "dependencies": {
+    "undici": "^6.29.1"
+  },
+  "devDependencies": {
+    "@stock-sdk/core": "workspace:*"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  }
+}

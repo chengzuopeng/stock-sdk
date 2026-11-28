@@ -29,6 +29,10 @@
 | 交易日历 | `sdk.calendar.isTradingDay` / `nextTradingDay` / `marketStatus` | 交易日判断与市场状态 |
 | 参考数据 | `sdk.reference.dividendDetail` / `tradingCalendar` | 分红明细 / A 股交易日历 |
 | 搜索 | `sdk.search(keyword)` | 按关键词搜索股票 / 基金 |
+| 财务报表 *(仅 `stock-node-sdk`)* | `sdk.financial.indicators` / `income` / `balance` / `cashflow` / `forecast` / `express` | A/港/美股财务指标与三大表（美股支持 Nasdaq 备源）、A 股业绩预告与快报（6 个工具） |
+| 快讯与公告 *(仅 `stock-node-sdk`)* | `sdk.news.flash` / `announcements` | 7×24 实时快讯（东财/新浪双源）、A/港/美股官方公告（东财/巨潮 + 港交所披露易 + SEC EDGAR） |
+| 公司治理 *(仅 `stock-node-sdk`)* | `sdk.corporate.topHolders` / `holderCount` | 十大流通股东与股东户数 |
+| 可转债 *(仅 `stock-node-sdk`)* | `sdk.bond.convertibleList` | 可转债发行与基础条款列表 |
 
 ## 工具调用语义
 

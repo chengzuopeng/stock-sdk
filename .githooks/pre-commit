@@ -22,11 +22,11 @@ fi
 
 # 只在相关文件变更时触发
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
-if ! echo "$STAGED" | grep -qE '^(src/|docs-meta/sdk\.json$)'; then
+if ! echo "$STAGED" | grep -qE '^(packages/|docs-meta/)'; then
   exit 0
 fi
 
-echo "[pre-commit] src/ 或 docs-meta/sdk.json 有变更，正在同步 website/summary.md ..."
+echo "[pre-commit] packages/ 或 docs-meta/ 有变更，正在同步 website/summary.md ..."
 
 # 如果项目还没装依赖，跳过并提示
 if [ ! -d node_modules ]; then
@@ -45,7 +45,7 @@ fi
 # 注：sdk-meta.json 在 .gitignore（**/.generated/）内、不被跟踪，无需也无法 git add；
 # summary.md 与 llms.txt / llms-full.txt 是受跟踪、需随 src/spec 与 types 保持同步的产物。
 CHANGED_DOCS=""
-for f in website/summary.md website/public/llms.txt website/public/llms-full.txt; do
+for f in website/summary.md website/public/llms.txt website/public/llms-full.txt website/public/llms-node.txt; do
   if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
     git add "$f"
     CHANGED_DOCS="$CHANGED_DOCS $f"

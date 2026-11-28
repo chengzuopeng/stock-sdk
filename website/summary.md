@@ -5,16 +5,16 @@
 ## 项目定位
 
 - 包名：`stock-sdk`
-- 当前版本：`2.4.7`
-- 定位：面向前端与 Node.js 的股票行情 SDK，支持多市场行情、K 线、指标、期货、期权和 AI / MCP 集成
-- 核心卖点：零依赖 | Browser + Node.js | 轻量发布包 | 完整 TypeScript 类型
+- 当前版本：`2.5.0`
+- 定位：面向浏览器与 Node.js 的全栈股票/财经数据 SDK 家族：提供零依赖双端版 stock-sdk 与多源高可用 Node 增强版 stock-node-sdk，支持多市场行情、K 线、指标、期货、期权、财报、快讯公告与 AI / MCP 集成
+- 核心卖点：一仓双包：stock-sdk（零依赖 · 浏览器 + Node.js）& stock-node-sdk（Node 多源容错 · 财报/快讯/公告）| 完整 TypeScript 类型 | CLI & MCP
 
 ## 构建产物
 
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
-| `dist/index.js` | 3.57 KB | 1.62 KB |
-| `dist/index.cjs` | 5.15 KB | 1.71 KB |
+| `packages/stock-sdk/dist/index.js` | 3.57 KB | 1.62 KB |
+| `packages/stock-sdk/dist/index.cjs` | 5.15 KB | 1.71 KB |
 
 ## 请求治理能力
 
@@ -37,7 +37,13 @@
 
 - `tencent`：腾讯财经链路，主要用于实时行情、代码列表、搜索与交易日历。
 - `eastmoney`：东方财富链路，主要用于 K 线、板块、分红、期货与部分期权数据。
-- `sina`：新浪链路，主要用于 ETF 期权分钟数据和部分期权场景。
+- `sina`：新浪链路，主要用于 ETF 期权分钟数据、A 股备源行情与快讯/分红。
+- `cninfo`：巨潮资讯官方披露链路（Node 端），用于 A 股上市公司官方公告检索。
+- `hkexnews`：港交所披露易官方链路（Node 端），用于港股上市公司公告检索。
+- `cnbc`：CNBC 海外行情与图表链路（Node 端），用于港/美股跨区容灾备源。
+- `nasdaq`：Nasdaq 官方数据链路（Node 端），用于美股行情、K 线、分红与财报备源。
+- `sec`：SEC EDGAR 官方披露链路（Node 端），用于美股 10-K/10-Q/8-K 等官方公告。
+- `xueqiu`：雪球数据链路（Node 端预置会话策略支持），用于自定义扩展适配器。
 - `linkdiary`：项目内保留的扩展 provider 名称，用于兼容额外数据链路。
 - `unknown`：未能识别 provider 时的兜底策略名称。
 
@@ -178,9 +184,45 @@
 - `fund.theme.getThemeList`
 - `fund.theme.getThemeFunds`
 
+## Node 增强版（stock-node-sdk）
+
+- 包名：`stock-node-sdk`
+- 当前版本：`0.1.0-beta.1`
+- 定位：Node.js 18.17+ 多源高可用财经数据 SDK，严格超集兼容 `stock-sdk` 全部方法，并扩展以下 Node 专属能力。
+
+| 文件 | 体积 | Gzip |
+| --- | --- | --- |
+| `packages/stock-node-sdk/dist/index.js` | 3.81 KB | 1.70 KB |
+| `packages/stock-node-sdk/dist/index.cjs` | 5.50 KB | 1.80 KB |
+
+### 财务与基本面（Node 专属）
+
+- `financial.indicators`
+- `financial.income`
+- `financial.balance`
+- `financial.cashflow`
+- `financial.forecast`
+- `financial.express`
+
+### 7×24 快讯与公告（Node 专属）
+
+- `news.flash`
+- `news.announcements`
+
+### 公司治理与股东（Node 专属）
+
+- `corporate.topHolders`
+- `corporate.holderCount`
+
+### 可转债（Node 专属）
+
+- `bond.convertibleList`
+
 ## 相关页面
 
 - [快速开始](/guide/getting-started)
+- [Node 增强版指南](/guide/node-sdk)
+- [Node 专属扩展 API](/api/node-extensions)
 - [错误处理与重试](/guide/retry)
 - [请求治理](/guide/request-governance)
 - [期货与期权](/guide/futures-options)

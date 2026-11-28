@@ -6,6 +6,37 @@ pageClass: changelog-page
 
 This page records the release history of Stock SDK. v2.0.0 is an **architectural leap** — without adding data sources, it reworks the symbol model, data contract, API surface, request layer, and error system, and adds a CLI / MCP and subpath exports.
 
+## v2.5.0 (with `stock-node-sdk v0.1.0-beta.1`)
+
+> Release date pending
+>
+> 🧪 **Monorepo and first public beta of `stock-node-sdk`**. The base `stock-sdk` package runs in browsers and Node.js with zero runtime dependencies. `stock-node-sdk` adds multi-source failover on Node.js 18.17+. [Node Enhanced Guide](/en/guide/node-sdk) · [Node Extensions API](/en/api/node-extensions)
+
+### Architecture & `stock-node-sdk` (`v0.1.0-beta.1` Beta)
+
+- **Dual-package pnpm Monorepo**: extracted a private `@stock-sdk/core` foundation statically bundled into both published packages via `tsup` (no external workspace leakage). `stock-sdk` stays **zero-dependency for Browser + Node.js**, while `stock-node-sdk` ships as a **100% strict API superset** for Node.js servers, quant pipelines, and AI Agents.
+- **Capability-aware multi-source failover (`SourceRouter`)**. The SDK selects providers by capability and health, then checks `requiredFields` on every record. Routes accept per-call `source` and `signal`, instance-level `routing.preferredSources`, route tracing with `sdk.withMeta()`, and custom feeds with `sdk.registerAdapter()`.
+- **Multi-source upgrades & optional overseas feeds**:
+  - Live quotes: `quotes.cn` (Tencent → Sina → Eastmoney), `quotes.hk` (Tencent → Eastmoney → Sina → CNBC), `quotes.us` (Tencent → Sina → Eastmoney → CNBC → Nasdaq); market-wide `batch.cn` / `batch.hk` / `batch.us` gain Eastmoney `clist` paginated failover.
+  - Historical K-lines & dividends: `kline.hk` / `kline.us` (including `kline.withIndicators`, `kline.signals`, and `chips.hk` / `chips.us`) gain Tencent and CNBC / Nasdaq fallbacks; `reference.dividendDetail` expands to CN (Eastmoney → Sina HTML), HK (Eastmoney), and US (Eastmoney → Nasdaq).
+  - Strict routing checks adjustment series and start-date coverage for overseas daily history. Nasdaq paginates by offset within a fixed date window.
+  - Overseas switch: CNBC, Nasdaq, and SEC EDGAR are enabled by default and can be disabled with `new StockNodeSDK({ overseas: false })` for direct mainland China environments without proxies.
+- **4 new Node-exclusive namespaces (11 new methods)**:
+  - `financial`: CN / HK / US key metrics (`indicators`) and three statements (`income`, `balance`, `cashflow`, with Nasdaq failover for US statements and native `currency` tags), plus A-share earnings forecasts (`forecast`) and express reports (`express`).
+  - `news`: 24/7 market news feed `flash` (Eastmoney / Sina dual-source; `page > 1` routes to Sina) and official company filings `announcements` (CN Eastmoney + CNINFO POST search, HK `HKEXnews`, US `SEC EDGAR`).
+  - `corporate`: top 10 tradable shareholders (`topHolders`) and historical shareholder counts (`holderCount`).
+  - `bond`: full convertible bond directory, credit ratings, conversion prices, and maturities (`convertibleList`).
+- **Node transport & persistent disk cache**: built-in `NodeHttpClient` (per-host compliant `Referer` / `Origin` / `secUserAgent`), `CookieJar`, `SessionManager` auto-warmup, `ProxyPool` with unhealthy proxy cooldown (powered by `undici`), and atomic `FileCacheStore` (persists non-degraded primary results only).
+- **Enhanced CLI & MCP**: `stock-node-sdk` CLI (105 commands) and `stock-node-sdk mcp` (104 tools) with `--source`, `--proxy`, `--cache-dir`, and `--overseas=false`.
+
+### `stock-sdk v2.5.0` Added & Fixed
+
+- **Normalized cross-market fields on `DividendDetail`**: added optional `dividendPerShare` (per-share pretax cash dividend), `shareUnit` (`10` for CN, `1` for HK/US), and `currency` (e.g., `'CNY'` / `'HKD'` / `'USD'`), preserving `dividendPretax` unchanged.
+- **Fixed `null` `timestamp` on intraday HK live quotes**: Tencent's real-time HK quote key `r_hkXXXXX` returns slash-delimited wall times (`'YYYY/MM/DD HH:mm:ss'`) during continuous trading; `parseHKQuote` now normalizes separators so `timestamp` is populated accurately.
+- **Transport and type extensions**. `RequestClient` adds `post()` and per-request `headers`, `method`, and `body`. `ProviderName` includes more built-in providers. Quote sources in the base package remain assignable to `ProviderName`. Routed Node quotes accept custom `QuoteSource` identifiers.
+- **Tencent forward-adjusted A-share history**. The adjustment uses the latest daily bar as its anchor, keeping a trading day's adjusted price consistent across query windows.
+- **Docs & Playground**: added a browser-runtime `stock-sdk` scope notice with a link to `stock-node-sdk` in Playground, plus `/llms-node.txt` for AI tool consumption.
+
 ## v2.4.7
 
 > Released: 2026-11-21

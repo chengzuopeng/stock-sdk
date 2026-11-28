@@ -4,7 +4,7 @@
  *
  * 原则：不造假。
  * - 版本号来自构建期注入的 themeConfig.sdkVersion（真实，读自 package.json）
- * - 「MIT」「零依赖」是确定事实，静态展示
+ * - 「ISC」「零依赖 · 双端 / Node 增强」是确定事实，静态展示
  * - Star 数 / npm 周下载量实时 fetch；拿不到就不显示该徽章（绝不编造数字）
  */
 import { ref, computed, onMounted } from 'vue'
@@ -19,8 +19,8 @@ const downloads = ref<number | null>(null)
 
 const labels = computed(() =>
   isEn.value
-    ? { deps: 'Zero deps', week: '/wk', stars: 'stars' }
-    : { deps: '零依赖', week: ' /周', stars: 'star' }
+    ? { deps: 'Browser + Node SDK', week: '/wk', stars: 'stars' }
+    : { deps: '双端零依赖 + Node 增强版', week: ' /周', stars: 'star' }
 )
 
 function abbr(n: number): string {
@@ -81,7 +81,7 @@ onMounted(async () => {
       <span class="hero-meta__num">{{ abbr(downloads) }}</span>{{ labels.week }}
     </a>
 
-    <span class="hero-meta__item">MIT</span>
+    <span class="hero-meta__item">ISC</span>
     <span class="hero-meta__item">{{ labels.deps }}</span>
   </div>
 </template>

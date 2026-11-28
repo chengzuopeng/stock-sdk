@@ -205,9 +205,9 @@ Commands validate their declared options. Commands that declare options reject u
 
 ### Namespace method quick-reference
 
-The table below covers all **93** namespaced methods (plus top-level `search`). Method semantics and return fields follow the [API docs](/en/api/) — here we only give the reachable command tokens.
+The table below covers all **94** dual-runtime methods in `stock-sdk` plus **11** Node-exclusive methods in `stock-node-sdk` (105 total). See the [API docs](/en/api/) and [Node Extensions](/en/api/node-extensions) for full semantics.
 
-| Namespace | Methods (`stock-sdk <ns> <method>`) |
+| Namespace | Methods (`stock-sdk` / `stock-node-sdk <ns> <method>`) |
 |---|---|
 | `quotes` (8) | `cn` · `cnSimple` · `hk` · `us` · `fund` · `fundFlow` · `largeOrder` · `timeline` |
 | `codes` (4) | `cn` · `us` · `hk` · `fund` |
@@ -227,5 +227,9 @@ The table below covers all **93** namespaced methods (plus top-level `search`). 
 | `calendar` (4) | `isTradingDay` · `nextTradingDay` · `prevTradingDay` · `marketStatus` |
 | `reference` (2) | `dividendDetail` · `tradingCalendar` |
 | top-level | `search <keyword>` |
+| `financial` (6, *Node only*) | `indicators` · `income` · `balance` · `cashflow` · `forecast` · `express` |
+| `news` (2, *Node only*) | `flash` · `announcements` |
+| `corporate` (2, *Node only*) | `topHolders` · `holderCount` |
+| `bond` (1, *Node only*) | `convertibleList` |
 
 > Not sure about a method's arguments? Run `stock-sdk <ns> <method> --help` to see its positionals and available options (the help text is derived from the manifest, always in sync with the implementation).

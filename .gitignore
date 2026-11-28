@@ -2,7 +2,8 @@
 node_modules/
 
 # Build output
-dist/
+dist
+dist-types/
 
 # IDE
 .idea/
@@ -29,6 +30,7 @@ coverage/
 
 # VitePress
 **/.vitepress/dist
+dist-types
 **/.vitepress/cache
 **/.generated/
 .playwright-mcp/

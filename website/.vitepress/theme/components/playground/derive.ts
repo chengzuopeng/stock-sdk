@@ -13,7 +13,7 @@ import {
   type MethodSpec,
   type ParamSpec,
   type SpecPositional,
-} from '../../../../../src/spec/methods';
+} from '../../../../../packages/core/src/spec/methods';
 import type { FormField, FieldOption, MarketKey, PlaygroundMethod } from './types';
 import {
   EXCLUDED_IDS,
@@ -137,9 +137,9 @@ function deriveOne(spec: MethodSpec): PlaygroundMethod {
   };
 }
 
-/** 全部 playground 方法（排除 batch.raw；withIndicators 用手写特例替换派生产物） */
+/** 全部 playground 方法（仅保留浏览器可直连的 universal 方法，排除 batch.raw；withIndicators 用手写特例替换） */
 export const playgroundMethods: PlaygroundMethod[] = METHOD_SPECS.filter(
-  (s) => !EXCLUDED_IDS.has(s.path.join('.'))
+  (s) => s.runtime !== 'node' && !EXCLUDED_IDS.has(s.path.join('.'))
 ).map((s) => (s.path.join('.') === WITH_INDICATORS_METHOD.id ? WITH_INDICATORS_METHOD : deriveOne(s)));
 
 export const methodsById: Record<string, PlaygroundMethod> = Object.fromEntries(

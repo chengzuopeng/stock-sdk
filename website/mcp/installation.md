@@ -1,27 +1,27 @@
 # MCP 安装配置
 
-`stock-sdk` 的 MCP server 通过 **stdio** 与客户端通信，启动命令统一为 `stock-sdk mcp`。在各 AI 客户端里，只需把它配置成一个 stdio 类型的 MCP server 即可。
+`stock-sdk`（93 工具，零依赖）与 `stock-node-sdk`（104 工具，多源容错 + 财报/快讯/公告）的 MCP server 均通过 **stdio** 与客户端通信，启动命令分别为 `stock-sdk mcp` 与 `stock-node-sdk mcp`。
 
-下面以 `npx` 启动为例（无需预装，`-y` 跳过交互确认）：
+下面以 `npx` 启动为例（推荐 AI 客户端使用 `stock-node-sdk`，如需零依赖版将包名替换为 `stock-sdk` 即可；`-y` 跳过交互确认）：
 
 ```jsonc
 {
   "command": "npx",
-  "args": ["-y", "stock-sdk", "mcp"]
+  "args": ["-y", "stock-node-sdk@beta", "mcp"]
 }
 ```
 
-默认只启用 26 个高频工具。若要暴露全部 92 个 MCP 工具，在客户端配置中加入环境变量：
+默认仅启用高频 `core` 工具集。若要暴露全部工具（`stock-sdk` 93 个 / `stock-node-sdk` 104 个），在客户端配置中加入环境变量；`stock-node-sdk mcp` 还支持追加 `--cache-dir` / `--proxy` / `--source` / `--overseas=false` 启动参数：
 
 ```jsonc
 {
   "command": "npx",
-  "args": ["-y", "stock-sdk", "mcp"],
+  "args": ["-y", "stock-node-sdk@beta", "mcp", "--cache-dir", "./.stock-cache"],
   "env": { "STOCK_SDK_MCP_TOOLS": "full" }
 }
 ```
 
-> 也可以先 `npm install -g stock-sdk`，再把 `command` 直接写成 `"stock-sdk"`、`args` 写成 `["mcp"]`，省去每次 `npx` 解析的开销。
+> 也可以先全局安装 `npm install -g stock-node-sdk@beta`（或 `stock-sdk`），再把 `command` 直接写成 `"stock-node-sdk"`、`args` 写成 `["mcp"]`，省去每次 `npx` 解析的开销。
 
 ## Cursor
 

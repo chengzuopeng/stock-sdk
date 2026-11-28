@@ -20,14 +20,16 @@ import {
   BOOL_INDICATORS,
   type MethodSpec,
   type ParamSpec,
-} from '../src/spec/methods.ts';
-import { PROMPT_SPECS } from '../src/spec/prompts.ts';
+} from '../packages/core/src/spec/methods.ts';
+import { PROMPT_SPECS } from '../packages/core/src/spec/prompts.ts';
+import { NODE_METHOD_SPECS } from '../packages/core/src/spec/nodeMethods.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const r = (p: string) => resolve(root, p);
 
-const pkg = JSON.parse(readFileSync(r('package.json'), 'utf8')) as { version: string };
+const pkg = JSON.parse(readFileSync(r('packages/stock-sdk/package.json'), 'utf8')) as { version: string };
+const nodePkg = JSON.parse(readFileSync(r('packages/stock-node-sdk/package.json'), 'utf8')) as { version: string };
 const SITE = 'https://stock-sdk.linkdiary.cn';
 
 const INDICATOR_FLAGS = new Set<string>([...PERIOD_INDICATORS, ...BOOL_INDICATORS]);
@@ -196,15 +198,15 @@ function renderMethodCatalog(): { text: string; count: number } {
 
 // ---------- 2. 纯计算 subpath 导出 ----------
 const SUBPATHS: { sub: string; index?: string; source?: string; desc: string; extra?: string }[] = [
-  { sub: 'indicators', index: 'src/indicators/index.ts', desc: '技术指标纯函数（输入 K 线数组，输出指标值）' },
-  { sub: 'signals', index: 'src/signals/index.ts', desc: '信号层（金叉 / 死叉 / 超买 / 超卖等）' },
-  { sub: 'symbols', index: 'src/symbols/index.ts', desc: '符号解析（normalizeSymbol 等，不发请求）' },
-  { sub: 'screener', index: 'src/screener/index.ts', desc: '声明式选股器 + 本地回测引擎' },
-  { sub: 'cache', index: 'src/cache/index.ts', desc: '缓存层（MemoryCache / cacheThrough 等）' },
-  { sub: 'errors', index: 'src/errors/index.ts', desc: '统一错误体系（SdkError 及子类、错误码工具）' },
+  { sub: 'indicators', index: 'packages/core/src/indicators/index.ts', desc: '技术指标纯函数（输入 K 线数组，输出指标值）' },
+  { sub: 'signals', index: 'packages/core/src/signals/index.ts', desc: '信号层（金叉 / 死叉 / 超买 / 超卖等）' },
+  { sub: 'symbols', index: 'packages/core/src/symbols/index.ts', desc: '符号解析（normalizeSymbol 等，不发请求）' },
+  { sub: 'screener', index: 'packages/core/src/screener/index.ts', desc: '声明式选股器 + 本地回测引擎' },
+  { sub: 'cache', index: 'packages/core/src/cache/index.ts', desc: '缓存层（MemoryCache / cacheThrough 等）' },
+  { sub: 'errors', index: 'packages/core/src/errors/index.ts', desc: '统一错误体系（SdkError 及子类、错误码工具）' },
   {
     sub: 'mcp',
-    source: 'src/mcp/server.ts',
+    source: 'packages/core/src/mcp/server.ts',
     desc: 'MCP server 可编程入口（`startMcpServer` / `dispatchMessage` 等；CLI 用 `stock-sdk mcp` 启动 stdio）',
     extra:
       '导出：`startMcpServer`, `dispatchMessage`, `McpServerOptions`, `DispatchContext`（详见 `stock-sdk/mcp` 类型定义）',
@@ -244,25 +246,25 @@ function renderSubpaths(): string {
 
 // ---------- 3. 数据结构（TypeScript 类型定义） ----------
 const TYPE_FILES: string[] = [
-  'src/types/common.ts',
-  'src/types/quotes.ts',
-  'src/types/kline.ts',
-  'src/types/board.ts',
-  'src/types/options.ts',
-  'src/types/futures.ts',
-  'src/types/fund.ts',
-  'src/types/fundFlow.ts',
-  'src/types/northbound.ts',
-  'src/types/dragonTiger.ts',
-  'src/types/blockTrade.ts',
-  'src/types/margin.ts',
-  'src/types/marketEvent.ts',
-  'src/core/request.ts',
-  'src/indicators/types.ts',
-  'src/signals/types.ts',
-  'src/symbols/types.ts',
-  'src/screener/screener.ts',
-  'src/screener/backtest.ts',
+  'packages/core/src/types/common.ts',
+  'packages/core/src/types/quotes.ts',
+  'packages/core/src/types/kline.ts',
+  'packages/core/src/types/board.ts',
+  'packages/core/src/types/options.ts',
+  'packages/core/src/types/futures.ts',
+  'packages/core/src/types/fund.ts',
+  'packages/core/src/types/fundFlow.ts',
+  'packages/core/src/types/northbound.ts',
+  'packages/core/src/types/dragonTiger.ts',
+  'packages/core/src/types/blockTrade.ts',
+  'packages/core/src/types/margin.ts',
+  'packages/core/src/types/marketEvent.ts',
+  'packages/core/src/core/request.ts',
+  'packages/core/src/indicators/types.ts',
+  'packages/core/src/signals/types.ts',
+  'packages/core/src/symbols/types.ts',
+  'packages/core/src/screener/screener.ts',
+  'packages/core/src/screener/backtest.ts',
 ];
 
 function renderDataStructures(): string {
@@ -344,7 +346,7 @@ ${renderSkills()}
 ### 数据延迟与请求治理
 
 - 数据来自腾讯 / 东财等**公开接口**，非交易所实时撮合，通常有**数十秒到数分钟延迟**，不适合高频交易。
-- \`new StockSDK({ retry, providerPolicies, fetchImpl, signal, hooks, klineFallback, ... })\` — 构造参数为 \`StockSDKOptions\`：\`RequestClientOptions\`（定义见第三节 \`src/core/request.ts\`）加上 \`klineFallback\`（A 股 K 线在东方财富失败时是否切换腾讯 / 新浪备用源，默认 \`true\`；\`false\` 时只请求东方财富）。
+- \`new StockSDK({ retry, providerPolicies, fetchImpl, signal, hooks, klineFallback, ... })\` — 构造参数为 \`StockSDKOptions\`：\`RequestClientOptions\`（定义见第三节 \`packages/core/src/core/request.ts\`）加上 \`klineFallback\`（A 股 K 线在东方财富失败时是否切换腾讯 / 新浪备用源，默认 \`true\`；\`false\` 时只请求东方财富）。
 
 ---`;
 }
@@ -354,24 +356,26 @@ const { text: methodCatalog, count } = renderMethodCatalog();
 
 const full = `# stock-sdk · 完整 API 参考（为 AI / LLM 工具生成）
 
-> 本文件由 \`scripts/generate-llms.ts\` 从 \`src/spec/methods.ts\`（CLI / MCP / Playground 的
-> 单一事实源）与 \`src/types\` 自动生成，目的是让 AI 工具**一次性读取** stock-sdk 的全部
+> 本文件由 \`scripts/generate-llms.ts\` 从 \`packages/core/src/spec/methods.ts\`（CLI / MCP / Playground 的
+> 单一事实源）与 \`packages/core/src/types\` 自动生成，目的是让 AI 工具**一次性读取** \`stock-sdk\` 的全部
 > 命名空间方法、参数与返回数据结构。**请勿手改本文件**——改 spec / types 后重新生成。
 >
 > 版本：v${pkg.version} · 文档站：${SITE} · npm: \`npm i stock-sdk\`
+> Node.js 多源高可用增强版 \`stock-node-sdk\`（v${nodePkg.version}，严格超集 + 财报/快讯/公告/股东/可转债）请另见 ${SITE}/llms-node.txt
 
 ## 这是什么
 
-stock-sdk 是一个**零依赖**的股票行情 SDK，浏览器 + Node.js 18+ 双端可用，覆盖
-A 股 / 港股 / 美股 / 公募基金 / 期货 / 期权。API 采用**命名空间**模型，并自带 CLI 与
-内置 MCP server。本文件分四部分：速览、命名空间方法清单、纯计算 subpath 导出、数据结构类型定义。
+\`stock-sdk\` 是同仓 Monorepo 中的**零依赖**双端股票行情 SDK（浏览器 + Node.js 18+），覆盖
+A 股 / 港股 / 美股 / 公募基金 / 期货 / 期权，采用**命名空间**模型并自带 CLI 与内置 MCP server。
+同仓另发布 Node.js 服务端增强版 \`stock-node-sdk\`（多源自动容错、代理池、磁盘缓存与财报/快讯/公告）。
+本文件分四部分：速览、命名空间方法清单、纯计算 subpath 导出、数据结构类型定义。
 
 ## 用法
 
 \`\`\`ts
 import { StockSDK } from 'stock-sdk';
 
-const sdk = new StockSDK(/* options?: StockSDKOptions — RequestClientOptions（第三节 src/core/request.ts）+ klineFallback */);
+const sdk = new StockSDK(/* options?: StockSDKOptions — RequestClientOptions（第三节 packages/core/src/core/request.ts）+ klineFallback */);
 
 // 命名空间方法：sdk.<namespace>.<method>(...)
 const quotes = await sdk.quotes.cn(['600519']);        // A 股实时行情（codes 为 string[]）
@@ -425,31 +429,99 @@ ${renderDataStructures()}
 _本文件自动生成。完整文档见 ${SITE} ；运行时工具发现可用内置 MCP（\`stock-sdk mcp\`，\`tools/list\`）。_
 `;
 
+const NODE_TYPE_FILES: string[] = [
+  'packages/core/src/router/types.ts',
+  'packages/core/src/types/financial.ts',
+  'packages/core/src/types/news.ts',
+  'packages/core/src/types/corporate.ts',
+];
+
+function renderNodeMethodCatalog(): string {
+  return NODE_METHOD_SPECS.map((s) => {
+    const sig = sdkSignature(s);
+    const params = (s.params ?? [])
+      .filter((p) => p.mcp !== false)
+      .map((p) => `${p.field ?? p.flag}${p.required ? '' : '?'}: ${p.type}`)
+      .join(', ');
+    return `- \`${sig}\`（MCP: \`${s.toolName ?? '-'}\`）— ${s.summary}${params ? ` · options: { ${params} }` : ''}`;
+  }).join('\n');
+}
+
+function renderNodeTypes(): string {
+  const blocks: string[] = [];
+  for (const f of NODE_TYPE_FILES) {
+    if (!existsSync(r(f))) continue;
+    blocks.push(
+      `// ============================================================\n// ${f}\n// ============================================================\n${read(f).trim()}`
+    );
+  }
+  return '```ts\n' + blocks.join('\n\n') + '\n```';
+}
+
+const nodeDoc = `# stock-node-sdk — Node.js 增强版 API 与多源路由（v${nodePkg.version}）
+
+> 本文件由 \`scripts/generate-llms.ts\` 自动生成。\`stock-node-sdk\` 是 \`stock-sdk\` 的严格超集（含全部 ${count} 个双端方法 + ${NODE_METHOD_SPECS.length} 个 Node 专属方法），内置能力驱动的多源自动容错（\`SourceRouter\`）、代理池（\`ProxyPool\`）、\`CookieJar\`/\`SessionManager\` 与 \`FileCacheStore\` 磁盘缓存。
+
+## 快速开始
+
+\`\`\`ts
+// npm install stock-node-sdk@beta
+import { StockNodeSDK, FileCacheStore } from 'stock-node-sdk';
+
+const sdk = new StockNodeSDK({
+  timeout: 15_000,
+  cache: { store: new FileCacheStore({ dir: './.stock-cache' }) },
+});
+
+const { data: quotes, trace } = await sdk.withMeta(() => sdk.quotes.cn(['600519']));
+const indicators = await sdk.financial.indicators('600519', { pageSize: 4 });
+const flashes = await sdk.news.flash({ pageSize: 10 });
+const notices = await sdk.news.announcements({ symbol: '600519', keyword: '分红' });
+await sdk.close();
+\`\`\`
+
+## 一、Node 专属扩展方法（共 ${NODE_METHOD_SPECS.length} 个，加上 \`stock-sdk\` 全部 ${count} 个双端方法 = ${count + NODE_METHOD_SPECS.length} 个）
+
+${renderNodeMethodCatalog()}
+
+## 二、Node 专属核心类型定义
+
+${renderNodeTypes()}
+
+---
+
+_完整文档见 ${SITE}/guide/node-sdk 与 ${SITE}/api/node-extensions ；双端全量 API 见 ${SITE}/llms-full.txt 。_
+`;
+
 const index = `# stock-sdk
 
 > 零依赖股票行情 SDK（A 股 / 港股 / 美股 / 基金 / 期货 / 期权），浏览器 + Node.js 双端；
 > 命名空间 API，自带 CLI 与内置 MCP server。版本 v${pkg.version}。
+> 同仓还提供 Node.js 多源高可用增强版 \`stock-node-sdk\`（v${nodePkg.version}）。
 
 给 AI / LLM 工具的**完整 API**（全部方法 / 参数 / 数据结构，一次性读取）：
 
-- ${SITE}/llms-full.txt
+- ${SITE}/llms-full.txt（\`stock-sdk\` 双端全量 API）
+- ${SITE}/llms-node.txt（\`stock-node-sdk\` Node 专属扩展、多源路由与财报/快讯/公告）
 
 ## 链接
 
 - 官网文档：${SITE}
+- Node 增强版指南：${SITE}/guide/node-sdk
 - v1 → v2 迁移指南：${SITE}/guide/migration-v1-to-v2
 - CLI：${SITE}/cli/ ｜ MCP：${SITE}/mcp/ ｜ API 总览：${SITE}/api/
-- npm：https://www.npmjs.com/package/stock-sdk
+- npm：https://www.npmjs.com/package/stock-sdk ｜ https://www.npmjs.com/package/stock-node-sdk
 - GitHub：https://github.com/chengzuopeng/stock-sdk
 `;
 
 const outDir = r('website/public');
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 writeFileSync(r('website/public/llms-full.txt'), full, 'utf8');
+writeFileSync(r('website/public/llms-node.txt'), nodeDoc, 'utf8');
 writeFileSync(r('website/public/llms.txt'), index, 'utf8');
 
 console.log(
-  `Generated website/public/llms.txt + llms-full.txt — ${count} 命名空间方法, ` +
+  `Generated website/public/llms.txt + llms-full.txt + llms-node.txt — ${count} 双端方法 + ${NODE_METHOD_SPECS.length} Node 专属方法, ` +
     `${PROMPT_SPECS.length} 技能, ` +
     `${SUBPATHS.length} subpath, ${TYPE_FILES.filter((f) => existsSync(r(f))).length} 类型文件`
 );

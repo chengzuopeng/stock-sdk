@@ -18,12 +18,14 @@ interface HeroLink {
 const links = computed<HeroLink[]>(() =>
   isEn.value
     ? [
+        { text: 'Node Enhanced (stock-node-sdk)', link: '/en/guide/node-sdk' },
         { text: 'API Docs', link: '/en/api/' },
         { text: 'MCP · AI', link: '/en/mcp/' },
         { text: 'Migrate from v1', link: '/en/guide/migration-v1-to-v2' },
         { text: 'GitHub ↗', link: 'https://github.com/chengzuopeng/stock-sdk', external: true },
       ]
     : [
+        { text: 'Node 增强版 (stock-node-sdk)', link: '/guide/node-sdk' },
         { text: 'API 文档', link: '/api/' },
         { text: 'MCP · AI 接入', link: '/mcp/' },
         { text: '从 v1 迁移', link: '/guide/migration-v1-to-v2' },

@@ -8,7 +8,7 @@
  * 空值约定：留空的字段不进 options / 实参，让 SDK 自身默认值落地
  * （与 MCP「default 仅展示、不注入实参」同一原则）。
  */
-import { resolveSdkMethod } from '../../../../../src/spec/resolve';
+import { resolveSdkMethod } from '../../../../../packages/core/src/spec/resolve';
 import type { FormField, PlaygroundMethod, RunContext } from './types';
 
 /** codes 文本框 → 代码数组（逗号 / 空白分隔） */

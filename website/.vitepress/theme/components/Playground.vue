@@ -10,7 +10,7 @@
  * - 本组件只负责壳层 UI：侧边栏 / 搜索 / 市场芯片 / 表单 / 结果区 / 配置抽屉 / 深链
  */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import { Icon } from '@iconify/vue'
 import { codeToHtml } from 'shiki'
 
@@ -23,6 +23,9 @@ import type { PlaygroundMethod, MarketKey } from './playground/types'
 
 const { isDark, theme, lang } = useData()
 const isEn = computed(() => lang.value.toLowerCase().startsWith('en'))
+const nodeSdkGuideHref = computed(() =>
+  withBase(isEn.value ? '/en/guide/node-sdk' : '/guide/node-sdk')
+)
 
 // ===== i18n（UI chrome 双语；方法描述来自 spec，Phase 1 为中文） =====
 const t = computed(() =>
@@ -73,6 +76,10 @@ const t = computed(() =>
         applied: '✅ SDK config applied, instance rebuilt',
         applyFailed: '⚠️ SDK rebuild failed: ',
         mounted: '💡 window.sdk is available in DevTools console',
+        browserOnlyNotice:
+          'Playground runs directly in the browser and currently provides the frontend stock-sdk edition only.',
+        nodeSdkHint: 'For Node.js multi-source failover & financials / 7×24 news / filings, see',
+        nodeSdkLinkLabel: 'stock-node-sdk',
         truncated: (total: number, n: number) =>
           `/* ⚠️ ${total} rows total; rendered first ${n} to keep the page responsive.\n   Full data: window.__playgroundLastResult */`,
       }
@@ -121,6 +128,9 @@ const t = computed(() =>
         applied: '✅ SDK 配置已应用并重建实例',
         applyFailed: '⚠️ SDK 重建失败: ',
         mounted: '💡 已挂载 window.sdk，可在浏览器控制台直接调试 SDK',
+        browserOnlyNotice: '本演练场在浏览器端直连运行，暂时仅提供前端版 stock-sdk 接口。',
+        nodeSdkHint: '服务端多源容错及财报 / 快讯 / 公告等接口请见',
+        nodeSdkLinkLabel: 'stock-node-sdk 文档',
         truncated: (total: number, n: number) =>
           `/* ⚠️ 共 ${total} 条数据，仅渲染前 ${n} 条以避免页面卡顿。\n   完整数据已挂载到 window.__playgroundLastResult */`,
       }
@@ -680,7 +690,11 @@ onUnmounted(() => {
             </div>
           </div>
           <div v-if="(searchQuery || selectedMarket !== null) && visibleMethodCount === 0" class="search-empty">
-            {{ t.noMatch }}
+            <div>{{ t.noMatch }}</div>
+            <div class="search-empty__sub">
+              {{ t.nodeSdkHint }}
+              <a :href="nodeSdkGuideHref" class="runtime-notice__link">{{ t.nodeSdkLinkLabel }}</a>
+            </div>
           </div>
         </nav>
       </aside>
@@ -691,6 +705,17 @@ onUnmounted(() => {
             <Icon icon="lucide:menu" />
             <span>{{ t.methodsNav }}</span>
           </button>
+          <div class="runtime-notice" role="note">
+            <Icon icon="lucide:info" class="runtime-notice__icon" aria-hidden="true" />
+            <span class="runtime-notice__text">
+              {{ t.browserOnlyNotice }}
+              {{ t.nodeSdkHint }}
+              <a :href="nodeSdkGuideHref" class="runtime-notice__link">
+                {{ t.nodeSdkLinkLabel }}
+                <Icon icon="lucide:arrow-up-right" class="runtime-notice__ext" aria-hidden="true" />
+              </a>
+            </span>
+          </div>
           <div class="main-toolbar-spacer"></div>
           <button class="btn-icon" @click="configDrawerOpen = true">
             <Icon icon="lucide:settings" />
@@ -1721,11 +1746,67 @@ onUnmounted(() => {
 .main-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
 }
 .main-toolbar-spacer {
   flex: 1;
+}
+
+.runtime-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--pg-text-secondary);
+  background: var(--pg-surface);
+  border: 1px solid var(--pg-border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.runtime-notice__icon {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  color: var(--pg-accent);
+}
+
+.runtime-notice__text {
+  min-width: 0;
+}
+
+.runtime-notice__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 2px;
+  font-weight: 600;
+  color: var(--pg-accent);
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.runtime-notice__link:hover {
+  color: var(--pg-accent-hover);
+  text-decoration: underline;
+}
+
+.runtime-notice__link:focus-visible {
+  outline: 2px solid var(--pg-accent);
+  outline-offset: 2px;
+}
+
+.runtime-notice__ext {
+  font-size: 0.82rem;
+}
+
+.search-empty__sub {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--pg-text-muted);
 }
 
 .btn-icon {
@@ -1909,6 +1990,15 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .mobile-only {
     display: inline-flex;
+  }
+
+  .main-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .runtime-notice {
+    order: 3;
+    flex: 1 1 100%;
   }
 
   .sidebar {

@@ -57,6 +57,18 @@ const k = await sdk.options.etf.dailyKline('10004336') // 二级命名空间
 | `sdk.reference` | 参考数据：分红明细 / A股交易日历 | [reference](/api/reference) |
 | `sdk.search(keyword)` | 股票搜索（顶层快捷方法） | [search](/api/search) |
 
+## Node 专属扩展（`stock-node-sdk`）
+
+在 Node.js 服务端使用 `StockNodeSDK` 时，除严格继承以上全部命名空间（并默认启用多源自动容错）外，还额外提供以下 4 个命名空间与路由可观测 API：
+
+| 命名空间 / 能力 | 用途 | 文档 |
+|---|---|---|
+| `sdk.financial` | 财务指标、利润表、资产负债表、现金流量表、业绩预告、业绩快报 | [Node 专属扩展](/api/node-extensions) |
+| `sdk.news` | 7×24 实时财经快讯（东财/新浪双源）、上市公司公告与 PDF（东财/巨潮双源） | [Node 专属扩展](/api/node-extensions) |
+| `sdk.corporate` | 十大流通股东、股东户数与筹码集中度变化 | [Node 专属扩展](/api/node-extensions) |
+| `sdk.bond` | 可转债发行与基础条款列表 | [Node 专属扩展](/api/node-extensions) |
+| `withMeta()` / `registerAdapter()` / `getSourceHealth()` | 并发安全路由溯源、热插拔自定义源与源级健康监控 | [Node 增强版指南](/guide/node-sdk) |
+
 ## 纯计算 · subpath 导出
 
 指标、信号、符号解析是**纯函数、零网络**，不依赖 `StockSDK` 实例，从各自 subpath 独立引入：
@@ -73,6 +85,7 @@ import { normalizeSymbol } from 'stock-sdk/symbols'
 | 信号 | `stock-sdk/signals` | `calcSignals`：金叉 / 死叉 / 超买 / 超卖等事件识别 | [signals](/api/signals) |
 | 选股 / 回测 | `stock-sdk/screener` | `screen`：链式筛选排序；`backtest`：单标的多头回测 | [screener](/api/screener) |
 | 符号 | `stock-sdk/symbols` | `normalizeSymbol`、`SymbolRef` 类型：符号容错解析 | [符号与代码规则](/guide/symbols) |
+| 多源路由 *(Node)* | `stock-node-sdk/router` | `SourceRouter`、`SourceHealthTracker`、`SourceAdapter` | [Node 增强版指南](/guide/node-sdk) |
 
 ## 约定
 
