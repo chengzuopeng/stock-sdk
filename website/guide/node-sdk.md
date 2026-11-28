@@ -91,7 +91,7 @@ console.log(sdk.getSourceHealth());
 | `batch.cn` / `batch.hk` / `batch.us` | 腾讯分批 → 东财 `clist` 全市场分页 | 支持 `market` 过滤与 `onProgress` 回调 |
 | `kline.cn`（日/周/月） | 东财 → 腾讯 → 新浪 | 严格模式：`qfq`/`hfq` 自动跳过新浪；`chips.cn` 通过 `requiredFields: ['turnoverRate']` 过滤 |
 | `kline.hk` | 东财 → 腾讯 (`hkfqkline`) → **CNBC** *(海外)* | CNBC 的拆股调整日线用于 `qfq` |
-| `kline.us` | 东财 → 腾讯 (`usfqkline`) → **CNBC** → **Nasdaq** *(海外)* | 海外拆股调整日线用于 `qfq`，Nasdaq 按日期区间分页 |
+| `kline.us` | 东财 → 腾讯 (`usfqkline`) → **CNBC** → **Nasdaq** *(海外)* | 海外拆股调整日线用于 `qfq`，Nasdaq 在同一日期区间内按偏移量分页 |
 | `reference.dividendDetail` | **A 股**：东财 → 新浪 HTML<br>**港股**：东财 (`RPT_HKF10`)<br>**美股**：东财 (`RPT_USF10`) → **Nasdaq** *(海外)* | 自动识别 A/HK/US 三市场代码 |
 | `financial.indicators` / `income` / `balance` / `cashflow` | **A/HK/US**：东财数据中心（自动识别三市场）<br>**美股三大表备源**：**Nasdaq** *(海外)* | 三市场统一 Schema（Nasdaq 千美元自动 ×1000 统一为美元） |
 | `news.flash` | 东财 7×24 → 新浪 7×24 | `page > 1` 自动路由到支持翻页的新浪 |

@@ -19,7 +19,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 - **Multi-source upgrades & optional overseas feeds**:
   - Live quotes: `quotes.cn` (Tencent → Sina → Eastmoney), `quotes.hk` (Tencent → Eastmoney → Sina → CNBC), `quotes.us` (Tencent → Sina → Eastmoney → CNBC → Nasdaq); market-wide `batch.cn` / `batch.hk` / `batch.us` gain Eastmoney `clist` paginated failover.
   - Historical K-lines & dividends: `kline.hk` / `kline.us` (including `kline.withIndicators`, `kline.signals`, and `chips.hk` / `chips.us`) gain Tencent and CNBC / Nasdaq fallbacks; `reference.dividendDetail` expands to CN (Eastmoney → Sina HTML), HK (Eastmoney), and US (Eastmoney → Nasdaq).
-  - Strict routing checks adjustment series and the historical range covered by CNBC. Nasdaq daily history paginates by date window.
+  - Strict routing checks adjustment series and start-date coverage for overseas daily history. Nasdaq paginates by offset within a fixed date window.
   - Overseas switch: CNBC, Nasdaq, and SEC EDGAR are enabled by default and can be disabled with `new StockNodeSDK({ overseas: false })` for direct mainland China environments without proxies.
 - **4 new Node-exclusive namespaces (11 new methods)**:
   - `financial`: CN / HK / US key metrics (`indicators`) and three statements (`income`, `balance`, `cashflow`, with Nasdaq failover for US statements and native `currency` tags), plus A-share earnings forecasts (`forecast`) and express reports (`express`).

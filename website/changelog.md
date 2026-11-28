@@ -19,7 +19,7 @@ pageClass: changelog-page
 - **双端共有接口多源增强与海外备源**：
   - 实时行情：`quotes.cn`（腾讯 → 新浪 → 东财）、`quotes.hk`（腾讯 → 东财 → 新浪 → CNBC）、`quotes.us`（腾讯 → 新浪 → 东财 → CNBC → Nasdaq）；全市场批量 `batch.cn` / `batch.hk` / `batch.us` 新增东财 `clist` 分页备源。
   - 历史 K 线与分红：`kline.hk` / `kline.us`（含 `kline.withIndicators` / `kline.signals` 与 `chips.hk` / `chips.us`）接入多源路由，扩展腾讯与 CNBC / Nasdaq 备源；`reference.dividendDetail` 扩展为 A 股（东财 → 新浪 HTML 双源）、港股（东财直连）、美股（东财直连 → Nasdaq 备源）三市场通用。
-  - 严格路由校验复权序列和 CNBC 的历史覆盖范围。Nasdaq 历史日线按日期区间分页。
+  - 严格路由校验复权序列和海外日线的起始日覆盖。Nasdaq 在同一日期区间内按偏移量分页。
   - 海外源开关：CNBC / Nasdaq / SEC EDGAR 默认开启，中国大陆无代理直连环境可通过 `new StockNodeSDK({ overseas: false })` 一键禁用。
 - **新增 4 大 Node 专属命名空间（11 个新方法）**：
   - `financial`：A / 港 / 美股核心财务指标 `indicators` 与三大表 `income` / `balance` / `cashflow`（东财直连 + 美股三大表 Nasdaq 备源，统一原币种元口径并标注 `currency`），以及 A 股业绩预告 `forecast`、业绩快报 `express`。

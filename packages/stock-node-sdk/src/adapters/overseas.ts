@@ -525,14 +525,14 @@ async function fetchNasdaqUsKline(
     low: number | null;
     volume: number | null;
   }>();
-  let cursor = end;
   let total: number | null = null;
   for (let page = 0; page < NASDAQ_HISTORY_MAX_PAGES; page++) {
     const params = new URLSearchParams({
       assetclass: 'stocks',
       fromdate: queryStart,
-      todate: cursor,
+      todate: end,
       limit: String(NASDAQ_HISTORY_PAGE_SIZE),
+      offset: String(bars.size),
     });
     const url = `${endpoint}?${params.toString()}`;
     const json = await client.get<NasdaqHistoryResponse>(url, {
@@ -542,18 +542,19 @@ async function fetchNasdaqUsKline(
       throw new UpstreamEmptyError(`Nasdaq historical kline missing payload for ${code}`, 'nasdaq', url);
     }
     const pageTotal = parseFormattedNumber(json.data.totalRecords);
-    if (page === 0) total = pageTotal;
+    if (total === null) total = pageTotal;
+    if (pageTotal !== null && pageTotal !== total) {
+      throw new UpstreamError(`Nasdaq reported inconsistent historical K-line counts for ${code}`, 'nasdaq', url);
+    }
     const rows = json.data.tradesTable?.rows ?? (pageTotal === 0 ? [] : undefined);
     if (!Array.isArray(rows)) {
       throw new UpstreamError(`Nasdaq historical K-line page missing rows for ${code}`, 'nasdaq', url);
     }
-    let earliest = cursor;
     for (const row of rows) {
       const date = parseUsDate(row?.date);
-      if (!date || date < queryStart || date > cursor || bars.has(date)) {
+      if (!date || date < queryStart || date > end || bars.has(date)) {
         throw new UpstreamError(`Nasdaq historical K-line page contains invalid or duplicate dates for ${code}`, 'nasdaq', url);
       }
-      if (date < earliest) earliest = date;
       bars.set(date, {
         date,
         open: parseFormattedNumber(row.open),
@@ -564,12 +565,13 @@ async function fetchNasdaqUsKline(
       });
     }
 
-    const moreReported = (pageTotal !== null && pageTotal > rows.length) ||
-      (total !== null && total > bars.size);
-    if (rows.length === 0 || earliest <= queryStart || (!moreReported && rows.length < NASDAQ_HISTORY_PAGE_SIZE)) {
-      if (moreReported) {
-        throw new UpstreamError(`Nasdaq returned an incomplete historical K-line window for ${code}`, 'nasdaq', url);
-      }
+    if (total !== null && (bars.size > total || (rows.length === 0 && bars.size < total))) {
+      throw new UpstreamError(`Nasdaq returned an incomplete historical K-line window for ${code}`, 'nasdaq', url, {
+        totalRecords: total, returnedRecords: bars.size,
+      });
+    }
+    const complete = total === null ? rows.length < NASDAQ_HISTORY_PAGE_SIZE : bars.size === total;
+    if (complete) {
       const sorted = [...bars.values()].sort((a, b) => a.date.localeCompare(b.date));
       if (strict && sorted.length === 0) {
         throw new UpstreamEmptyError(`Nasdaq returned no historical K-lines for ${code}`, 'nasdaq', url);
@@ -583,7 +585,6 @@ async function fetchNasdaqUsKline(
         currency: 'USD' as const,
       }));
     }
-    cursor = addDays(earliest, -1);
   }
   throw new UpstreamError(`Nasdaq historical K-line page limit reached for ${code}`, 'nasdaq', endpoint);
 }

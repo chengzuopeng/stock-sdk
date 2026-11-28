@@ -85,7 +85,7 @@ Financial and corporate data are cached by the effective source policy, includin
 | `batch.cn` / `batch.hk` / `batch.us` | Tencent batch → Eastmoney `clist` pagination | Supports `market` filtering & `onProgress` callback |
 | `kline.cn` | Eastmoney → Tencent → Sina | Strict mode skips Sina for `qfq`/`hfq`; `chips.cn` enforces `requiredFields: ['turnoverRate']` |
 | `kline.hk` | Eastmoney → Tencent (`hkfqkline`) → **CNBC** *(overseas)* | CNBC's split-adjusted daily series serves `qfq` |
-| `kline.us` | Eastmoney → Tencent (`usfqkline`) → **CNBC** → **Nasdaq** *(overseas)* | Overseas split-adjusted daily series serve `qfq`. Nasdaq paginates by date window. |
+| `kline.us` | Eastmoney → Tencent (`usfqkline`) → **CNBC** → **Nasdaq** *(overseas)* | Overseas split-adjusted daily series serve `qfq`. Nasdaq paginates by offset within a fixed date window. |
 | `reference.dividendDetail` | **CN**: Eastmoney → Sina HTML<br>**HK**: Eastmoney (`RPT_HKF10`)<br>**US**: Eastmoney (`RPT_USF10`) → **Nasdaq** *(overseas)* | Auto-detects CN / HK / US symbols |
 | `financial.indicators` / `income` / `balance` / `cashflow` | **CN/HK/US**: Eastmoney Datacenter<br>**US statements fallback**: **Nasdaq** *(overseas)* | Unified schemas across CN/HK/US (Nasdaq thousands USD auto-scaled ×1000) |
 | `news.flash` | Eastmoney 7×24 → Sina 7×24 | `page > 1` routes directly to paginated Sina feed |

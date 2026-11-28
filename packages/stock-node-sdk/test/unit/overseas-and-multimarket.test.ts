@@ -11,19 +11,20 @@ describe('Nasdaq 美股历史 K 线', () => {
       const date = new Date(Date.UTC(2025, 0, 1 - index)).toISOString().slice(0, 10);
       return { date, close: '$105', open: '$100', high: '$110', low: '$95', volume: '10,000' };
     });
-    const requestedEnds: string[] = [];
+    const requestedOffsets: number[] = [];
     const lookback = new Date(Date.parse(rows[509].date) - 7 * 86_400_000).toISOString().slice(0, 10);
     server.use(
       http.get(historical, ({ request }) => {
         const params = new URL(request.url).searchParams;
-        const end = params.get('todate')!;
-        requestedEnds.push(end);
+        const offset = Number(params.get('offset'));
+        requestedOffsets.push(offset);
         expect(params.get('fromdate')).toBe(lookback);
-        const remaining = rows.filter((row) => row.date <= end);
+        expect(params.get('todate')).toBe(rows[0].date);
+        const limit = Number(params.get('limit'));
         return HttpResponse.json({
           data: {
-            totalRecords: remaining.length,
-            tradesTable: { rows: remaining.slice(0, Number(params.get('limit'))) },
+            totalRecords: rows.length,
+            tradesTable: { rows: rows.slice(offset, offset + limit) },
           },
         });
       })
@@ -31,13 +32,13 @@ describe('Nasdaq 美股历史 K 线', () => {
     const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
     const options = { startDate: rows[509].date, endDate: rows[0].date };
     const result = await sdk.kline.us('AAPL', options, { source: 'nasdaq' });
-    expect(requestedEnds).toEqual([rows[0].date, rows[500].date]);
+    expect(requestedOffsets).toEqual([0, 500]);
     expect(result.map((row) => row.date)).toEqual(rows.map((row) => row.date).reverse());
     expect(result[0]).toMatchObject({ code: 'AAPL', close: 105, volume: 10_000, currency: 'USD' });
 
     await expect(sdk.kline.us('AAPL', { ...options, adjust: '' }, { source: 'nasdaq' }))
       .rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
-    expect(requestedEnds).toHaveLength(2);
+    expect(requestedOffsets).toHaveLength(2);
   });
 
   it('上游报告仍有记录却返回空页时拒绝不完整结果', async () => {
@@ -47,7 +48,7 @@ describe('Nasdaq 美股历史 K 线', () => {
           data: {
             totalRecords: 2,
             tradesTable: {
-              rows: new URL(request.url).searchParams.get('todate') === '2025-01-03'
+              rows: new URL(request.url).searchParams.get('offset') === '0'
                 ? [{ date: '01/03/2025', close: '$105' }]
                 : [],
             },
