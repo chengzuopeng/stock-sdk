@@ -3,6 +3,111 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../../../core/test/mocks/server';
 import { OVERSEAS_PROVIDERS, StockNodeSDK } from '../../src/index';
 
+describe('Nasdaq 美股历史 K 线', () => {
+  const historical = 'https://api.nasdaq.com/api/quote/AAPL/historical';
+
+  it('逐页覆盖请求的日期区间，返回按日期升序的完整序列', async () => {
+    const rows = Array.from({ length: 510 }, (_, index) => {
+      const date = new Date(Date.UTC(2025, 0, 1 - index)).toISOString().slice(0, 10);
+      return { date, close: '$105', open: '$100', high: '$110', low: '$95', volume: '10,000' };
+    });
+    const requestedEnds: string[] = [];
+    server.use(
+      http.get(historical, ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        const end = params.get('todate')!;
+        requestedEnds.push(end);
+        expect(params.get('fromdate')).toBe(rows[509].date);
+        const remaining = rows.filter((row) => row.date <= end);
+        return HttpResponse.json({
+          data: {
+            totalRecords: remaining.length,
+            tradesTable: { rows: remaining.slice(0, Number(params.get('limit'))) },
+          },
+        });
+      })
+    );
+    const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
+    const options = { startDate: rows[509].date, endDate: rows[0].date };
+    const result = await sdk.kline.us('AAPL', options, { source: 'nasdaq' });
+    expect(requestedEnds).toEqual([rows[0].date, rows[500].date]);
+    expect(result.map((row) => row.date)).toEqual(rows.map((row) => row.date).reverse());
+    expect(result[0]).toMatchObject({ code: 'AAPL', close: 105, volume: 10_000, currency: 'USD' });
+
+    await expect(sdk.kline.us('AAPL', { ...options, adjust: '' }, { source: 'nasdaq' }))
+      .rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    expect(requestedEnds).toHaveLength(2);
+  });
+
+  it('上游报告仍有记录却返回空页时拒绝不完整结果', async () => {
+    server.use(
+      http.get(historical, ({ request }) =>
+        HttpResponse.json({
+          data: {
+            totalRecords: 2,
+            tradesTable: {
+              rows: new URL(request.url).searchParams.get('todate') === '2025-01-03'
+                ? [{ date: '01/03/2025', close: '$105' }]
+                : [],
+            },
+          },
+        })
+      )
+    );
+    const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
+    await expect(sdk.kline.us('AAPL', {
+      startDate: '2025-01-01',
+      endDate: '2025-01-03',
+    }, { source: 'nasdaq' })).rejects.toMatchObject({
+      code: 'UPSTREAM_ERROR',
+      message: expect.stringContaining('incomplete historical K-line window'),
+    });
+  });
+
+  it('CNBC 无法覆盖请求起始日时让 Nasdaq 继续尝试', async () => {
+    const called: string[] = [];
+    server.use(
+      http.get('https://ts-api.cnbc.com/harmony/app/charts/5Y.json', () => {
+        called.push('cnbc');
+        return HttpResponse.json({
+          barData: { priceBars: [{ tradeTime: '20221123160000', close: '135' }] },
+        });
+      }),
+      http.get(historical, () => {
+        called.push('nasdaq');
+        return HttpResponse.json({
+          data: {
+            totalRecords: 2,
+            tradesTable: { rows: [
+              { date: '11/23/2022', close: '$135' },
+              { date: '01/02/2015', close: '$26' },
+            ] },
+          },
+        });
+      })
+    );
+    const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
+    const route = { source: ['cnbc', 'nasdaq'] } as const;
+    const { data, trace } = await sdk.withMeta(() => sdk.kline.us('AAPL', {
+      startDate: '2015-01-01',
+      endDate: '2022-11-23',
+    }, route));
+    expect(data.map((row) => row.date)).toEqual(['2015-01-02', '2022-11-23']);
+    expect(trace?.selectedProvider).toBe('nasdaq');
+    expect(trace?.attempts).toContainEqual(expect.objectContaining({
+      provider: 'cnbc', status: 'failed', errorCode: 'UPSTREAM_ERROR',
+    }));
+
+    const unbounded = await sdk.withMeta(() =>
+      sdk.kline.us('AAPL', { endDate: '2022-11-23' }, route)
+    );
+    expect(unbounded.trace?.attempts).toContainEqual(expect.objectContaining({
+      provider: 'cnbc', status: 'skipped', skipReason: 'unsupported_input',
+    }));
+    expect(called).toEqual(['cnbc', 'nasdaq', 'nasdaq']);
+  });
+});
+
 describe('阶段 A：大陆可直连港美股财报/分红与港交所披露易公告', () => {
   it('financial.* 自动识别港股 00700 与美股 AAPL，按东财数据中心长表透视归一化', async () => {
     server.use(

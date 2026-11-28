@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CookieJar } from '../../src/transport/cookieJar';
@@ -264,5 +264,28 @@ describe('FileCacheStore', () => {
     const removed = await store.cleanup();
     expect(removed).toBe(1);
     expect(await store.get('fresh-disk')).toEqual({ a: 2 });
+  });
+
+  it('clear 和 cleanup 保留缓存目录中不属于 SDK 的文件', async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'stock-node-cache-'));
+    const store = new FileCacheStore({ dir: tmpDir });
+    const unrelatedFiles = [
+      join(tmpDir, 'project.json'),
+      join(tmpDir, 'config', 'app.json'),
+      join(tmpDir, 'ab', `ab${'0'.repeat(62)}.json`),
+    ];
+    await mkdir(join(tmpDir, 'ab'));
+    await mkdir(join(tmpDir, 'config'));
+    for (const file of unrelatedFiles) await writeFile(file, '{"name":"existing"}');
+    await store.set('expired', 1, 10);
+    await store.set('current', 2, 0);
+
+    expect(await store.cleanup(Date.now() + 60_000)).toBe(1);
+    expect(await store.get('current')).toBe(2);
+    await store.clear();
+    expect(await store.get('current')).toBeUndefined();
+    for (const file of unrelatedFiles) {
+      expect(await readFile(file, 'utf8')).toBe('{"name":"existing"}');
+    }
   });
 });

@@ -5,7 +5,7 @@ This monorepo publishes two API-aligned packages — choose the one that fits yo
 | Package | Runtime | Dependencies | Best For |
 |---|---|---|---|
 | `stock-sdk` | Browser + Node.js 18+ | **Zero** | Browser apps, dashboards, lightweight dual-runtime or pure compute |
-| `stock-node-sdk` | Node.js 18+ Server | `undici` only | Backend ingestion, quant pipelines, AI Agents — multi-source automatic failover, proxy pool, disk cache, financials & news ([guide](/en/guide/node-sdk)) |
+| `stock-node-sdk` | Node.js 18.17+ Server | `undici` only | Backend ingestion, quant pipelines, AI Agents — multi-source automatic failover, proxy pool, disk cache, financials & news ([guide](/en/guide/node-sdk)) |
 
 ## Install the package
 
@@ -23,7 +23,7 @@ npm install stock-node-sdk@beta
 
 :::
 
-> Requires Node.js >= 18. `stock-sdk` has zero runtime dependencies; `stock-node-sdk` only depends on `undici` for proxy pooling. Both ship ESM and CJS builds.
+> On Node.js, `stock-sdk` requires 18.0+ and `stock-node-sdk` requires 18.17+. `stock-sdk` has zero runtime dependencies; `stock-node-sdk` only depends on `undici` for proxy pooling. Both ship ESM and CJS builds.
 
 ## Main entry import
 

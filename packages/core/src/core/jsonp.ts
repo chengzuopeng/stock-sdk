@@ -3,7 +3,8 @@
  * 浏览器端：动态创建 <script> 标签注入
  * Node.js 端：fetch + 正则剥离 JSONP 包裹
  */
-import { SdkError, HttpError } from './errors';
+import { AbortedError, SdkError, HttpError } from './errors';
+import { combineSignals, raceWithAbort } from './abort';
 
 const isBrowser =
   typeof document !== 'undefined' && typeof window !== 'undefined';
@@ -68,6 +69,8 @@ export interface JsonpOptions {
    * 默认 'query'
    */
   callbackMode?: 'query' | 'path';
+  /** 外部取消信号 */
+  signal?: AbortSignal;
 }
 
 /**
@@ -78,7 +81,10 @@ function jsonpBrowser<T>(url: string, options: JsonpOptions): Promise<T> {
     timeout = 15000,
     callbackParam = 'callback',
     callbackMode = 'query',
+    signal,
   } = options;
+
+  if (signal?.aborted) return Promise.reject(new AbortedError(undefined, undefined, url));
 
   return new Promise<T>((resolve, reject) => {
     const cbName = generateCallbackName();
@@ -97,6 +103,7 @@ function jsonpBrowser<T>(url: string, options: JsonpOptions): Promise<T> {
     const globalObj = window as unknown as Record<string, unknown>;
 
     const cleanup = () => {
+      signal?.removeEventListener('abort', onAbort);
       if (script.parentNode) {
         script.parentNode.removeChild(script);
       }
@@ -117,6 +124,15 @@ function jsonpBrowser<T>(url: string, options: JsonpOptions): Promise<T> {
         );
       }
     }, timeout);
+
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      reject(new AbortedError(undefined, undefined, url));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
 
     globalObj[cbName] = (data: T) => {
       if (!settled) {
@@ -155,7 +171,10 @@ async function jsonpNode<T>(url: string, options: JsonpOptions): Promise<T> {
     timeout = 15000,
     callbackParam = 'callback',
     callbackMode = 'query',
+    signal: externalSignal,
   } = options;
+
+  if (externalSignal?.aborted) throw new AbortedError(undefined, undefined, url);
 
   const cbName = generateCallbackName();
   let finalUrl: string;
@@ -169,15 +188,19 @@ async function jsonpNode<T>(url: string, options: JsonpOptions): Promise<T> {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
+  const { signal, cleanup } = combineSignals([controller.signal, externalSignal]);
 
   try {
-    const resp = await fetch(finalUrl, { signal: controller.signal });
+    const resp = await raceWithAbort(signal, fetch(finalUrl, { signal }));
     if (!resp.ok) {
       throw new HttpError(resp.status, resp.statusText, url);
     }
-    const text = await resp.text();
+    const text = await raceWithAbort(signal, resp.text());
     return extractJsonFromJsonp(text) as T;
   } catch (error) {
+    if (externalSignal?.aborted && signal?.reason === externalSignal.reason) {
+      throw new AbortedError(undefined, undefined, url);
+    }
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new SdkError({
         code: 'TIMEOUT',
@@ -199,6 +222,7 @@ async function jsonpNode<T>(url: string, options: JsonpOptions): Promise<T> {
     });
   } finally {
     clearTimeout(timer);
+    cleanup();
   }
 }
 

@@ -3,11 +3,11 @@
 `stock-sdk` 与 `stock-node-sdk` 均内置 MCP（Model Context Protocol）server，一条命令即可启动，把只读财经数据能力暴露给 Cursor / Claude Desktop / Codex / Gemini 等 AI 工具。
 
 ::: tip AI 场景推荐使用 `stock-node-sdk mcp`
-由于本地 MCP server 本身运行在 Node.js 18+ 上，推荐使用 **`npx -y stock-node-sdk mcp`**（104 个全量工具），可同时获得多源自动容错、A/港/美股财报三大表、7×24 快讯、三地官方公告（东财/巨潮 + 港交所披露易 + SEC EDGAR）与 `--cache-dir` / `--proxy` / `--source` / `--overseas=false` 启动参数；若偏好零依赖极简版则使用 `npx -y stock-sdk mcp`（93 个工具）。
+使用 Node.js 18.17+ 时，可以通过 **`npx -y stock-node-sdk@beta mcp`**（104 个全量工具），可同时获得多源自动容错、A/港/美股财报三大表、7×24 快讯、三地官方公告（东财/巨潮 + 港交所披露易 + SEC EDGAR）与 `--cache-dir` / `--proxy` / `--source` / `--overseas=false` 启动参数；若偏好零依赖极简版则使用 `npx -y stock-sdk mcp`（93 个工具）。
 :::
 
 ```bash
-npx -y stock-node-sdk mcp   # Node 增强版（104 工具 + 多源自动容错）
+npx -y stock-node-sdk@beta mcp   # Node 增强版（104 工具 + 多源自动容错）
 npx -y stock-sdk mcp        # 零依赖基础版（93 工具）
 ```
 

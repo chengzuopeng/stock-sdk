@@ -9,7 +9,7 @@
 
 这是一个面向 **浏览器** 和 **Node.js** 的全栈 TypeScript 财经数据 SDK Monorepo（一仓双包），共享私有核心底座 `@stock-sdk/core`：
 - **`stock-sdk`**：零运行时依赖、浏览器 + Node.js 18+ 双端兼容的轻量股票行情 SDK；
-- **`stock-node-sdk`**：Node.js 18+ 服务端多源高可用增强版（`stock-sdk` 严格超集），内置能力驱动多源自动容错（`SourceRouter`）、代理池 / `CookieJar` / `SessionManager` / 本地磁盘缓存（`FileCacheStore`），覆盖大陆直连多源与可选海外源（CNBC / Nasdaq / SEC EDGAR，默认开启，支持 `overseas: false` 关闭），并扩展 A/港/美股财报、7×24 快讯、三地官方公告、股东与可转债数据。
+- **`stock-node-sdk`**：Node.js 18.17+ 服务端多源高可用增强版（`stock-sdk` 严格超集），内置能力驱动多源自动容错（`SourceRouter`）、代理池 / `CookieJar` / `SessionManager` / 本地磁盘缓存（`FileCacheStore`），覆盖大陆直连多源与可选海外源（CNBC / Nasdaq / SEC EDGAR，默认开启，支持 `overseas: false` 关闭），并扩展 A/港/美股财报、7×24 快讯、三地官方公告、股东与可转债数据。
 
 **当前主线为 v2**（命名空间 API、统一符号模型、CLI / MCP / subpath 导出）。v1 扁平 API 已在 v2 硬切移除，迁移见 [v1 → v2 迁移指南](https://stock-sdk.linkdiary.cn/guide/migration-v1-to-v2)。
 
@@ -88,7 +88,7 @@ packages/
 ├── stock-sdk/               # npm: stock-sdk（零运行时依赖 · Browser + Node.js 双端）
 │   ├── src/                 # 薄入口（由 tsup noExternal 内联 @stock-sdk/core）
 │   └── test/dist-smoke.test.ts
-└── stock-node-sdk/          # npm: stock-node-sdk（Node.js 18+ 多源高可用增强版）
+└── stock-node-sdk/          # npm: stock-node-sdk（Node.js 18.17+ 多源高可用增强版）
     ├── src/
     │   ├── transport/       # NodeHttpClient（POST/Referer/GBK）/ CookieJar / SessionManager / ProxyPool
     │   ├── storage/         # FileCacheStore（本地磁盘持久化缓存）
@@ -613,8 +613,22 @@ stock-sdk mcp
 
 3. **先合入 master 且 CI 绿**，再发 release。
 4. **GitHub Release**：tag `vX.Y.Z`（target master），标题 `vX.Y.Z 英文短名`（如 `v2.2.0 Theme Funds`），正文 = 简介段（注明是否有破坏性变更）+ `### 新增 / 修复` + `### 升级` + 自动生成的 `## What's Changed` + Full Changelog 链接，标记 latest。
-5. **npm 自动发布**：推 `v*` tag 触发 `.github/workflows/release.yml` 执行 `npm publish`（Trusted Publishing + provenance）；prerelease（`-beta` / `-rc` / `-alpha`）自动发对应 dist-tag，不会顶掉 `latest`。
-6. **⚠️ 发布顺序硬约束**：生产文档站的 Playground 按 `package.json` 版本从 `unpkg.com/stock-sdk@<version>` 锁版加载 SDK——**npm 上必须先存在该版本，带新版本号的文档站才能部署**，否则线上 Playground 加载不存在的包直接不可用。
+5. **npm 自动发布**。`vX.Y.Z` 和 `stock-sdk@X.Y.Z` 发布基础包，`stock-node-sdk@X.Y.Z` 发布 Node 增强版。Publish 工作流打包后通过 npm Trusted Publishing 发布，并按版本选择 `beta`、`rc`、`alpha`、`next` 或 `latest`。
+6. **文档部署顺序**。Deploy Docs 核对两个包的精确版本和 unpkg 上的浏览器入口。合入后如有版本待发布，继续提供上一版文档。Publish 成功后会重试部署。手动发布后也可手动运行 Deploy Docs。
+
+### Node 包首次公开 Beta
+
+1. 从通过 CI 的待发布提交构建并打包。用 npm 维护者的已认证会话提交 tarball，保留命令返回的暂存 ID。
+
+   ```bash
+   pnpm build
+   mkdir -p /tmp/stock-sdk-release
+   pnpm --filter stock-node-sdk pack --pack-destination /tmp/stock-sdk-release
+   npm stage publish /tmp/stock-sdk-release/stock-node-sdk-0.1.0-beta.1.tgz --tag beta --access public --provenance=false
+   ```
+
+2. 核对暂存的版本和包内容后，由维护者使用 `npm stage approve <stage-id>` 完成 2FA 审批。通过 `npm view stock-node-sdk dist-tags` 核对 Beta，再从公开 registry 安装验证。 [npm 暂存发布](https://docs.npmjs.com/staged-publishing/)
+3. 为已建立的包配置 GitHub Trusted Publisher，仓库为 `chengzuopeng/stock-sdk`，工作流为 `release.yml`。用下一个未发布版本验证 OIDC 发布，再核对 npm 和文档部署结果。 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/)
 
 ## 方法下线与恢复
 

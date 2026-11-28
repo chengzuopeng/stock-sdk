@@ -3,11 +3,11 @@
 Both `stock-sdk` and `stock-node-sdk` ship a built-in MCP (Model Context Protocol) server that starts with a single command, exposing read-only financial market data to AI tools like Cursor / Claude Desktop / Codex / Gemini.
 
 ::: tip Recommended for AI clients: `stock-node-sdk mcp`
-Because local MCP servers already run on Node.js 18+, **`npx -y stock-node-sdk mcp`** (104 tools) is recommended — giving your AI agent automatic multi-source failover, CN/HK/US financial statements, 24/7 news flashes, official disclosures (Eastmoney/CNINFO, HKEXnews, SEC EDGAR), plus `--cache-dir` / `--proxy` / `--source` / `--overseas=false` flags. Use `npx -y stock-sdk mcp` (93 tools) if you prefer the zero-dependency edition.
+On Node.js 18.17+, **`npx -y stock-node-sdk@beta mcp`** (104 tools) is recommended — giving your AI agent automatic multi-source failover, CN/HK/US financial statements, 24/7 news flashes, official disclosures (Eastmoney/CNINFO, HKEXnews, SEC EDGAR), plus `--cache-dir` / `--proxy` / `--source` / `--overseas=false` flags. Use `npx -y stock-sdk mcp` (93 tools) if you prefer the zero-dependency edition.
 :::
 
 ```bash
-npx -y stock-node-sdk mcp   # Node Enhanced (104 tools + automatic failover)
+npx -y stock-node-sdk@beta mcp   # Node Enhanced (104 tools + automatic failover)
 npx -y stock-sdk mcp        # Zero-dep Base (93 tools)
 ```
 

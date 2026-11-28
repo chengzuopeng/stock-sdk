@@ -105,7 +105,7 @@ export interface RouteOptions {
    */
   source?: ProviderId | readonly ProviderId[];
   /**
-   * 数据完整性约束：要求选中的数据源必须保证提供所有指定字段（如 `['turnoverRate', 'amount']`）。
+   * 数据完整性约束：候选源须声明支持指定字段，且每条返回记录都须有有效字段值。
    */
   requiredFields?: readonly string[];
   /**
@@ -113,7 +113,7 @@ export interface RouteOptions {
    * 仅用于极少数兼容场景下允许降级到不满足某项严格语义的源。
    */
   strictCapabilities?: boolean;
-  /** 外部取消信号 */
+  /** 取消本次调用并停止切源的信号，内置适配器会传给上游请求。 */
   signal?: AbortSignal;
 }
 
@@ -153,6 +153,8 @@ export interface AdapterContext {
   attemptIndex: number;
   /** 外部取消信号 */
   signal?: AbortSignal;
+  /** 是否按严格口径校验上游实际响应 */
+  strictCapabilities?: boolean;
 }
 
 /**

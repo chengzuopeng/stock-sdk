@@ -11,6 +11,7 @@ import {
   MARKET_TZ,
   todayInTz,
   UpstreamEmptyError,
+  UpstreamError,
 } from '@stock-sdk/core/core';
 import { normalizeSymbol } from '@stock-sdk/core/symbols';
 import type { SourceAdapter } from '@stock-sdk/core/router';
@@ -220,10 +221,8 @@ async function fetchEmAnnouncements(
     f_node: '0',
     s_node: '0',
   });
-  if (options.symbol) {
-    const ns = normalizeSymbol(options.symbol, { market: 'CN' });
-    params.set('stock_list', ns.code);
-  }
+  const targetCode = options.symbol && normalizeSymbol(options.symbol, { market: 'CN' }).code;
+  if (targetCode) params.set('stock_list', targetCode);
   const url = `${EM_ANNOUNCEMENT_URL}?${params.toString()}`;
   const json = await client.get<EmAnnouncementResponse>(url, {
     responseType: 'json',
@@ -235,14 +234,19 @@ async function fetchEmAnnouncements(
     throw new UpstreamEmptyError('Eastmoney announcement response is empty', 'eastmoney', url);
   }
   return list.map((item): StockAnnouncement => {
-    const firstStock = item.codes?.[0];
+    const stock = targetCode
+      ? item.codes?.find((candidate) => candidate.stock_code === targetCode)
+      : item.codes?.[0];
+    if (targetCode && !stock) {
+      throw new UpstreamError(`Eastmoney announcement did not match ${targetCode}`, 'eastmoney', url);
+    }
     const publishedAt = (item.notice_date ?? item.display_time ?? '').slice(0, 10);
     const meta = buildTimeMeta(publishedAt, MARKET_TZ.CN);
-    const code = firstStock?.stock_code ?? '';
+    const code = stock?.stock_code ?? '';
     return {
       id: String(item.art_code ?? ''),
       code,
-      name: firstStock?.short_name ?? '',
+      name: stock?.short_name ?? '',
       title: (item.title_ch ?? item.title ?? '').trim(),
       category: item.columns?.[0]?.column_name ?? null,
       publishedAt,
@@ -259,7 +263,8 @@ async function fetchEmAnnouncements(
 
 async function resolveCninfoOrgId(
   client: NodeHttpClient,
-  code: string
+  code: string,
+  signal?: AbortSignal
 ): Promise<string | undefined> {
   const cache = getClientScopedCache<Map<string, string>>(client, 'cninfo:orgid-map', {
     defaultTTL: 24 * 3_600_000,
@@ -274,6 +279,7 @@ async function resolveCninfoOrgId(
           provider: 'cninfo',
           hostFallback: false,
           retry: { maxRetries: 0 },
+          signal,
         }
       );
       const next = new Map<string, string>();
@@ -283,16 +289,18 @@ async function resolveCninfoOrgId(
         }
       }
       return next;
-    });
+    }, undefined, signal);
     return map.get(code);
   } catch {
+    signal?.throwIfAborted();
     return undefined;
   }
 }
 
 async function fetchCninfoAnnouncements(
   client: NodeHttpClient,
-  options: AnnouncementQueryOptions = {}
+  options: AnnouncementQueryOptions,
+  signal?: AbortSignal
 ): Promise<StockAnnouncement[]> {
   const page = Math.max(1, options.page ?? 1);
   const pageSize = Math.max(1, Math.min(options.pageSize ?? 20, 50));
@@ -303,7 +311,7 @@ async function fetchCninfoAnnouncements(
   let stockParam = '';
   let searchKey = options.keyword ?? '';
   if (targetCode) {
-    const orgId = await resolveCninfoOrgId(client, targetCode);
+    const orgId = await resolveCninfoOrgId(client, targetCode, signal);
     if (orgId) {
       stockParam = `${targetCode},${orgId}`;
     } else if (!searchKey) {
@@ -406,7 +414,8 @@ function parseHkexDateTime(raw: string): { publishedAt: string; timestamp: numbe
 
 async function resolveHkexStockId(
   client: NodeHttpClient,
-  code5: string
+  code5: string,
+  signal?: AbortSignal
 ): Promise<string> {
   const cache = getClientScopedCache<string>(client, 'hkexnews:stockid', {
     defaultTTL: 7 * 24 * 3_600_000,
@@ -438,19 +447,20 @@ async function resolveHkexStockId(
       throw new UpstreamEmptyError(`HKEXnews stockId not found for ${code5}`, 'hkexnews', HKEX_PREFIX_URL);
     }
     return String(hit.stockId);
-  });
+  }, undefined, signal);
 }
 
 async function fetchHkexAnnouncements(
   client: NodeHttpClient,
-  options: AnnouncementQueryOptions = {}
+  options: AnnouncementQueryOptions,
+  signal?: AbortSignal
 ): Promise<StockAnnouncement[]> {
   if (!options.symbol) {
     throw new UpstreamEmptyError('HKEXnews requires a HK symbol', 'hkexnews', HKEX_SEARCH_URL);
   }
   const ns = normalizeSymbol(options.symbol, { market: 'HK' });
   const code5 = ns.code.padStart(5, '0');
-  const stockId = await resolveHkexStockId(client, code5);
+  const stockId = await resolveHkexStockId(client, code5, signal);
 
   const page = Math.max(1, options.page ?? 1);
   const pageSize = Math.max(1, Math.min(options.pageSize ?? 20, 50));
@@ -564,7 +574,7 @@ export function createNodeNewsAdapters(
     priority: 20,
     providedFields: new Set(['id', 'code', 'name', 'title', 'publishedAt', 'url', 'fileType']),
     supports: (opts) => detectAnnouncementMarket(opts.symbol) === 'CN',
-    fetch: (opts) => fetchCninfoAnnouncements(client, opts),
+    fetch: (opts, { signal }) => fetchCninfoAnnouncements(client, opts, signal),
   };
 
   const annHkex: SourceAdapter<AnnouncementQueryOptions, StockAnnouncement[]> = {
@@ -574,7 +584,7 @@ export function createNodeNewsAdapters(
     priority: 10,
     providedFields: new Set(['id', 'code', 'name', 'title', 'category', 'publishedAt', 'url', 'fileType']),
     supports: (opts) => Boolean(opts.symbol) && detectAnnouncementMarket(opts.symbol) === 'HK',
-    fetch: (opts) => fetchHkexAnnouncements(client, opts),
+    fetch: (opts, { signal }) => fetchHkexAnnouncements(client, opts, signal),
   };
 
   return [

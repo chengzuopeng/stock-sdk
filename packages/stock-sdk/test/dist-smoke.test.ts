@@ -180,6 +180,18 @@ describe.skipIf(!hasDist || distStale)(
     expect(typeof sdk.kline.withIndicators).toBe('function');
   });
 
+  it('保留行情 source 到 ProviderName 的 TypeScript 兼容性', () => {
+    const require_ = createRequire(__filename);
+    const check = spawnSync(process.execPath, [
+      require_.resolve('typescript/bin/tsc'),
+      '--noEmit', '--strict', '--skipLibCheck',
+      '--target', 'ES2022', '--module', 'NodeNext',
+      join(PKG_DIR, 'test', 'fixtures', 'quote-provider.mts'),
+    ], { encoding: 'utf8', timeout: 12000 });
+    expect(check.error).toBeUndefined();
+    expect(check.status, check.stdout + check.stderr).toBe(0);
+  });
+
   it('子路径产物可加载且纯计算入口无网络代码', async () => {
     const require_ = createRequire(__filename);
     for (const sub of ['indicators', 'symbols', 'signals', 'screener', 'errors', 'cache']) {

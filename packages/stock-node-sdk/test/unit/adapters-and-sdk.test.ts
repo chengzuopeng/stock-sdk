@@ -1,10 +1,11 @@
-import { describe, expect, it, afterEach } from 'vitest';
+import { describe, expect, it, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { server } from '../../../core/test/mocks/server';
 import { FileCacheStore, StockNodeSDK } from '../../src/index';
+import { MemoryCacheStore } from '../../src/cache';
 import { parseSinaDividendHtml } from '../../src/adapters';
 
 const SINA_HQ_CN =
@@ -192,6 +193,57 @@ describe('StockNodeSDK 多源自动容错与统一 Schema 归一化', () => {
     expect(raw[0]).toMatchObject({ date: '2026-05-13', close: 105, volume: 100 });
   });
 
+  it('A 股 5 分钟复权请求跳过仅支持不复权的备源', async () => {
+    const tencent = vi.fn(() =>
+      HttpResponse.json({
+        code: 0,
+        data: { sh600519: { m5: [['202405140935', '11', '12', '13', '10', '110']] } },
+      })
+    );
+    server.use(
+      http.get('https://push2his.eastmoney.com/api/qt/stock/kline/get', () =>
+        HttpResponse.json({ data: null })
+      ),
+      http.get('https://ifzq.gtimg.cn/appstock/app/kline/mkline', tencent)
+    );
+    const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
+    const options = {
+      period: '5' as const,
+      startDate: '2024-05-14 09:30',
+      endDate: '2024-05-14 15:00',
+    };
+    for (const adjust of ['qfq', 'hfq'] as const) {
+      await expect(sdk.kline.cnMinute('600519', { ...options, adjust }))
+        .rejects.toMatchObject({ code: 'UPSTREAM_EMPTY' });
+    }
+    expect(tencent).not.toHaveBeenCalled();
+    await expect(sdk.kline.cnMinute('600519', { ...options, adjust: '' }))
+      .resolves.toMatchObject([{ time: '2024-05-14 09:35', close: 12 }]);
+    expect(tencent).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['cn', '600519', 'fqkline', 'sh600519'],
+    ['hk', '00700', 'hkfqkline', 'hk00700'],
+    ['us', 'AAPL', 'usfqkline', 'usAAPL.OQ'],
+  ] as const)('腾讯 %s 日 K 缺少后复权序列时不会回退到 day', async (market, symbol, endpoint, key) => {
+    server.use(
+      http.get(`https://web.ifzq.gtimg.cn/appstock/app/${endpoint}/get`, () =>
+        HttpResponse.json({
+          code: 0,
+          data: { [key]: { day: [['2026-05-26', '100', '105', '110', '95', '10000']] } },
+        })
+      )
+    );
+    const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
+    const dates = { startDate: '2026-05-26', endDate: '2026-05-26' };
+    const route = { source: 'tencent' } as const;
+    await expect(sdk.kline[market](symbol, { ...dates, adjust: 'hfq' }, route))
+      .rejects.toMatchObject({ code: 'UPSTREAM_ERROR', message: expect.stringContaining('hfqday') });
+    await expect(sdk.kline[market](symbol, { ...dates, adjust: '' }, route))
+      .resolves.toMatchObject([{ date: '2026-05-26', close: 105 }]);
+  });
+
   it('kline.hk 与 kline.us 在东财失败时自动切腾讯港美股 K 线备源', async () => {
     server.use(
       http.get('https://*.push2his.eastmoney.com/api/qt/stock/kline/get', () =>
@@ -274,9 +326,13 @@ describe('StockNodeSDK 多源自动容错与统一 Schema 归一化', () => {
           },
         })
       ),
+      http.get('http://www.cninfo.com.cn/new/data/szse_stock.json', () =>
+        HttpResponse.json({ stockList: [{ code: '600519', orgId: 'gssh0600519' }] })
+      ),
       http.post('http://www.cninfo.com.cn/new/hisAnnouncement/query', async ({ request }) => {
-        const body = await request.text();
-        expect(body).toContain('searchkey=%E5%88%86%E7%BA%A2');
+        const body = new URLSearchParams(await request.text());
+        expect(body.get('stock')).toBe('600519,gssh0600519');
+        expect(body.get('searchkey')).toBe('分红');
         return HttpResponse.json({
           announcements: [
             {
@@ -315,6 +371,140 @@ describe('StockNodeSDK 多源自动容错与统一 Schema 归一化', () => {
       source: 'cninfo',
     });
     expect(anns.trace?.selectedProvider).toBe('cninfo');
+  });
+
+  it('东财多标的公告按请求代码选择关联股票，错标时切换巨潮', async () => {
+    const first = { stock_code: '000001', short_name: '平安银行' };
+    const target = { stock_code: '600519', short_name: '贵州茅台' };
+    const cninfo = vi.fn(async ({ request }: { request: Request }) => {
+      const form = new URLSearchParams(await request.text());
+      expect(form.get('stock')).toBe('');
+      expect(form.get('searchkey')).toBe('600519');
+      return HttpResponse.json({
+        announcements: [
+          { secCode: '000001', announcementTitle: '其他股票的公告' },
+          { secCode: '600519', announcementTitle: '贵州茅台公告' },
+        ],
+      });
+    });
+    server.use(
+      http.get('https://np-anotice-stock.eastmoney.com/api/security/ann', ({ request }) =>
+        HttpResponse.json({
+          data: {
+            list: [{
+              art_code: 'AN123',
+              title_ch: '联合公告',
+              notice_date: '2026-05-26',
+              codes: new URL(request.url).searchParams.get('page_index') === '2'
+                ? [first]
+                : [first, target],
+            }],
+          },
+        })
+      ),
+      http.get('http://www.cninfo.com.cn/new/data/szse_stock.json', () =>
+        new HttpResponse(null, { status: 503 })
+      ),
+      http.post('http://www.cninfo.com.cn/new/hisAnnouncement/query', cninfo)
+    );
+    const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
+    await expect(sdk.news.announcements()).resolves.toMatchObject([{ code: '000001' }]);
+    await expect(sdk.news.announcements({ symbol: '600519' })).resolves.toMatchObject([{
+      code: '600519',
+      name: '贵州茅台',
+      url: 'https://data.eastmoney.com/notices/detail/600519/AN123.html',
+      source: 'eastmoney',
+    }]);
+    await expect(sdk.news.announcements({ symbol: '600519', page: 2 }))
+      .resolves.toMatchObject([{ code: '600519', source: 'cninfo' }]);
+    expect(cninfo).toHaveBeenCalledTimes(1);
+  });
+
+  it('路由取消终止 Node 适配器的网络请求，并隔离并发调用', async () => {
+    const controller = new AbortController();
+    const aborted = AbortSignal.abort();
+    let started!: () => void;
+    const requestStarted = new Promise<void>((resolve) => { started = resolve; });
+    const networkAborted = vi.fn();
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      const requestUrl = new URL(url);
+      expect(requestUrl.hostname).toBe('np-anotice-stock.eastmoney.com');
+      const symbol = requestUrl.searchParams.get('stock_list');
+      if (symbol === '600519') {
+        return new Promise<Response>((_resolve, reject) => {
+          init!.signal!.addEventListener('abort', () => {
+            networkAborted();
+            reject(init!.signal!.reason);
+          }, { once: true });
+          started();
+        });
+      }
+      return Response.json({ data: { list: [{ codes: [{ stock_code: symbol }] }] } });
+    });
+    const sdk = new StockNodeSDK({ fetchImpl, retry: { maxRetries: 0 } });
+    await expect(sdk.news.announcements({ symbol: '600519' }, { signal: aborted }))
+      .rejects.toMatchObject({ code: 'ABORTED' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    const pending = sdk.news.announcements({ symbol: '600519' }, { signal: controller.signal });
+    const result = expect(pending).rejects.toMatchObject({ code: 'ABORTED' });
+    await requestStarted;
+    const sibling = sdk.news.announcements({ symbol: '000001' });
+    controller.abort();
+
+    await result;
+    await expect(sibling).resolves.toMatchObject([{ code: '000001', source: 'eastmoney' }]);
+    expect(networkAborted).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    await sdk.close();
+  });
+
+  it('财务缓存按实例和单次调用的锁源区分，并保留并发调用轨迹', async () => {
+    const store = new MemoryCacheStore();
+    const eastmoney = vi.fn(async () => [{ source: 'eastmoney', totalRevenue: 100 }]);
+    const nasdaq = vi.fn(async () => [{ source: 'nasdaq', totalRevenue: 200 }]);
+    const options = {
+      cache: { store },
+      customAdapters: [
+        {
+          id: 'eastmoney:financial.income',
+          capability: 'financial.income' as const,
+          provider: 'eastmoney',
+          priority: 10,
+          providedFields: new Set(['totalRevenue']),
+          supports: () => true,
+          fetch: eastmoney,
+        },
+        {
+          id: 'nasdaq:financial.income',
+          capability: 'financial.income' as const,
+          provider: 'nasdaq',
+          priority: 20,
+          providedFields: new Set(['totalRevenue']),
+          supports: () => true,
+          fetch: nasdaq,
+        },
+      ],
+    };
+    const sdk = new StockNodeSDK(options);
+    const pinned = new StockNodeSDK({ ...options, routing: { forcedSource: 'nasdaq' } });
+    await expect(sdk.financial.income('AAPL')).resolves.toMatchObject([{ source: 'eastmoney' }]);
+
+    const [first, joined] = await Promise.all([
+      pinned.withMeta(() => pinned.financial.income('AAPL')),
+      pinned.withMeta(() => pinned.financial.income('AAPL')),
+    ]);
+    for (const result of [first, joined]) {
+      expect(result.data).toMatchObject([{ source: 'nasdaq', totalRevenue: 200 }]);
+      expect(result.trace?.selectedProvider).toBe('nasdaq');
+    }
+    const [cached, overridden] = await Promise.all([
+      pinned.withMeta(() => pinned.financial.income('AAPL')),
+      pinned.withMeta(() => pinned.financial.income('AAPL', {}, { source: 'eastmoney' })),
+    ]);
+    expect(cached.trace?.selectedAdapterId).toBe('nasdaq:financial.income#cache');
+    expect(overridden.trace?.selectedProvider).toBe('eastmoney');
+    expect(nasdaq).toHaveBeenCalledTimes(1);
   });
 
   it('financial / corporate / bond 统一归一化并支持 FileCacheStore 磁盘缓存复用', async () => {

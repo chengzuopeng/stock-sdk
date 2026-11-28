@@ -2,6 +2,7 @@
  * 通用缓存模块
  * 支持 TTL（过期时间）和 LRU 淘汰策略
  */
+import { raceWithAbort } from './abort';
 
 /**
  * 缓存配置选项
@@ -183,15 +184,25 @@ export class MemoryCache<T = unknown> {
   /**
    * 带缓存的异步获取
    * 如果缓存存在则返回缓存，否则执行 fetcher 并缓存结果
+   * 带取消信号的调用独立取数，避免把取消传播给同一键的其他调用方
    */
   async getOrFetch(
     key: string,
     fetcher: () => Promise<T>,
-    ttl?: number
+    ttl?: number,
+    signal?: AbortSignal
   ): Promise<T> {
+    signal?.throwIfAborted();
     const cached = this.get(key);
     if (cached !== undefined) {
       return cached;
+    }
+
+    if (signal) {
+      const value = await raceWithAbort(signal, fetcher());
+      signal.throwIfAborted();
+      this.set(key, value, ttl);
+      return value;
     }
 
     const inflight = this.inflight.get(key);

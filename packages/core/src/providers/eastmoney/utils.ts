@@ -328,7 +328,7 @@ export function parseEmKlineCsv(line: string): EmKlineItem {
 }
 
 /** 东财 K 线单次请求的治理覆盖（重试次数 / 是否切同源备用 host）。 */
-export type EmKlineRequestOptions = Pick<GetOptions, 'retry' | 'hostFallback'> & {
+export type EmKlineRequestOptions = Pick<GetOptions, 'retry' | 'hostFallback' | 'signal'> & {
   /** 有备用源的 A 股路径必须区分合法空结果与异常上游结构。 */
   validateKlines?: boolean;
 };

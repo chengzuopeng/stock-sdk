@@ -150,6 +150,24 @@ describe('MemoryCache', () => {
     expect(value2).toBe('shared-result');
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+
+  it('does not share a cancellable cache miss with another caller', async () => {
+    const cache = new MemoryCache<string>();
+    const controller = new AbortController();
+    const pending = cache.getOrFetch(
+      'key1',
+      () => new Promise<string>(() => {}),
+      undefined,
+      controller.signal
+    );
+    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    const sibling = cache.getOrFetch('key1', async () => 'complete');
+
+    controller.abort();
+    await rejected;
+    await expect(sibling).resolves.toBe('complete');
+    expect(cache.get('key1')).toBe('complete');
+  });
 });
 
 describe('shared cache registry', () => {

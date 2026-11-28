@@ -506,9 +506,9 @@ export function createNodeBatchAndReferenceAdapters(
     priority: 10,
     providedFields: new Set(['price', 'volume', 'amount', 'bid', 'ask', 'pe', 'pb']),
     supports: () => true,
-    fetch: async (opts) => {
+    fetch: async (opts, { signal }) => {
       const { market, ...batchOptions } = opts;
-      const codes = await tencent.getAShareCodeList(client, { market });
+      const codes = await tencent.getAShareCodeList(client, { market }, signal);
       return tencent.getAllQuotesByCodes(client, codes, batchOptions);
     },
   };
@@ -534,8 +534,8 @@ export function createNodeBatchAndReferenceAdapters(
     priority: 10,
     providedFields: new Set(['price', 'volume', 'amount', 'lotSize']),
     supports: () => true,
-    fetch: async (opts) => {
-      const codes = await tencent.getHKCodeList(client);
+    fetch: async (opts, { signal }) => {
+      const codes = await tencent.getHKCodeList(client, signal);
       return tencent.getAllHKQuotesByCodes(client, codes, opts);
     },
   };
@@ -560,9 +560,9 @@ export function createNodeBatchAndReferenceAdapters(
     priority: 10,
     providedFields: new Set(['price', 'volume', 'amount', 'pe', 'pb']),
     supports: () => true,
-    fetch: async (opts) => {
+    fetch: async (opts, { signal }) => {
       const { market, ...restOptions } = opts;
-      const codes = await tencent.getUSCodeList(client, { simple: true, market });
+      const codes = await tencent.getUSCodeList(client, { simple: true, market }, signal);
       return tencent.getAllUSQuotesByCodes(client, codes, restOptions);
     },
   };

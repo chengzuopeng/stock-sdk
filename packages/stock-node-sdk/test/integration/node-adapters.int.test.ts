@@ -53,6 +53,20 @@ describe('stock-node-sdk 真实上游多源实测', () => {
     expect(us[0].currency).toBe('USD');
   });
 
+  it('腾讯 A 股前复权在跨除权的重叠区间内一致', async () => {
+    const route = { source: 'tencent' } as const;
+    const early = await sdk.kline.cn('600519', {
+      startDate: '2023-12-01', endDate: '2023-12-29', adjust: 'qfq',
+    }, route);
+    const across = await sdk.kline.cn('600519', {
+      startDate: '2023-12-01', endDate: '2024-12-31', adjust: 'qfq',
+    }, route);
+    expect(early.length).toBeGreaterThan(10);
+    expect(across.length).toBeGreaterThan(early.length);
+    expect(across.filter((bar) => bar.date <= '2023-12-29').map(({ date, close }) => ({ date, close })))
+      .toEqual(early.map(({ date, close }) => ({ date, close })));
+  });
+
   it('news.flash 双源实测（eastmoney & sina）与 news.announcements 双源实测（eastmoney & cninfo）', async () => {
     const emFlash = await sdk.news.flash({ pageSize: 3 }, { source: 'eastmoney' });
     expect(emFlash.length).toBeGreaterThan(0);
@@ -193,5 +207,25 @@ describe('stock-node-sdk 真实上游多源实测', () => {
     expect(secAnn.length).toBeGreaterThan(0);
     expect(secAnn[0].source).toBe('sec');
     expect(secAnn[0].url).toContain('sec.gov/Archives/edgar');
+  });
+
+  it('Nasdaq 长区间跨页返回完整且无重复的美股日线', async () => {
+    const rows = await sdk.kline.us('AAPL', {
+      startDate: '2019-01-01', endDate: '2021-12-31', adjust: 'qfq',
+    }, { source: 'nasdaq' });
+    expect(rows.length).toBeGreaterThan(500);
+    expect(rows[0].date).toBe('2019-01-02');
+    expect(rows.at(-1)?.date).toBe('2021-12-31');
+    expect(new Set(rows.map((bar) => bar.date)).size).toBe(rows.length);
+  });
+
+  it('CNBC 的历史图表覆盖不足时返回上游错误', async () => {
+    await expect(sdk.kline.us('AAPL', {
+      startDate: '2015-01-01', endDate: '2026-11-24', adjust: 'qfq',
+    }, { source: 'cnbc' })).rejects.toMatchObject({
+      code: 'UPSTREAM_ERROR',
+      provider: 'cnbc',
+      message: expect.stringContaining('does not cover the requested start date'),
+    });
   });
 });

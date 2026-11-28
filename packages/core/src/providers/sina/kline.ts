@@ -155,7 +155,8 @@ async function fetchSinaRows(
   client: RequestClient,
   symbol: string,
   scale: number,
-  dataLen: number
+  dataLen: number,
+  signal?: AbortSignal
 ): Promise<ParsedSinaRow[]> {
   const params = new URLSearchParams({
     symbol,
@@ -166,11 +167,12 @@ async function fetchSinaRows(
   const payload = isBrowserEnv()
     ? await jsonpRequest<unknown>(
         `${SINA_CN_KLINE_JSONP_URL}?${params.toString()}`,
-        { callbackMode: 'path' }
+        { callbackMode: 'path', signal }
       )
     : await client.get<unknown>(`${SINA_CN_KLINE_URL}?${params.toString()}`, {
         responseType: 'json',
         provider: 'sina',
+        signal,
       });
   return parseRows(payload);
 }
@@ -256,7 +258,8 @@ function derivedFields(
 export async function getSinaHistoryKline(
   client: RequestClient,
   symbol: string,
-  options: SinaHistoryKlineOptions = {}
+  options: SinaHistoryKlineOptions = {},
+  signal?: AbortSignal
 ): Promise<HistoryKline[]> {
   const ns = normalizeSymbol(symbol, { market: 'CN' });
   const sinaSymbol = toSinaSymbol(ns.exchange, ns.code);
@@ -267,7 +270,8 @@ export async function getSinaHistoryKline(
     client,
     sinaSymbol,
     240,
-    HISTORY_DATA_LEN
+    HISTORY_DATA_LEN,
+    signal
   );
   if (
     dailyRows.length >= effectiveDataLen(HISTORY_DATA_LEN) &&
@@ -306,7 +310,8 @@ export async function getSinaHistoryKline(
 export async function getSinaMinuteKline(
   client: RequestClient,
   symbol: string,
-  options: SinaMinuteKlineOptions
+  options: SinaMinuteKlineOptions,
+  signal?: AbortSignal
 ): Promise<MinuteKline[]> {
   const ns = normalizeSymbol(symbol, { market: 'CN' });
   const sinaSymbol = toSinaSymbol(ns.exchange, ns.code);
@@ -320,7 +325,8 @@ export async function getSinaMinuteKline(
     client,
     sinaSymbol,
     Number(options.period),
-    MINUTE_DATA_LEN
+    MINUTE_DATA_LEN,
+    signal
   );
   if (
     start !== undefined &&

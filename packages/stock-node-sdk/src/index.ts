@@ -46,6 +46,7 @@ export {
 
 // 全部公共数据结构类型
 export * from '@stock-sdk/core/types';
+export type { FullQuote, SimpleQuote, HKQuote, USQuote, Quote } from './quoteTypes';
 
 // 选项与扩展类型
 export type {

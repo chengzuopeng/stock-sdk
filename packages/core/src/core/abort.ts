@@ -1,3 +1,53 @@
+interface CombinedSignal {
+  signal: AbortSignal | undefined;
+  /** 请求结束后调用以移除 fallback 注册的监听，防止长生命周期 signal 泄漏 */
+  cleanup: () => void;
+}
+
+const NO_CLEANUP = () => {};
+
+/**
+ * 合并多个 AbortSignal：任一触发即 abort。
+ * 优先用原生 `AbortSignal.any`（Node 18.17+/20.3+、现代浏览器）；
+ * 缺失时（Node 18.0–18.16）退回手写联动，并在结束后清理监听防泄漏。
+ */
+export function combineSignals(signals: (AbortSignal | undefined)[]): CombinedSignal {
+  const list = signals.filter((s): s is AbortSignal => Boolean(s));
+  if (list.length === 0) return { signal: undefined, cleanup: NO_CLEANUP };
+  if (list.length === 1) return { signal: list[0], cleanup: NO_CLEANUP };
+
+  const anyFn = (
+    AbortSignal as unknown as {
+      any?: (signals: AbortSignal[]) => AbortSignal;
+    }
+  ).any;
+  if (typeof anyFn === 'function') {
+    return { signal: anyFn(list), cleanup: NO_CLEANUP };
+  }
+
+  // fallback（Node 18.0–18.16）：手动联动，并记录监听以便请求结束后移除
+  const controller = new AbortController();
+  const abort = (reason: unknown) => {
+    if (!controller.signal.aborted) controller.abort(reason);
+  };
+  const registered: Array<{ s: AbortSignal; handler: () => void }> = [];
+  for (const s of list) {
+    if (s.aborted) {
+      abort(s.reason);
+      break;
+    }
+    const handler = () => abort(s.reason);
+    s.addEventListener('abort', handler, { once: true });
+    registered.push({ s, handler });
+  }
+  const cleanup = () => {
+    for (const { s, handler } of registered) {
+      s.removeEventListener('abort', handler);
+    }
+  };
+  return { signal: controller.signal, cleanup };
+}
+
 /**
  * Review R3-2:让「不监听 init.signal 的自定义 fetchImpl」也能被超时/取消解除挂起。
  * 真实 fetch 会订阅 signal 并以 signal.reason 拒绝;但 naive wrapper / axios 适配

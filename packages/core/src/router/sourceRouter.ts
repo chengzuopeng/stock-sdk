@@ -1,8 +1,11 @@
 import {
+  AbortedError,
   SdkError,
+  UpstreamError,
   getSdkErrorCode,
   type SdkErrorCode,
 } from '../core/errors';
+import { raceWithAbort } from '../core/abort';
 import { SourceHealthTracker } from './healthTracker';
 import type {
   CapabilityId,
@@ -36,6 +39,33 @@ const FALLBACK_ERROR_CODES: ReadonlySet<SdkErrorCode> = new Set([
 export function isFallbackableError(error: unknown): boolean {
   const code = getSdkErrorCode(error);
   return code !== undefined && FALLBACK_ERROR_CODES.has(code);
+}
+
+function validateRequiredFields(
+  output: unknown,
+  requiredFields: readonly string[] | undefined,
+  provider: ProviderId
+): void {
+  if (!requiredFields?.length) return;
+  const rows = Array.isArray(output) ? output : [output];
+  for (const [rowIndex, row] of rows.entries()) {
+    const missingFields = requiredFields.filter((field) => {
+      if (!row || typeof row !== 'object' || !Object.prototype.hasOwnProperty.call(row, field)) {
+        return true;
+      }
+      const value: unknown = (row as Record<string, unknown>)[field];
+      return value == null ||
+        (typeof value === 'number' && !Number.isFinite(value)) ||
+        (typeof value === 'string' && !value.trim());
+    });
+    if (missingFields.length) {
+      throw new UpstreamError(`Missing required fields: ${missingFields.join(', ')}`, undefined, undefined, {
+        provider,
+        rowIndex,
+        missingFields,
+      });
+    }
+  }
 }
 
 /**
@@ -135,8 +165,20 @@ export class SourceRouter {
     this.emitTrace(trace);
   }
 
-  private emitTrace(trace: RouteTrace): void {
-    for (const hook of this.onRouteHooks) {
+  /** 缓存键使用实际生效的来源过滤和偏好，避免跨路由策略复用结果。 */
+  getCacheScope(capability: CapabilityId, options: RouteOptions = {}): string {
+    const source = options.source ?? this.forcedSource;
+    return JSON.stringify([
+      source ?? null,
+      source === undefined ? [...this.disabledProviders].sort() : [],
+      source === undefined ? this.preferredSources[capability] ?? [] : [],
+      options.strictCapabilities !== false,
+    ]);
+  }
+
+  private emitTrace(trace: RouteTrace, onTrace?: (trace: RouteTrace) => void): void {
+    const hooks = onTrace ? [onTrace, ...this.onRouteHooks] : this.onRouteHooks;
+    for (const hook of hooks) {
       try {
         hook(trace);
       } catch {
@@ -151,12 +193,19 @@ export class SourceRouter {
   async execute<TInput, TOutput>(
     capability: CapabilityId,
     input: TInput,
-    options: RouteOptions = {}
+    options: RouteOptions = {},
+    onTrace?: (trace: RouteTrace) => void
   ): Promise<TOutput> {
     const startedAt = Date.now();
     const registered = this.adaptersByCapability.get(capability) ?? [];
     const attempts: RouteAttempt[] = [];
     const strict = options.strictCapabilities !== false;
+    const { signal } = options;
+    const notify = (trace: RouteTrace) => this.emitTrace(trace, onTrace);
+    if (signal?.aborted) {
+      notify({ capability, degraded: false, attempts, totalDurationMs: 0 });
+      throw new AbortedError();
+    }
 
     const effectiveSource = options.source ?? this.forcedSource;
     const explicitList: readonly ProviderId[] | undefined =
@@ -224,7 +273,7 @@ export class SourceRouter {
         attempts,
         totalDurationMs: Date.now() - startedAt,
       };
-      this.emitTrace(trace);
+      notify(trace);
       throw new SdkError({
         code: 'INVALID_ARGUMENT',
         message: `No qualified data source available for capability "${capability}"`,
@@ -275,11 +324,15 @@ export class SourceRouter {
       const hasFallback = i < ordered.length - 1;
       const attemptStart = Date.now();
       try {
-        const output = await adapter.fetch(input, {
+        signal?.throwIfAborted();
+        const output = await raceWithAbort(signal, adapter.fetch(input, {
           hasFallback,
           attemptIndex: i,
-          signal: options.signal,
-        });
+          signal,
+          strictCapabilities: strict,
+        }));
+        signal?.throwIfAborted();
+        validateRequiredFields(output, options.requiredFields, adapter.provider);
         const durationMs = Date.now() - attemptStart;
         this.health.recordSuccess(capability, adapter.provider, durationMs);
         attempts.push({
@@ -306,7 +359,7 @@ export class SourceRouter {
           if (hasFallback) {
             continue;
           }
-          this.emitTrace({
+          notify({
             capability,
             selectedProvider: softEmptyFallback.provider,
             selectedAdapterId: softEmptyFallback.adapterId,
@@ -317,7 +370,7 @@ export class SourceRouter {
           return softEmptyFallback.output;
         }
 
-        this.emitTrace({
+        notify({
           capability,
           selectedProvider: adapter.provider,
           selectedAdapterId: adapter.id,
@@ -326,7 +379,10 @@ export class SourceRouter {
           totalDurationMs: Date.now() - startedAt,
         });
         return output;
-      } catch (error) {
+      } catch (cause) {
+        const error = signal?.aborted && getSdkErrorCode(cause) !== 'ABORTED'
+          ? new AbortedError()
+          : cause;
         const durationMs = Date.now() - attemptStart;
         const code = getSdkErrorCode(error);
         const message = error instanceof Error ? error.message : String(error);
@@ -345,7 +401,7 @@ export class SourceRouter {
 
         // 确定性错误（参数错误/非法代码/外部取消）不切源、不惩罚源健康度
         if (!isFallbackableError(error)) {
-          this.emitTrace({
+          notify({
             capability,
             degraded: false,
             attempts,
@@ -359,7 +415,7 @@ export class SourceRouter {
     }
 
     if (softEmptyFallback) {
-      this.emitTrace({
+      notify({
         capability,
         selectedProvider: softEmptyFallback.provider,
         selectedAdapterId: softEmptyFallback.adapterId,
@@ -376,22 +432,13 @@ export class SourceRouter {
       attempts,
       totalDurationMs: Date.now() - startedAt,
     };
-    this.emitTrace(trace);
+    notify(trace);
 
     // 所有候选源均失败：保留主错误（便于调用方按原错误码分类），同时在 details 上补充完整路由链路
     if (primaryError instanceof SdkError) {
-      const mergedDetails: Record<string, unknown> = {
+      Reflect.set(primaryError, 'details', {
         ...(primaryError.details ?? {}),
         routeAttempts: attempts,
-      };
-      throw new SdkError({
-        code: primaryError.code,
-        message: primaryError.message,
-        provider: primaryError.provider,
-        url: primaryError.url,
-        status: primaryError.status,
-        details: mergedDetails,
-        cause: primaryError,
       });
     }
     throw primaryError;

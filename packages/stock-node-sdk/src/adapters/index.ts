@@ -43,6 +43,11 @@ export function registerDefaultNodeAdapters(
     ...createNodeCorporateAdapters(client),
     ...createOverseasAdapters(client),
   ];
-  router.registerAll(all);
+  for (const adapter of all) {
+    router.register({
+      ...adapter,
+      fetch: (input, context) => client.withRouteSignal(context.signal, () => adapter.fetch(input, context)),
+    });
+  }
   return all;
 }

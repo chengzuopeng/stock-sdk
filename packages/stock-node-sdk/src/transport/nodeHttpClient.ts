@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   DEFAULT_TIMEOUT,
   inferProviderFromUrl,
@@ -6,6 +7,7 @@ import {
   type GetOptions,
   type RequestClientOptions,
 } from '@stock-sdk/core/core';
+import { combineSignals } from '@stock-sdk/core/core/abort';
 import { CookieJar } from './cookieJar';
 import { ProxyPool, type ProxyConfig } from './proxyPool';
 import { SessionManager, type SessionInitializer } from './sessionManager';
@@ -154,6 +156,7 @@ export class NodeHttpClient extends RequestClient {
   readonly proxyPool: ProxyPool;
   readonly secUserAgent: string;
   private readonly rawFetch: FetchImpl;
+  private readonly routeSignal: AsyncLocalStorage<AbortSignal>;
 
   constructor(options: NodeHttpClientOptions = {}) {
     const secUserAgent = options.secUserAgent ?? DEFAULT_SEC_UA;
@@ -213,7 +216,9 @@ export class NodeHttpClient extends RequestClient {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
       const provider = inferProviderFromUrl(url);
 
+      init?.signal?.throwIfAborted();
       await sessionManager.ensureSession(url, false, sessionFetch);
+      init?.signal?.throwIfAborted();
 
       const buildInit = (): { reqInit: RequestInit; proxyUrl?: string } => {
         const headers = new Headers(getDefaultHostHeaders(url, secUserAgent));
@@ -259,8 +264,10 @@ export class NodeHttpClient extends RequestClient {
 
         // 若命中 401/403 且该站点配置了自动会话预热器，自动强刷会话重放一次
         if (resp.status === 401 || resp.status === 403) {
+          init?.signal?.throwIfAborted();
           const before = cookieJar.getCookieHeader(url);
           await sessionManager.ensureSession(url, true, sessionFetch);
+          init?.signal?.throwIfAborted();
           const after = cookieJar.getCookieHeader(url);
           if (after && after !== before) {
             const retry = buildInit();
@@ -276,7 +283,7 @@ export class NodeHttpClient extends RequestClient {
 
         return resp;
       } catch (error) {
-        if (activeProxyUrl) {
+        if (activeProxyUrl && !init?.signal?.aborted) {
           proxyPool.markFailure(activeProxyUrl);
         }
         throw error;
@@ -293,6 +300,23 @@ export class NodeHttpClient extends RequestClient {
     this.proxyPool = proxyPool;
     this.secUserAgent = secUserAgent;
     this.rawFetch = sessionFetch;
+    this.routeSignal = new AsyncLocalStorage<AbortSignal>();
+  }
+
+  /** 将路由取消信号传给本次适配器发起的所有请求。 */
+  withRouteSignal<T>(signal: AbortSignal | undefined, fetcher: () => Promise<T>): Promise<T> {
+    return signal ? this.routeSignal.run(signal, fetcher) : fetcher();
+  }
+
+  override async get<T = string>(url: string, options: GetOptions = {}): Promise<T> {
+    const routeSignal = this.routeSignal.getStore();
+    if (!routeSignal || routeSignal === options.signal) return super.get<T>(url, options);
+    const { signal, cleanup } = combineSignals([routeSignal, options.signal]);
+    try {
+      return await super.get<T>(url, { ...options, signal });
+    } finally {
+      cleanup();
+    }
   }
 
   /**

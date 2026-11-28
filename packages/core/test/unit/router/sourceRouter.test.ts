@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  HttpError,
   InvalidArgumentError,
   InvalidSymbolError,
   SdkError,
@@ -129,10 +130,10 @@ describe('SourceRouter 多源路由引擎', () => {
     expect(sinaFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('requiredFields 过滤：仅选择声明提供所需字段的源', async () => {
+  it('requiredFields 检查能力声明和每条记录，并保留有效的零值', async () => {
     const router = new SourceRouter();
     const tencentFetch = vi.fn().mockResolvedValue('tencent');
-    const xueqiuFetch = vi.fn().mockResolvedValue('xueqiu');
+    const xueqiuFetch = vi.fn().mockResolvedValue([{ turnoverRate: 0 }]);
 
     router.registerAll([
       makeAdapter({
@@ -140,9 +141,7 @@ describe('SourceRouter 多源路由引擎', () => {
         provider: 'eastmoney',
         priority: 10,
         providedFields: new Set(['open', 'close', 'turnoverRate']),
-        fetch: async () => {
-          throw new UpstreamEmptyError('empty', 'eastmoney');
-        },
+        fetch: vi.fn().mockResolvedValue([{ turnoverRate: 1 }, { turnoverRate: null }]),
       }),
       makeAdapter({
         id: 'tencent:kline',
@@ -160,15 +159,58 @@ describe('SourceRouter 多源路由引擎', () => {
       }),
     ]);
 
-    const res = await router.execute<DemoInput, string>(
+    const res = await router.execute<DemoInput, Array<{ turnoverRate: number }>>(
       'kline.cn.history',
       { code: '600519' },
       { requiredFields: ['turnoverRate'] }
     );
 
-    expect(res).toBe('xueqiu');
+    expect(res).toEqual([{ turnoverRate: 0 }]);
     expect(tencentFetch).not.toHaveBeenCalled();
     expect(xueqiuFetch).toHaveBeenCalledTimes(1);
+    await expect(router.execute('kline.cn.history', { code: '600519' }, {
+      source: 'eastmoney',
+      requiredFields: ['turnoverRate'],
+    })).rejects.toMatchObject({
+      code: 'UPSTREAM_ERROR',
+      details: { rowIndex: 1, missingFields: ['turnoverRate'] },
+    });
+  });
+
+  it('保留主源的 HttpError 类型、实例及状态文本', async () => {
+    const failure = new HttpError(503, 'Service Unavailable');
+    const router = new SourceRouter().register(makeAdapter({
+      id: 'eastmoney:kline', provider: 'eastmoney', priority: 10,
+      fetch: vi.fn().mockRejectedValue(failure),
+    }));
+    await expect(router.execute('kline.cn.history', { code: '600519' })).rejects.toBe(failure);
+    expect(failure).toBeInstanceOf(HttpError);
+    expect(failure).toMatchObject({
+      statusText: 'Service Unavailable',
+      details: { routeAttempts: [{ provider: 'eastmoney', status: 'failed' }] },
+    });
+  });
+
+  it('预取消跳过所有适配器，运行中取消也不会换源', async () => {
+    const primary = vi.fn(() => new Promise<string>(() => {}));
+    const backup = vi.fn().mockResolvedValue('backup');
+    const router = new SourceRouter().registerAll([
+      makeAdapter({ id: 'em', provider: 'eastmoney', priority: 10, fetch: primary }),
+      makeAdapter({ id: 'tx', provider: 'tencent', priority: 20, fetch: backup }),
+    ]);
+    const capability = 'kline.cn.history';
+    await expect(router.execute(capability, { code: '600519' }, {
+      signal: AbortSignal.abort('pre-aborted'),
+    })).rejects.toMatchObject({ code: 'ABORTED' });
+    expect(primary).not.toHaveBeenCalled();
+
+    const controller = new AbortController();
+    const pending = router.execute(capability, { code: '600519' }, { signal: controller.signal });
+    controller.abort('aborted while fetching');
+    await expect(pending).rejects.toMatchObject({ code: 'ABORTED' });
+    expect(primary).toHaveBeenCalledTimes(1);
+    expect(backup).not.toHaveBeenCalled();
+    expect(router.getHealthStats()).toEqual([]);
   });
 
   it('源级健康冷却：连续失败达到阈值后自动沉底，后续请求直走健康备源', async () => {

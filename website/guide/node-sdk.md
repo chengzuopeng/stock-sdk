@@ -8,7 +8,7 @@
 
 | 维度 | `stock-sdk` | `stock-node-sdk` |
 |---|---|---|
-| 运行环境 | 浏览器 + Node.js 18+ | 仅 Node.js 18+ |
+| 运行环境 | 浏览器 + Node.js 18+ | 仅 Node.js 18.17+ |
 | 运行时依赖 | **0 依赖** | 极简依赖（仅 `undici` 代理池） |
 | 数据源容错 | A 股 K 线内置备源 | **能力驱动 `SourceRouter`**（A/HK/US 行情 3 源、K 线多源、快讯/公告双源，自动健康度冷却） |
 | HTTP 能力 | 浏览器安全 GET / JSONP / `<script>` | 完整 `GET`/`POST`、按源默认 `Referer`/`Origin`、`CookieJar`、`SessionManager`、`ProxyPool` |
@@ -71,8 +71,15 @@ console.log(sdk.getSourceHealth());
 ```
 
 > [!TIP] 严格复权保护与海外源开关（`overseas`）
-> - `StockNodeSDK` 对 A 股 K 线默认开启 `strictCapabilities: true`：请求 `adjust: 'qfq'` 或 `'hfq'` 时，路由器会自动跳过不支持复权的新浪源，杜绝静默拿不复权价格冒充复权数据。
+> - `StockNodeSDK` 的 K 线路由默认使用 `strictCapabilities: true`。A 股复权日、周、月 K 线会跳过新浪。A 股 5 至 60 分钟 K 线仅在 `adjust: ''` 时启用腾讯和新浪备源。腾讯历史 K 线必须含有请求的复权序列，或用于计算前复权的后复权序列。
+> - A 股腾讯前复权以最新日线为锚点。严格模式下，CNBC 仅用于指定了 `startDate` 且图表覆盖该起始日的日线查询。
 > - 海外数据源包（`CNBC` / `Nasdaq` / `SEC EDGAR`）**默认开启**，且行情/K 线优先级排在国内源之后（平时毫秒级走国内源零开销，故障时提供跨区域容灾）。如果你在中国大陆无代理直连环境运行且不希望降级时尝试海外源，传入 `new StockNodeSDK({ overseas: false })` 或 CLI `--overseas=false` 即可一键关闭（仅保留大陆可直连源：腾讯 / 东财 / 新浪 / 巨潮 / 港交所披露易）。
+
+`requiredFields` 同时检查适配器声明和实际返回的每条记录。缺字段、`null`、空白字符串或非有限数值会触发切源。零值有效。
+
+在支持路由选项的接口上传入 `{ signal: controller.signal }` 可取消单次调用。调用取消后返回 `ABORTED`，内置适配器会终止此次上游请求。
+
+财务和公司治理接口按生效的来源策略缓存结果，包含实例的 `routing.forcedSource` 和单次调用的 `source`。`FileCacheStore.clear()` 和 `cleanup()` 仅移除可识别的缓存条目。
 
 ## 多源支持矩阵
 
@@ -83,8 +90,8 @@ console.log(sdk.getSourceHealth());
 | `quotes.us` | 腾讯 → 新浪 → 东财 → **CNBC** → **Nasdaq** *(海外)* | 国内 3 源 + 海外双源跨区容错 |
 | `batch.cn` / `batch.hk` / `batch.us` | 腾讯分批 → 东财 `clist` 全市场分页 | 支持 `market` 过滤与 `onProgress` 回调 |
 | `kline.cn`（日/周/月） | 东财 → 腾讯 → 新浪 | 严格模式：`qfq`/`hfq` 自动跳过新浪；`chips.cn` 通过 `requiredFields: ['turnoverRate']` 过滤 |
-| `kline.hk` | 东财 → 腾讯 (`hkfqkline`) → **CNBC** *(海外)* | 日 K 支持海外 CNBC 兜底 |
-| `kline.us` | 东财 → 腾讯 (`usfqkline`) → **CNBC** → **Nasdaq** *(海外)* | 日 K 支持海外双源兜底 |
+| `kline.hk` | 东财 → 腾讯 (`hkfqkline`) → **CNBC** *(海外)* | CNBC 的拆股调整日线用于 `qfq` |
+| `kline.us` | 东财 → 腾讯 (`usfqkline`) → **CNBC** → **Nasdaq** *(海外)* | 海外拆股调整日线用于 `qfq`，Nasdaq 按日期区间分页 |
 | `reference.dividendDetail` | **A 股**：东财 → 新浪 HTML<br>**港股**：东财 (`RPT_HKF10`)<br>**美股**：东财 (`RPT_USF10`) → **Nasdaq** *(海外)* | 自动识别 A/HK/US 三市场代码 |
 | `financial.indicators` / `income` / `balance` / `cashflow` | **A/HK/US**：东财数据中心（自动识别三市场）<br>**美股三大表备源**：**Nasdaq** *(海外)* | 三市场统一 Schema（Nasdaq 千美元自动 ×1000 统一为美元） |
 | `news.flash` | 东财 7×24 → 新浪 7×24 | `page > 1` 自动路由到支持翻页的新浪 |

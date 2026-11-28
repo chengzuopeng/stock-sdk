@@ -70,9 +70,9 @@ describe('A-share K-line provider fallback', () => {
       }),
       http.get(TENCENT_KLINE_URL, ({ request }) => {
         const param = new URL(request.url).searchParams.get('param') ?? '';
-        if (param.endsWith(',hfq')) {
+        if (param.endsWith(',hfq') && !param.startsWith('sh600519,day,1970-01-01,')) {
           expect(param).toContain('sh600519,day,2024-05-03,2024-05-14,640,hfq');
-        } else {
+        } else if (!param.endsWith(',hfq')) {
           expect(param).toContain('sh600519,day,');
           expect(param.endsWith(',')).toBe(true);
         }
@@ -108,7 +108,7 @@ describe('A-share K-line provider fallback', () => {
     expect(result[0].tz).toBe('Asia/Shanghai');
   });
 
-  it('qfq 取 hfq 序列并按末根不复权价缩放,不使用会出负价的 qfqday', async () => {
+  it('qfq 取 hfq 序列并按最新交易日不复权价缩放', async () => {
     const requested: string[] = [];
     server.use(
       http.get(EASTMONEY_KLINE_URL, () => HttpResponse.error()),
@@ -146,10 +146,41 @@ describe('A-share K-line provider fallback', () => {
       adjust: 'qfq',
     });
 
-    expect(requested).toEqual(['hfq', '']);
+    expect(requested).toEqual(['hfq', 'hfq', '']);
     expect(result.map((row) => row.close)).toEqual([5, 10]);
     expect(result.every((row) => (row.close ?? 0) > 0)).toBe(true);
     expect(result[1].changePercent).toBe(100);
+  });
+
+  it('uses the same latest adjustment anchor on either side of an ex-rights date', async () => {
+    const dates = ['2024-04-01', '2024-04-02', '2024-04-03'];
+    const adjusted = ['20', '24', '28'];
+    const unadjusted = ['10', '12', '7'];
+    server.use(
+      http.get(TENCENT_KLINE_URL, ({ request }) => {
+        const param = new URL(request.url).searchParams.get('param') ?? '';
+        const [, , start, end, , adjust] = param.split(',');
+        const prices = adjust === 'hfq' ? adjusted : unadjusted;
+        const rows = dates.flatMap((date, index) => {
+          if (date < start || date > end) return [];
+          const price = prices[index];
+          return [[date, price, price, price, price, '100']];
+        });
+        return HttpResponse.json({
+          code: 0,
+          data: { sh600519: { [adjust === 'hfq' ? 'hfqday' : 'day']: rows } },
+        });
+      })
+    );
+    const sdk = new StockSDK();
+    const early = await sdk.kline.cn('600519', {
+      startDate: dates[0], endDate: dates[1], adjust: 'qfq',
+    }, { source: 'tencent', strictCapabilities: true });
+    const across = await sdk.kline.cn('600519', {
+      startDate: dates[0], endDate: dates[2], adjust: 'qfq',
+    }, { source: 'tencent', strictCapabilities: true });
+    expect(early.map((row) => row.close)).toEqual([5, 6]);
+    expect(across.map((row) => row.close)).toEqual([5, 6, 7]);
   });
 
   it('treats Eastmoney data:null as soft limiting and uses Tencent', async () => {

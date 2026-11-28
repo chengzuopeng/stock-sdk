@@ -30,14 +30,8 @@ import type {
   GetAllHKQuotesOptions,
   GetAllUSQuotesOptions,
 } from '@stock-sdk/core/providers/tencent/batch';
-import type {
-  DividendDetail,
-  FullQuote,
-  HKQuote,
-  SearchResult,
-  SimpleQuote,
-  USQuote,
-} from '@stock-sdk/core/types';
+import type { DividendDetail, SearchResult } from '@stock-sdk/core/types';
+import type { FullQuote, HKQuote, SimpleQuote, USQuote } from './quoteTypes';
 import {
   NodeHttpClient,
   type NodeHttpClientOptions,

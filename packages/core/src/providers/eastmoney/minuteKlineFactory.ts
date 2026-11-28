@@ -240,6 +240,7 @@ export function createMinuteKlineProvider<
       const url = `${config.trendsUrl}?${params.toString()}`;
       const json = await client.get<{ data?: { trends?: string[] } }>(url, {
         responseType: 'json',
+        signal: klineRequestOptions?.signal,
       });
       const trends = json?.data?.trends;
       if (!Array.isArray(trends) || trends.length === 0) {

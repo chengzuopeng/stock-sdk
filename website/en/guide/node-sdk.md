@@ -8,7 +8,7 @@ Use `stock-sdk` when you want zero dependencies and direct browser execution; sw
 
 | Dimension | `stock-sdk` | `stock-node-sdk` |
 |---|---|---|
-| Runtime | Browser + Node.js 18+ | Node.js 18+ only |
+| Runtime | Browser + Node.js 18+ | Node.js 18.17+ only |
 | Runtime Dependencies | **Zero** | Minimal (`undici` for proxy pool) |
 | Failover & Routing | A-share K-line fallback | **Capability-aware `SourceRouter`** (3-source CN/HK/US quotes, multi-source K-lines, dual-source news & announcements, adaptive health cooldown) |
 | HTTP Transport | Browser-safe GET / JSONP / `<script>` | Full `GET`/`POST`, per-host `Referer`/`Origin`, `CookieJar`, `SessionManager`, `ProxyPool` |
@@ -65,8 +65,15 @@ console.log(sdk.getSourceHealth());
 ```
 
 > [!TIP] Strict Adjustment Protection & `overseas` Toggle
-> - `StockNodeSDK` enables `strictCapabilities: true` for A-share K-lines by default: when requesting `qfq` or `hfq`, the router skips unadjusted-only sources such as Sina to prevent silent price-basis corruption.
+> - K-line routes in `StockNodeSDK` default to `strictCapabilities: true`. Adjusted A-share daily, weekly, and monthly requests skip Sina. A-share 5- to 60-minute requests use Tencent and Sina fallbacks only when `adjust: ''`. Tencent history must contain the requested adjustment series or the backward-adjusted series used to calculate forward-adjusted prices.
+> - Tencent anchors forward-adjusted A-share history to the latest daily bar. In strict mode, CNBC serves daily requests with an explicit `startDate` covered by its chart.
 > - Overseas sources (`CNBC` / `Nasdaq` / `SEC EDGAR`) are **enabled by default** at lower priority than domestic feeds (zero overhead on healthy paths, cross-region failover when domestic sources fail). For direct mainland China networks without a proxy, disable them anytime via `new StockNodeSDK({ overseas: false })` or CLI `--overseas=false`.
+
+`requiredFields` checks the adapter's declared fields and every returned record. Missing fields, `null`, blank strings, and non-finite numbers trigger failover. Zero is valid.
+
+Pass `{ signal: controller.signal }` to methods that accept route options to cancel a single call. Cancelled calls return an `ABORTED` error and built-in adapters stop their upstream requests.
+
+Financial and corporate data are cached by the effective source policy, including instance-level `routing.forcedSource` and per-call `source`. `FileCacheStore.clear()` and `cleanup()` remove recognized cache entries only.
 
 ## Multi-Source Matrix
 
@@ -77,8 +84,8 @@ console.log(sdk.getSourceHealth());
 | `quotes.us` | Tencent → Sina → Eastmoney → **CNBC** → **Nasdaq** *(overseas)* | Domestic 3-source + overseas dual failover |
 | `batch.cn` / `batch.hk` / `batch.us` | Tencent batch → Eastmoney `clist` pagination | Supports `market` filtering & `onProgress` callback |
 | `kline.cn` | Eastmoney → Tencent → Sina | Strict mode skips Sina for `qfq`/`hfq`; `chips.cn` enforces `requiredFields: ['turnoverRate']` |
-| `kline.hk` | Eastmoney → Tencent (`hkfqkline`) → **CNBC** *(overseas)* | Daily K-line falls back to CNBC |
-| `kline.us` | Eastmoney → Tencent (`usfqkline`) → **CNBC** → **Nasdaq** *(overseas)* | Daily K-line falls back to CNBC & Nasdaq |
+| `kline.hk` | Eastmoney → Tencent (`hkfqkline`) → **CNBC** *(overseas)* | CNBC's split-adjusted daily series serves `qfq` |
+| `kline.us` | Eastmoney → Tencent (`usfqkline`) → **CNBC** → **Nasdaq** *(overseas)* | Overseas split-adjusted daily series serve `qfq`. Nasdaq paginates by date window. |
 | `reference.dividendDetail` | **CN**: Eastmoney → Sina HTML<br>**HK**: Eastmoney (`RPT_HKF10`)<br>**US**: Eastmoney (`RPT_USF10`) → **Nasdaq** *(overseas)* | Auto-detects CN / HK / US symbols |
 | `financial.indicators` / `income` / `balance` / `cashflow` | **CN/HK/US**: Eastmoney Datacenter<br>**US statements fallback**: **Nasdaq** *(overseas)* | Unified schemas across CN/HK/US (Nasdaq thousands USD auto-scaled ×1000) |
 | `news.flash` | Eastmoney 7×24 → Sina 7×24 | `page > 1` routes directly to paginated Sina feed |

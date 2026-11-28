@@ -37,7 +37,8 @@ const CODE_LIST_CACHE_OPTIONS = { defaultTTL: 6 * 60 * 60 * 1000, maxSize: 16 };
 async function fetchJsonCodeList(
   client: RequestClient,
   cacheKey: string,
-  url: string
+  url: string,
+  signal?: AbortSignal
 ): Promise<string[]> {
   const codeListCache = getClientScopedCache<string[]>(
     client,
@@ -47,6 +48,7 @@ async function fetchJsonCodeList(
   return codeListCache.getOrFetch(cacheKey, async () => {
     const data = await client.get<StockListResponse>(url, {
       responseType: 'json',
+      signal,
     });
     const list = data?.list;
     // 全市场代码列表不可能为空：success:false / 缺 list / 空数组均视为上游异常，
@@ -60,7 +62,7 @@ async function fetchJsonCodeList(
       );
     }
     return list;
-  });
+  }, undefined, signal);
 }
 
 /**
@@ -194,12 +196,13 @@ function matchMarket(code: string, market: AShareMarket): boolean {
  */
 export async function getAShareCodeList(
   client: RequestClient,
-  options?: GetAShareCodeListOptions
+  options?: GetAShareCodeListOptions,
+  signal?: AbortSignal
 ): Promise<string[]> {
   const simple = options?.simple ?? false;
   const market = options?.market;
 
-  const allCodes = await fetchJsonCodeList(client, 'a-share:full', A_SHARE_LIST_URL);
+  const allCodes = await fetchJsonCodeList(client, 'a-share:full', A_SHARE_LIST_URL, signal);
 
   // 筛选市场
   let result = allCodes;
@@ -244,12 +247,13 @@ export interface GetUSCodeListOptions {
  */
 export async function getUSCodeList(
   client: RequestClient,
-  options?: GetUSCodeListOptions
+  options?: GetUSCodeListOptions,
+  signal?: AbortSignal
 ): Promise<string[]> {
   const simple = options?.simple ?? false;
   const market = options?.market;
 
-  const allCodes = await fetchJsonCodeList(client, 'us:full', US_LIST_URL);
+  const allCodes = await fetchJsonCodeList(client, 'us:full', US_LIST_URL, signal);
   let result = allCodes.slice();
 
   // 筛选市场
@@ -273,9 +277,10 @@ export async function getUSCodeList(
  * @param client 请求客户端
  */
 export async function getHKCodeList(
-  client: RequestClient
+  client: RequestClient,
+  signal?: AbortSignal
 ): Promise<string[]> {
-  const codes = await fetchJsonCodeList(client, 'hk:full', HK_LIST_URL);
+  const codes = await fetchJsonCodeList(client, 'hk:full', HK_LIST_URL, signal);
   return codes.slice();
 }
 

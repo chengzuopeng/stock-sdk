@@ -1,12 +1,12 @@
 # stock-node-sdk
 
 [![license](https://img.shields.io/badge/license-ISC-blue.svg)](./LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.17-brightgreen.svg)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue)](https://stock-sdk.linkdiary.cn/en/mcp/)
 
 English | **[中文](./README.md)**
 
-Multi-source, high-availability financial market data SDK for **Node.js 18+** — unified TypeScript schemas, capability-aware automatic failover, and a **strict API superset** of [`stock-sdk`](https://www.npmjs.com/package/stock-sdk) built in the same monorepo.
+Multi-source, high-availability financial market data SDK for **Node.js 18.17+** — unified TypeScript schemas, capability-aware automatic failover, and a **strict API superset** of [`stock-sdk`](https://www.npmjs.com/package/stock-sdk) built in the same monorepo.
 
 📖 **Docs**: [Node Enhanced Guide](https://stock-sdk.linkdiary.cn/en/guide/node-sdk) ｜ [Node Extensions API](https://stock-sdk.linkdiary.cn/en/api/node-extensions) ｜ [GitHub Monorepo](https://github.com/chengzuopeng/stock-sdk)
 
@@ -16,7 +16,8 @@ Multi-source, high-availability financial market data SDK for **Node.js 18+** �
 
 - **Unified Input/Output Schemas**: Zero-config multi-source aggregation with strict TypeScript types across A-shares, HK, and US markets (unified lot / 10k CNY / 100M cap units, timezones, and UTC epoch timestamps).
 - **Capability-Aware `SourceRouter`**:
-  - Pre-filters adapters via `supports(input)` and `requiredFields` to prevent silent semantic drift (e.g., skipping unadjusted-only feeds for `qfq`/`hfq` requests);
+  - Filters adapters via `supports(input)`, checks `requiredFields` on every returned record, and tries a fallback when fields are missing.
+  - Strict adjustment mode skips incompatible feeds and checks Tencent's adjustment series. Routes accept a per-call `signal`.
   - Adaptive per-`(capability, provider)` health tracking and cooldown (`SourceHealthTracker`);
   - Concurrency-safe provenance via `sdk.withMeta()` (`AsyncLocalStorage`) without changing return shapes;
   - Extensible via `sdk.registerAdapter()` for custom/paid feeds.
@@ -24,7 +25,7 @@ Multi-source, high-availability financial market data SDK for **Node.js 18+** �
   - Full `GET`/`POST`, per-host `Referer`/`Origin`/`User-Agent`, zero-dep GBK HTML table parsing;
   - Built-in `CookieJar` + `SessionManager` (deduplicated warmup + 401/403 refresh replay);
   - `ProxyPool` powered by `undici.ProxyAgent` with round-robin rotation and failure cooldown;
-  - Zero-dependency `FileCacheStore` for persistent disk caching.
+  - `FileCacheStore` cleans up recognized cache entries only. Financial and corporate data are cached by their effective source policy.
 - **Expanded Financial Data Domains**: Inherits all 94 dual-runtime methods from `stock-sdk` and adds 11 Node-exclusive methods:
   - **`financial`**: `indicators` / `income` / `balance` / `cashflow` / `forecast` / `express`
   - **`news`**: `flash` (24/7 market flashes) / `announcements` (corporate disclosures & PDF URLs)

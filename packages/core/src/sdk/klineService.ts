@@ -86,7 +86,7 @@ export function createUniversalCnKlineAdapters(
         client,
         input.symbol,
         input.options,
-        ctx.hasFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY
+        { ...(ctx.hasFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY), signal: ctx.signal }
       ),
   };
 
@@ -97,8 +97,11 @@ export function createUniversalCnKlineAdapters(
     priority: 20,
     providedFields: BASIC_KLINE_FIELDS,
     supports: () => true,
-    fetch: (input) =>
-      tencent.getTencentHistoryKline(client, input.symbol, input.options),
+    fetch: (input, ctx) =>
+      tencent.getTencentHistoryKline(client, input.symbol, input.options, {
+        signal: ctx.signal,
+        strictAdjustment: ctx.strictCapabilities,
+      }),
   };
 
   const sinaHistory: SourceAdapter<HistoryKlineInput, HistoryKline[]> = {
@@ -110,8 +113,8 @@ export function createUniversalCnKlineAdapters(
     // 新浪日 K 仅支持不复权；在严格能力模式（stock-node-sdk 默认）下，
     // 请求 qfq/hfq 时自动跳过新浪，防止静默拿不复权冒充复权数据。
     supports: (input) => (input.options.adjust ?? 'qfq') === '',
-    fetch: (input) =>
-      sina.getSinaHistoryKline(client, input.symbol, input.options),
+    fetch: (input, ctx) =>
+      sina.getSinaHistoryKline(client, input.symbol, input.options, ctx.signal),
   };
 
   const emMinute: SourceAdapter<MinuteKlineInput, MinuteTimeline[] | MinuteKline[]> = {
@@ -126,7 +129,7 @@ export function createUniversalCnKlineAdapters(
         client,
         input.symbol,
         input.options,
-        ctx.hasFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY
+        { ...(ctx.hasFallback ? EM_PROBE_ONCE : EM_POLICY_RETRY), signal: ctx.signal }
       ),
   };
 
@@ -136,14 +139,14 @@ export function createUniversalCnKlineAdapters(
     provider: 'tencent',
     priority: 20,
     providedFields: BASIC_KLINE_FIELDS,
-    supports: (input) => (input.options.period ?? '1') !== '1',
-    fetch: (input) => {
+    supports: ({ options }) => (options.period ?? '1') !== '1' && options.adjust === '',
+    fetch: (input, ctx) => {
       const period = (input.options.period ?? '5') as '5' | '15' | '30' | '60';
       return tencent.getTencentMinuteKline(client, input.symbol, {
         period,
         startDate: input.options.startDate,
         endDate: input.options.endDate,
-      });
+      }, ctx.signal);
     },
   };
 
@@ -153,14 +156,14 @@ export function createUniversalCnKlineAdapters(
     provider: 'sina',
     priority: 30,
     providedFields: BASIC_KLINE_FIELDS,
-    supports: (input) => (input.options.period ?? '1') !== '1',
-    fetch: (input) => {
+    supports: ({ options }) => (options.period ?? '1') !== '1' && options.adjust === '',
+    fetch: (input, ctx) => {
       const period = (input.options.period ?? '5') as '5' | '15' | '30' | '60';
       return sina.getSinaMinuteKline(client, input.symbol, {
         period,
         startDate: input.options.startDate,
         endDate: input.options.endDate,
-      });
+      }, ctx.signal);
     },
   };
 
@@ -187,7 +190,9 @@ export function createUniversalForeignKlineAdapters(
     priority: 10,
     providedFields: EASTMONEY_KLINE_FIELDS,
     supports: () => true,
-    fetch: (input) => eastmoney.getHKHistoryKline(client, input.symbol, input.options),
+    fetch: (input, ctx) => eastmoney.getHKHistoryKline(client, input.symbol, input.options, {
+      signal: ctx.signal,
+    }),
   };
 
   const usEastmoney: SourceAdapter<USHistoryKlineInput, USHistoryKline[]> = {
@@ -197,7 +202,9 @@ export function createUniversalForeignKlineAdapters(
     priority: 10,
     providedFields: EASTMONEY_KLINE_FIELDS,
     supports: () => true,
-    fetch: (input) => eastmoney.getUSHistoryKline(client, input.symbol, input.options),
+    fetch: (input, ctx) => eastmoney.getUSHistoryKline(client, input.symbol, input.options, {
+      signal: ctx.signal,
+    }),
   };
 
   return [
@@ -290,13 +297,15 @@ export class KlineService extends BaseService {
     }
 
     const useFallback = this.source.fallback !== false;
+    const strictCapabilities =
+      routeOptions?.strictCapabilities ?? this.source.strictCapabilities ?? false;
     return this.router.execute<MinuteKlineInput, MinuteTimeline[] | MinuteKline[]>(
       'kline.cn.minute',
       { symbol, options },
       {
         ...routeOptions,
         source: routeOptions?.source ?? (useFallback ? undefined : 'eastmoney'),
-        strictCapabilities: true,
+        strictCapabilities: period === '1' || strictCapabilities,
       }
     );
   }

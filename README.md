@@ -23,7 +23,7 @@
 | 包名 | 运行环境 | 依赖 | 核心定位与能力 | 文档 |
 |---|---|---|---|---|
 | **[`stock-sdk`](./packages/stock-sdk)** | 浏览器 + Node.js 18+ | **0 依赖** | 轻量双端通用版：94 个命名空间方法（行情/K 线/板块/资金流/期货/期权/基金/筹码）、14 项技术指标/信号/选股回测、94 命令 CLI & 93 工具 MCP | [快速开始](https://stock-sdk.linkdiary.cn/guide/getting-started) |
-| **[`stock-node-sdk`](./packages/stock-node-sdk)** | Node.js 18+ 服务端 | 仅 `undici` | **Node 多源高可用增强版（`stock-sdk` 严格超集）**：能力驱动 `SourceRouter` 多源自动容错（A/HK/US 行情 3 源、K 线/批量/分红/快讯/公告双源）、`ProxyPool` 代理池 / `CookieJar` / `FileCacheStore` 磁盘缓存；新增 **`financial`（财报/业绩）**、**`news`（7×24 快讯/巨潮公告）**、**`corporate`（股东）**、**`bond`（可转债）**；105 命令 CLI（`--source`/`--proxy`/`--cache-dir`）& 104 工具 MCP | [Node 增强版指南](https://stock-sdk.linkdiary.cn/guide/node-sdk) |
+| **[`stock-node-sdk`](./packages/stock-node-sdk)** | Node.js 18.17+ 服务端 | 仅 `undici` | **Node 多源高可用增强版（`stock-sdk` 严格超集）**：能力驱动 `SourceRouter` 多源自动容错（A/HK/US 行情 3 源、K 线/批量/分红/快讯/公告双源）、`ProxyPool` 代理池 / `CookieJar` / `FileCacheStore` 磁盘缓存；新增 **`financial`（财报/业绩）**、**`news`（7×24 快讯/巨潮公告）**、**`corporate`（股东）**、**`bond`（可转债）**；105 命令 CLI（`--source`/`--proxy`/`--cache-dir`）& 104 工具 MCP | [Node 增强版指南](https://stock-sdk.linkdiary.cn/guide/node-sdk) |
 
 ## 📖 官网文档
 
@@ -63,8 +63,8 @@
 
 ## 特性
 
-- ✅ **一仓双包，API 严格超集对齐**：`stock-sdk`（零依赖、浏览器 + Node.js 双端）与 `stock-node-sdk`（Node.js 18+ 多源高可用增强版），迁移只需替换 import
-- ✅ **能力驱动多源自动容错（`stock-node-sdk`）**：默认无需指定数据源，按 `supports(input)` + `requiredFields` 前置过滤与健康度冷却自动切源（A/HK/US 行情 3 源、K 线/批量/分红/快讯/公告双源），`withMeta()` 并发安全溯源，`registerAdapter()` 热插拔自定义源
+- ✅ **一仓双包，API 严格超集对齐**：`stock-sdk`（零依赖、浏览器 + Node.js 双端）与 `stock-node-sdk`（Node.js 18.17+ 多源高可用增强版），迁移只需替换 import
+- ✅ **能力驱动多源自动容错（`stock-node-sdk`）**。SDK 根据能力和健康度选源，逐条校验 `requiredFields` 并在缺字段时尝试备源。支持单次调用取消、`withMeta()` 并发溯源和 `registerAdapter()` 自定义数据源。
 - ✅ **Node 专属数据与传输层（`stock-node-sdk`）**：新增 `financial`（财务指标/三大表/预告/快报）、`news`（7×24 快讯/东财+巨潮双源公告）、`corporate`（十大股东/股东户数）、`bond`（可转债）；内置 `ProxyPool`、`CookieJar`、`SessionManager` 与 `FileCacheStore` 本地磁盘缓存
 - ✅ **命名空间 API**：`sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.financial.indicators()` / `sdk.options.etf.dailyKline()`，按领域分组、IDE 自动补全友好
 - ✅ **统一符号模型**：`string` 一等公民，`sh600519` / `600519` / `600519.SH` / `00700` / `hk00700` / `AAPL` / `105.AAPL` 等写法容错解析；支持中证等特殊指数（`930955` / `H30533` / `HSHCI` / `GDAXI`，[详见符号指南](https://stock-sdk.linkdiary.cn/guide/symbols.html)）
@@ -84,7 +84,7 @@
 # 浏览器 + Node.js 双端零依赖版
 npm install stock-sdk
 
-# Node.js 18+ 多源高可用增强版（Beta 公测中，推荐用于服务端 / 量化脚本 / AI Agent）
+# Node.js 18.17+ 多源高可用增强版（Beta 公测中，推荐用于服务端 / 量化脚本 / AI Agent）
 npm install stock-node-sdk@beta
 
 # v1 旧版（已封存，仅维护 critical 修复）

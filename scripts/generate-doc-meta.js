@@ -207,7 +207,7 @@ export function renderSummaryMarkdown(docsMeta, meta) {
 
 - 包名：\`${meta.nodeSdk.package.name}\`
 - 当前版本：\`${meta.nodeSdk.package.version}\`
-- 定位：Node.js 18+ 多源高可用财经数据 SDK，严格超集兼容 \`stock-sdk\` 全部方法，并扩展以下 Node 专属能力。${
+- 定位：Node.js 18.17+ 多源高可用财经数据 SDK，严格超集兼容 \`stock-sdk\` 全部方法，并扩展以下 Node 专属能力。${
         nodeBuildRows
           ? `\n\n| 文件 | 体积 | Gzip |\n| --- | --- | --- |\n${nodeBuildRows}`
           : ''

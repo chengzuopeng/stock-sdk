@@ -5,7 +5,7 @@
 | 包名 | 运行环境 | 依赖 | 适用场景 |
 |---|---|---|---|
 | `stock-sdk` | 浏览器 + Node.js 18+ | **0 依赖** | 前端直连、可视化看板、轻量双端或纯计算 |
-| `stock-node-sdk` | Node.js 18+ 服务端 | 仅 `undici` | 服务端采集、量化脚本、AI Agent —— 内置多源自动容错、代理池、磁盘缓存与财报/快讯/公告（[详见指南](/guide/node-sdk)） |
+| `stock-node-sdk` | Node.js 18.17+ 服务端 | 仅 `undici` | 服务端采集、量化脚本、AI Agent —— 内置多源自动容错、代理池、磁盘缓存与财报/快讯/公告（[详见指南](/guide/node-sdk)） |
 
 ## 安装包
 
@@ -23,7 +23,7 @@ npm install stock-node-sdk@beta
 
 :::
 
-> 要求 Node.js >= 18。`stock-sdk` 零运行时依赖，`npm install` 不拉取任何第三方包；`stock-node-sdk` 仅依赖 `undici` 用于代理连接池，两者均提供 ESM 与 CJS 产物。
+> 在 Node.js 中使用 `stock-sdk` 需要 18.0+，使用 `stock-node-sdk` 需要 18.17+。`stock-sdk` 零运行时依赖，`npm install` 不拉取任何第三方包；`stock-node-sdk` 仅依赖 `undici` 用于代理连接池，两者均提供 ESM 与 CJS 产物。
 
 ## 主入口导入
 

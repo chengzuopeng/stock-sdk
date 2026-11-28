@@ -7,7 +7,7 @@ export type QuoteSource = ProviderName | (string & {});
 /**
  * A 股 / 指数 全量行情
  */
-export interface FullQuote {
+export interface FullQuote<Source extends QuoteSource = ProviderName> {
   /** 市场标识 */
   marketId: string;
   /** 名称 */
@@ -88,13 +88,13 @@ export interface FullQuote {
    */
   assetType: 'stock';
   /** 数据源 */
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
  * 简要行情（股票；指数也走此结构，但 assetType 不区分，见 FullQuote 说明）
  */
-export interface SimpleQuote {
+export interface SimpleQuote<Source extends QuoteSource = ProviderName> {
   marketId: string;
   name: string;
   code: string;
@@ -109,7 +109,7 @@ export interface SimpleQuote {
   marketType: string;
   market: 'CN';
   assetType: 'stock';
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
@@ -159,7 +159,7 @@ export interface PanelLargeOrder {
 /**
  * 港股扩展行情
  */
-export interface HKQuote {
+export interface HKQuote<Source extends QuoteSource = ProviderName> {
   marketId: string;
   name: string;
   code: string;
@@ -185,13 +185,13 @@ export interface HKQuote {
   market: 'HK';
   /** 命中特殊指数注册表(HSI/HSCEI/HSTECH)的行标 'index'(港股真码恒为数字,无碰撞面) */
   assetType: 'stock' | 'index';
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
  * 美股行情
  */
-export interface USQuote {
+export interface USQuote<Source extends QuoteSource = ProviderName> {
   /** 市场标识 */
   marketId: string;
   /** 名称 */
@@ -239,7 +239,7 @@ export interface USQuote {
   market: 'US';
   /** 命中特殊指数注册表(DJI/INX/IXIC)的行标 'index'，code 归一为注册表规范形 */
   assetType: 'stock' | 'index';
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
@@ -268,4 +268,8 @@ export interface FundQuote {
 /**
  * 行情可辨识联合（按 `market` + `assetType` 判别）
  */
-export type Quote = FullQuote | HKQuote | USQuote | FundQuote;
+export type Quote<Source extends QuoteSource = ProviderName> =
+  | FullQuote<Source>
+  | HKQuote<Source>
+  | USQuote<Source>
+  | FundQuote;

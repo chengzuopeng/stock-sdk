@@ -12,6 +12,7 @@ import {
   todayInTz,
   toNumberSafe,
   UpstreamEmptyError,
+  UpstreamError,
 } from '@stock-sdk/core/core';
 import { normalizeSymbol } from '@stock-sdk/core/symbols';
 import type { SourceAdapter } from '@stock-sdk/core/router';
@@ -44,6 +45,8 @@ const CNBC_QUOTE_URL =
   'https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol';
 const CNBC_CHART_BASE = 'https://ts-api.cnbc.com/harmony/app/charts';
 const NASDAQ_API_BASE = 'https://api.nasdaq.com/api';
+const NASDAQ_HISTORY_PAGE_SIZE = 500;
+const NASDAQ_HISTORY_MAX_PAGES = 100;
 const SEC_TICKERS_URL = 'https://www.sec.gov/files/company_tickers.json';
 const SEC_SUBMISSIONS_BASE = 'https://data.sec.gov/submissions';
 
@@ -311,10 +314,10 @@ function chooseCnbcSpan(startDate?: string): '1Y' | '5Y' {
 async function fetchCnbcChartBars(
   client: NodeHttpClient,
   cnbcSym: string,
-  startDate?: string,
-  endDate?: string
+  options: HKHistoryKlineInput['options'] | USHistoryKlineInput['options'],
+  strict: boolean
 ): Promise<Array<{ date: string; open: number | null; high: number | null; low: number | null; close: number | null; volume: number | null }>> {
-  const span = chooseCnbcSpan(startDate);
+  const span = chooseCnbcSpan(options.startDate);
   const url = `${CNBC_CHART_BASE}/${span}.json?symbol=${encodeURIComponent(cnbcSym)}`;
   const json = await client.get<CnbcChartResponse>(url, {
     responseType: 'json',
@@ -325,14 +328,16 @@ async function fetchCnbcChartBars(
   if (!Array.isArray(bars) || bars.length === 0) {
     throw new UpstreamEmptyError(`CNBC chart returned empty for ${cnbcSym}`, 'cnbc', url);
   }
-  const startIso = toIsoDate(startDate);
-  const endIso = toIsoDate(endDate);
+  const startIso = toIsoDate(options.startDate);
+  const endIso = toIsoDate(options.endDate);
 
   const out: Array<{ date: string; open: number | null; high: number | null; low: number | null; close: number | null; volume: number | null }> = [];
+  let coversStart = false;
   for (const b of bars) {
     const rawTime = String(b.tradeTime ?? '');
-    if (rawTime.length < 8) continue;
+    if (!/^\d{8}/.test(rawTime)) continue;
     const date = `${rawTime.slice(0, 4)}-${rawTime.slice(4, 6)}-${rawTime.slice(6, 8)}`;
+    if (date <= startIso) coversStart = true;
     if (startIso && date < startIso) continue;
     if (endIso && date > endIso) continue;
     out.push({
@@ -344,7 +349,10 @@ async function fetchCnbcChartBars(
       volume: parseFormattedNumber(b.volume),
     });
   }
-  return out;
+  if (strict && !coversStart) {
+    throw new UpstreamError(`CNBC chart does not cover the requested start date ${startIso}`, 'cnbc', url);
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function enrichForeignBars<T extends { date: string; open: number | null; high: number | null; low: number | null; close: number | null; volume: number | null }>(
@@ -488,18 +496,12 @@ async function fetchNasdaqUsKline(
   input: USHistoryKlineInput
 ): Promise<USHistoryKline[]> {
   const code = normalizeSymbol(input.symbol, { market: 'US' }).code.toUpperCase();
-  const todayUs = todayInTz(MARKET_TZ.US);
-  const endIso = toIsoDate(input.options.endDate) || todayUs;
-  const startIso = toIsoDate(input.options.startDate) || addDays(todayUs, -365);
-  const params = new URLSearchParams({
-    assetclass: 'stocks',
-    fromdate: startIso,
-    todate: endIso,
-    limit: '500',
-  });
-  const url = `${NASDAQ_API_BASE}/quote/${encodeURIComponent(code)}/historical?${params.toString()}`;
-  const json = await client.get<{
+  const end = toIsoDate(input.options.endDate) || todayInTz(MARKET_TZ.US);
+  const start = toIsoDate(input.options.startDate) || '1970-01-01';
+  const endpoint = `${NASDAQ_API_BASE}/quote/${encodeURIComponent(code)}/historical`;
+  type NasdaqHistoryResponse = {
     data?: {
+      totalRecords?: number | string | null;
       tradesTable?: {
         rows?: Array<{
           date?: string;
@@ -511,35 +513,69 @@ async function fetchNasdaqUsKline(
         }> | null;
       } | null;
     } | null;
-  }>(url, { responseType: 'json', provider: 'nasdaq', hostFallback: false });
-
-  if (!json?.data) {
-    throw new UpstreamEmptyError(`Nasdaq historical kline missing payload for ${code}`, 'nasdaq', url);
-  }
-  const rows = json.data.tradesTable?.rows;
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return [];
-  }
-  const bars = [...rows]
-    .reverse()
-    .map((r) => {
-      const date = parseUsDate(r.date);
-      if (!date) return null;
-      return {
+  };
+  const bars = new Map<string, {
+    date: string;
+    open: number | null;
+    close: number | null;
+    high: number | null;
+    low: number | null;
+    volume: number | null;
+  }>();
+  let cursor = end;
+  let total: number | null = null;
+  for (let page = 0; page < NASDAQ_HISTORY_MAX_PAGES; page++) {
+    const params = new URLSearchParams({
+      assetclass: 'stocks',
+      fromdate: start,
+      todate: cursor,
+      limit: String(NASDAQ_HISTORY_PAGE_SIZE),
+    });
+    const url = `${endpoint}?${params.toString()}`;
+    const json = await client.get<NasdaqHistoryResponse>(url, {
+      responseType: 'json', provider: 'nasdaq', hostFallback: false,
+    });
+    if (!json?.data) {
+      throw new UpstreamEmptyError(`Nasdaq historical kline missing payload for ${code}`, 'nasdaq', url);
+    }
+    const pageTotal = parseFormattedNumber(json.data.totalRecords);
+    if (page === 0) total = pageTotal;
+    const rows = json.data.tradesTable?.rows ?? (pageTotal === 0 ? [] : undefined);
+    if (!Array.isArray(rows)) {
+      throw new UpstreamError(`Nasdaq historical K-line page missing rows for ${code}`, 'nasdaq', url);
+    }
+    let earliest = cursor;
+    for (const row of rows) {
+      const date = parseUsDate(row?.date);
+      if (!date || date < start || date > cursor || bars.has(date)) {
+        throw new UpstreamError(`Nasdaq historical K-line page contains invalid or duplicate dates for ${code}`, 'nasdaq', url);
+      }
+      if (date < earliest) earliest = date;
+      bars.set(date, {
         date,
-        open: parseFormattedNumber(r.open),
-        close: parseFormattedNumber(r.close),
-        high: parseFormattedNumber(r.high),
-        low: parseFormattedNumber(r.low),
-        volume: parseFormattedNumber(r.volume),
-      };
-    })
-    .filter((b): b is NonNullable<typeof b> => b !== null);
+        open: parseFormattedNumber(row.open),
+        close: parseFormattedNumber(row.close),
+        high: parseFormattedNumber(row.high),
+        low: parseFormattedNumber(row.low),
+        volume: parseFormattedNumber(row.volume),
+      });
+    }
 
-  return enrichForeignBars(bars, code, MARKET_TZ.US).map((b) => ({
-    ...b,
-    currency: 'USD' as const,
-  }));
+    const moreReported = (pageTotal !== null && pageTotal > rows.length) ||
+      (total !== null && total > bars.size);
+    if (rows.length === 0 || earliest <= start || (!moreReported && rows.length < NASDAQ_HISTORY_PAGE_SIZE)) {
+      if (moreReported) {
+        throw new UpstreamError(`Nasdaq returned an incomplete historical K-line window for ${code}`, 'nasdaq', url);
+      }
+      const sorted = [...bars.values()].sort((a, b) => a.date.localeCompare(b.date));
+      return enrichForeignBars(sorted, code, MARKET_TZ.US).map((bar) => ({
+        ...bar,
+        currency: 'USD' as const,
+      }));
+    }
+    cursor = addDays(earliest, -1);
+  }
+  throw new UpstreamError(`Nasdaq historical K-line page limit reached for ${code}`, 'nasdaq', endpoint);
 }
 
 async function fetchNasdaqDividends(
@@ -690,7 +726,8 @@ interface SecSubmissionsResponse {
 
 async function resolveSecCompany(
   client: NodeHttpClient,
-  ticker: string
+  ticker: string,
+  signal?: AbortSignal
 ): Promise<{ cik10: string; cikNum: string; title: string }> {
   const cache = getClientScopedCache<Map<string, { cik10: string; cikNum: string; title: string }>>(
     client,
@@ -721,7 +758,7 @@ async function resolveSecCompany(
       throw new UpstreamEmptyError('SEC company_tickers.json returned empty', 'sec', SEC_TICKERS_URL);
     }
     return next;
-  });
+  }, undefined, signal);
 
   const hit = map.get(ticker.toUpperCase());
   if (!hit) {
@@ -732,13 +769,14 @@ async function resolveSecCompany(
 
 async function fetchSecAnnouncements(
   client: NodeHttpClient,
-  options: AnnouncementQueryOptions
+  options: AnnouncementQueryOptions,
+  signal?: AbortSignal
 ): Promise<StockAnnouncement[]> {
   if (!options.symbol) {
     throw new UpstreamEmptyError('SEC announcements require a US symbol', 'sec', SEC_SUBMISSIONS_BASE);
   }
   const code = normalizeSymbol(options.symbol, { market: 'US' }).code.toUpperCase();
-  const company = await resolveSecCompany(client, code);
+  const company = await resolveSecCompany(client, code, signal);
   const url = `${SEC_SUBMISSIONS_BASE}/CIK${company.cik10}.json`;
   const json = await client.get<SecSubmissionsResponse>(url, {
     responseType: 'json',
@@ -843,7 +881,7 @@ export function createOverseasAdapters(
     },
   };
 
-  // CNBC 与 Nasdaq 日 K 线均为拆股前复权/除拆股口径，不支持 A 股式后复权（hfq）
+  // CNBC 与 Nasdaq 日 K 使用拆股调整价，严格模式只接受前复权请求。
   const hkKlineCnbc: SourceAdapter<HKHistoryKlineInput, HKHistoryKline[]> = {
     id: 'cnbc:kline.hk.history',
     capability: 'kline.hk.history',
@@ -852,15 +890,16 @@ export function createOverseasAdapters(
     providedFields: new Set(['open', 'close', 'high', 'low', 'volume']),
     supports: (input) =>
       (input.options.period ?? 'daily') === 'daily' &&
-      (input.options.adjust ?? 'qfq') !== 'hfq',
-    fetch: async (input) => {
+      (input.options.adjust ?? 'qfq') === 'qfq' &&
+      Boolean(input.options.startDate),
+    fetch: async (input, ctx) => {
       const ns = normalizeSymbol(input.symbol, { market: 'HK' });
       const code5 = ns.code.padStart(5, '0');
       const bars = await fetchCnbcChartBars(
         client,
         toCnbcHkSymbol(input.symbol),
-        input.options.startDate,
-        input.options.endDate
+        input.options,
+        ctx.strictCapabilities !== false
       );
       return enrichForeignBars(bars, code5, MARKET_TZ.HK).map((b) => ({
         ...b,
@@ -878,14 +917,15 @@ export function createOverseasAdapters(
     providedFields: new Set(['open', 'close', 'high', 'low', 'volume']),
     supports: (input) =>
       (input.options.period ?? 'daily') === 'daily' &&
-      (input.options.adjust ?? 'qfq') !== 'hfq',
-    fetch: async (input) => {
+      (input.options.adjust ?? 'qfq') === 'qfq' &&
+      Boolean(input.options.startDate),
+    fetch: async (input, ctx) => {
       const code = normalizeSymbol(input.symbol, { market: 'US' }).code.toUpperCase();
       const bars = await fetchCnbcChartBars(
         client,
         code,
-        input.options.startDate,
-        input.options.endDate
+        input.options,
+        ctx.strictCapabilities !== false
       );
       return enrichForeignBars(bars, code, MARKET_TZ.US).map((b) => ({
         ...b,
@@ -902,7 +942,7 @@ export function createOverseasAdapters(
     providedFields: new Set(['open', 'close', 'high', 'low', 'volume']),
     supports: (input) =>
       (input.options.period ?? 'daily') === 'daily' &&
-      (input.options.adjust ?? 'qfq') !== 'hfq',
+      (input.options.adjust ?? 'qfq') === 'qfq',
     fetch: (input) => fetchNasdaqUsKline(client, input),
   };
 
@@ -1046,7 +1086,7 @@ export function createOverseasAdapters(
     priority: 10,
     providedFields: new Set(['id', 'code', 'name', 'title', 'category', 'publishedAt', 'url', 'fileType']),
     supports: (opts) => Boolean(opts.symbol) && detectMarketSafe(opts.symbol) === 'US',
-    fetch: (opts) => fetchSecAnnouncements(client, opts),
+    fetch: (opts, { signal }) => fetchSecAnnouncements(client, opts, signal),
   };
 
   return [

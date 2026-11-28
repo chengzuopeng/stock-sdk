@@ -11,12 +11,14 @@ import {
   addDays,
   buildTimeMeta,
   MARKET_TZ,
+  todayInTz,
   toNumberSafe,
   UpstreamEmptyError,
   UpstreamError,
 } from '../../core';
 import type { HistoryKline, MinuteKline } from '../../types';
 import { normalizeSymbol, toTencentSymbol } from '../../symbols';
+import { sleepWithAbort } from '../../core/abort';
 
 /** 腾讯历史 K 线备用源参数。 */
 export interface TencentHistoryKlineOptions {
@@ -31,6 +33,11 @@ export interface TencentMinuteKlineOptions {
   period: '5' | '15' | '30' | '60';
   startDate?: string;
   endDate?: string;
+}
+
+interface TencentKlineRequestOptions {
+  signal?: AbortSignal;
+  strictAdjustment?: boolean;
 }
 
 interface TencentKlineResponse {
@@ -55,6 +62,8 @@ interface TencentMinuteKlineRawRow extends Omit<TencentKlineRawRow, 'date'> {
 
 const PAGE_SIZE = 640;
 const MAX_PAGES = 100;
+const HISTORY_START = '1970-01-01';
+const HISTORY_END = '2050-01-01';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -136,7 +145,8 @@ async function fetchPage(
   period: NonNullable<TencentHistoryKlineOptions['period']>,
   adjust: NonNullable<TencentHistoryKlineOptions['adjust']>,
   startDate: string,
-  endDate: string
+  endDate: string,
+  transport: TencentKlineRequestOptions
 ): Promise<TencentKlineRawRow[]> {
   const periodParam = period === 'daily' ? 'day' : period === 'weekly' ? 'week' : 'month';
   const params = new URLSearchParams({
@@ -146,6 +156,7 @@ async function fetchPage(
   const json = await client.get<TencentKlineResponse>(url, {
     responseType: 'json',
     provider: 'tencent',
+    signal: transport.signal,
   });
 
   if (json.code !== undefined && json.code !== 0) {
@@ -160,7 +171,11 @@ async function fetchPage(
   if (!isRecord(node)) {
     throw new UpstreamEmptyError('Tencent K-line response has no symbol payload', 'tencent', url);
   }
-  return parseRows(node[resultKey(period, adjust)] ?? node[periodParam]);
+  const key = resultKey(period, adjust);
+  if (transport.strictAdjustment && !Array.isArray(node[key])) {
+    throw new UpstreamError(`Tencent K-line response is missing "${key}"`, 'tencent', url);
+  }
+  return parseRows(node[key] ?? node[periodParam]);
 }
 
 async function fetchAllPages(
@@ -169,7 +184,8 @@ async function fetchAllPages(
   period: NonNullable<TencentHistoryKlineOptions['period']>,
   adjust: NonNullable<TencentHistoryKlineOptions['adjust']>,
   queryStart: string,
-  requestedEnd: string
+  requestedEnd: string,
+  transport: TencentKlineRequestOptions
 ): Promise<TencentKlineRawRow[]> {
   const byDate = new Map<string, TencentKlineRawRow>();
   let cursorEnd = requestedEnd;
@@ -181,7 +197,8 @@ async function fetchAllPages(
       period,
       adjust,
       queryStart,
-      cursorEnd
+      cursorEnd,
+      transport
     );
     for (const row of rows) byDate.set(row.date, row);
     if (rows.length === 0) break;
@@ -190,7 +207,7 @@ async function fetchAllPages(
     if (rows.length < PAGE_SIZE || earliest <= queryStart) break;
     cursorEnd = addDays(earliest, -1);
     // 避免全量历史翻页形成瞬时突发，给腾讯备用源留出轻量请求间隔。
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    await sleepWithAbort(100, transport.signal);
   }
 
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -199,11 +216,14 @@ async function fetchAllPages(
 async function scaleHfqToQfq(
   client: RequestClient,
   tencentSymbol: string,
-  period: NonNullable<TencentHistoryKlineOptions['period']>,
-  rows: TencentKlineRawRow[]
+  rows: TencentKlineRawRow[],
+  latestDailyRows: TencentKlineRawRow[],
+  transport: TencentKlineRequestOptions
 ): Promise<TencentKlineRawRow[]> {
-  const anchor = [...rows].reverse().find((row) => row.close !== null && row.close !== 0);
-  if (!anchor) {
+  const anchor = [...latestDailyRows]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .find((row) => row.close !== null && row.close > 0);
+  if (!anchor || anchor.close === null) {
     throw new UpstreamEmptyError(
       'Tencent hfq series has no usable close for qfq rescaling',
       'tencent'
@@ -213,20 +233,21 @@ async function scaleHfqToQfq(
   const rawRows = await fetchPage(
     client,
     tencentSymbol,
-    period,
+    'daily',
     '',
-    addDays(anchor.date, -queryLookbackDays(period)),
-    anchor.date
+    addDays(anchor.date, -queryLookbackDays('daily')),
+    anchor.date,
+    transport
   );
   const rawAnchor = rawRows.find((row) => row.date === anchor.date);
-  if (!rawAnchor || rawAnchor.close === null) {
+  if (!rawAnchor || rawAnchor.close === null || rawAnchor.close <= 0) {
     throw new UpstreamEmptyError(
       `Tencent unadjusted anchor missing for ${anchor.date}; cannot derive qfq`,
       'tencent'
     );
   }
 
-  const scale = rawAnchor.close / (anchor.close as number);
+  const scale = rawAnchor.close / anchor.close;
   const apply = (value: number | null): number | null =>
     value === null ? null : roundPrice(value * scale);
 
@@ -248,27 +269,35 @@ async function scaleHfqToQfq(
 export async function getTencentHistoryKline(
   client: RequestClient,
   symbol: string,
-  options: TencentHistoryKlineOptions = {}
+  options: TencentHistoryKlineOptions = {},
+  transport: TencentKlineRequestOptions = {}
 ): Promise<HistoryKline[]> {
   const period = options.period ?? 'daily';
   const adjust = options.adjust ?? 'qfq';
-  const requestedStart = toIsoDate(options.startDate ?? '19700101');
-  const requestedEnd = toIsoDate(options.endDate ?? '20500101');
+  const requestedStart = toIsoDate(options.startDate ?? HISTORY_START);
+  const requestedEnd = toIsoDate(options.endDate ?? HISTORY_END);
   const queryStart = addDays(requestedStart, -queryLookbackDays(period));
   const ns = normalizeSymbol(symbol, { market: 'CN' });
   const tencentSymbol = toTencentSymbol(ns);
 
   const fetchAdjust = adjust === 'qfq' ? 'hfq' : adjust;
+  const requestOptions = adjust === 'qfq' ? { ...transport, strictAdjustment: true } : transport;
   let rows = await fetchAllPages(
     client,
     tencentSymbol,
     period,
     fetchAdjust,
     queryStart,
-    requestedEnd
+    requestedEnd,
+    requestOptions
   );
   if (adjust === 'qfq' && rows.length > 0) {
-    rows = await scaleHfqToQfq(client, tencentSymbol, period, rows);
+    const today = todayInTz(MARKET_TZ.CN);
+    // 周期和查询结束日不应改变复权锚点。缺少最新日线时取腾讯最后一页日线。
+    const latestDailyRows = period === 'daily' && requestedEnd >= today
+      ? rows
+      : await fetchPage(client, tencentSymbol, 'daily', 'hfq', HISTORY_START, today, requestOptions);
+    rows = await scaleHfqToQfq(client, tencentSymbol, rows, latestDailyRows, requestOptions);
   }
   const result: HistoryKline[] = rows.map((row, index) => {
     const prevClose = index > 0 ? rows[index - 1].close : null;
@@ -317,7 +346,8 @@ async function fetchMinutePage(
   client: RequestClient,
   symbol: string,
   period: TencentMinuteKlineOptions['period'],
-  cursor: string
+  cursor: string,
+  signal?: AbortSignal
 ): Promise<TencentMinuteKlineRawRow[]> {
   const params = new URLSearchParams({
     param: [symbol, `m${period}`, cursor, String(PAGE_SIZE)].join(','),
@@ -326,6 +356,7 @@ async function fetchMinutePage(
   const json = await client.get<TencentKlineResponse>(url, {
     responseType: 'json',
     provider: 'tencent',
+    signal,
   });
   if (json.code !== undefined && json.code !== 0) {
     throw new UpstreamError(
@@ -355,7 +386,8 @@ async function fetchMinutePage(
 export async function getTencentMinuteKline(
   client: RequestClient,
   symbol: string,
-  options: TencentMinuteKlineOptions
+  options: TencentMinuteKlineOptions,
+  signal?: AbortSignal
 ): Promise<MinuteKline[]> {
   const ns = normalizeSymbol(symbol, { market: 'CN' });
   const tencentSymbol = toTencentSymbol(ns);
@@ -373,7 +405,8 @@ export async function getTencentMinuteKline(
       client,
       tencentSymbol,
       options.period,
-      cursor
+      cursor,
+      signal
     );
     for (const row of rows) byTime.set(row.rawTime, row);
     if (rows.length === 0 || start === undefined) break;
@@ -381,7 +414,7 @@ export async function getTencentMinuteKline(
     const earliest = rows[0].rawTime;
     if (rows.length < PAGE_SIZE || earliest <= start) break;
     cursor = earliest;
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    await sleepWithAbort(100, signal);
   }
 
   const rows = [...byTime.values()].sort((a, b) =>

@@ -7,7 +7,8 @@ name: Publish
 #   - v* 或 stock-sdk@*      → 发布 packages/stock-sdk
 #   - stock-node-sdk@*       → 发布 packages/stock-node-sdk
 #
-# 一次性准备（在 npmjs.com 上为每个包分别配置 Trusted Publisher）：
+# 首次发布新包须由 npm 维护者创建包，再为后续版本配置 Trusted Publisher。
+# 现有包的 Trusted Publisher 配置：
 #   - Organization or user: chengzuopeng
 #   - Repository:           stock-sdk
 #   - Workflow filename:    release.yml
@@ -49,7 +50,6 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Upgrade npm
         run: npm install -g npm@latest
@@ -65,25 +65,31 @@ jobs:
 
       - name: Resolve target package & verify version
         id: target
+        env:
+          RELEASE_PACKAGE: ${{ inputs.package }}
         run: |
           EXPECTED_VER=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            PKG="${{ inputs.package }}"
-          elif [[ "${{ github.ref_name }}" == stock-node-sdk@* ]]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            PKG="$RELEASE_PACKAGE"
+          elif [[ "$GITHUB_REF_NAME" == stock-node-sdk@* ]]; then
             PKG="stock-node-sdk"
-            EXPECTED_VER="${{ github.ref_name#stock-node-sdk@ }}"
-          elif [[ "${{ github.ref_name }}" == stock-sdk@* ]]; then
+            EXPECTED_VER="${GITHUB_REF_NAME#stock-node-sdk@}"
+          elif [[ "$GITHUB_REF_NAME" == stock-sdk@* ]]; then
             PKG="stock-sdk"
-            EXPECTED_VER="${{ github.ref_name#stock-sdk@ }}"
-          elif [[ "${{ github.ref_name }}" == v* ]]; then
+            EXPECTED_VER="${GITHUB_REF_NAME#stock-sdk@}"
+          elif [[ "$GITHUB_REF_NAME" == v* ]]; then
             PKG="stock-sdk"
-            EXPECTED_VER="${{ github.ref_name#v }}"
+            EXPECTED_VER="${GITHUB_REF_NAME#v}"
           else
-            echo "::error::Unsupported release tag format: ${{ github.ref_name }}"
+            echo "::error::Unsupported release tag format: $GITHUB_REF_NAME"
             exit 1
           fi
+          case "$PKG" in
+            stock-sdk|stock-node-sdk) ;;
+            *) echo "::error::Unsupported package: $PKG"; exit 1 ;;
+          esac
           ACTUAL_VER=$(node -p "require('./packages/${PKG}/package.json').version")
-          if [ -n "$EXPECTED_VER" ] && [ "$EXPECTED_VER" != "$ACTUAL_VER" ]; then
+          if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ] && [ "$EXPECTED_VER" != "$ACTUAL_VER" ]; then
             echo "::error::Tag version (${EXPECTED_VER}) does not match packages/${PKG}/package.json version (${ACTUAL_VER})"
             exit 1
           fi
@@ -91,11 +97,12 @@ jobs:
           echo "dir=packages/$PKG" >> "$GITHUB_OUTPUT"
           echo "Target package: ${PKG}@${ACTUAL_VER} (packages/$PKG)"
 
-      - name: Publish to npm
+      - name: Pack and publish to npm
+        env:
+          RELEASE_PACKAGE: ${{ steps.target.outputs.name }}
+          RELEASE_DIR: ${{ steps.target.outputs.dir }}
         run: |
-          PKG_DIR="${{ steps.target.outputs.dir }}"
-          PKG_NAME="${{ steps.target.outputs.name }}"
-          VERSION=$(node -p "require('./${PKG_DIR}/package.json').version")
+          VERSION=$(node -p "require('./${RELEASE_DIR}/package.json').version")
           case "$VERSION" in
             *-beta*)  TAG=beta ;;
             *-rc*)    TAG=rc ;;
@@ -103,5 +110,7 @@ jobs:
             *-*)      TAG=next ;;
             *)        TAG=latest ;;
           esac
-          echo "Publishing ${PKG_NAME}@${VERSION} with dist-tag: ${TAG}"
-          pnpm --filter "$PKG_NAME" publish --access public --tag "$TAG" --no-git-checks
+          echo "Publishing ${RELEASE_PACKAGE}@${VERSION} with dist-tag: ${TAG}"
+          PACK_DIR=$(mktemp -d)
+          pnpm --filter "$RELEASE_PACKAGE" pack --pack-destination "$PACK_DIR"
+          npm publish "$PACK_DIR/${RELEASE_PACKAGE}-${VERSION}.tgz" --access public --tag "$TAG"

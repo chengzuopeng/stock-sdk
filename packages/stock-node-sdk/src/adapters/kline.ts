@@ -92,7 +92,8 @@ async function fetchTencentPagedForeignRows(
   pKey: string,
   adjust: '' | 'qfq' | 'hfq',
   start: string,
-  end: string
+  end: string,
+  strict: boolean
 ): Promise<{
   rows: ReturnType<typeof parseTencentForeignRows>;
   name: string;
@@ -128,7 +129,11 @@ async function fetchTencentPagedForeignRows(
       const qt = node.qt as Record<string, string[]> | undefined;
       name = qt?.[key]?.[1] ?? '';
     }
-    const batch = parseTencentForeignRows(node[adjust ? `${adjust}${pKey}` : pKey] ?? node[pKey]);
+    const resultKey = adjust ? `${adjust}${pKey}` : pKey;
+    if (strict && !Array.isArray(node[resultKey])) {
+      throw new UpstreamError(`Tencent foreign K-line response is missing "${resultKey}"`, 'tencent', url);
+    }
+    const batch = parseTencentForeignRows(node[resultKey] ?? node[pKey]);
     if (batch.length === 0) {
       break;
     }
@@ -156,7 +161,8 @@ async function fetchTencentPagedForeignRows(
 async function fetchTencentHkHistoryKline(
   client: NodeHttpClient,
   symbol: string,
-  options: eastmoney.HKKlineOptions = {}
+  options: eastmoney.HKKlineOptions,
+  strict: boolean
 ): Promise<HKHistoryKline[]> {
   const ns = normalizeSymbol(symbol, { market: 'HK' });
   const hkCode = ns.code.padStart(5, '0');
@@ -174,7 +180,8 @@ async function fetchTencentHkHistoryKline(
     pKey,
     adjust,
     start,
-    end
+    end,
+    strict
   );
   if (!nodePresent) {
     throw new UpstreamEmptyError('Tencent HK K-line payload missing', 'tencent', TENCENT_HK_KLINE_URL);
@@ -220,7 +227,8 @@ async function fetchTencentHkHistoryKline(
 async function fetchTencentUsHistoryKline(
   client: NodeHttpClient,
   symbol: string,
-  options: eastmoney.USKlineOptions = {}
+  options: eastmoney.USKlineOptions,
+  strict: boolean
 ): Promise<USHistoryKline[]> {
   const ns = normalizeSymbol(symbol, { market: 'US' });
   const code = ns.code.toUpperCase();
@@ -248,7 +256,8 @@ async function fetchTencentUsHistoryKline(
       pKey,
       adjust,
       start,
-      end
+      end,
+      strict
     );
     if (!nodePresent) continue;
     anyValidNode = true;
@@ -321,6 +330,7 @@ export function createNodeKlineAdapters(
       eastmoney.getHKHistoryKline(client, input.symbol, input.options, {
         requireData: ctx.hasFallback,
         hostFallback: false,
+        validateKlines: true,
         ...(ctx.hasFallback ? { retry: { maxRetries: 0 } } : {}),
       }),
   };
@@ -332,7 +342,8 @@ export function createNodeKlineAdapters(
     priority: 20,
     providedFields: new Set(['open', 'close', 'high', 'low', 'volume', 'amount', 'turnoverRate']),
     supports: () => true,
-    fetch: (input) => fetchTencentHkHistoryKline(client, input.symbol, input.options),
+    fetch: (input, ctx) =>
+      fetchTencentHkHistoryKline(client, input.symbol, input.options, ctx.strictCapabilities !== false),
   };
 
   const usEastmoney: SourceAdapter<USHistoryKlineInput, USHistoryKline[]> = {
@@ -347,6 +358,8 @@ export function createNodeKlineAdapters(
         return await eastmoney.getUSHistoryKline(client, input.symbol, input.options, {
           requireData: ctx.hasFallback,
           hostFallback: false,
+          validateKlines: true,
+          signal: ctx.signal,
           ...(ctx.hasFallback ? { retry: { maxRetries: 0 } } : {}),
         });
       } catch (err) {
@@ -371,7 +384,8 @@ export function createNodeKlineAdapters(
     priority: 20,
     providedFields: new Set(['open', 'close', 'high', 'low', 'volume']),
     supports: () => true,
-    fetch: (input) => fetchTencentUsHistoryKline(client, input.symbol, input.options),
+    fetch: (input, ctx) =>
+      fetchTencentUsHistoryKline(client, input.symbol, input.options, ctx.strictCapabilities !== false),
   };
 
   return [

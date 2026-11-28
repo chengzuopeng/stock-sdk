@@ -13,7 +13,7 @@
 
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
-| `packages/stock-sdk/dist/index.js` | 3.56 KB | 1.61 KB |
+| `packages/stock-sdk/dist/index.js` | 3.57 KB | 1.62 KB |
 | `packages/stock-sdk/dist/index.cjs` | 5.15 KB | 1.71 KB |
 
 ## 请求治理能力
@@ -188,12 +188,12 @@
 
 - 包名：`stock-node-sdk`
 - 当前版本：`0.1.0-beta.1`
-- 定位：Node.js 18+ 多源高可用财经数据 SDK，严格超集兼容 `stock-sdk` 全部方法，并扩展以下 Node 专属能力。
+- 定位：Node.js 18.17+ 多源高可用财经数据 SDK，严格超集兼容 `stock-sdk` 全部方法，并扩展以下 Node 专属能力。
 
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
-| `packages/stock-node-sdk/dist/index.js` | 3.79 KB | 1.70 KB |
-| `packages/stock-node-sdk/dist/index.cjs` | 5.47 KB | 1.80 KB |
+| `packages/stock-node-sdk/dist/index.js` | 3.81 KB | 1.70 KB |
+| `packages/stock-node-sdk/dist/index.cjs` | 5.50 KB | 1.81 KB |
 
 ### 财务与基本面（Node 专属）
 

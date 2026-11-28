@@ -662,7 +662,7 @@ export type QuoteSource = ProviderName | (string & {});
 /**
  * A 股 / 指数 全量行情
  */
-export interface FullQuote {
+export interface FullQuote<Source extends QuoteSource = ProviderName> {
   /** 市场标识 */
   marketId: string;
   /** 名称 */
@@ -743,13 +743,13 @@ export interface FullQuote {
    */
   assetType: 'stock';
   /** 数据源 */
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
  * 简要行情（股票；指数也走此结构，但 assetType 不区分，见 FullQuote 说明）
  */
-export interface SimpleQuote {
+export interface SimpleQuote<Source extends QuoteSource = ProviderName> {
   marketId: string;
   name: string;
   code: string;
@@ -764,7 +764,7 @@ export interface SimpleQuote {
   marketType: string;
   market: 'CN';
   assetType: 'stock';
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
@@ -814,7 +814,7 @@ export interface PanelLargeOrder {
 /**
  * 港股扩展行情
  */
-export interface HKQuote {
+export interface HKQuote<Source extends QuoteSource = ProviderName> {
   marketId: string;
   name: string;
   code: string;
@@ -840,13 +840,13 @@ export interface HKQuote {
   market: 'HK';
   /** 命中特殊指数注册表(HSI/HSCEI/HSTECH)的行标 'index'(港股真码恒为数字,无碰撞面) */
   assetType: 'stock' | 'index';
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
  * 美股行情
  */
-export interface USQuote {
+export interface USQuote<Source extends QuoteSource = ProviderName> {
   /** 市场标识 */
   marketId: string;
   /** 名称 */
@@ -894,7 +894,7 @@ export interface USQuote {
   market: 'US';
   /** 命中特殊指数注册表(DJI/INX/IXIC)的行标 'index'，code 归一为注册表规范形 */
   assetType: 'stock' | 'index';
-  source: QuoteSource;
+  source: Source;
 }
 
 /**
@@ -923,7 +923,11 @@ export interface FundQuote {
 /**
  * 行情可辨识联合（按 `market` + `assetType` 判别）
  */
-export type Quote = FullQuote | HKQuote | USQuote | FundQuote;
+export type Quote<Source extends QuoteSource = ProviderName> =
+  | FullQuote<Source>
+  | HKQuote<Source>
+  | USQuote<Source>
+  | FundQuote;
 
 // ============================================================
 // packages/core/src/types/kline.ts
@@ -2839,7 +2843,7 @@ export interface UnusualFluctuationOptions {
  */
 import { decodeGBK, parseResponse } from './parser';
 import { TENCENT_BASE_URL } from './constants';
-import { raceWithAbort, sleepWithAbort } from './abort';
+import { combineSignals, raceWithAbort, sleepWithAbort } from './abort';
 import { RateLimiter, type RateLimiterOptions } from './rateLimiter';
 import { getNextUserAgent } from './userAgentPool';
 import {
@@ -2935,56 +2939,6 @@ function isAbortShapedError(error: unknown): boolean {
     }
   }
   return false;
-}
-
-/**
- * 合并多个 AbortSignal：任一触发即 abort。
- * 优先用原生 `AbortSignal.any`（Node 18.17+/20.3+、现代浏览器）；
- * 缺失时（Node 18.0–18.16）退回手写联动，并在结束后清理监听防泄漏。
- */
-interface CombinedSignal {
-  signal: AbortSignal | undefined;
-  /** 请求结束后调用以移除 fallback 注册的监听，防止长生命周期 signal 泄漏 */
-  cleanup: () => void;
-}
-
-const NO_CLEANUP = () => {};
-
-function combineSignals(signals: (AbortSignal | undefined)[]): CombinedSignal {
-  const list = signals.filter((s): s is AbortSignal => Boolean(s));
-  if (list.length === 0) return { signal: undefined, cleanup: NO_CLEANUP };
-  if (list.length === 1) return { signal: list[0], cleanup: NO_CLEANUP };
-
-  const anyFn = (
-    AbortSignal as unknown as {
-      any?: (signals: AbortSignal[]) => AbortSignal;
-    }
-  ).any;
-  if (typeof anyFn === 'function') {
-    return { signal: anyFn(list), cleanup: NO_CLEANUP };
-  }
-
-  // fallback（Node 18.0–18.16）：手动联动，并记录监听以便请求结束后移除
-  const controller = new AbortController();
-  const abort = (reason: unknown) => {
-    if (!controller.signal.aborted) controller.abort(reason);
-  };
-  const registered: Array<{ s: AbortSignal; handler: () => void }> = [];
-  for (const s of list) {
-    if (s.aborted) {
-      abort(s.reason);
-      break;
-    }
-    const handler = () => abort(s.reason);
-    s.addEventListener('abort', handler, { once: true });
-    registered.push({ s, handler });
-  }
-  const cleanup = () => {
-    for (const { s, handler } of registered) {
-      s.removeEventListener('abort', handler);
-    }
-  };
-  return { signal: controller.signal, cleanup };
 }
 
 /**

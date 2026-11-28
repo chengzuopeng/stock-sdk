@@ -7,6 +7,7 @@ import {
   EM_US_TRENDS_URL,
   MARKET_TZ,
   NotFoundError,
+  getSdkErrorCode,
   getClientScopedCache,
   type MemoryCache,
 } from '../../core';
@@ -77,7 +78,8 @@ function usSecidCache(client: RequestClient): MemoryCache<string> {
  */
 async function resolveUsSecid(
   client: RequestClient,
-  symbol: string
+  symbol: string,
+  signal?: AbortSignal
 ): Promise<string> {
   if (/^\d{2,3}\./.test(symbol)) {
     return symbol;
@@ -91,29 +93,33 @@ async function resolveUsSecid(
   const ticker = ns.code;
   const cache = usSecidCache(client);
   // 负缓存哨兵与正向结论同表,须在 getOrFetch 之前拦截(否则哨兵串会被当 secid 返回)
-  if (cache.get(ticker) === US_SECID_NOT_FOUND) {
+  const cached = cache.get(ticker);
+  if (cached === US_SECID_NOT_FOUND) {
     throw new NotFoundError(`美股代码不存在或不支持: ${ticker}`, 'eastmoney');
   }
-  return cache.getOrFetch(ticker, () => probeUsSecid(client, ticker, cache), US_SECID_TTL);
+  if (cached) return cached;
+  return cache.getOrFetch(ticker, () => probeUsSecid(client, ticker, cache, signal), US_SECID_TTL, signal);
 }
 
 async function probeUsSecid(
   client: RequestClient,
   ticker: string,
-  cache: MemoryCache<string>
+  cache: MemoryCache<string>,
+  signal?: AbortSignal
 ): Promise<string> {
   // ① 代码表优先：getUSCodeList 返回的本就是 '105.AAPL' 形态（6h 缓存），
   //   一次摊销请求同时解决正/负存在性，NYSE/AMEX 免串行探测。
   //   跨 provider 依赖（东财 K 线 ← 腾讯代码表）是声明的权衡：失败退②，非硬依赖。
   let codeListConsulted = false;
   try {
-    const list = await getUSCodeList(client);
+    const list = await getUSCodeList(client, undefined, signal);
     codeListConsulted = true;
     const found = list.find((s) => s.slice(s.indexOf('.') + 1) === ticker);
     if (found) {
       return found; // 正向写缓存由 getOrFetch 统一落(US_SECID_TTL)
     }
-  } catch {
+  } catch (error) {
+    if (getSdkErrorCode(error) === 'ABORTED') throw error;
     // 代码表不可用（网络/上游异常）→ 退探测
   }
 
@@ -124,7 +130,8 @@ async function probeUsSecid(
     const resp = await fetchEmHistoryKline(
       client,
       EM_US_KLINE_URL,
-      buildEmKlineParams(secid, { klt: '101', fqt: '0', lmt: '1' })
+      buildEmKlineParams(secid, { klt: '101', fqt: '0', lmt: '1' }),
+      { signal }
     );
     if (resp.klines.length > 0) {
       return secid; // 正向写缓存由 getOrFetch 统一落(US_SECID_TTL)
@@ -181,7 +188,7 @@ export async function getUSHistoryKline(
   options: USKlineOptions = {},
   transport?: ForeignKlineTransportOptions
 ): Promise<USHistoryKline[]> {
-  const secid = await resolveUsSecid(client, symbol);
+  const secid = await resolveUsSecid(client, symbol, transport?.signal);
   return getUSHistoryKlineByFactory(client, secid, options, transport);
 }
 

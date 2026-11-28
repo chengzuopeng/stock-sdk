@@ -23,7 +23,7 @@ This pnpm monorepo shares a single core (`@stock-sdk/core`) and publishes two AP
 | Package | Runtime | Dependencies | Best For & Highlights | Docs |
 |---|---|---|---|---|
 | **[`stock-sdk`](./packages/stock-sdk)** | Browser + Node.js 18+ | **Zero** | Lightweight dual-runtime SDK: 94 namespaced methods (quotes/K-line/boards/fund flow/futures/options/funds/chips), 14 technical indicators, signals, screener & backtest, 94-cmd CLI & 93-tool MCP | [Get Started](https://stock-sdk.linkdiary.cn/en/guide/getting-started) |
-| **[`stock-node-sdk`](./packages/stock-node-sdk)** | Node.js 18+ Server | `undici` only | **Multi-source high-availability Node edition (strict superset of `stock-sdk`)**: capability-aware `SourceRouter` failover (3-source CN/HK/US quotes; dual-source K-line/batch/dividends/news/announcements), `ProxyPool` / `CookieJar` / `FileCacheStore`; exclusive **`financial`**, **`news`** (24/7 flashes & CNINFO announcements), **`corporate`**, **`bond`** namespaces; 105-cmd CLI (`--source`/`--proxy`/`--cache-dir`) & 104-tool MCP | [Node Enhanced Guide](https://stock-sdk.linkdiary.cn/en/guide/node-sdk) |
+| **[`stock-node-sdk`](./packages/stock-node-sdk)** | Node.js 18.17+ Server | `undici` only | **Multi-source high-availability Node edition (strict superset of `stock-sdk`)**: capability-aware `SourceRouter` failover (3-source CN/HK/US quotes; dual-source K-line/batch/dividends/news/announcements), `ProxyPool` / `CookieJar` / `FileCacheStore`; exclusive **`financial`**, **`news`** (24/7 flashes & CNINFO announcements), **`corporate`**, **`bond`** namespaces; 105-cmd CLI (`--source`/`--proxy`/`--cache-dir`) & 104-tool MCP | [Node Enhanced Guide](https://stock-sdk.linkdiary.cn/en/guide/node-sdk) |
 
 ## 📖 Official docs
 
@@ -63,8 +63,8 @@ Whether you're building a **frontend dashboard** or running **Node.js data servi
 
 ## Features
 
-- ✅ **Two packages, one strict-superset API**: `stock-sdk` (zero-dep browser + Node.js) and `stock-node-sdk` (Node.js 18+ multi-source enhanced edition) — switch with a single import change
-- ✅ **Capability-aware multi-source failover (`stock-node-sdk`)**: zero-config automatic failover across Tencent / Sina / Eastmoney / CNINFO with `supports(input)` & `requiredFields` pre-filtering, adaptive cooldown, concurrency-safe `withMeta()` provenance, and `registerAdapter()` extensibility
+- ✅ **Two packages, one strict-superset API**: `stock-sdk` (zero-dep browser + Node.js) and `stock-node-sdk` (Node.js 18.17+ multi-source enhanced edition) — switch with a single import change
+- ✅ **Capability-aware multi-source failover (`stock-node-sdk`)**. The SDK selects sources by capability and health, checks `requiredFields` on every record, and tries a fallback when fields are missing. It supports per-call cancellation, concurrency-safe provenance via `withMeta()`, and custom sources via `registerAdapter()`.
 - ✅ **Node-exclusive domains & transport (`stock-node-sdk`)**: `financial` (indicators / statements / forecasts / express), `news` (24/7 flashes / dual-source announcements), `corporate` (top shareholders / holder counts), `bond` (convertible bonds); built-in `ProxyPool`, `CookieJar`, `SessionManager`, and `FileCacheStore`
 - ✅ **Namespaced API**: `sdk.quotes.cn()` / `sdk.kline.cn()` / `sdk.financial.indicators()` / `sdk.options.etf.dailyKline()`, grouped by domain with full TypeScript autocomplete
 - ✅ **Unified symbol model**: `string` as a first-class input — `sh600519` / `600519` / `600519.SH` / `00700` / `hk00700` / `AAPL` / `105.AAPL` are parsed tolerantly; special indices supported ([symbols guide](https://stock-sdk.linkdiary.cn/en/guide/symbols.html))
@@ -84,7 +84,7 @@ Whether you're building a **frontend dashboard** or running **Node.js data servi
 # Browser + Node.js zero-dependency edition
 npm install stock-sdk
 
-# Node.js 18+ multi-source high-availability edition (Public Beta, recommended for servers / quant / AI Agents)
+# Node.js 18.17+ multi-source high-availability edition (Public Beta, recommended for servers / quant / AI Agents)
 npm install stock-node-sdk@beta
 
 # v1 legacy (frozen, critical fixes only)
