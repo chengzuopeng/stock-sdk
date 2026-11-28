@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { StockNodeSDK } from '../../src/sdk';
+import { NodeHttpClient } from '../../src/transport/nodeHttpClient';
 
 const sdk = new StockNodeSDK({ timeout: 15_000, retry: { maxRetries: 1, baseDelay: 300 } });
 
@@ -213,6 +214,39 @@ describe('stock-node-sdk 真实上游多源实测', () => {
     const rows = await sdk.kline.us('AAPL', {
       startDate: '2019-01-01', endDate: '2021-12-31', adjust: 'qfq',
     }, { source: 'nasdaq' });
+    if (rows.length === 0) {
+      const client = new NodeHttpClient({ timeout: 5_000, retry: { maxRetries: 0 } });
+      try {
+        const windows = [
+          ['2019-01-01', '2021-12-31', '500'],
+          ['2019-01-01', '2019-02-01', '5'],
+          ['2023-01-01', '2025-12-31', '500'],
+          ['2024-11-01', '2026-11-24', '500'],
+          ['2026-11-02', '2026-11-24', '5'],
+        ];
+        const samples = await Promise.allSettled(windows.map(async ([fromdate, todate, limit]) => {
+          const params = new URLSearchParams({ assetclass: 'stocks', fromdate, todate, limit });
+          const payload = await client.get<{
+            status?: unknown;
+            data?: {
+              totalRecords?: number;
+              tradesTable?: { rows?: Array<{ date: string }> };
+            };
+          }>(`https://api.nasdaq.com/api/quote/AAPL/historical?${params}`, {
+            responseType: 'json', provider: 'nasdaq', hostFallback: false,
+          });
+          const bars = payload.data?.tradesTable?.rows;
+          return {
+            fromdate, todate, limit, status: payload.status,
+            totalRecords: payload.data?.totalRecords, returned: bars?.length,
+            first: bars?.[0]?.date, last: bars?.at(-1)?.date,
+          };
+        }));
+        console.info('Nasdaq historical windows', JSON.stringify(samples));
+      } finally {
+        await client.close();
+      }
+    }
     expect(rows.length).toBeGreaterThan(500);
     expect(rows[0].date).toBe('2019-01-02');
     expect(rows.at(-1)?.date).toBe('2021-12-31');
