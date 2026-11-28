@@ -8,7 +8,7 @@ pageClass: changelog-page
 
 ## v2.5.0（含 `stock-node-sdk v0.1.0-beta.1`）
 
-> 发布时间：2026-11-28（`stock-sdk`）。`stock-node-sdk v0.1.0-beta.1` 待发布。
+> 发布时间：2026-11-28（`stock-sdk` 和 `stock-node-sdk`）。
 >
 > 🧪 **一仓双包 Monorepo 与 `stock-node-sdk` 首个公开 Beta**。基础包 `stock-sdk` 继续支持浏览器和 Node.js，运行时零依赖。`stock-node-sdk` 面向 Node.js 18.17+，提供多源容错。 [Node 增强版指南](/guide/node-sdk) · [Node 专属扩展 API](/api/node-extensions)
 

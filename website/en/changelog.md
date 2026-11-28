@@ -8,7 +8,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.5.0 (with `stock-node-sdk v0.1.0-beta.1`)
 
-> Released: 2026-11-28 (`stock-sdk`). `stock-node-sdk v0.1.0-beta.1` is pending.
+> Released: 2026-11-28 (`stock-sdk` and `stock-node-sdk`).
 >
 > 🧪 **Monorepo and first public beta of `stock-node-sdk`**. The base `stock-sdk` package runs in browsers and Node.js with zero runtime dependencies. `stock-node-sdk` adds multi-source failover on Node.js 18.17+. [Node Enhanced Guide](/en/guide/node-sdk) · [Node Extensions API](/en/api/node-extensions)
 
