@@ -2,7 +2,7 @@
  * 通用缓存模块
  * 支持 TTL（过期时间）和 LRU 淘汰策略
  */
-import { raceWithAbort } from './abort';
+import { raceWithAbort, throwIfAborted } from './abort';
 
 /**
  * 缓存配置选项
@@ -192,7 +192,7 @@ export class MemoryCache<T = unknown> {
     ttl?: number,
     signal?: AbortSignal
   ): Promise<T> {
-    signal?.throwIfAborted();
+    throwIfAborted(signal);
     const cached = this.get(key);
     if (cached !== undefined) {
       return cached;
@@ -200,7 +200,7 @@ export class MemoryCache<T = unknown> {
 
     if (signal) {
       const value = await raceWithAbort(signal, fetcher());
-      signal.throwIfAborted();
+      throwIfAborted(signal);
       this.set(key, value, ttl);
       return value;
     }

@@ -5,7 +5,7 @@ import {
   getSdkErrorCode,
   type SdkErrorCode,
 } from '../core/errors';
-import { raceWithAbort } from '../core/abort';
+import { raceWithAbort, throwIfAborted } from '../core/abort';
 import { SourceHealthTracker } from './healthTracker';
 import type {
   CapabilityId,
@@ -324,14 +324,14 @@ export class SourceRouter {
       const hasFallback = i < ordered.length - 1;
       const attemptStart = Date.now();
       try {
-        signal?.throwIfAborted();
+        throwIfAborted(signal);
         const output = await raceWithAbort(signal, adapter.fetch(input, {
           hasFallback,
           attemptIndex: i,
           signal,
           strictCapabilities: strict,
         }));
-        signal?.throwIfAborted();
+        throwIfAborted(signal);
         validateRequiredFields(output, options.requiredFields, adapter.provider);
         const durationMs = Date.now() - attemptStart;
         this.health.recordSuccess(capability, adapter.provider, durationMs);

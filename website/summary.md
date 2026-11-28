@@ -193,7 +193,7 @@
 | 文件 | 体积 | Gzip |
 | --- | --- | --- |
 | `packages/stock-node-sdk/dist/index.js` | 3.81 KB | 1.70 KB |
-| `packages/stock-node-sdk/dist/index.cjs` | 5.50 KB | 1.81 KB |
+| `packages/stock-node-sdk/dist/index.cjs` | 5.50 KB | 1.80 KB |
 
 ### 财务与基本面（Node 专属）
 

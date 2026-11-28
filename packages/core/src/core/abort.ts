@@ -5,6 +5,27 @@ interface CombinedSignal {
 }
 
 const NO_CLEANUP = () => {};
+// Older AbortSignals have neither `reason` nor `throwIfAborted`. Keep a
+// stable reason so cancellation is still attributed to the originating signal.
+const legacyReasons = new WeakMap<AbortSignal, unknown>();
+
+export function getAbortReason(signal: AbortSignal): unknown {
+  if ('reason' in signal) return signal.reason;
+  if (!legacyReasons.has(signal)) {
+    legacyReasons.set(signal, new DOMException('The operation was aborted.', 'AbortError'));
+  }
+  return legacyReasons.get(signal);
+}
+
+export function abortWithReason(controller: AbortController, reason: unknown): void {
+  if (controller.signal.aborted) return;
+  if (!('reason' in controller.signal)) legacyReasons.set(controller.signal, reason);
+  controller.abort(reason);
+}
+
+export function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw getAbortReason(signal);
+}
 
 /**
  * 合并多个 AbortSignal：任一触发即 abort。
@@ -28,15 +49,15 @@ export function combineSignals(signals: (AbortSignal | undefined)[]): CombinedSi
   // fallback（Node 18.0–18.16）：手动联动，并记录监听以便请求结束后移除
   const controller = new AbortController();
   const abort = (reason: unknown) => {
-    if (!controller.signal.aborted) controller.abort(reason);
+    abortWithReason(controller, reason);
   };
   const registered: Array<{ s: AbortSignal; handler: () => void }> = [];
   for (const s of list) {
     if (s.aborted) {
-      abort(s.reason);
+      abort(getAbortReason(s));
       break;
     }
-    const handler = () => abort(s.reason);
+    const handler = () => abort(getAbortReason(s));
     s.addEventListener('abort', handler, { once: true });
     registered.push({ s, handler });
   }
@@ -73,11 +94,11 @@ export async function raceWithAbort<T>(
     // Promise.race 按注册序结算:已经 settle 的 fetch promise 仍然胜出 ——
     // 保住补f 语义(已到手的真实响应/业务错误如 HTTP 500 不被外部取消掩盖);
     // 未 settle 的(deaf fetchImpl)下一微任务即被 signal.reason 拒绝,不挂起。
-    return Promise.race([promise, Promise.reject(signal.reason)]);
+    return Promise.race([promise, Promise.reject(getAbortReason(signal))]);
   }
   let onAbort!: () => void;
   const abortPromise = new Promise<never>((_, reject) => {
-    onAbort = () => reject(signal.reason);
+    onAbort = () => reject(getAbortReason(signal));
     signal.addEventListener('abort', onAbort, { once: true });
   });
   try {
@@ -89,7 +110,7 @@ export async function raceWithAbort<T>(
 
 /** 延迟结束或取消时及时释放定时器。 */
 export async function sleepWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
-  signal?.throwIfAborted();
+  throwIfAborted(signal);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await raceWithAbort(signal, new Promise<void>((resolve) => {

@@ -3,7 +3,14 @@
  */
 import { decodeGBK, parseResponse } from './parser';
 import { TENCENT_BASE_URL } from './constants';
-import { combineSignals, raceWithAbort, sleepWithAbort } from './abort';
+import {
+  abortWithReason,
+  combineSignals,
+  getAbortReason,
+  raceWithAbort,
+  sleepWithAbort,
+  throwIfAborted,
+} from './abort';
 import { RateLimiter, type RateLimiterOptions } from './rateLimiter';
 import { getNextUserAgent } from './userAgentPool';
 import {
@@ -383,11 +390,11 @@ export class RequestClient {
     attempt = 0
   ): Promise<T> {
     try {
-      perCall.signal?.throwIfAborted();
+      throwIfAborted(perCall.signal);
       if (state.rateLimiter) {
         await state.rateLimiter.acquire(perCall.signal);
       }
-      perCall.signal?.throwIfAborted();
+      throwIfAborted(perCall.signal);
     } catch (error) {
       if (!perCall.signal?.aborted) throw error;
       throw new AbortedError('Request aborted by external signal', provider, url);
@@ -404,7 +411,7 @@ export class RequestClient {
       'AbortError'
     );
     const timeoutId = setTimeout(
-      () => timeoutController.abort(timeoutReason),
+      () => abortWithReason(timeoutController, timeoutReason),
       state.policy.timeout
     );
     // 三源合并：内部 timeout + per-call signal + client 级 signal 都能取消该请求
@@ -443,7 +450,7 @@ export class RequestClient {
     const startedAt = Date.now();
 
     try {
-      signal?.throwIfAborted();
+      throwIfAborted(signal);
       // R3-2:与 signal 的 abort race —— fetchImpl 不监听 signal 时超时/取消
       // 仍能解除挂起(详见 raceWithAbort);正常 fetch 行为不变
       const init: RequestInit = {
@@ -479,8 +486,11 @@ export class RequestClient {
             return await raceWithAbort(signal, resp.json());
           } catch (parseError) {
             // 读取 body 时的中断/网络错误不属于 JSON 语法错误。
-            if (!(parseError instanceof SyntaxError) ||
-                (signal?.aborted && parseError === signal.reason)) throw parseError;
+            const isSyntaxError = parseError instanceof SyntaxError ||
+              (Object.prototype.toString.call(parseError) === '[object Error]' &&
+                (parseError as Error).name === 'SyntaxError');
+            if (!isSyntaxError ||
+                (signal?.aborted && parseError === getAbortReason(signal))) throw parseError;
             throw new SdkError({
               code: 'PARSE_ERROR',
               message: `Failed to parse JSON response from ${url}`,
@@ -500,10 +510,12 @@ export class RequestClient {
       // 形状分类。优先按「reason 同一性」把错误溯源到具体 signal：
       const matchesReason = (s: AbortSignal | undefined): boolean => {
         if (!s?.aborted) return false;
-        if (error === s.reason) return true;
+        const reason = getAbortReason(s);
+        if (error === reason) return true;
         return (
           error instanceof Error &&
-          (error as { cause?: unknown }).cause === s.reason
+          reason !== undefined &&
+          (error as { cause?: unknown }).cause === reason
         );
       };
       // 内部超时命中 → 保持原错误（DOMException AbortError），由 normalizeRequestError

@@ -1,4 +1,4 @@
-import { raceWithAbort, sleepWithAbort } from './abort';
+import { raceWithAbort, sleepWithAbort, throwIfAborted } from './abort';
 
 /**
  * 请求速率限制器 - 基于令牌桶算法
@@ -84,7 +84,7 @@ export class RateLimiter {
    * 这是主要的调用入口
    */
   async acquire(signal?: AbortSignal): Promise<void> {
-    signal?.throwIfAborted();
+    throwIfAborted(signal);
     // 串行化并发 acquire：每个调用方排在前一个真正扣减令牌之后，再计算自己的等待时间。
     // 原实现里多个并发调用会读到同一个 getWaitTime、同时唤醒、一起扣减，
     // 造成"突发"放行且令牌被扣成负数（限流被瞬时击穿）。
@@ -99,12 +99,12 @@ export class RateLimiter {
 
     try {
       await raceWithAbort(signal, prev);
-      signal?.throwIfAborted();
+      throwIfAborted(signal);
       const waitTime = this.getWaitTime();
       if (waitTime > 0) {
         await sleepWithAbort(waitTime, signal);
       }
-      signal?.throwIfAborted();
+      throwIfAborted(signal);
       this.refill();
       this.tokens -= 1;
     } finally {
