@@ -66,7 +66,7 @@ console.log(sdk.getSourceHealth());
 
 > [!TIP] Strict Adjustment Protection & `overseas` Toggle
 > - K-line routes in `StockNodeSDK` default to `strictCapabilities: true`. Adjusted A-share daily, weekly, and monthly requests skip Sina. A-share 5- to 60-minute requests use Tencent and Sina fallbacks only when `adjust: ''`. Tencent history must contain the requested adjustment series or the backward-adjusted series used to calculate forward-adjusted prices.
-> - Tencent anchors forward-adjusted A-share history to the latest daily bar. In strict mode, CNBC serves daily requests with an explicit `startDate` covered by its chart.
+> - Tencent anchors forward-adjusted A-share history to the latest daily bar. In strict mode, CNBC and Nasdaq require an explicit `startDate` covered by their data. Nasdaq queries an extra week before the start to account for non-trading days and trims the result to the requested dates.
 > - Overseas sources (`CNBC` / `Nasdaq` / `SEC EDGAR`) are **enabled by default** at lower priority than domestic feeds (zero overhead on healthy paths, cross-region failover when domestic sources fail). For direct mainland China networks without a proxy, disable them anytime via `new StockNodeSDK({ overseas: false })` or CLI `--overseas=false`.
 
 `requiredFields` checks the adapter's declared fields and every returned record. Missing fields, `null`, blank strings, and non-finite numbers trigger failover. Zero is valid.

@@ -72,7 +72,7 @@ console.log(sdk.getSourceHealth());
 
 > [!TIP] 严格复权保护与海外源开关（`overseas`）
 > - `StockNodeSDK` 的 K 线路由默认使用 `strictCapabilities: true`。A 股复权日、周、月 K 线会跳过新浪。A 股 5 至 60 分钟 K 线仅在 `adjust: ''` 时启用腾讯和新浪备源。腾讯历史 K 线必须含有请求的复权序列，或用于计算前复权的后复权序列。
-> - A 股腾讯前复权以最新日线为锚点。严格模式下，CNBC 仅用于指定了 `startDate` 且图表覆盖该起始日的日线查询。
+> - A 股腾讯前复权以最新日线为锚点。严格模式下，CNBC 和 Nasdaq 仅用于指定了 `startDate` 且数据覆盖该起始日的日线查询。Nasdaq 会额外查询起始日前一周以处理非交易日，返回时按请求区间裁剪。
 > - 海外数据源包（`CNBC` / `Nasdaq` / `SEC EDGAR`）**默认开启**，且行情/K 线优先级排在国内源之后（平时毫秒级走国内源零开销，故障时提供跨区域容灾）。如果你在中国大陆无代理直连环境运行且不希望降级时尝试海外源，传入 `new StockNodeSDK({ overseas: false })` 或 CLI `--overseas=false` 即可一键关闭（仅保留大陆可直连源：腾讯 / 东财 / 新浪 / 巨潮 / 港交所披露易）。
 
 `requiredFields` 同时检查适配器声明和实际返回的每条记录。缺字段、`null`、空白字符串或非有限数值会触发切源。零值有效。

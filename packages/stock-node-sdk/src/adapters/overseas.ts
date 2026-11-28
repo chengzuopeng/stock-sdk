@@ -493,11 +493,14 @@ async function fetchNasdaqSingleQuote(
 
 async function fetchNasdaqUsKline(
   client: NodeHttpClient,
-  input: USHistoryKlineInput
+  input: USHistoryKlineInput,
+  strict: boolean
 ): Promise<USHistoryKline[]> {
   const code = normalizeSymbol(input.symbol, { market: 'US' }).code.toUpperCase();
   const end = toIsoDate(input.options.endDate) || todayInTz(MARKET_TZ.US);
   const start = toIsoDate(input.options.startDate) || '1970-01-01';
+  // 留出起始日前的交易日，用来验证周末或节假日开头的窗口。
+  const queryStart = strict ? addDays(start, -7) : start;
   const endpoint = `${NASDAQ_API_BASE}/quote/${encodeURIComponent(code)}/historical`;
   type NasdaqHistoryResponse = {
     data?: {
@@ -527,7 +530,7 @@ async function fetchNasdaqUsKline(
   for (let page = 0; page < NASDAQ_HISTORY_MAX_PAGES; page++) {
     const params = new URLSearchParams({
       assetclass: 'stocks',
-      fromdate: start,
+      fromdate: queryStart,
       todate: cursor,
       limit: String(NASDAQ_HISTORY_PAGE_SIZE),
     });
@@ -547,7 +550,7 @@ async function fetchNasdaqUsKline(
     let earliest = cursor;
     for (const row of rows) {
       const date = parseUsDate(row?.date);
-      if (!date || date < start || date > cursor || bars.has(date)) {
+      if (!date || date < queryStart || date > cursor || bars.has(date)) {
         throw new UpstreamError(`Nasdaq historical K-line page contains invalid or duplicate dates for ${code}`, 'nasdaq', url);
       }
       if (date < earliest) earliest = date;
@@ -563,12 +566,19 @@ async function fetchNasdaqUsKline(
 
     const moreReported = (pageTotal !== null && pageTotal > rows.length) ||
       (total !== null && total > bars.size);
-    if (rows.length === 0 || earliest <= start || (!moreReported && rows.length < NASDAQ_HISTORY_PAGE_SIZE)) {
+    if (rows.length === 0 || earliest <= queryStart || (!moreReported && rows.length < NASDAQ_HISTORY_PAGE_SIZE)) {
       if (moreReported) {
         throw new UpstreamError(`Nasdaq returned an incomplete historical K-line window for ${code}`, 'nasdaq', url);
       }
       const sorted = [...bars.values()].sort((a, b) => a.date.localeCompare(b.date));
-      return enrichForeignBars(sorted, code, MARKET_TZ.US).map((bar) => ({
+      if (strict && sorted.length === 0) {
+        throw new UpstreamEmptyError(`Nasdaq returned no historical K-lines for ${code}`, 'nasdaq', url);
+      }
+      if (strict && sorted[0].date > start) {
+        throw new UpstreamError(`Nasdaq historical K-lines do not cover the requested start date ${start}`, 'nasdaq', url);
+      }
+      const selected = sorted.filter((bar) => bar.date >= start);
+      return enrichForeignBars(selected, code, MARKET_TZ.US).map((bar) => ({
         ...bar,
         currency: 'USD' as const,
       }));
@@ -942,8 +952,9 @@ export function createOverseasAdapters(
     providedFields: new Set(['open', 'close', 'high', 'low', 'volume']),
     supports: (input) =>
       (input.options.period ?? 'daily') === 'daily' &&
-      (input.options.adjust ?? 'qfq') === 'qfq',
-    fetch: (input) => fetchNasdaqUsKline(client, input),
+      (input.options.adjust ?? 'qfq') === 'qfq' &&
+      Boolean(input.options.startDate),
+    fetch: (input, ctx) => fetchNasdaqUsKline(client, input, ctx.strictCapabilities !== false),
   };
 
   const usDividendNasdaq: SourceAdapter<{ symbol: string }, DividendDetail[]> = {

@@ -12,12 +12,13 @@ describe('Nasdaq 美股历史 K 线', () => {
       return { date, close: '$105', open: '$100', high: '$110', low: '$95', volume: '10,000' };
     });
     const requestedEnds: string[] = [];
+    const lookback = new Date(Date.parse(rows[509].date) - 7 * 86_400_000).toISOString().slice(0, 10);
     server.use(
       http.get(historical, ({ request }) => {
         const params = new URL(request.url).searchParams;
         const end = params.get('todate')!;
         requestedEnds.push(end);
-        expect(params.get('fromdate')).toBe(rows[509].date);
+        expect(params.get('fromdate')).toBe(lookback);
         const remaining = rows.filter((row) => row.date <= end);
         return HttpResponse.json({
           data: {
@@ -64,6 +65,22 @@ describe('Nasdaq 美股历史 K 线', () => {
     });
   });
 
+  it.each([
+    { totalRecords: 0, tradesTable: null, code: 'UPSTREAM_EMPTY' },
+    {
+      totalRecords: 1,
+      tradesTable: { rows: [{ date: '11/23/2022', close: '$135' }] },
+      code: 'UPSTREAM_ERROR',
+    },
+  ])('Nasdaq 不把未覆盖请求起点的历史窗口报告为成功', async ({ code, ...data }) => {
+    server.use(http.get(historical, () => HttpResponse.json({ data, status: { rCode: 200 } })));
+    const sdk = new StockNodeSDK({ retry: { maxRetries: 0 } });
+    await expect(sdk.kline.us('AAPL', {
+      startDate: '2019-01-01',
+      endDate: '2022-11-23',
+    }, { source: 'nasdaq' })).rejects.toMatchObject({ code });
+  });
+
   it('CNBC 无法覆盖请求起始日时让 Nasdaq 继续尝试', async () => {
     const called: string[] = [];
     server.use(
@@ -77,10 +94,11 @@ describe('Nasdaq 美股历史 K 线', () => {
         called.push('nasdaq');
         return HttpResponse.json({
           data: {
-            totalRecords: 2,
+            totalRecords: 3,
             tradesTable: { rows: [
               { date: '11/23/2022', close: '$135' },
               { date: '01/02/2015', close: '$26' },
+              { date: '12/31/2014', close: '$25' },
             ] },
           },
         });
@@ -98,13 +116,14 @@ describe('Nasdaq 美股历史 K 线', () => {
       provider: 'cnbc', status: 'failed', errorCode: 'UPSTREAM_ERROR',
     }));
 
-    const unbounded = await sdk.withMeta(() =>
-      sdk.kline.us('AAPL', { endDate: '2022-11-23' }, route)
-    );
-    expect(unbounded.trace?.attempts).toContainEqual(expect.objectContaining({
-      provider: 'cnbc', status: 'skipped', skipReason: 'unsupported_input',
-    }));
-    expect(called).toEqual(['cnbc', 'nasdaq', 'nasdaq']);
+    await expect(sdk.kline.us('AAPL', { endDate: '2022-11-23' }, route))
+      .rejects.toMatchObject({
+        code: 'INVALID_ARGUMENT',
+        details: { attempts: expect.arrayContaining(['cnbc', 'nasdaq'].map((provider) =>
+          expect.objectContaining({ provider, status: 'skipped', skipReason: 'unsupported_input' })
+        )) },
+      });
+    expect(called).toEqual(['cnbc', 'nasdaq']);
   });
 });
 
