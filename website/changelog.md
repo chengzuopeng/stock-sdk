@@ -8,7 +8,7 @@ pageClass: changelog-page
 
 ## v2.5.0（含 `stock-node-sdk v0.1.0-beta.1`）
 
-> 发布时间：待发布
+> 发布时间：2026-11-28（`stock-sdk`）。`stock-node-sdk v0.1.0-beta.1` 待发布。
 >
 > 🧪 **一仓双包 Monorepo 与 `stock-node-sdk` 首个公开 Beta**。基础包 `stock-sdk` 继续支持浏览器和 Node.js，运行时零依赖。`stock-node-sdk` 面向 Node.js 18.17+，提供多源容错。 [Node 增强版指南](/guide/node-sdk) · [Node 专属扩展 API](/api/node-extensions)
 
@@ -35,6 +35,7 @@ pageClass: changelog-page
 - **修复港股盘中实时行情 `timestamp` 为 `null`**：腾讯港股实时键 `r_hkXXXXX` 在连续交易时段返回斜杠分隔时间字符串（`'YYYY/MM/DD HH:mm:ss'`），现已归一解析出准确的毫秒级 `timestamp`。
 - **请求层与类型扩展**。`RequestClient` 支持 `post()` 和单次请求自定义 `headers`、`method`、`body`。`ProviderName` 扩展已知数据源，基础包行情的 `source` 仍可赋给 `ProviderName`。Node 路由行情支持扩展来源标识 `QuoteSource`。
 - **A 股腾讯前复权**。缩放因子锚定最新日线，同一个交易日的前复权价格可跨查询窗口比较。
+- **请求取消与 K 线降级**。修复取消信号在限流、重试和响应读取中的行为，以及东财 K 线异常时的备用源切换。
 - **文档站与演练场**：Playground 增加前端版 `stock-sdk` 浏览器运行范围提示与 `stock-node-sdk` 文档引导；新增 `/llms-node.txt` 供 AI 检索服务端增强契约。
 
 ## v2.4.7

@@ -8,7 +8,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 
 ## v2.5.0 (with `stock-node-sdk v0.1.0-beta.1`)
 
-> Release date pending
+> Released: 2026-11-28 (`stock-sdk`). `stock-node-sdk v0.1.0-beta.1` is pending.
 >
 > 🧪 **Monorepo and first public beta of `stock-node-sdk`**. The base `stock-sdk` package runs in browsers and Node.js with zero runtime dependencies. `stock-node-sdk` adds multi-source failover on Node.js 18.17+. [Node Enhanced Guide](/en/guide/node-sdk) · [Node Extensions API](/en/api/node-extensions)
 
@@ -35,6 +35,7 @@ This page records the release history of Stock SDK. v2.0.0 is an **architectural
 - **Fixed `null` `timestamp` on intraday HK live quotes**: Tencent's real-time HK quote key `r_hkXXXXX` returns slash-delimited wall times (`'YYYY/MM/DD HH:mm:ss'`) during continuous trading; `parseHKQuote` now normalizes separators so `timestamp` is populated accurately.
 - **Transport and type extensions**. `RequestClient` adds `post()` and per-request `headers`, `method`, and `body`. `ProviderName` includes more built-in providers. Quote sources in the base package remain assignable to `ProviderName`. Routed Node quotes accept custom `QuoteSource` identifiers.
 - **Tencent forward-adjusted A-share history**. The adjustment uses the latest daily bar as its anchor, keeping a trading day's adjusted price consistent across query windows.
+- **Request cancellation and K-line fallback**. Fixed cancellation during rate limiting, retries, and response reads, along with fallback after Eastmoney K-line failures.
 - **Docs & Playground**: added a browser-runtime `stock-sdk` scope notice with a link to `stock-node-sdk` in Playground, plus `/llms-node.txt` for AI tool consumption.
 
 ## v2.4.7
